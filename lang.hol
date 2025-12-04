@@ -43,5 +43,5 @@ end
     
 theorem overlay_zero : forall n, semant (Overlay n Empty) = semant n :=
   by 
-    SIMP_TAC [semant]
+    simp [semant]
 end
