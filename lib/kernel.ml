@@ -108,10 +108,90 @@ let rec type_of_term = function
       Ok (TyCon ("fun", [ ty; rty ]))
   | _ -> failwith "inv"
 
-let is_var = function (Var(_,_)) -> true | _ -> false
+let is_var = function Var (_, _) -> true | _ -> false
+let is_const = function Const (_, _) -> true | _ -> false
+let is_abs = function Lam (_, _) -> true | _ -> false
+let is_comb = function App (_, _) -> true | _ -> false
+let make_var (v, ty) = Var (v, ty)
 
-let is_const = function (Const(_,_)) -> true | _ -> false
+let make_const name theta =
+  let* uty =
+    get_const_term_type name
+    |> Option.to_result ~none:(`NotAConstantName (name, [%here]))
+  in
+  Ok (Const (name, type_substitution theta uty))
 
-let is_abs = function (Lam(_,_)) -> true | _ -> false
+let make_lam bvar body =
+  match bvar with
+  | Var (_, _) -> Ok (Lam (bvar, body))
+  | _ -> Error (`MakeLamNotAVariable (bvar, [%here]))
 
-let is_comb = function (App(_,_)) -> true | _ -> false
+let make_app f a =
+  let* fty = type_of_term f in
+  let* aty = type_of_term a in
+  match fty with
+  | TyCon ("fun", [ ty; _ ]) when compare ty aty = 0 -> Ok (App (f, a))
+  | _ -> Error (`MkAppTypesDontAgree (fty, aty, [%here]))
+
+let destruct_var = function
+  | Var (s, ty) -> Ok (s, ty)
+  | _ -> Error (`NotAVar [%here])
+
+let destruct_const = function
+  | Const (s, ty) -> Ok (s, ty)
+  | _ -> Error (`NotAConst [%here])
+
+let destruct_app = function
+  | App (f, x) -> Ok (f, x)
+  | _ -> Error (`NotAnApp [%here])
+
+let destruct_lam = function
+  | Lam (v, b) -> Ok (v, b)
+  | _ -> Error (`NotALam [%here])
+
+let rec frees = function
+  | Var (_, _) as tm -> [ tm ]
+  | Const (_, _) -> []
+  | Lam (bv, bod) ->
+      let body_frees = frees bod in
+      List.filter (( <> ) bv) body_frees
+  | App (s, t) ->
+      let t_frees = frees t in
+      let s_frees = frees s in
+      List.append s_frees t_frees |> List.sort_uniq compare
+
+let frees_in_list terms =
+  let rec aux acc = function [] -> acc | x :: xs -> aux (acc @ frees x) xs in
+  aux [] terms |> List.sort_uniq compare
+
+let rec all_frees_within acc = function
+  | Var (_, _) as tm -> List.mem tm acc
+  | Const (_, _) -> true
+  | Lam (bv, bod) -> all_frees_within (bv :: acc) bod
+  | App (s, t) -> all_frees_within acc s && all_frees_within acc t
+
+let rec var_free_in v tm =
+  match tm with
+  | Lam (bv, bod) -> v <> bv && var_free_in v bod
+  | App (s, t) -> var_free_in v s || var_free_in v t
+  | _ -> compare tm v = 0
+
+let rec type_vars_in_term tm =
+  match tm with
+  | Var (_, ty) -> Ok (type_vars ty)
+  | Const (_, ty) -> Ok (type_vars ty)
+  | App (s, t) ->
+      let* sty = type_vars_in_term s in
+      let* tty = type_vars_in_term t in
+      Ok (sty @ tty |> List.sort_uniq compare)
+  | Lam (Var (_, ty), t) ->
+      let* tty = type_vars_in_term t in
+      Ok (type_vars ty @ tty |> List.sort_uniq compare)
+  | Lam (_, _) -> Error (`UnexpectedLambdaForm [%here])
+
+
+  let rec variant avoid v =
+    if not(List.exists (var_free_in v) avoid) then Ok v else
+    match v with
+      Var(s,ty) -> variant avoid (Var(s^"'",ty))
+    | _ -> Error (`CantCreateVariantForNonVariable (v, [%here]))
