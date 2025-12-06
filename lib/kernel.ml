@@ -4,5 +4,114 @@ A HOL kernel, closely following the approach of HOL light.
 
 Where possible the code will follow a more modern OCaml approach.
 
- *)
+Explicit inductive definitions are the only kernel extension, in order to avoid lots of manual derivation
 
+*)
+
+type hol_type = TyVar of string | TyCon of string * hol_type list
+
+type term =
+  | Var of string * hol_type
+  | Const of string * hol_type
+  | App of term * term
+  | Lam of term * term
+
+type thm = Sequent of term list * term
+
+type inductive_def = {
+  name : string;
+  ty_params : string list;
+  constructors : string list;
+  induction : thm;
+  recursion : thm;
+  distinct : thm list;
+  injective : thm list;
+}
+
+let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
+let the_term_constants : (string, hol_type) Hashtbl.t = Hashtbl.create 512
+let the_inductives : (string, inductive_def list) Hashtbl.t = Hashtbl.create 512
+let the_axioms : thm list ref = ref []
+let the_definitions : thm list ref = ref []
+let bool_ty = TyCon ("bool", [])
+let aty = TyVar "A"
+
+let () =
+  Hashtbl.add the_term_constants "="
+    (TyCon ("fun", [ aty; TyCon ("fun", [ aty; bool_ty ]) ]))
+
+let get_type_arity typ = Hashtbl.find_opt the_type_constants typ
+
+(* add a type to the type constants table *)
+let new_type name arity =
+  match get_type_arity name with
+  | Some _ -> Error (`TypeAlreadyDeclared (name, [%here]))
+  | None -> Ok (Hashtbl.add the_type_constants name arity)
+
+(* for constructing types *)
+let make_type name args =
+  match Hashtbl.find_opt the_type_constants name with
+  | None -> Error (`TypeNotDeclared name)
+  | Some arity when arity = List.length args -> Ok (TyCon (name, args))
+  | Some other_arity ->
+      Error
+        (`WrongNumberOfTypeArgs
+           (Format.sprintf "%s: expected %i args, found %i" name
+              (List.length args) other_arity))
+
+let make_vartype name = TyVar name
+
+let destruct_type = function
+  | TyCon (s, ty) -> Ok (s, ty)
+  | TyVar name -> Error (`TypeVariableNotAConstructor (name, [%here]))
+
+let destruct_vartype = function
+  | TyCon (name, _) -> Error (`TypeConstructorNotAVariable (name, [%here]))
+  | TyVar name -> Ok name
+
+let is_type = function TyCon _ -> true | _ -> false
+let is_vartype = function TyVar _ -> true | _ -> false
+
+(*TODO: check equivalence *)
+let rec type_vars = function
+  | TyCon (_, args) ->
+      List.fold_left (fun acc a -> acc @ type_vars a) [] args
+      |> List.sort_uniq compare
+  | TyVar _ as tv -> [ tv ]
+
+let rec type_substitution type_consts typ =
+  match typ with
+  | TyCon (tycon, args) ->
+      let args' = List.map (type_substitution type_consts) args in
+      if args' == args then typ else TyCon (tycon, args')
+  | _ -> Hashtbl.find_opt type_consts typ |> Option.value ~default:typ
+
+let get_const_term_type name = Hashtbl.find_opt the_term_constants name
+
+let new_constant name typ =
+  match get_const_term_type name with
+  | Some name -> Error (`ConstantTermAlreadyDeclared (name, [%here]))
+  | None -> Ok (Hashtbl.add the_term_constants name typ)
+
+open Result.Syntax
+
+let rec type_of_term = function
+  | Var (_, ty) -> Ok ty
+  | Const (_, ty) -> Ok ty
+  | App (s, _) -> (
+      let* sty = type_of_term s in
+      match sty with
+      | TyCon ("fun", [ _dty; rty ]) -> Ok rty
+      | _ -> Error (`CantApplyNonFunctionType (s, [%here])))
+  | Lam (Var (_, ty), t) ->
+      let* rty = type_of_term t in
+      Ok (TyCon ("fun", [ ty; rty ]))
+  | _ -> failwith "inv"
+
+let is_var = function (Var(_,_)) -> true | _ -> false
+
+let is_const = function (Const(_,_)) -> true | _ -> false
+
+let is_abs = function (Lam(_,_)) -> true | _ -> false
+
+let is_comb = function (App(_,_)) -> true | _ -> false

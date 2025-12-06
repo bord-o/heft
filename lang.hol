@@ -12,30 +12,32 @@ type 'a algraph =
 def simple : nat -> nat := fn n => S n end
 
 def semant : 'a algraph -> (('a * 'a) set) * 'a set := 
-    fn a => case a of 
-    | Empty => (empty, empty)
-    | Vertex v => (empty, singleton v)
-    | Overlay x y =>
-        let 
-            val sx := semant x 
-            val sy := semant y 
-            val x_edges := fst sx
-            val x_verts := snd sx
-            val y_edges := fst sy
-            val y_verts := snd sy
-        in
-            ((union x_edges y_edges), (union x_verts y_verts))
-        end
-    | Connect x y =>
-        let 
-            val sx := semant x 
-            val sy := semant y 
-            val x_edges := fst sx
-            val x_verts := snd sx
-            val y_edges := fst sy
-            val y_verts := snd sy
-        in
-            ((union (union x_edges y_edges) (cart_prod x_verts y_verts)), (union x_verts y_verts))
+    let val nonsense := 9 in
+        fn a => case a of 
+        | Empty => (empty, empty)
+        | Vertex v => (empty, singleton v)
+        | Overlay x y =>
+            let 
+                val sx := semant x 
+                val sy := semant y 
+                val x_edges := fst sx
+                val x_verts := snd sx
+                val y_edges := fst sy
+                val y_verts := snd sy
+            in
+                ((union x_edges y_edges), (union x_verts y_verts))
+            end
+        | Connect x y =>
+            let 
+                val sx := semant x 
+                val sy := semant y 
+                val x_edges := fst sx
+                val x_verts := snd sx
+                val y_edges := fst sy
+                val y_verts := snd sy
+            in
+                ((union (union x_edges y_edges) (cart_prod x_verts y_verts)), (union x_verts y_verts))
+            end
         end
     end
 terminating

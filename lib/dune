@@ -1,2 +1,5 @@
 (library
- (name holinone))
+ (name holinone)
+ (libraries ppx_here)
+ (preprocess
+  (pps ppx_here)))
