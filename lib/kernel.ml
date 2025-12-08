@@ -374,4 +374,147 @@ let rec term_map f l =
       if h' == h && t' == t then l else term_union [ h' ] t'
   | [] -> l
 
+let destruct_thm (Sequent (asl, c)) = (asl, c)
+let hyp (Sequent (asl, _)) = asl
+let concl (Sequent (_, c)) = c
 
+let refl tm =
+  let* tm_eq = safe_make_eq tm tm in
+  Ok (Sequent ([], tm_eq))
+
+let trans (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
+  match (c1, c2) with
+  | App ((App (Const ("=", _), _) as eql), m1), App (App (Const ("=", _), m2), r)
+    when alphaorder m1 m2 = 0 ->
+      Ok (Sequent (term_union asl1 asl2, App (eql, r)))
+  | _ -> Error (`RuleTrans [%here])
+
+let mk_comb (Sequent (asl1, c1), Sequent (asl2, c2)) =
+  match (c1, c2) with
+  | App (App (Const ("=", _), l1), r1), App (App (Const ("=", _), l2), r2) -> (
+      let* tr1 = type_of_term r1 in
+      match tr1 with
+      | TyCon ("fun", [ ty; _ ]) ->
+          let* tr2 = type_of_term r2 in
+          if compare ty tr2 = 0 then
+            let* lr_eq = safe_make_eq (App (l1, l2)) (App (r1, r2)) in
+            Ok (Sequent (term_union asl1 asl2, lr_eq))
+          else Error (`TypesDontAgree [%here])
+      | _ -> Error (`TypesDontAgree [%here]))
+  | _ -> Error (`NotBothEquations [%here])
+
+let beta = function
+  | App (Lam (v, bod), arg) as tm when compare arg v = 0 ->
+      let* b = safe_make_eq tm bod in
+      Ok (Sequent ([], b))
+  | _ -> Error (`NotTrivialBetaRedex [%here])
+
+let assume tm =
+  let* tty = type_of_term tm in
+  if compare tty bool_ty = 0 then Ok (Sequent ([ tm ], tm))
+  else Error (`NotAProposition [%here])
+
+let eq_mp (Sequent (asl1, eq)) (Sequent (asl2, c)) =
+  match eq with
+  | App (App (Const ("=", _), l), r) when alphaorder l c = 0 ->
+      Ok (Sequent (term_union asl1 asl2, r))
+  | _ -> Error `Eq_MP
+
+let deduct_antisym_rule (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
+  let asl1' = term_remove c2 asl1 and asl2' = term_remove c1 asl2 in
+  let* cc_eq = safe_make_eq c1 c2 in
+  Ok (Sequent (term_union asl1' asl2', cc_eq))
+
+let inst_type theta (Sequent (asl, c)) =
+  let inst_fn = inst theta in
+  let* inst_asl =
+    List.fold_left
+      (fun acc a ->
+        match (acc, a) with
+        | Ok nacc, a ->
+            let* inst_a = inst_fn a in
+            Ok (inst_a :: nacc)
+        | e, _ -> e)
+      (Ok []) asl
+  in
+  let* inst_c = inst_fn c in
+  Ok (Sequent (inst_asl, inst_c))
+
+let inst theta (Sequent (asl, c)) =
+  let inst_fn = vsubst theta in
+  let* inst_asl =
+    List.fold_left
+      (fun acc a ->
+        match (acc, a) with
+        | Ok nacc, a ->
+            let* inst_a = inst_fn a in
+            Ok (inst_a :: nacc)
+        | e, _ -> e)
+      (Ok []) asl
+  in
+  let* inst_c = inst_fn c in
+  Ok (Sequent (inst_asl, inst_c))
+
+let the_axioms = ref ([] : thm list)
+let axioms () = !the_axioms
+let the_definitions = ref ([] : thm list)
+let definitions () = !the_definitions
+
+let subset l1 l2 =
+  l1 |> List.for_all @@ fun elem -> l2 |> List.exists (( = ) elem)
+
+let new_basic_definition tm =
+  match tm with
+  | App (App (Const ("=", _), Var (cname, ty)), r) ->
+      if not (all_frees_within [] r) then
+        failwith
+          ("new_definition: term not closed: "
+          ^ String.concat ", "
+              (List.map
+                 (fun a ->
+                   match a with Var (name, _) -> name | _ -> failwith "TODO")
+                 (frees r)))
+      else
+        let* r_tys = type_vars_in_term r in
+        if not (subset r_tys (type_vars ty)) then
+          failwith "new_definition: Type variables not reflected in constant"
+        else
+          let* () = new_constant cname ty in
+          let c = Const (cname, ty) in
+          let* cr_eq = safe_make_eq c r in
+          let dth = Sequent ([], cr_eq) in
+          the_definitions := dth :: !the_definitions;
+          Ok dth
+  | App (App (Const ("=", _), Const (cname, _ty)), _r) ->
+      Error (`NewBasicDefinitionAlreadyDefined (cname, [%here]))
+  | _ -> Error `NewBasicDefinition
+
+let new_basic_type_definition tyname (absname, repname) (Sequent (asl, c)) =
+  if
+    List.exists
+      (fun t -> get_const_term_type t |> Option.is_some)
+      [ absname; repname ]
+  then failwith "new_basic_type_definition: Constant(s) already in use"
+  else if not (asl = []) then
+    failwith "new_basic_type_definition: Assumptions in theorem"
+  else
+    let* p, x = destruct_app c in
+    if not (all_frees_within [] p) then
+      failwith "new_basic_type_definition: Predicate is not closed"
+    else
+      let* p_tyvars = type_vars_in_term p in
+      let tyvars = List.sort compare p_tyvars in
+      let* () = new_type tyname (List.length tyvars) in
+      let aty = TyCon (tyname, tyvars) in
+      let* rty = type_of_term x in
+      let absty = TyCon ("fun", [ rty; aty ])
+      and repty = TyCon ("fun", [ aty; rty ]) in
+      let* () = new_constant absname absty in
+      let abs = Const (absname, absty) in
+      let* () = new_constant repname repty in
+      let rep = Const (repname, repty) in
+      let a = Var ("a", aty) and r = Var ("r", rty) in
+      let* eq1 = safe_make_eq (App (abs, App (rep, a))) a
+      and* inner_eq = safe_make_eq (App (rep, App (abs, r))) r in
+      let* eq2 = safe_make_eq (App (p, r)) inner_eq in
+      Ok (Sequent ([], eq1), Sequent ([], eq2))
