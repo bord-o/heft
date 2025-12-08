@@ -18,15 +18,20 @@ type term =
 
 type thm = Sequent of term list * term
 
-type inductive_def = {
+type constructor_spec = {
   name : string;
-  ty_params : string list;
-  constructors : string list;
+  arg_types : hol_type list;
+}
+
+type inductive_def = {
+  ty : hol_type;
+  constructors : (string * term) list;  (* name, constant *)
   induction : thm;
   recursion : thm;
   distinct : thm list;
   injective : thm list;
 }
+
 
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
 let the_term_constants : (string, hol_type) Hashtbl.t = Hashtbl.create 512
@@ -518,3 +523,19 @@ let new_basic_type_definition tyname (absname, repname) (Sequent (asl, c)) =
       and* inner_eq = safe_make_eq (App (rep, App (abs, r))) r in
       let* eq2 = safe_make_eq (App (p, r)) inner_eq in
       Ok (Sequent ([], eq1), Sequent ([], eq2))
+
+(*Inductive defs
+let define_inductive tyname params constructors =
+  (* 1. Check type doesn't already exist *)
+  (* 2. Check constructor names are fresh *)
+  (* 3. Check at least one base case (non-recursive constructor) *)
+  (* 4. Check strict positivity *)
+*)
+
+let define_inductive tyname params (constructors : constructor_spec list) =
+  (* fresh type? *)
+  let* () = new_type tyname (List.length params) in
+  (* fresh constructors? *)
+  let fresh_constructor = constructors |> List.map (fun c -> c.name) |> List.for_all (fun c_name -> Hashtbl.mem the_term_constants c_name) in
+  if not fresh_constructor then Error `NotFreshConstructor else Ok ()
+  
