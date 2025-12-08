@@ -9,35 +9,36 @@ Explicit inductive definitions are the only kernel extension, in order to avoid 
 *)
 
 type hol_type = TyVar of string | TyCon of string * hol_type list
+[@@deriving show]
 
 type term =
   | Var of string * hol_type
   | Const of string * hol_type
   | App of term * term
   | Lam of term * term
+[@@deriving show]
 
 type thm = Sequent of term list * term
+[@@deriving show]
 
-type constructor_spec = {
-  name : string;
-  arg_types : hol_type list;
-}
+type constructor_spec = { name : string; arg_types : hol_type list }
+[@@deriving show]
 
 type inductive_def = {
   ty : hol_type;
-  constructors : (string * term) list;  (* name, constant *)
+  constructors : (string * term) list; (* name, constant *)
   induction : thm;
   recursion : thm;
   distinct : thm list;
   injective : thm list;
 }
-
+[@@deriving show]
 
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
 let the_term_constants : (string, hol_type) Hashtbl.t = Hashtbl.create 512
 let the_inductives : (string, inductive_def list) Hashtbl.t = Hashtbl.create 512
-let the_axioms : thm list ref = ref []
-let the_definitions : thm list ref = ref []
+let _the_axioms : thm list ref = ref []
+let _the_definitions : thm list ref = ref []
 let bool_ty = TyCon ("bool", [])
 let aty = TyVar "A"
 
@@ -136,7 +137,7 @@ let make_app f a =
   let* aty = type_of_term a in
   match fty with
   | TyCon ("fun", [ ty; _ ]) when compare ty aty = 0 -> Ok (App (f, a))
-  | _ -> Error (`MkAppTypesDontAgree (fty, aty, [%here]))
+  | _ -> Error (`MakeAppTypesDontAgree (fty, aty, [%here]))
 
 let destruct_var = function
   | Var (s, ty) -> Ok (s, ty)
@@ -394,7 +395,7 @@ let trans (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
       Ok (Sequent (term_union asl1 asl2, App (eql, r)))
   | _ -> Error (`RuleTrans [%here])
 
-let mk_comb (Sequent (asl1, c1), Sequent (asl2, c2)) =
+let mk_comb (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
   match (c1, c2) with
   | App (App (Const ("=", _), l1), r1), App (App (Const ("=", _), l2), r2) -> (
       let* tr1 = type_of_term r1 in
@@ -407,6 +408,14 @@ let mk_comb (Sequent (asl1, c1), Sequent (asl2, c2)) =
           else Error (`TypesDontAgree [%here])
       | _ -> Error (`TypesDontAgree [%here]))
   | _ -> Error (`NotBothEquations [%here])
+
+let lam v (Sequent (asl, c)) =
+  match (v, c) with
+  | Var (_, _), App (App (Const ("=", _), l), r)
+    when not (List.exists (var_free_in v) asl) ->
+      let* lr_eq = safe_make_eq (Lam (v, l)) (Lam (v, r)) in
+      Ok (Sequent (asl, lr_eq))
+  | _ -> Error (`LamRuleCantApply [%here])
 
 let beta = function
   | App (Lam (v, bod), arg) as tm when compare arg v = 0 ->
@@ -536,6 +545,9 @@ let define_inductive tyname params (constructors : constructor_spec list) =
   (* fresh type? *)
   let* () = new_type tyname (List.length params) in
   (* fresh constructors? *)
-  let fresh_constructor = constructors |> List.map (fun c -> c.name) |> List.for_all (fun c_name -> Hashtbl.mem the_term_constants c_name) in
+  let fresh_constructor =
+    constructors
+    |> List.map (fun c -> c.name)
+    |> List.for_all (fun c_name -> Hashtbl.mem the_term_constants c_name)
+  in
   if not fresh_constructor then Error `NotFreshConstructor else Ok ()
-  
