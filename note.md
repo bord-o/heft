@@ -69,7 +69,10 @@ quote
 ### Tree
 
 ```ocaml
-
-
-
+(*tbd*)
 ```
+### TODOs
+- Write printer for theorems
+    - Print hol type
+    - Print hol term
+    - Print sequent  

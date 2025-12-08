@@ -1,4 +1,5 @@
 open Kernel
+open Result.Syntax
 
 let p = Var ("P", bool_ty)
 let q = Var ("Q", bool_ty)
@@ -7,12 +8,20 @@ let f = Var ("f", TyCon ("fun", [ bool_ty; bool_ty ]))
 let g = Var ("g", TyCon ("fun", [ bool_ty; bool_ty ]))
 let print_term = Fun.compose print_endline show_term
 let print_thm = Fun.compose print_endline show_thm
+let print_types = ref false
 
 let print_thm_result =
-  Format.pp_print_result ~ok:pp_thm ~error:pp_kernel_error Format.std_formatter
+  Format.pp_print_result
+    ~ok:(fun fmt thm ->
+      Format.pp_print_string fmt (pretty_print_thm ~with_type:!print_types thm))
+    ~error:pp_kernel_error Format.std_formatter
 
 let print_term_result =
-  Format.pp_print_result ~ok:pp_term ~error:pp_kernel_error Format.std_formatter
+  Format.pp_print_result
+    ~ok:(fun fmt term ->
+      Format.pp_print_string fmt
+        (pretty_print_hol_term ~with_type:!print_types term))
+    ~error:pp_kernel_error Format.std_formatter
 
 (* Template
 let%expect_test "" =
@@ -27,32 +36,23 @@ let%expect_test "assume_simple" =
   print_thm_result thm1;
   [%expect
     {|
-      (Sequent ([(Var ("P", (TyCon ("bool", []))))],
-         (Var ("P", (TyCon ("bool", []))))))
-      |}]
+    P
+
+    ================================
+
+    P
+    |}]
 
 let%expect_test "refl_simple" =
   let thm1 = refl p in
   print_thm_result thm1;
   [%expect
     {|
-      (Sequent ([],
-         (App (
-            (App (
-               (Const ("=",
-                  (TyCon ("fun",
-                     [(TyCon ("bool", []));
-                       (TyCon ("fun", [(TyCon ("bool", [])); (TyCon ("bool", []))]
-                          ))
-                       ]
-                     ))
-                  )),
-               (Var ("P", (TyCon ("bool", [])))))),
-            (Var ("P", (TyCon ("bool", []))))))
-         ))
-      |}]
+    ================================
 
-open Result.Syntax
+    P = P
+    |}]
+
 
 let%expect_test "trans_simple" =
   let thm3 =
@@ -65,43 +65,10 @@ let%expect_test "trans_simple" =
   print_thm_result thm3;
   [%expect
     {|
-      (Sequent (
-         [(App (
-             (App (
-                (Const ("=",
-                   (TyCon ("fun",
-                      [(TyCon ("bool", []));
-                        (TyCon ("fun", [(TyCon ("bool", [])); (TyCon ("bool", []))]
-                           ))
-                        ]
-                      ))
-                   )),
-                (Var ("P", (TyCon ("bool", [])))))),
-             (Var ("Q", (TyCon ("bool", []))))));
-           (App (
-              (App (
-                 (Const ("=",
-                    (TyCon ("fun",
-                       [(TyCon ("bool", []));
-                         (TyCon ("fun",
-                            [(TyCon ("bool", [])); (TyCon ("bool", []))]))
-                         ]
-                       ))
-                    )),
-                 (Var ("Q", (TyCon ("bool", [])))))),
-              (Var ("R", (TyCon ("bool", []))))))
-           ],
-         (App (
-            (App (
-               (Const ("=",
-                  (TyCon ("fun",
-                     [(TyCon ("bool", []));
-                       (TyCon ("fun", [(TyCon ("bool", [])); (TyCon ("bool", []))]
-                          ))
-                       ]
-                     ))
-                  )),
-               (Var ("P", (TyCon ("bool", [])))))),
-            (Var ("R", (TyCon ("bool", []))))))
-         ))
-      |}]
+    P = Q
+    Q = R
+
+    ================================
+
+    P = R
+    |}]
