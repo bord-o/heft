@@ -9,20 +9,19 @@ Explicit inductive definitions are the only kernel extension, in order to avoid 
 *)
 
 type hol_type = TyVar of string | TyCon of string * hol_type list
-[@@deriving show {with_path=false}]
+[@@deriving show { with_path = false }]
 
 type term =
   | Var of string * hol_type
   | Const of string * hol_type
   | App of term * term
   | Lam of term * term
-  [@@deriving show {with_path=false}]
+[@@deriving show { with_path = false }]
 
-type thm = Sequent of term list * term
-[@@deriving show {with_path=false}]
+type thm = Sequent of term list * term [@@deriving show { with_path = false }]
 
 type constructor_spec = { name : string; arg_types : hol_type list }
-[@@deriving show {with_path=false}]
+[@@deriving show { with_path = false }]
 
 type inductive_def = {
   ty : hol_type;
@@ -32,37 +31,46 @@ type inductive_def = {
   distinct : thm list;
   injective : thm list;
 }
-[@@deriving show {with_path=false}]
+[@@deriving show { with_path = false }]
 
 type kernel_error =
-  | TypeAlreadyDeclared of string * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | TypeAlreadyDeclared of
+      string * (Lexing.position[@printer fun _fmt _pos -> ()])
   | TypeNotDeclared of string
   | WrongNumberOfTypeArgs of string
-  | TypeVariableNotAConstructor of string * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | TypeConstructorNotAVariable of string * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | ConstantTermAlreadyDeclared of string * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | CantApplyNonFunctionType of term * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotAConstantName of string * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | MakeLamNotAVariable of term * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | MakeAppTypesDontAgree of hol_type * hol_type * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotAVar of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotAConst of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotAnApp of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotALam of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | UnexpectedLambdaForm of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | CantCreateVariantForNonVariable of term * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | BadSubstitutionList of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | Clash of term * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotAnApplication of term * (Lexing.position [@printer fun _fmt _pos -> ()])
-  | CantDestructEquality of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | RuleTrans of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | TypesDontAgree of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotBothEquations of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | LamRuleCantApply of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotTrivialBetaRedex of (Lexing.position [@printer fun _fmt _pos -> ()])
-  | NotAProposition of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | TypeVariableNotAConstructor of
+      string * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | TypeConstructorNotAVariable of
+      string * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | ConstantTermAlreadyDeclared of
+      string * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | CantApplyNonFunctionType of
+      term * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotAConstantName of string * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | MakeLamNotAVariable of
+      term * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | MakeAppTypesDontAgree of
+      hol_type * hol_type * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotAVar of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotAConst of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotAnApp of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotALam of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | UnexpectedLambdaForm of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | CantCreateVariantForNonVariable of
+      term * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | BadSubstitutionList of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | Clash of term * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotAnApplication of term * (Lexing.position[@printer fun _fmt _pos -> ()])
+  | CantDestructEquality of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | RuleTrans of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | TypesDontAgree of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotBothEquations of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | LamRuleCantApply of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotTrivialBetaRedex of (Lexing.position[@printer fun _fmt _pos -> ()])
+  | NotAProposition of (Lexing.position[@printer fun _fmt _pos -> ()])
   | Eq_MP
-  | NewBasicDefinitionAlreadyDefined of string * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NewBasicDefinitionAlreadyDefined of
+      string * (Lexing.position[@printer fun _fmt _pos -> ()])
   | NewBasicDefinition
   | NotFreshConstructor
   | InvariantViolation of string
@@ -70,7 +78,7 @@ type kernel_error =
   | NameMappingError of string
   | DefinitionError of string
   | TypeDefinitionError of string
-  [@@deriving show { with_path = false } ]
+[@@deriving show { with_path = false }]
 
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
 let the_term_constants : (string, hol_type) Hashtbl.t = Hashtbl.create 512
@@ -519,17 +527,20 @@ let new_basic_definition tm =
   match tm with
   | App (App (Const ("=", _), Var (cname, ty)), r) ->
       if not (all_frees_within [] r) then
-        Error (DefinitionError
-          ("new_definition: term not closed: "
-          ^ String.concat ", "
-              (List.map
-                 (fun a ->
-                   match a with Var (name, _) -> name | _ -> "<non-var>")
-                 (frees r))))
+        Error
+          (DefinitionError
+             ("new_definition: term not closed: "
+             ^ String.concat ", "
+                 (List.map
+                    (fun a ->
+                      match a with Var (name, _) -> name | _ -> "<non-var>")
+                    (frees r))))
       else
         let* r_tys = type_vars_in_term r in
         if not (subset r_tys (type_vars ty)) then
-          Error (DefinitionError "new_definition: Type variables not reflected in constant")
+          Error
+            (DefinitionError
+               "new_definition: Type variables not reflected in constant")
         else
           let* () = new_constant cname ty in
           let c = Const (cname, ty) in
@@ -546,13 +557,19 @@ let new_basic_type_definition tyname (absname, repname) (Sequent (asl, c)) =
     List.exists
       (fun t -> get_const_term_type t |> Option.is_some)
       [ absname; repname ]
-  then Error (TypeDefinitionError "new_basic_type_definition: Constant(s) already in use")
+  then
+    Error
+      (TypeDefinitionError
+         "new_basic_type_definition: Constant(s) already in use")
   else if not (asl = []) then
-    Error (TypeDefinitionError "new_basic_type_definition: Assumptions in theorem")
+    Error
+      (TypeDefinitionError "new_basic_type_definition: Assumptions in theorem")
   else
     let* p, x = destruct_app c in
     if not (all_frees_within [] p) then
-      Error (TypeDefinitionError "new_basic_type_definition: Predicate is not closed")
+      Error
+        (TypeDefinitionError
+           "new_basic_type_definition: Predicate is not closed")
     else
       let* p_tyvars = type_vars_in_term p in
       let tyvars = List.sort compare p_tyvars in
