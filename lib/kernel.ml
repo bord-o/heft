@@ -196,113 +196,101 @@ let rec variant avoid v =
     | Var (s, ty) -> variant avoid (Var (s ^ "'", ty))
     | _ -> Error (`CantCreateVariantForNonVariable (v, [%here]))
 
-let (vsubst : (term * term) list ->
-term ->
-(term,
- [> `BadSubstitutionList of Lexing.position
-  | `CantCreateVariantForNonVariable of term * Lexing.position ])
-result) =
-  let rec vsubst ilist tm =
-    match tm with
-    | Var (_, _) ->
-        Ok
-          (ilist
-          |> List.map (fun (a, b) -> (b, a))
-          |> List.assoc_opt tm |> Option.value ~default:tm)
-    | Const (_, _) -> Ok tm
-    | App (s, t) ->
-        let* s' = vsubst ilist s and* t' = vsubst ilist t in
-        if s' == s && t' == t then Ok tm else Ok (App (s', t'))
-    | Lam (v, s) ->
-        let ilist' = List.filter (fun (t, x) -> x <> v) ilist in
-        if ilist' = [] then Ok tm
+(* Helpers *)
+let rev_assoc_default key alist ~default =
+  let flipped = List.map (fun (a, b) -> (b, a)) alist in
+  List.assoc_opt key flipped |> Option.value ~default
+
+let is_valid_subst_pair (replacement, target) =
+  match target with
+  | Var (_, target_ty) -> (
+      match type_of_term replacement with
+      | Ok replacement_ty -> compare replacement_ty target_ty = 0
+      | Error _ -> false)
+  | _ -> false
+
+let is_valid_substitution theta = List.for_all is_valid_subst_pair theta
+
+let map_results f lst =
+  List.fold_right
+    (fun x acc ->
+      match (acc, f x) with
+      | Ok xs, Ok x' -> Ok (x' :: xs)
+      | Error e, _ -> Error e
+      | _, Error e -> Error e)
+    lst (Ok [])
+
+(* Variable substitution *)
+let rec vsubst theta tm =
+  let rec aux subst_list term =
+    match term with
+    | Var _ -> Ok (rev_assoc_default term subst_list ~default:term)
+    | Const _ -> Ok term
+    | App (func, arg) ->
+        let* func' = aux subst_list func and* arg' = aux subst_list arg in
+        if func' == func && arg' == arg then Ok term else Ok (App (func', arg'))
+    | Lam (bound_var, body) ->
+        let subst_list' =
+          List.filter (fun (_, target) -> target <> bound_var) subst_list
+        in
+        if subst_list' = [] then Ok term
         else
-          let* s' = vsubst ilist' s in
-          if s' == s then Ok tm
-          else if
-            List.exists
-              (fun (t, x) -> var_free_in v t && var_free_in x s)
-              ilist'
-          then
-            let* v' = variant [ s' ] v in
-            let* substitued = vsubst ((v', v) :: ilist') s in
-
-            Ok (Lam (v', substitued))
-          else Ok (Lam (v, s'))
+          let* body' = aux subst_list' body in
+          if body' == body then Ok term
+          else if needs_renaming bound_var body subst_list' then
+            let* renamed_var = variant [ body' ] bound_var in
+            let* renamed_body =
+              aux ((renamed_var, bound_var) :: subst_list') body
+            in
+            Ok (Lam (renamed_var, renamed_body))
+          else Ok (Lam (bound_var, body'))
   in
-  fun theta ->
-    if theta = [] then fun tm -> Ok tm
-    else if
-      let univ arg =
-        Result.value
-          ((function
-             | t, Var (_, y) ->
-                 let* tty = type_of_term t in
-                 Ok (compare tty y = 0)
-             | _ -> Ok false)
-             arg)
-          ~default:false
-      in
-      List.for_all univ theta
-    then vsubst theta
-    else fun _ -> Error (`BadSubstitutionList [%here])
+  if theta = [] then Ok tm
+  else if is_valid_substitution theta then aux theta tm
+  else Error (`BadSubstitutionList [%here])
 
-let (inst : (hol_type, hol_type) Hashtbl.t ->
-term ->
-(term,
- [> `Bad
-  | `BadSubstitutionList of Lexing.position
-  | `CantCreateVariantForNonVariable of term * Lexing.position
-  | `Clash of term * Lexing.position
-  | `NotAVar of Lexing.position ])
-result) =
-  let rec inst env tyin tm =
-    match tm with
-    | Var (n, ty) ->
+and needs_renaming bound_var body subst_list =
+  List.exists
+    (fun (replacement, target) ->
+      var_free_in bound_var replacement && var_free_in target body)
+    subst_list
+
+(* Type instantiation *)
+let inst tyin tm =
+  let rec go env term =
+    match term with
+    | Var (name, ty) ->
         let ty' = type_substitution tyin ty in
-        let tm' = if ty' == ty then tm else Var (n, ty') in
-        if
-          compare
-            (env
-            |> List.map (fun (a, b) -> (b, a))
-            |> List.assoc_opt tm |> Option.value ~default:tm)
-            tm
-          = 0
-        then Ok tm'
-        else Error (`Clash (tm', [%here]))
-    | Const (c, ty) ->
+        let term' = if ty' == ty then term else Var (name, ty') in
+        let lookup_result = rev_assoc_default term' env ~default:term in
+        if compare lookup_result term = 0 then Ok term'
+        else Error (`Clash (term', [%here]))
+    | Const (name, ty) ->
         let ty' = type_substitution tyin ty in
-        if ty' == ty then Ok tm else Ok (Const (c, ty'))
-    | App (f, x) ->
-        let* f' = inst env tyin f and* x' = inst env tyin x in
-        if f' == f && x' == x then Ok tm else Ok (App (f', x'))
-    | Lam (y, t) -> (
-        let* y' = inst [] tyin y in
-        let env' = (y, y') :: env in
-        match inst env' tyin t with
-        | Ok t' ->
-            let* t' = inst env' tyin t in
-            if y' == y && t' == t then Ok tm else Ok (Lam (y', t'))
-        | Error (`Clash (w', _)) as err ->
-            if w' <> y' then err
-            else
-              let* ifrees =
-                List.fold_left
-                  (fun acc a ->
-                    match (acc, inst [] tyin a) with
-                    | Ok nacc, Ok na -> Ok (na :: nacc)
-                    | _ -> Error `Bad)
-                  (Ok []) (frees t)
-              in
-              let* y'' = variant ifrees y' in
-              let* dyy = destruct_var y'' in
-              let* dy = destruct_var y in
-              let z = Var (fst dyy, snd dy) in
-              let* subst = vsubst [ (z, y) ] t in
-              inst env tyin (Lam (z, subst))
+        if ty' == ty then Ok term else Ok (Const (name, ty'))
+    | App (func, arg) ->
+        let* func' = go env func and* arg' = go env arg in
+        if func' == func && arg' == arg then Ok term else Ok (App (func', arg'))
+    | Lam (bound_var, body) -> (
+        let* bound_var' = go [] bound_var in
+        let env' = (bound_var, bound_var') :: env in
+        match go env' body with
+        | Ok body' ->
+            if bound_var' == bound_var && body' == body then Ok term
+            else Ok (Lam (bound_var', body'))
+        | Error (`Clash (clashing_var, _)) when clashing_var = bound_var' ->
+            handle_lam_clash env bound_var bound_var' body
         | Error e -> Error e)
+  and handle_lam_clash env original_var instantiated_var body =
+    let* free_vars_instantiated = map_results (go []) (frees body) in
+    let* renamed_var = variant free_vars_instantiated instantiated_var in
+    let* renamed_name, _ = destruct_var renamed_var in
+    let* _, original_ty = destruct_var original_var in
+    let fresh_var = Var (renamed_name, original_ty) in
+    let* substituted_body = vsubst [ (fresh_var, original_var) ] body in
+    go env (Lam (fresh_var, substituted_body))
   in
-  fun tyin -> if Hashtbl.length tyin = 0 then fun tm -> Ok tm else inst [] tyin
+  if Hashtbl.length tyin = 0 then Ok tm else go [] tm
 
 let rator tm =
   match tm with
