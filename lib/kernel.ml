@@ -189,9 +189,141 @@ let rec type_vars_in_term tm =
       Ok (type_vars ty @ tty |> List.sort_uniq compare)
   | Lam (_, _) -> Error (`UnexpectedLambdaForm [%here])
 
-
-  let rec variant avoid v =
-    if not(List.exists (var_free_in v) avoid) then Ok v else
+let rec variant avoid v =
+  if not (List.exists (var_free_in v) avoid) then Ok v
+  else
     match v with
-      Var(s,ty) -> variant avoid (Var(s^"'",ty))
+    | Var (s, ty) -> variant avoid (Var (s ^ "'", ty))
     | _ -> Error (`CantCreateVariantForNonVariable (v, [%here]))
+
+let (vsubst : (term * term) list ->
+term ->
+(term,
+ [> `BadSubstitutionList of Lexing.position
+  | `CantCreateVariantForNonVariable of term * Lexing.position ])
+result) =
+  let rec vsubst ilist tm =
+    match tm with
+    | Var (_, _) ->
+        Ok
+          (ilist
+          |> List.map (fun (a, b) -> (b, a))
+          |> List.assoc_opt tm |> Option.value ~default:tm)
+    | Const (_, _) -> Ok tm
+    | App (s, t) ->
+        let* s' = vsubst ilist s and* t' = vsubst ilist t in
+        if s' == s && t' == t then Ok tm else Ok (App (s', t'))
+    | Lam (v, s) ->
+        let ilist' = List.filter (fun (t, x) -> x <> v) ilist in
+        if ilist' = [] then Ok tm
+        else
+          let* s' = vsubst ilist' s in
+          if s' == s then Ok tm
+          else if
+            List.exists
+              (fun (t, x) -> var_free_in v t && var_free_in x s)
+              ilist'
+          then
+            let* v' = variant [ s' ] v in
+            let* substitued = vsubst ((v', v) :: ilist') s in
+
+            Ok (Lam (v', substitued))
+          else Ok (Lam (v, s'))
+  in
+  fun theta ->
+    if theta = [] then fun tm -> Ok tm
+    else if
+      let univ arg =
+        Result.value
+          ((function
+             | t, Var (_, y) ->
+                 let* tty = type_of_term t in
+                 Ok (compare tty y = 0)
+             | _ -> Ok false)
+             arg)
+          ~default:false
+      in
+      List.for_all univ theta
+    then vsubst theta
+    else fun _ -> Error (`BadSubstitutionList [%here])
+
+let (inst : (hol_type, hol_type) Hashtbl.t ->
+term ->
+(term,
+ [> `Bad
+  | `BadSubstitutionList of Lexing.position
+  | `CantCreateVariantForNonVariable of term * Lexing.position
+  | `Clash of term * Lexing.position
+  | `NotAVar of Lexing.position ])
+result) =
+  let rec inst env tyin tm =
+    match tm with
+    | Var (n, ty) ->
+        let ty' = type_substitution tyin ty in
+        let tm' = if ty' == ty then tm else Var (n, ty') in
+        if
+          compare
+            (env
+            |> List.map (fun (a, b) -> (b, a))
+            |> List.assoc_opt tm |> Option.value ~default:tm)
+            tm
+          = 0
+        then Ok tm'
+        else Error (`Clash (tm', [%here]))
+    | Const (c, ty) ->
+        let ty' = type_substitution tyin ty in
+        if ty' == ty then Ok tm else Ok (Const (c, ty'))
+    | App (f, x) ->
+        let* f' = inst env tyin f and* x' = inst env tyin x in
+        if f' == f && x' == x then Ok tm else Ok (App (f', x'))
+    | Lam (y, t) -> (
+        let* y' = inst [] tyin y in
+        let env' = (y, y') :: env in
+        match inst env' tyin t with
+        | Ok t' ->
+            let* t' = inst env' tyin t in
+            if y' == y && t' == t then Ok tm else Ok (Lam (y', t'))
+        | Error (`Clash (w', _)) as err ->
+            if w' <> y' then err
+            else
+              let* ifrees =
+                List.fold_left
+                  (fun acc a ->
+                    match (acc, inst [] tyin a) with
+                    | Ok nacc, Ok na -> Ok (na :: nacc)
+                    | _ -> Error `Bad)
+                  (Ok []) (frees t)
+              in
+              let* y'' = variant ifrees y' in
+              let* dyy = destruct_var y'' in
+              let* dy = destruct_var y in
+              let z = Var (fst dyy, snd dy) in
+              let* subst = vsubst [ (z, y) ] t in
+              inst env tyin (Lam (z, subst))
+        | Error e -> Error e)
+  in
+  fun tyin -> if Hashtbl.length tyin = 0 then fun tm -> Ok tm else inst [] tyin
+
+let rator tm =
+  match tm with
+  | App (l, _) -> Ok l
+  | _ -> Error (`NotAnApplication (tm, [%here]))
+
+let rand tm =
+  match tm with
+  | App (_, r) -> Ok r
+  | _ -> Error (`NotAnApplication (tm, [%here]))
+
+let safe_make_eq l r =
+  let* ty = type_of_term l in
+  Ok
+    (App
+       ( App
+           ( Const ("=", TyCon ("fun", [ ty; TyCon ("fun", [ ty; bool_ty ]) ])),
+             l ),
+         r ))
+
+let destruct_eq tm =
+  match tm with
+  | App (App (Const ("=", _), l), r) -> Ok (l, r)
+  | _ -> Error (`CantDestructEquality [%here])
