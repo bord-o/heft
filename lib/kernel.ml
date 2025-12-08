@@ -315,3 +315,63 @@ let destruct_eq tm =
   match tm with
   | App (App (Const ("=", _), l), r) -> Ok (l, r)
   | _ -> Error (`CantDestructEquality [%here])
+
+let rec alpha_compare_var env x1 x2 =
+  match env with
+  | [] -> compare x1 x2
+  | (t1, t2) :: oenv ->
+      if compare x1 t1 = 0 then if compare x2 t2 = 0 then 0 else -1
+      else if compare x2 t2 = 0 then 1
+      else alpha_compare_var oenv x1 x2
+
+let rec alpha_compare env tm1 tm2 =
+  if tm1 == tm2 && List.for_all (fun (x, y) -> x = y) env then 0
+  else
+    match (tm1, tm2) with
+    | Var (_x1, _ty1), Var (_x2, _ty2) -> alpha_compare_var env tm1 tm2
+    | Const (_x1, _ty1), Const (_x2, _ty2) -> compare tm1 tm2
+    | App (s1, t1), App (s2, t2) ->
+        let c = alpha_compare env s1 s2 in
+        if c <> 0 then c else alpha_compare env t1 t2
+    | Lam ((Var (_, ty1) as x1), t1), Lam ((Var (_, ty2) as x2), t2) ->
+        let c = compare ty1 ty2 in
+        if c <> 0 then c else alpha_compare ((x1, x2) :: env) t1 t2
+    | Const (_, _), _ -> -1
+    | _, Const (_, _) -> 1
+    | Var (_, _), _ -> -1
+    | _, Var (_, _) -> 1
+    | App (_, _), _ -> -1
+    | _, App (_, _) -> 1
+    | _ -> failwith "TODO"
+
+let alphaorder = alpha_compare []
+
+let rec term_union l1 l2 =
+  match (l1, l2) with
+  | [], l2 -> l2
+  | l1, [] -> l1
+  | h1 :: t1, h2 :: t2 ->
+      let c = alphaorder h1 h2 in
+      if c = 0 then h1 :: term_union t1 t2
+      else if c < 0 then h1 :: term_union t1 l2
+      else h2 :: term_union l1 t2
+
+let rec term_remove t l =
+  match l with
+  | s :: ss ->
+      let c = alphaorder t s in
+      if c > 0 then
+        let ss' = term_remove t ss in
+        if ss' == ss then l else s :: ss'
+      else if c = 0 then ss
+      else l
+  | [] -> l
+
+let rec term_map f l =
+  match l with
+  | h :: t ->
+      let h' = f h and t' = term_map f t in
+      if h' == h && t' == t then l else term_union [ h' ] t'
+  | [] -> l
+
+
