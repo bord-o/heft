@@ -12,9 +12,15 @@ let print_thm =
     Fun.compose print_endline show_thm
 
 let print_thm_result =
-    Format.pp_print_result
+    Format.pp_print_result ~ok:pp_thm ~error:pp_kernel_error Format.std_formatter
+
+let print_term_result =
+    Format.pp_print_result ~ok:pp_term ~error:pp_kernel_error Format.std_formatter
 
 let%expect_test "assume_simple" =
-    let _thm1 = assume p in
-  [%expect {| 4 |}]
-;;
+    let thm1 = assume p in
+    print_thm_result thm1;
+    [%expect {|
+      (Sequent ([(Var ("P", (TyCon ("bool", []))))],
+         (Var ("P", (TyCon ("bool", []))))))
+      |}]

@@ -9,20 +9,20 @@ Explicit inductive definitions are the only kernel extension, in order to avoid 
 *)
 
 type hol_type = TyVar of string | TyCon of string * hol_type list
-[@@deriving show]
+[@@deriving show {with_path=false}]
 
 type term =
   | Var of string * hol_type
   | Const of string * hol_type
   | App of term * term
   | Lam of term * term
-[@@deriving show]
+  [@@deriving show {with_path=false}]
 
 type thm = Sequent of term list * term
-[@@deriving show]
+[@@deriving show {with_path=false}]
 
 type constructor_spec = { name : string; arg_types : hol_type list }
-[@@deriving show]
+[@@deriving show {with_path=false}]
 
 type inductive_def = {
   ty : hol_type;
@@ -32,7 +32,45 @@ type inductive_def = {
   distinct : thm list;
   injective : thm list;
 }
-[@@deriving show]
+[@@deriving show {with_path=false}]
+
+type kernel_error =
+  | TypeAlreadyDeclared of string * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | TypeNotDeclared of string
+  | WrongNumberOfTypeArgs of string
+  | TypeVariableNotAConstructor of string * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | TypeConstructorNotAVariable of string * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | ConstantTermAlreadyDeclared of string * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | CantApplyNonFunctionType of term * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotAConstantName of string * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | MakeLamNotAVariable of term * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | MakeAppTypesDontAgree of hol_type * hol_type * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotAVar of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotAConst of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotAnApp of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotALam of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | UnexpectedLambdaForm of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | CantCreateVariantForNonVariable of term * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | BadSubstitutionList of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | Clash of term * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotAnApplication of term * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | CantDestructEquality of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | RuleTrans of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | TypesDontAgree of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotBothEquations of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | LamRuleCantApply of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotTrivialBetaRedex of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NotAProposition of (Lexing.position [@printer fun _fmt _pos -> ()])
+  | Eq_MP
+  | NewBasicDefinitionAlreadyDefined of string * (Lexing.position [@printer fun _fmt _pos -> ()])
+  | NewBasicDefinition
+  | NotFreshConstructor
+  | InvariantViolation of string
+  | TypeEquivalenceNotImplemented
+  | NameMappingError of string
+  | DefinitionError of string
+  | TypeDefinitionError of string
+  [@@deriving show { with_path = false } ]
 
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
 let the_term_constants : (string, hol_type) Hashtbl.t = Hashtbl.create 512
@@ -51,17 +89,17 @@ let get_type_arity typ = Hashtbl.find_opt the_type_constants typ
 (* add a type to the type constants table *)
 let new_type name arity =
   match get_type_arity name with
-  | Some _ -> Error (`TypeAlreadyDeclared (name, [%here]))
+  | Some _ -> Error (TypeAlreadyDeclared (name, [%here]))
   | None -> Ok (Hashtbl.add the_type_constants name arity)
 
 (* for constructing types *)
 let make_type name args =
   match Hashtbl.find_opt the_type_constants name with
-  | None -> Error (`TypeNotDeclared name)
+  | None -> Error (TypeNotDeclared name)
   | Some arity when arity = List.length args -> Ok (TyCon (name, args))
   | Some other_arity ->
       Error
-        (`WrongNumberOfTypeArgs
+        (WrongNumberOfTypeArgs
            (Format.sprintf "%s: expected %i args, found %i" name
               (List.length args) other_arity))
 
@@ -69,16 +107,16 @@ let make_vartype name = TyVar name
 
 let destruct_type = function
   | TyCon (s, ty) -> Ok (s, ty)
-  | TyVar name -> Error (`TypeVariableNotAConstructor (name, [%here]))
+  | TyVar name -> Error (TypeVariableNotAConstructor (name, [%here]))
 
 let destruct_vartype = function
-  | TyCon (name, _) -> Error (`TypeConstructorNotAVariable (name, [%here]))
+  | TyCon (name, _) -> Error (TypeConstructorNotAVariable (name, [%here]))
   | TyVar name -> Ok name
 
 let is_type = function TyCon _ -> true | _ -> false
 let is_vartype = function TyVar _ -> true | _ -> false
 
-(*TODO: check equivalence *)
+(* Extract type variables from a type *)
 let rec type_vars = function
   | TyCon (_, args) ->
       List.fold_left (fun acc a -> acc @ type_vars a) [] args
@@ -96,7 +134,7 @@ let get_const_term_type name = Hashtbl.find_opt the_term_constants name
 
 let new_constant name typ =
   match get_const_term_type name with
-  | Some name -> Error (`ConstantTermAlreadyDeclared (name, [%here]))
+  | Some _ -> Error (ConstantTermAlreadyDeclared (name, [%here]))
   | None -> Ok (Hashtbl.add the_term_constants name typ)
 
 open Result.Syntax
@@ -108,11 +146,11 @@ let rec type_of_term = function
       let* sty = type_of_term s in
       match sty with
       | TyCon ("fun", [ _dty; rty ]) -> Ok rty
-      | _ -> Error (`CantApplyNonFunctionType (s, [%here])))
+      | _ -> Error (CantApplyNonFunctionType (s, [%here])))
   | Lam (Var (_, ty), t) ->
       let* rty = type_of_term t in
       Ok (TyCon ("fun", [ ty; rty ]))
-  | _ -> failwith "inv"
+  | Lam (_, _) -> Error (UnexpectedLambdaForm [%here])
 
 let is_var = function Var (_, _) -> true | _ -> false
 let is_const = function Const (_, _) -> true | _ -> false
@@ -123,37 +161,37 @@ let make_var (v, ty) = Var (v, ty)
 let make_const name theta =
   let* uty =
     get_const_term_type name
-    |> Option.to_result ~none:(`NotAConstantName (name, [%here]))
+    |> Option.to_result ~none:(NotAConstantName (name, [%here]))
   in
   Ok (Const (name, type_substitution theta uty))
 
 let make_lam bvar body =
   match bvar with
   | Var (_, _) -> Ok (Lam (bvar, body))
-  | _ -> Error (`MakeLamNotAVariable (bvar, [%here]))
+  | _ -> Error (MakeLamNotAVariable (bvar, [%here]))
 
 let make_app f a =
   let* fty = type_of_term f in
   let* aty = type_of_term a in
   match fty with
   | TyCon ("fun", [ ty; _ ]) when compare ty aty = 0 -> Ok (App (f, a))
-  | _ -> Error (`MakeAppTypesDontAgree (fty, aty, [%here]))
+  | _ -> Error (MakeAppTypesDontAgree (fty, aty, [%here]))
 
 let destruct_var = function
   | Var (s, ty) -> Ok (s, ty)
-  | _ -> Error (`NotAVar [%here])
+  | _ -> Error (NotAVar [%here])
 
 let destruct_const = function
   | Const (s, ty) -> Ok (s, ty)
-  | _ -> Error (`NotAConst [%here])
+  | _ -> Error (NotAConst [%here])
 
 let destruct_app = function
   | App (f, x) -> Ok (f, x)
-  | _ -> Error (`NotAnApp [%here])
+  | _ -> Error (NotAnApp [%here])
 
 let destruct_lam = function
   | Lam (v, b) -> Ok (v, b)
-  | _ -> Error (`NotALam [%here])
+  | _ -> Error (NotALam [%here])
 
 let rec frees = function
   | Var (_, _) as tm -> [ tm ]
@@ -193,14 +231,14 @@ let rec type_vars_in_term tm =
   | Lam (Var (_, ty), t) ->
       let* tty = type_vars_in_term t in
       Ok (type_vars ty @ tty |> List.sort_uniq compare)
-  | Lam (_, _) -> Error (`UnexpectedLambdaForm [%here])
+  | Lam (_, _) -> Error (UnexpectedLambdaForm [%here])
 
 let rec variant avoid v =
   if not (List.exists (var_free_in v) avoid) then Ok v
   else
     match v with
     | Var (s, ty) -> variant avoid (Var (s ^ "'", ty))
-    | _ -> Error (`CantCreateVariantForNonVariable (v, [%here]))
+    | _ -> Error (CantCreateVariantForNonVariable (v, [%here]))
 
 (* Helpers *)
 let rev_assoc_default key alist ~default =
@@ -253,7 +291,7 @@ let rec vsubst theta tm =
   in
   if theta = [] then Ok tm
   else if is_valid_substitution theta then aux theta tm
-  else Error (`BadSubstitutionList [%here])
+  else Error (BadSubstitutionList [%here])
 
 and needs_renaming bound_var body subst_list =
   List.exists
@@ -270,7 +308,7 @@ let inst tyin tm =
         let term' = if ty' == ty then term else Var (name, ty') in
         let lookup_result = rev_assoc_default term' env ~default:term in
         if compare lookup_result term = 0 then Ok term'
-        else Error (`Clash (term', [%here]))
+        else Error (Clash (term', [%here]))
     | Const (name, ty) ->
         let ty' = type_substitution tyin ty in
         if ty' == ty then Ok term else Ok (Const (name, ty'))
@@ -284,7 +322,7 @@ let inst tyin tm =
         | Ok body' ->
             if bound_var' == bound_var && body' == body then Ok term
             else Ok (Lam (bound_var', body'))
-        | Error (`Clash (clashing_var, _)) when clashing_var = bound_var' ->
+        | Error (Clash (clashing_var, _)) when clashing_var = bound_var' ->
             handle_lam_clash env bound_var bound_var' body
         | Error e -> Error e)
   and handle_lam_clash env original_var instantiated_var body =
@@ -301,12 +339,12 @@ let inst tyin tm =
 let rator tm =
   match tm with
   | App (l, _) -> Ok l
-  | _ -> Error (`NotAnApplication (tm, [%here]))
+  | _ -> Error (NotAnApplication (tm, [%here]))
 
 let rand tm =
   match tm with
   | App (_, r) -> Ok r
-  | _ -> Error (`NotAnApplication (tm, [%here]))
+  | _ -> Error (NotAnApplication (tm, [%here]))
 
 let safe_make_eq l r =
   let* ty = type_of_term l in
@@ -320,7 +358,7 @@ let safe_make_eq l r =
 let destruct_eq tm =
   match tm with
   | App (App (Const ("=", _), l), r) -> Ok (l, r)
-  | _ -> Error (`CantDestructEquality [%here])
+  | _ -> Error (CantDestructEquality [%here])
 
 let rec alpha_compare_var env x1 x2 =
   match env with
@@ -348,7 +386,7 @@ let rec alpha_compare env tm1 tm2 =
     | _, Var (_, _) -> 1
     | App (_, _), _ -> -1
     | _, App (_, _) -> 1
-    | _ -> failwith "TODO"
+    | _ -> failwith "alpha_compare: unexpected term combination"
 
 let alphaorder = alpha_compare []
 
@@ -393,7 +431,7 @@ let trans (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
   | App ((App (Const ("=", _), _) as eql), m1), App (App (Const ("=", _), m2), r)
     when alphaorder m1 m2 = 0 ->
       Ok (Sequent (term_union asl1 asl2, App (eql, r)))
-  | _ -> Error (`RuleTrans [%here])
+  | _ -> Error (RuleTrans [%here])
 
 let mk_comb (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
   match (c1, c2) with
@@ -405,9 +443,9 @@ let mk_comb (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
           if compare ty tr2 = 0 then
             let* lr_eq = safe_make_eq (App (l1, l2)) (App (r1, r2)) in
             Ok (Sequent (term_union asl1 asl2, lr_eq))
-          else Error (`TypesDontAgree [%here])
-      | _ -> Error (`TypesDontAgree [%here]))
-  | _ -> Error (`NotBothEquations [%here])
+          else Error (TypesDontAgree [%here])
+      | _ -> Error (TypesDontAgree [%here]))
+  | _ -> Error (NotBothEquations [%here])
 
 let lam v (Sequent (asl, c)) =
   match (v, c) with
@@ -415,24 +453,24 @@ let lam v (Sequent (asl, c)) =
     when not (List.exists (var_free_in v) asl) ->
       let* lr_eq = safe_make_eq (Lam (v, l)) (Lam (v, r)) in
       Ok (Sequent (asl, lr_eq))
-  | _ -> Error (`LamRuleCantApply [%here])
+  | _ -> Error (LamRuleCantApply [%here])
 
 let beta = function
   | App (Lam (v, bod), arg) as tm when compare arg v = 0 ->
       let* b = safe_make_eq tm bod in
       Ok (Sequent ([], b))
-  | _ -> Error (`NotTrivialBetaRedex [%here])
+  | _ -> Error (NotTrivialBetaRedex [%here])
 
 let assume tm =
   let* tty = type_of_term tm in
   if compare tty bool_ty = 0 then Ok (Sequent ([ tm ], tm))
-  else Error (`NotAProposition [%here])
+  else Error (NotAProposition [%here])
 
 let eq_mp (Sequent (asl1, eq)) (Sequent (asl2, c)) =
   match eq with
   | App (App (Const ("=", _), l), r) when alphaorder l c = 0 ->
       Ok (Sequent (term_union asl1 asl2, r))
-  | _ -> Error `Eq_MP
+  | _ -> Error Eq_MP
 
 let deduct_antisym_rule (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
   let asl1' = term_remove c2 asl1 and asl2' = term_remove c1 asl2 in
@@ -481,17 +519,17 @@ let new_basic_definition tm =
   match tm with
   | App (App (Const ("=", _), Var (cname, ty)), r) ->
       if not (all_frees_within [] r) then
-        failwith
+        Error (DefinitionError
           ("new_definition: term not closed: "
           ^ String.concat ", "
               (List.map
                  (fun a ->
-                   match a with Var (name, _) -> name | _ -> failwith "TODO")
-                 (frees r)))
+                   match a with Var (name, _) -> name | _ -> "<non-var>")
+                 (frees r))))
       else
         let* r_tys = type_vars_in_term r in
         if not (subset r_tys (type_vars ty)) then
-          failwith "new_definition: Type variables not reflected in constant"
+          Error (DefinitionError "new_definition: Type variables not reflected in constant")
         else
           let* () = new_constant cname ty in
           let c = Const (cname, ty) in
@@ -500,21 +538,21 @@ let new_basic_definition tm =
           the_definitions := dth :: !the_definitions;
           Ok dth
   | App (App (Const ("=", _), Const (cname, _ty)), _r) ->
-      Error (`NewBasicDefinitionAlreadyDefined (cname, [%here]))
-  | _ -> Error `NewBasicDefinition
+      Error (NewBasicDefinitionAlreadyDefined (cname, [%here]))
+  | _ -> Error NewBasicDefinition
 
 let new_basic_type_definition tyname (absname, repname) (Sequent (asl, c)) =
   if
     List.exists
       (fun t -> get_const_term_type t |> Option.is_some)
       [ absname; repname ]
-  then failwith "new_basic_type_definition: Constant(s) already in use"
+  then Error (TypeDefinitionError "new_basic_type_definition: Constant(s) already in use")
   else if not (asl = []) then
-    failwith "new_basic_type_definition: Assumptions in theorem"
+    Error (TypeDefinitionError "new_basic_type_definition: Assumptions in theorem")
   else
     let* p, x = destruct_app c in
     if not (all_frees_within [] p) then
-      failwith "new_basic_type_definition: Predicate is not closed"
+      Error (TypeDefinitionError "new_basic_type_definition: Predicate is not closed")
     else
       let* p_tyvars = type_vars_in_term p in
       let tyvars = List.sort compare p_tyvars in
@@ -550,4 +588,4 @@ let define_inductive tyname params (constructors : constructor_spec list) =
     |> List.map (fun c -> c.name)
     |> List.for_all (fun c_name -> Hashtbl.mem the_term_constants c_name)
   in
-  if not fresh_constructor then Error `NotFreshConstructor else Ok ()
+  if not fresh_constructor then Error NotFreshConstructor else Ok ()
