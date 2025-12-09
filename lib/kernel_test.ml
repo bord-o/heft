@@ -40,9 +40,7 @@ let%expect_test "assume_simple" =
   print_thm_result thm1;
   [%expect {|
     P
-
-    ================================
-
+    ========================================
     P
     |}]
 
@@ -50,8 +48,7 @@ let%expect_test "refl_simple" =
   let thm1 = refl p in
   print_thm_result thm1;
   [%expect {|
-    ================================
-
+    ========================================
     P = P
     |}]
 
@@ -68,9 +65,7 @@ let%expect_test "trans_simple" =
     {|
     P = Q
     Q = R
-
-    ================================
-
+    ========================================
     P = R
     |}]
 
@@ -85,13 +80,11 @@ let%expect_test "mk_comb_simple" =
   print_thm_result thm;
   [%expect
     {|
-      P = Q
-      f = g
-
-      ================================
-
-      (f P) = (g Q)
-      |}]
+    P = Q
+    f = g
+    ========================================
+    f P = g Q
+    |}]
 
 let%expect_test "lam_simple" =
   let thm =
@@ -102,8 +95,7 @@ let%expect_test "lam_simple" =
   print_thm_result thm;
   [%expect
     {|
-    ================================
-
+    ========================================
     (λx. x) = (λx. x)
     |}]
 
@@ -115,9 +107,8 @@ let%expect_test "beta_simple" =
   print_thm_result thm;
   [%expect
     {|
-    ================================
-
-    ((λx. (f x)) x) = (f x)
+    ========================================
+    (λx. f x) x = f x
     |}]
 
 let%expect_test "eq_mp_simple" =
@@ -132,9 +123,7 @@ let%expect_test "eq_mp_simple" =
     {|
     P
     P = Q
-
-    ================================
-
+    ========================================
     Q
     |}]
 
@@ -156,9 +145,7 @@ let%expect_test "deduct_antisym_simple" =
     {|
     P = Q
     Q = P
-
-    ================================
-
+    ========================================
     P = Q
     |}]
 
@@ -170,8 +157,7 @@ let%expect_test "deduct_antisym_reflexive" =
   in
   print_thm_result thm;
   [%expect {|
-    ================================
-
+    ========================================
     P = P
     |}]
 
@@ -190,9 +176,8 @@ let%expect_test "inst_type_simple" =
   print_types := false;
   [%expect
     {|
-    ================================
-
-    x :  bool = x :  bool
+    ========================================
+    x:bool = x:bool
     |}]
 
 let%expect_test "inst_simple" =
@@ -202,8 +187,7 @@ let%expect_test "inst_simple" =
   in
   print_thm_result thm;
   [%expect {|
-    ================================
-
+    ========================================
     P = P
     |}]
 
@@ -216,9 +200,7 @@ let%expect_test "inst_with_hyps" =
   print_thm_result thm;
   [%expect {|
     P = Q
-
-    ================================
-
+    ========================================
     P = Q
     |}]
 
@@ -231,7 +213,6 @@ let%expect_test "beta_reduce_combined" =
   print_thm_result thm;
   [%expect
     {|
-    ================================
-
-    ((λx. (f x)) P) = (f P)
+    ========================================
+    (λx. f x) P = f P
     |}]

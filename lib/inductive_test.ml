@@ -175,4 +175,6 @@ let%expect_test "nat_induction" =
   let def = define_inductive "nat" [] constructors in
   print_induction_thm def;
   [%expect {|
-  |}]
+    ========================================
+    ∀P. P Zero ==> ∀n0. P n0 ==> P Suc n0 ==> ∀x. P x
+    |}]
