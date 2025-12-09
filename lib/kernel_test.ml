@@ -198,7 +198,8 @@ let%expect_test "inst_with_hyps" =
     inst [ (p, x); (q, y) ] thm1
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P = Q
     ========================================
     P = Q

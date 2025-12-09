@@ -30,7 +30,6 @@ type inductive_def = {
 }
 [@@deriving show { with_path = false }]
 
-
 type kernel_error =
   | NewAxiomNotAProp
   | NoBaseCase
@@ -888,8 +887,8 @@ let make_induction_thm (ty : hol_type) (constructors : constructor_spec list) =
 (* let make_distinct_thms constructor_terms = failwith "TODO: make_distinct_thms" *)
 (* let make_injective_thms ty constructors = failwith "TODO: make_injective_thms" *)
 let make_recursion_thm ty constructors = refl (Var ("r", bool_ty))
-let make_distinct_thms constructor_terms = refl (Var("r", bool_ty))
-let make_injective_thms ty constructors = refl (Var("r", bool_ty))
+let make_distinct_thms constructor_terms = refl (Var ("r", bool_ty))
+let make_injective_thms ty constructors = refl (Var ("r", bool_ty))
 
 let define_inductive tyname params (constructors : constructor_spec list) =
   let* () =
@@ -948,8 +947,8 @@ let define_inductive tyname params (constructors : constructor_spec list) =
       constructors = constructor_terms;
       induction;
       recursion;
-      distinct = [distinct];
-      injective = [injective];
+      distinct = [ distinct ];
+      injective = [ injective ];
     }
   in
   Hashtbl.add the_inductives tyname def;
