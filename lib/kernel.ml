@@ -1,26 +1,12 @@
 (*
 
-
-
 Where possible the code will follow a more modern OCaml approach.
 
 Explicit inductive definitions are the only kernel extension, in order to avoid lots of manual derivation
-
 *)
 
 type hol_type = TyVar of string | TyCon of string * hol_type list
 [@@deriving show { with_path = false }]
-
-let rec pretty_print_hol_type = function
-  | TyVar name -> name
-  | TyCon ("fun", arg_tys) ->
-      let args = arg_tys |> List.map (fun ty -> pretty_print_hol_type ty) in
-      let separated = Util.intercalate " -> " args |> List.fold_left ( ^ ) "" in
-      Format.sprintf "(%s)" separated
-  | TyCon (name, arg_tys) ->
-      let args = arg_tys |> List.map (fun ty -> pretty_print_hol_type ty) in
-      let separated = Util.intercalate " " args |> List.fold_left ( ^ ) "" in
-      Format.sprintf "%s %s" separated name
 
 type term =
   | Var of string * hol_type
@@ -28,35 +14,7 @@ type term =
   | App of term * term
   | Lam of term * term
 [@@deriving show { with_path = false }]
-
-let rec pretty_print_hol_term ?(with_type = false) term =
-  let aux t = pretty_print_hol_term ~with_type t in
-  match (with_type, term) with
-  | _, App (App (Const ("=", _), l), r) ->
-      Format.sprintf "%s = %s"
-        (pretty_print_hol_term ~with_type l)
-        (pretty_print_hol_term ~with_type r)
-  | true, Var (name, ty) ->
-      Format.sprintf "%s : %s" name (pretty_print_hol_type ty)
-  | false, Var (name, _ty) -> Format.sprintf "%s" name
-  | true, Const (name, ty) ->
-      Format.sprintf "%s : %s" name (pretty_print_hol_type ty)
-  | false, Const (name, _ty) -> Format.sprintf "%s" name
-  | true, App (f, x) -> Format.sprintf "(%s %s)" (aux f) (aux x)
-  | false, App (f, x) -> Format.sprintf "(%s %s)" (aux f) (aux x)
-  | true, Lam (bind, bod) -> Format.sprintf "(λ%s. %s)" (aux bind) (aux bod)
-  | false, Lam (bind, bod) -> Format.sprintf "(λ%s. %s)" (aux bind) (aux bod)
-
 type thm = Sequent of term list * term [@@deriving show { with_path = false }]
-
-let pretty_print_thm ?(with_type = false) (Sequent (assm, concl)) =
-  let bar = "================================" in
-  let assms =
-    List.map (pretty_print_hol_term ~with_type) assm
-    |> Util.intercalate "\n" |> List.fold_left ( ^ ) ""
-  in
-  let concls = pretty_print_hol_term ~with_type concl in
-  Format.sprintf "%s\n\n%s\n\n%s\n" assms bar concls
 
 type constructor_spec = { name : string; arg_types : hol_type list }
 [@@deriving show { with_path = false }]
@@ -132,13 +90,11 @@ let () =
 
 let get_type_arity typ = Hashtbl.find_opt the_type_constants typ
 
-(* add a type to the type constants table *)
 let new_type name arity =
   match get_type_arity name with
   | Some _ -> Error (TypeAlreadyDeclared (name, [%here]))
   | None -> Ok (Hashtbl.add the_type_constants name arity)
 
-(* for constructing types *)
 let make_type name args =
   match Hashtbl.find_opt the_type_constants name with
   | None -> Error (TypeNotDeclared name)
