@@ -828,22 +828,7 @@ let init () =
 
 (* --- *)
 
-(*Inductive defs
-let define_inductive tyname params constructors =
-  (* 1. Check type doesn't already exist *)
-  (* 2. Check constructor names are fresh *)
-  (* 3. Check at least one base case (non-recursive constructor) *)
-  (* 4. Check strict positivity *)
-  (* 5. Build theorems *)
-
-(* Validation *)
-val check_positivity : string -> constructor_spec list -> bool
-val has_base_case : string -> constructor_spec list -> bool
-
-(* Registration *)
-val make_constructor_type : hol_type list -> hol_type -> hol_type
-val register_constructors : hol_type -> constructor_spec list -> (string * term) list
-
+(*
 (* Theorem generation *)
 val make_induction_thm : hol_type -> constructor_spec list -> thm
 val make_recursion_thm : hol_type -> constructor_spec list -> thm
@@ -883,7 +868,60 @@ let check_positivity tyname constructors =
   in
   Ok ok
 
-let make_induction_thm ty constructors = failwith "TODO: make_induction_thm"
+(* forall P. P base_constructor -> (forall n.  P n -> P other_constructor n) -> (forall n. P n)*)
+let make_induction_thm (ty : hol_type) (constructors : constructor_spec list) =
+  (* Setup our abitrary predicate*)
+  let pred_ty = make_fun_ty ty bool_ty in
+  let pred_var = Var ("P", pred_ty) in
+
+  (* filter on the recursive types of a constructor (i.e. xs in Cons x xs) and ensure we have P xs for each of them*)
+  let quantify_recursive (c : constructor_spec) =
+    let arg_tys = c.arg_types in
+    let args =
+      arg_tys
+      |> List.mapi @@ fun idx aty ->
+         let is_recursive = aty = ty in
+         (is_recursive, Var ("n" ^ string_of_int idx, aty))
+    in
+    let recursive_hypotheses =
+      args
+      |> List.filter_map (fun (recur, arg) -> if recur then Some arg else None)
+      |> List.map @@ fun arg -> App (pred_var, arg)
+    in
+    let make_app_exn l r = Result.get_ok (make_app l r) in
+
+    (* Build `P (Constructor a b c...)*)
+    let concl =
+      make_app_exn pred_var
+        (List.fold_left
+           (fun acc a -> make_app_exn acc a)
+           (Const (c.name, make_constructor_type arg_tys ty))
+           (List.map snd args))
+    in
+
+    let implications = make_imps recursive_hypotheses concl in
+    make_foralls (List.map snd args) implications
+  in
+
+  let bases, recursives =
+    constructors |> List.partition (fun c -> c.arg_types = [])
+  in
+  let base_holds =
+    bases |> List.map @@ fun c -> App (pred_var, Const (c.name, ty))
+  in
+  let recursive_holds =
+    recursives |> List.map @@ fun c -> quantify_recursive c
+  in
+  let all_premises = base_holds @ recursive_holds in
+
+  let x = Var ("x", ty) in
+  let conclusion = make_forall x (App (pred_var, x)) in
+
+  let theorem_body = make_imps all_premises conclusion in
+  let theorem = make_forall pred_var theorem_body in
+
+  new_axiom theorem
+
 let make_recursion_thm ty constructors = failwith "TODO: make_recursion_thm"
 let make_distinct_thms constructor_terms = failwith "TODO: make_distinct_thms"
 let make_injective_thms ty constructors = failwith "TODO: make_injective_thms"
@@ -932,8 +970,11 @@ let define_inductive tyname params (constructors : constructor_spec list) =
   in
 
   let induction = make_induction_thm ty constructors in
+
   let recursion = make_recursion_thm ty constructors in
+
   let distinct = make_distinct_thms constructor_terms in
+
   let injective = make_injective_thms ty constructors in
 
   let def =
