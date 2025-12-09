@@ -1,9 +1,17 @@
 open Kernel
+open Result.Syntax
 
 let print_bool_result r =
   match r with
   | Ok b -> print_endline (string_of_bool b)
   | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+
+let print_induction_thm def =
+  match def with
+  | Ok d -> 
+      print_endline (Printing.pretty_print_thm d.induction)
+  | Error e -> 
+      print_endline ("Error: " ^ show_kernel_error e)
 
 let nat_ty = TyCon ("nat", [])
 let int_ty = TyCon ("int", [])
@@ -154,3 +162,17 @@ let%expect_test "base_case_empty" =
   let constructors = [] in
   print_bool_result (check_base_case "empty" constructors);
   [%expect {| false |}]
+
+
+(* Test 1: Simple monomorphic type - nat *)
+let%expect_test "nat_induction" =
+  let _ = init () in
+  let nat_ty = TyCon ("nat", []) in
+  let constructors = [
+    { name = "Zero"; arg_types = [] };
+    { name = "Suc"; arg_types = [nat_ty] };
+  ] in
+  let def = define_inductive "nat" [] constructors in
+  print_induction_thm def;
+  [%expect {|
+  |}]
