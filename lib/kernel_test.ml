@@ -127,7 +127,8 @@ let%expect_test "eq_mp_simple" =
     eq_mp thm1 thm2
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P
     P = Q
 
@@ -150,7 +151,8 @@ let%expect_test "deduct_antisym_simple" =
     deduct_antisym_rule thm_q_gives_p thm_p_gives_q
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P = Q
     Q = P
 
@@ -185,7 +187,8 @@ let%expect_test "inst_type_simple" =
   print_types := true;
   print_thm_result thm;
   print_types := false;
-  [%expect {|
+  [%expect
+    {|
     ================================
 
     x :  bool = x :  bool
@@ -225,7 +228,8 @@ let%expect_test "beta_reduce_combined" =
     inst [ (p, x) ] thm1
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     ================================
 
     ((λx. (f x)) P) = (f P)

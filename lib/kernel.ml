@@ -14,6 +14,7 @@ type term =
   | App of term * term
   | Lam of term * term
 [@@deriving show { with_path = false }]
+
 type thm = Sequent of term list * term [@@deriving show { with_path = false }]
 
 type constructor_spec = { name : string; arg_types : hol_type list }
@@ -30,6 +31,10 @@ type inductive_def = {
 [@@deriving show { with_path = false }]
 
 type kernel_error =
+  | NoBaseCase
+  | NotPositive
+  | TypeAlreadyExists
+  | ConstructorsAlreadyExist
   | TypeAlreadyDeclared of
       string * (Lexing.position[@printer fun _fmt _pos -> ()])
   | TypeNotDeclared of string
@@ -78,7 +83,7 @@ type kernel_error =
 
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
 let the_term_constants : (string, hol_type) Hashtbl.t = Hashtbl.create 512
-let the_inductives : (string, inductive_def list) Hashtbl.t = Hashtbl.create 512
+let the_inductives : (string, inductive_def) Hashtbl.t = Hashtbl.create 512
 let _the_axioms : thm list ref = ref []
 let _the_definitions : thm list ref = ref []
 let bool_ty = TyCon ("bool", [])
@@ -588,15 +593,117 @@ let define_inductive tyname params constructors =
   (* 2. Check constructor names are fresh *)
   (* 3. Check at least one base case (non-recursive constructor) *)
   (* 4. Check strict positivity *)
+  (* 5. Build theorems *)
+
+(* Validation *)
+val check_positivity : string -> constructor_spec list -> bool
+val has_base_case : string -> constructor_spec list -> bool
+
+(* Registration *)
+val make_constructor_type : hol_type list -> hol_type -> hol_type
+val register_constructors : hol_type -> constructor_spec list -> (string * term) list
+
+(* Theorem generation *)
+val make_induction_thm : hol_type -> constructor_spec list -> thm
+val make_recursion_thm : hol_type -> constructor_spec list -> thm
+val make_distinct_thms : (string * term) list -> thm list
+val make_injective_thms : hol_type -> constructor_spec list -> thm list
 *)
 
-let define_inductive tyname params (constructors : constructor_spec list) =
-  (* fresh type? *)
-  let* () = new_type tyname (List.length params) in
-  (* fresh constructors? *)
-  let fresh_constructor =
+let rec mentions_type tyname ty =
+  match ty with
+  | TyVar _ -> false
+  | TyCon (name, args) ->
+      name = tyname || List.exists (mentions_type tyname) args
+
+let is_base_case tyname c = not (List.exists (mentions_type tyname) c.arg_types)
+
+let check_base_case tyname constructors =
+  Ok (List.exists (is_base_case tyname) constructors)
+
+let make_constructor_type arg_types result_type =
+  List.fold_right
+    (fun arg acc -> TyCon ("fun", [ arg; acc ]))
+    arg_types result_type
+
+let rec appears_left_of_arrow tyname ty =
+  match ty with
+  | TyVar _ -> false
+  | TyCon ("fun", [ arg; result ]) ->
+      mentions_type tyname arg || appears_left_of_arrow tyname result
+  | TyCon (_, args) -> List.exists (appears_left_of_arrow tyname) args
+
+let check_positivity tyname constructors =
+  let ok =
     constructors
-    |> List.map (fun c -> c.name)
-    |> List.for_all (fun c_name -> Hashtbl.mem the_term_constants c_name)
+    |> List.for_all (fun c ->
+        c.arg_types
+        |> List.for_all (fun ty -> not (appears_left_of_arrow tyname ty)))
   in
-  if not fresh_constructor then Error NotFreshConstructor else Ok ()
+  Ok ok
+
+let make_induction_thm ty constructors = failwith "TODO: make_induction_thm"
+let make_recursion_thm ty constructors = failwith "TODO: make_recursion_thm"
+let make_distinct_thms constructor_terms = failwith "TODO: make_distinct_thms"
+let make_injective_thms ty constructors = failwith "TODO: make_injective_thms"
+
+let define_inductive tyname params (constructors : constructor_spec list) =
+  let* () =
+    match Hashtbl.find_opt the_type_constants tyname with
+    | Some _ -> Error TypeAlreadyExists
+    | None -> Ok ()
+  in
+
+  let* () =
+    let not_fresh =
+      constructors
+      |> List.filter (fun c -> Hashtbl.mem the_term_constants c.name)
+      |> List.map (fun c -> c.name)
+    in
+    match not_fresh with
+    | [] -> Ok ()
+    | _names -> Error ConstructorsAlreadyExist
+  in
+
+  let* positive = check_positivity tyname constructors in
+  let* () = if not positive then Error NotPositive else Ok () in
+
+  let* base_case_exists = check_base_case tyname constructors in
+  let* () = if not base_case_exists then Error NoBaseCase else Ok () in
+
+  let* () = new_type tyname (List.length params) in
+  let ty_params = List.map (fun p -> TyVar p) params in
+  let ty = TyCon (tyname, ty_params) in
+
+  let* constructor_terms =
+    constructors
+    |> List.map (fun c ->
+        let con_ty = make_constructor_type c.arg_types ty in
+        let* () = new_constant c.name con_ty in
+        Ok (c.name, Const (c.name, con_ty)))
+    |> List.fold_left
+         (fun acc r ->
+           let* lst = acc in
+           let* item = r in
+           Ok (item :: lst))
+         (Ok [])
+    |> Result.map List.rev
+  in
+
+  let induction = make_induction_thm ty constructors in
+  let recursion = make_recursion_thm ty constructors in
+  let distinct = make_distinct_thms constructor_terms in
+  let injective = make_injective_thms ty constructors in
+
+  let def =
+    {
+      ty;
+      constructors = constructor_terms;
+      induction;
+      recursion;
+      distinct;
+      injective;
+    }
+  in
+  Hashtbl.add the_inductives tyname def;
+  Ok def

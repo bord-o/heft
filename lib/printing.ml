@@ -11,7 +11,6 @@ let rec pretty_print_hol_type = function
       let separated = Util.intercalate " " args |> List.fold_left ( ^ ) "" in
       Format.sprintf "%s %s" separated name
 
-
 let rec pretty_print_hol_term ?(with_type = false) term =
   let aux t = pretty_print_hol_term ~with_type t in
   match (with_type, term) with
@@ -38,5 +37,3 @@ let pretty_print_thm ?(with_type = false) (Sequent (assm, concl)) =
   in
   let concls = pretty_print_hol_term ~with_type concl in
   Format.sprintf "%s\n\n%s\n\n%s\n" assms bar concls
-
-
