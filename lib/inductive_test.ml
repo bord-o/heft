@@ -1,4 +1,6 @@
 open Kernel
+open Derived
+open Inductive
 
 let clear_env () =
   Hashtbl.clear the_inductives;
@@ -464,7 +466,10 @@ let%expect_test "nat_distinctness" =
   in
   let def = define_inductive "nat" [] constructors in
   print_distinct_thms def;
-  [%expect {||}]
+  [%expect {|
+    ========================================
+    ∀y0. ¬Zero = Suc y0
+    |}]
 
 (* Test 2: Two constructors - list *)
 let%expect_test "list_distinctness" =
@@ -480,7 +485,10 @@ let%expect_test "list_distinctness" =
   in
   let def = define_inductive "list" [ "a" ] constructors in
   print_distinct_thms def;
-  [%expect {||}]
+  [%expect {|
+    ========================================
+    ∀y0. ∀y1. ¬Nil = Cons y0 y1
+    |}]
 
 (* Test 3: Three constructors - result *)
 let%expect_test "result_distinctness" =
@@ -497,7 +505,14 @@ let%expect_test "result_distinctness" =
   in
   let def = define_inductive "result" [ "a" ] constructors in
   print_distinct_thms def;
-  [%expect {||}]
+  [%expect {|
+    ========================================
+    ∀y0. ¬Err = Pending y0
+    ========================================
+    ∀x0. ∀y0. ¬Ok x0 = Pending y0
+    ========================================
+    ∀x0. ¬Ok x0 = Err
+    |}]
 
 (* Test 4: Four constructors - multiple pairs *)
 let%expect_test "four_constructor_distinctness" =
@@ -513,7 +528,20 @@ let%expect_test "four_constructor_distinctness" =
   in
   let def = define_inductive "four" [] constructors in
   print_distinct_thms def;
-  [%expect {||}]
+  [%expect {|
+    ========================================
+    ¬C = D
+    ========================================
+    ¬B = D
+    ========================================
+    ¬B = C
+    ========================================
+    ¬A = D
+    ========================================
+    ¬A = C
+    ========================================
+    ¬A = B
+    |}]
 
 (* Test injectivity theorems *)
 
@@ -538,7 +566,10 @@ let%expect_test "nat_injectivity" =
   in
   let def = define_inductive "nat" [] constructors in
   print_injective_thms def;
-  [%expect {||}]
+  [%expect {|
+    ========================================
+    ∀x0. ∀y0. Suc x0 = Suc y0 ==> x0 = y0
+    |}]
 
 (* Test 6: Constructor with multiple args - list *)
 let%expect_test "list_injectivity" =
@@ -554,7 +585,10 @@ let%expect_test "list_injectivity" =
   in
   let def = define_inductive "list" [ "a" ] constructors in
   print_injective_thms def;
-  [%expect {||}]
+  [%expect {|
+    ========================================
+    ∀x0. ∀x1. ∀y0. ∀y1. Cons x0 x1 = Cons y0 y1 ==> x0 = y0 ∧ x1 = y1
+    |}]
 
 (* Test 7: Constructor with three args - tree *)
 let%expect_test "tree_injectivity" =
@@ -570,7 +604,10 @@ let%expect_test "tree_injectivity" =
   in
   let def = define_inductive "tree" [ "a" ] constructors in
   print_injective_thms def;
-  [%expect {||}]
+  [%expect {|
+    ========================================
+    ∀x0. ∀x1. ∀x2. ∀y0. ∀y1. ∀y2. Node x0 x1 x2 = Node y0 y1 y2 ==> x0 = y0 ∧ x1 = y1 ∧ x2 = y2
+    |}]
 
 (* Test 8: Only nullary constructors - no injectivity theorems *)
 let%expect_test "no_injectivity" =
