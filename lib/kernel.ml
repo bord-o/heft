@@ -164,7 +164,7 @@ let is_var = function Var (_, _) -> true | _ -> false
 let is_const = function Const (_, _) -> true | _ -> false
 let is_abs = function Lam (_, _) -> true | _ -> false
 let is_comb = function App (_, _) -> true | _ -> false
-let make_var (v, ty) = Var (v, ty)
+let make_var v ty = Var (v, ty)
 
 let make_const name theta =
   let* uty =
@@ -883,10 +883,102 @@ let make_induction_thm (ty : hol_type) (constructors : constructor_spec list) =
 
   new_axiom theorem
 
-(* let make_recursion_thm ty constructors = failwith "TODO: make_recursion_thm" *)
+(*
+  ∀ok_case err_case pend_case. 
+  ∃g. 
+    (∀x. g (Ok x) = ok_case x) ∧ 
+    (g Err = err_case) ∧
+    (∀r. g (Pending r) = pend_case r (g r))
+*)
+let make_recursion_thm (ty : hol_type) (constructors : constructor_spec list) =
+    let ret_ty = TyVar "r" in
+    let g_ty = make_fun_ty ty ret_ty in
+    let g_var = Var ("g", g_ty) in
+    
+    (* Build case function types: args + (r for each recursive arg) -> r *)
+    let case_tys = constructors |> List.map @@ fun c -> 
+        let args = c.arg_types in
+        let rec_results = args 
+            |> List.filter (fun arg_ty -> arg_ty = ty)
+            |> List.map (fun _ -> ret_ty)
+        in
+        (c.name, make_constructor_type (args @ rec_results) ret_ty)
+    in
+    
+    let case_vars = case_tys |> List.mapi @@ fun idx (name, t) -> 
+        (name, Var (name ^ "_case", t))
+    in
+    
+    (* Build equation for each constructor *)
+    let construct_case (cons : constructor_spec) = 
+        let case_var = List.assoc cons.name case_vars in
+        
+        match cons.arg_types with
+        | [] -> 
+            (* Nullary constructor: g Constructor = case_var *)
+            let* g_app = make_app g_var (Const (cons.name, ty)) in
+            safe_make_eq g_app case_var
+            
+        | arg_tys ->
+            (* Create variables for constructor arguments *)
+            let arg_vars = arg_tys |> List.mapi (fun i arg_ty ->
+                Var ("x" ^ string_of_int i, arg_ty)
+            ) in
+            
+            (* Build: Constructor x0 x1 x2 ... *)
+            let constructor_ty = make_constructor_type arg_tys ty in
+            let constructor = Const (cons.name, constructor_ty) in
+            let constructor_applied = List.fold_left (fun acc arg ->
+                Result.get_ok (make_app acc arg)
+            ) constructor arg_vars in
+            
+            (* Build: g (Constructor x0 x1 x2 ...) *)
+            let* g_applied = make_app g_var constructor_applied in
+            
+            (* Find recursive arguments and build g applications *)
+            let recursive_calls = arg_vars 
+                |> List.filter (fun v -> type_of_var v = ty)
+                |> List.map (fun v -> Result.get_ok (make_app g_var v))
+            in
+            
+            (* Build RHS: case_var x0 x1 ... (g x_rec0) (g x_rec1) ... *)
+            let all_case_args = arg_vars @ recursive_calls in
+            let case_applied = List.fold_left (fun acc arg ->
+                Result.get_ok (make_app acc arg)
+            ) case_var all_case_args in
+            
+            (* Build equation: g (Constructor ...) = case_var ... *)
+            let* equation = safe_make_eq g_applied case_applied in
+            
+            (* Quantify over all constructor arguments: ∀x0 x1 x2. ... *)
+            Ok (make_foralls arg_vars equation)
+    in
+    
+    (* Build all equations *)
+    let* equations = constructors 
+        |> List.map construct_case
+        |> List.fold_left (fun acc eq ->
+            match acc, eq with
+            | Ok eqs, Ok e -> Ok (e :: eqs)
+            | Error e, _ -> Error e
+            | _, Error e -> Error e
+        ) (Ok [])
+        |> Result.map List.rev
+    in
+    
+    let conjoined = make_conjs equations in
+    
+    let body = make_exists g_var conjoined in
+    
+    let all_case_vars = List.map snd case_vars in
+    let theorem = make_foralls all_case_vars body in
+    
+    new_axiom theorem
+
+
 (* let make_distinct_thms constructor_terms = failwith "TODO: make_distinct_thms" *)
 (* let make_injective_thms ty constructors = failwith "TODO: make_injective_thms" *)
-let make_recursion_thm ty constructors = refl (Var ("r", bool_ty))
+
 let make_distinct_thms constructor_terms = refl (Var ("r", bool_ty))
 let make_injective_thms ty constructors = refl (Var ("r", bool_ty))
 
