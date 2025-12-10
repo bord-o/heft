@@ -184,7 +184,7 @@ let%expect_test "nat_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P Zero ==> ∀n0. P n0 ==> P Suc n0 ==> ∀x. P x
+    ∀P. P Zero ==> ∀n0. P n0 ==> P (Suc n0) ==> ∀x. P x
     |}]
 
 (* Test 2: Polymorphic type - list *)
@@ -204,7 +204,7 @@ let%expect_test "list_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P Nil ==> ∀n0. ∀n1. P n1 ==> P Cons n0 n1 ==> ∀x. P x
+    ∀P. P Nil ==> ∀n0. ∀n1. P n1 ==> P (Cons n0 n1) ==> ∀x. P x
     |}]
 
 (* Test 3: Multiple base cases *)
@@ -239,7 +239,7 @@ let%expect_test "tree_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P Leaf ==> ∀n0. ∀n1. ∀n2. P n1 ==> P n2 ==> P Node n0 n1 n2 ==> ∀x. P x
+    ∀P. P Leaf ==> ∀n0. ∀n1. ∀n2. P n1 ==> P n2 ==> P (Node n0 n1 n2) ==> ∀x. P x
     |}]
 
 (* Test 5: Constructor with only non-recursive args *)
@@ -255,7 +255,7 @@ let%expect_test "option_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P None ==> ∀n0. P Some n0 ==> ∀x. P x
+    ∀P. P None ==> ∀n0. P (Some n0) ==> ∀x. P x
     |}]
 
 (* Test 6: Verify constructors are registered *)
@@ -334,7 +334,7 @@ let%expect_test "three_variant_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P Err ==> ∀n0. P Ok n0 ==> ∀n0. P n0 ==> P Pending n0 ==> ∀x. P x
+    ∀P. P Err ==> ∀n0. P (Ok n0) ==> ∀n0. P n0 ==> P (Pending n0) ==> ∀x. P x
     |}]
 
 (* Test recursion theorems *)
@@ -360,7 +360,7 @@ let%expect_test "nat_recursion" =
   [%expect
     {|
     ========================================
-    ∀Zero_case. ∀Suc_case. ∃g. g Zero = Zero_case ∧ (∀x0. g Suc x0 = Suc_case x0 g x0)
+    ∀Zero_case. ∀Suc_case. ∃g. g Zero = Zero_case ∧ (∀x0. g (Suc x0) = Suc_case x0 (g x0))
     |}]
 
 (* Test 2: Polymorphic type - list *)
@@ -380,7 +380,7 @@ let%expect_test "list_recursion" =
   [%expect
     {|
     ========================================
-    ∀Nil_case. ∀Cons_case. ∃g. g Nil = Nil_case ∧ (∀x0. ∀x1. g Cons x0 x1 = Cons_case x0 x1 g x1)
+    ∀Nil_case. ∀Cons_case. ∃g. g Nil = Nil_case ∧ (∀x0. ∀x1. g (Cons x0 x1) = Cons_case x0 x1 (g x1))
     |}]
 
 (* Test 3: Multiple base cases - bool_like *)
@@ -418,7 +418,7 @@ let%expect_test "tree_recursion" =
   [%expect
     {|
     ========================================
-    ∀Leaf_case. ∀Node_case. ∃g. g Leaf = Leaf_case ∧ (∀x0. ∀x1. ∀x2. g Node x0 x1 x2 = Node_case x0 x1 x2 g x1 g x2)
+    ∀Leaf_case. ∀Node_case. ∃g. g Leaf = Leaf_case ∧ (∀x0. ∀x1. ∀x2. g (Node x0 x1 x2) = Node_case x0 x1 x2 (g x1) (g x2))
     |}]
 
 (* Test 5: Three variants with mixed cases - result *)
@@ -439,5 +439,5 @@ let%expect_test "result_recursion" =
   [%expect
     {|
     ========================================
-    ∀Ok_case. ∀Err_case. ∀Pending_case. ∃g. (∀x0. g Ok x0 = Ok_case x0) ∧ g Err = Err_case ∧ (∀x0. g Pending x0 = Pending_case x0 g x0)
+    ∀Ok_case. ∀Err_case. ∀Pending_case. ∃g. (∀x0. g (Ok x0) = Ok_case x0) ∧ g Err = Err_case ∧ (∀x0. g (Pending x0) = Pending_case x0 (g x0))
     |}]

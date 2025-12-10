@@ -35,19 +35,15 @@ let rec pretty_print_hol_term ?(with_type = false) ?(parent_prec = PrecImp) term
     pretty_print_hol_term ~with_type ~parent_prec t
   in
 
-  (* Decide if we need parens based on precedence *)
-  let needs_parens =
-    match (parent_prec, my_prec) with
-    | PrecAtom, _ -> true (* Parent is atomic, always wrap *)
-    | PrecApp, PrecApp -> false (* App doesn't need parens in App *)
-    | PrecApp, (PrecQuant | PrecImp) -> true
-    | _, PrecAtom -> false (* Atoms never need parens *)
-    | PrecQuant, PrecQuant -> false
-    | PrecQuant, PrecImp -> false
-    | PrecImp, _ -> false (* Lowest precedence, never wrap *)
-    | _, _ -> false
-  in
-
+(* Decide if we need parens based on precedence *)
+let needs_parens =
+  match (parent_prec, my_prec) with
+  | PrecAtom, PrecApp -> true (* App needs parens when used as atomic arg *)
+  | PrecAtom, (PrecQuant | PrecImp) -> true
+  | PrecApp, (PrecQuant | PrecImp) -> true
+  | _, PrecAtom -> false (* Atoms never need parens *)
+  | (PrecQuant | PrecImp | PrecApp), _ -> false (* Everything else: no parens *)
+in
   let wrap s = if needs_parens then Format.sprintf "(%s)" s else s in
 
   match term with
@@ -91,7 +87,8 @@ let rec pretty_print_hol_term ?(with_type = false) ?(parent_prec = PrecImp) term
   | App (f, x) ->
       let f_str = aux ~parent_prec:PrecApp f in
       let x_str = aux ~parent_prec:PrecAtom x in
-      f_str ^ " " ^ x_str
+      (* Args need atomic precedence *)
+      wrap (f_str ^ " " ^ x_str)
   | Lam (Var (name, ty), body) ->
       let ty_str = if with_type then ":" ^ pretty_print_hol_type ty else "" in
       wrap
