@@ -70,23 +70,24 @@ type kernel_error =
   | LamRuleCantApply of (Lexing.position[@printer fun _fmt _pos -> ()])
   | NotTrivialBetaRedex of (Lexing.position[@printer fun _fmt _pos -> ()])
   | NotAProposition of (Lexing.position[@printer fun _fmt _pos -> ()])
-  | Eq_MP
+  | Eq_MP of term
   | NewBasicDefinitionAlreadyDefined of
       string * (Lexing.position[@printer fun _fmt _pos -> ()])
-  | NewBasicDefinition
+  | NewBasicDefinition of term
   | NotFreshConstructor
   | InvariantViolation of string
   | TypeEquivalenceNotImplemented
   | NameMappingError of string
   | DefinitionError of string
   | TypeDefinitionError of string
+  | Todo
 [@@deriving show { with_path = false }]
 
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
 let the_term_constants : (string, hol_type) Hashtbl.t = Hashtbl.create 512
 let the_inductives : (string, inductive_def) Hashtbl.t = Hashtbl.create 512
-let _the_axioms : thm list ref = ref []
-let _the_definitions : thm list ref = ref []
+let the_axioms : thm list ref = ref []
+let the_definitions : thm list ref = ref []
 let bool_ty = TyCon ("bool", [])
 let aty = TyVar "A"
 
@@ -478,7 +479,7 @@ let eq_mp (Sequent (asl1, eq)) (Sequent (asl2, c)) =
   match eq with
   | App (App (Const ("=", _), l), r) when alphaorder l c = 0 ->
       Ok (Sequent (term_union asl1 asl2, r))
-  | _ -> Error Eq_MP
+  | t -> Error (Eq_MP t)
 
 let deduct_antisym_rule (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
   let asl1' = term_remove c2 asl1 and asl2' = term_remove c1 asl2 in
@@ -515,8 +516,6 @@ let inst theta (Sequent (asl, c)) =
   let* inst_c = inst_fn c in
   Ok (Sequent (inst_asl, inst_c))
 
-let the_axioms = ref ([] : thm list)
-let axioms () = !the_axioms
 
 let new_axiom tm =
   let* tty = type_of_term tm in
@@ -526,8 +525,6 @@ let new_axiom tm =
     Ok th)
   else Error NewAxiomNotAProp
 
-let the_definitions = ref ([] : thm list)
-let definitions () = !the_definitions
 
 let subset l1 l2 =
   l1 |> List.for_all @@ fun elem -> l2 |> List.exists (( = ) elem)
@@ -559,7 +556,7 @@ let new_basic_definition tm =
           Ok dth
   | App (App (Const ("=", _), Const (cname, _ty)), _r) ->
       Error (NewBasicDefinitionAlreadyDefined (cname, [%here]))
-  | _ -> Error NewBasicDefinition
+  | t -> Error (NewBasicDefinition t)
 
 let new_basic_type_definition tyname (absname, repname) (Sequent (asl, c)) =
   if
@@ -902,7 +899,7 @@ let make_recursion_thm (ty : hol_type) (constructors : constructor_spec list) =
   in
 
   let case_vars =
-    case_tys |> List.mapi @@ fun idx (name, t) -> (name, Var (name ^ "_case", t))
+    case_tys |> List.map @@ fun (name, t) -> (name, Var (name ^ "_case", t))
   in
 
   (* Build equation for each constructor *)

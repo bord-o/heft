@@ -1,5 +1,4 @@
 open Kernel
-open Result.Syntax
 
 let clear_env () =
   Hashtbl.clear the_inductives;

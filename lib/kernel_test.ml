@@ -2,7 +2,6 @@ open Kernel
 open Result.Syntax
 open Printing
 
-let _ = init ()
 let p = Var ("P", bool_ty)
 let q = Var ("Q", bool_ty)
 let r = Var ("R", bool_ty)
