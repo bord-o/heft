@@ -1,3 +1,4 @@
 include Kernel
-module Derived = Derived
 module Printing = Printing
+module Derived = Derived
+module Inductive = Inductive

@@ -516,7 +516,6 @@ let inst theta (Sequent (asl, c)) =
   let* inst_c = inst_fn c in
   Ok (Sequent (inst_asl, inst_c))
 
-
 let new_axiom tm =
   let* tty = type_of_term tm in
   if compare tty bool_ty = 0 then (
@@ -524,7 +523,6 @@ let new_axiom tm =
     the_axioms := th :: !the_axioms;
     Ok th)
   else Error NewAxiomNotAProp
-
 
 let subset l1 l2 =
   l1 |> List.for_all @@ fun elem -> l2 |> List.exists (( = ) elem)

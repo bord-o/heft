@@ -172,7 +172,7 @@ let%expect_test "base_case_empty" =
 (* Test 1: Simple monomorphic type - nat *)
 let%expect_test "nat_induction" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let nat_ty = TyCon ("nat", []) in
   let constructors =
     [
@@ -191,7 +191,7 @@ let%expect_test "nat_induction" =
 (* Test 2: Polymorphic type - list *)
 let%expect_test "list_induction" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let list_a = TyCon ("list", [ a ]) in
   let constructors =
@@ -211,7 +211,7 @@ let%expect_test "list_induction" =
 (* Test 3: Multiple base cases *)
 let%expect_test "bool_like_induction" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let constructors =
     [ { name = "True"; arg_types = [] }; { name = "False"; arg_types = [] } ]
   in
@@ -226,7 +226,7 @@ let%expect_test "bool_like_induction" =
 (* Test 4: Multiple recursive arguments - binary tree *)
 let%expect_test "tree_induction" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let tree_a = TyCon ("tree", [ a ]) in
   let constructors =
@@ -246,7 +246,7 @@ let%expect_test "tree_induction" =
 (* Test 5: Constructor with only non-recursive args *)
 let%expect_test "option_induction" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let constructors =
     [ { name = "None"; arg_types = [] }; { name = "Some"; arg_types = [ a ] } ]
@@ -262,7 +262,7 @@ let%expect_test "option_induction" =
 (* Test 6: Verify constructors are registered *)
 let%expect_test "constructors_registered" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let nat_ty = TyCon ("nat", []) in
   let constructors =
     [
@@ -289,7 +289,7 @@ let%expect_test "constructors_registered" =
 (* Test 7: Reject non-positive type *)
 let%expect_test "reject_non_positive" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let bad_ty = TyCon ("bad", []) in
   let int_ty = TyCon ("int", []) in
   let constructors =
@@ -305,7 +305,7 @@ let%expect_test "reject_non_positive" =
 (* Test 8: Reject no base case *)
 let%expect_test "reject_no_base_case" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let loop_ty = TyCon ("loop", []) in
   let constructors = [ { name = "Loop"; arg_types = [ loop_ty ] } ] in
   let result = define_inductive "loop" [] constructors in
@@ -317,7 +317,7 @@ let%expect_test "reject_no_base_case" =
 
 let%expect_test "three_variant_induction" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let result_ty = TyCon ("result", [ a ]) in
   let constructors =
@@ -348,7 +348,7 @@ let print_recursion_thm def =
 (* Test 1: Simple monomorphic type - nat *)
 let%expect_test "nat_recursion" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let nat_ty = TyCon ("nat", []) in
   let constructors =
     [
@@ -367,7 +367,7 @@ let%expect_test "nat_recursion" =
 (* Test 2: Polymorphic type - list *)
 let%expect_test "list_recursion" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let list_a = TyCon ("list", [ a ]) in
   let constructors =
@@ -387,7 +387,7 @@ let%expect_test "list_recursion" =
 (* Test 3: Multiple base cases - bool_like *)
 let%expect_test "bool_like_recursion" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let constructors =
     [
       { name = "TrueVal"; arg_types = [] };
@@ -405,7 +405,7 @@ let%expect_test "bool_like_recursion" =
 (* Test 4: Multiple recursive arguments - binary tree *)
 let%expect_test "tree_recursion" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let tree_a = TyCon ("tree", [ a ]) in
   let constructors =
@@ -425,7 +425,7 @@ let%expect_test "tree_recursion" =
 (* Test 5: Three variants with mixed cases - result *)
 let%expect_test "result_recursion" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let result_ty = TyCon ("result", [ a ]) in
   let constructors =
@@ -456,7 +456,7 @@ let print_distinct_thms def =
 (* Test 1: Two constructors - nat *)
 let%expect_test "nat_distinctness" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let nat_ty = TyCon ("nat", []) in
   let constructors =
     [
@@ -466,7 +466,8 @@ let%expect_test "nat_distinctness" =
   in
   let def = define_inductive "nat" [] constructors in
   print_distinct_thms def;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀y0. ¬Zero = Suc y0
     |}]
@@ -474,7 +475,7 @@ let%expect_test "nat_distinctness" =
 (* Test 2: Two constructors - list *)
 let%expect_test "list_distinctness" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let list_a = TyCon ("list", [ a ]) in
   let constructors =
@@ -485,7 +486,8 @@ let%expect_test "list_distinctness" =
   in
   let def = define_inductive "list" [ "a" ] constructors in
   print_distinct_thms def;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀y0. ∀y1. ¬Nil = Cons y0 y1
     |}]
@@ -493,7 +495,7 @@ let%expect_test "list_distinctness" =
 (* Test 3: Three constructors - result *)
 let%expect_test "result_distinctness" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let result_ty = TyCon ("result", [ a ]) in
   let constructors =
@@ -505,7 +507,8 @@ let%expect_test "result_distinctness" =
   in
   let def = define_inductive "result" [ "a" ] constructors in
   print_distinct_thms def;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀y0. ¬Err = Pending y0
     ========================================
@@ -517,7 +520,7 @@ let%expect_test "result_distinctness" =
 (* Test 4: Four constructors - multiple pairs *)
 let%expect_test "four_constructor_distinctness" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let constructors =
     [
       { name = "A"; arg_types = [] };
@@ -528,7 +531,8 @@ let%expect_test "four_constructor_distinctness" =
   in
   let def = define_inductive "four" [] constructors in
   print_distinct_thms def;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ¬C = D
     ========================================
@@ -556,7 +560,7 @@ let print_injective_thms def =
 (* Test 5: One constructor with one arg - nat *)
 let%expect_test "nat_injectivity" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let nat_ty = TyCon ("nat", []) in
   let constructors =
     [
@@ -566,7 +570,8 @@ let%expect_test "nat_injectivity" =
   in
   let def = define_inductive "nat" [] constructors in
   print_injective_thms def;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀x0. ∀y0. Suc x0 = Suc y0 ==> x0 = y0
     |}]
@@ -574,7 +579,7 @@ let%expect_test "nat_injectivity" =
 (* Test 6: Constructor with multiple args - list *)
 let%expect_test "list_injectivity" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let list_a = TyCon ("list", [ a ]) in
   let constructors =
@@ -585,7 +590,8 @@ let%expect_test "list_injectivity" =
   in
   let def = define_inductive "list" [ "a" ] constructors in
   print_injective_thms def;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀x0. ∀x1. ∀y0. ∀y1. Cons x0 x1 = Cons y0 y1 ==> x0 = y0 ∧ x1 = y1
     |}]
@@ -593,7 +599,7 @@ let%expect_test "list_injectivity" =
 (* Test 7: Constructor with three args - tree *)
 let%expect_test "tree_injectivity" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let a = TyVar "a" in
   let tree_a = TyCon ("tree", [ a ]) in
   let constructors =
@@ -604,7 +610,8 @@ let%expect_test "tree_injectivity" =
   in
   let def = define_inductive "tree" [ "a" ] constructors in
   print_injective_thms def;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀x0. ∀x1. ∀x2. ∀y0. ∀y1. ∀y2. Node x0 x1 x2 = Node y0 y1 y2 ==> x0 = y0 ∧ x1 = y1 ∧ x2 = y2
     |}]
@@ -612,7 +619,7 @@ let%expect_test "tree_injectivity" =
 (* Test 8: Only nullary constructors - no injectivity theorems *)
 let%expect_test "no_injectivity" =
   let () = clear_env () in
-  let _ = init () in
+  let _ = init_types () in
   let constructors =
     [ { name = "True"; arg_types = [] }; { name = "False"; arg_types = [] } ]
   in

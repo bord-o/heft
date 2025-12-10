@@ -2,7 +2,6 @@ open Kernel
 open Derived
 open Result.Syntax
 
-
 (*
 (* Theorem generation *)
 val make_induction_thm : hol_type -> constructor_spec list -> thm
@@ -372,4 +371,3 @@ let define_inductive tyname params (constructors : constructor_spec list) =
   in
   Hashtbl.add the_inductives tyname def;
   Ok def
-

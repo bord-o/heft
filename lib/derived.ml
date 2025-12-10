@@ -183,25 +183,18 @@ let init_classical () =
   let excl_middle = make_forall p (make_disj p (make_neg p)) in
   new_axiom excl_middle
 
-let init () =
-  let* () = init_types () in
-  let* _ = init_true () in
-  let* _ = init_forall () in
-  let* _ = init_conj () in
-  let* _ = init_imp () in
-  let* _ = init_false () in
-  let* _ = init_neg () in
-  let* _ = init_exists () in
-  let* _ = init_disj () in
-  let* _ = init_classical () in
-  Ok ()
-
-
+let _ = init_types ()
+let true_def = init_true ()
+let forall_def = init_forall ()
+let conj_def = init_conj ()
+let imp_def = init_imp ()
+let false_def = init_false ()
+let neg_def = init_neg ()
+let exists_def = init_exists ()
+let disj_def = init_disj ()
+let classical_def = init_classical ()
 
 (**)
-
-
-
 
 let ap_term tm th =
   let thm =
@@ -234,14 +227,9 @@ let truth =
     (* p : bool*)
     let id_fun = Lam (p, p) in
     (*\p. p*)
-    let* id_fun_eq = safe_make_eq id_fun id_fun in
-    (* \p. p = \p. p *)
-    let* t_eq = safe_make_eq (make_var "T" bool_ty) id_fun_eq in
-    (* T = (\p. p = \p. p )*)
-    let* t_def = new_basic_definition t_eq in
-    (* define it *)
     let* id_fun_refl = refl id_fun in
     (* |- \p. p = \p. p  *)
+    let* t_def = true_def in
     let* t_def_sym = sym t_def in
     (* |- (\p. p = \p. p ) = T*)
     eq_mp t_def_sym id_fun_refl
