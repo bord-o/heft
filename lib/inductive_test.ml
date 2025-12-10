@@ -1,6 +1,13 @@
 open Kernel
 open Result.Syntax
 
+let clear_env () =
+  Hashtbl.clear the_inductives;
+  Hashtbl.clear the_term_constants;
+  Hashtbl.clear the_type_constants;
+  the_axioms := [];
+  the_definitions := []
+
 let print_bool_result r =
   match r with
   | Ok b -> print_endline (string_of_bool b)
@@ -161,11 +168,9 @@ let%expect_test "base_case_empty" =
   print_bool_result (check_base_case "empty" constructors);
   [%expect {| false |}]
 
-(* lib/inductive_generation_test.ml *)
-open Kernel
-
 (* Test 1: Simple monomorphic type - nat *)
 let%expect_test "nat_induction" =
+  let () = clear_env () in
   let _ = init () in
   let nat_ty = TyCon ("nat", []) in
   let constructors =
@@ -184,6 +189,7 @@ let%expect_test "nat_induction" =
 
 (* Test 2: Polymorphic type - list *)
 let%expect_test "list_induction" =
+  let () = clear_env () in
   let _ = init () in
   let a = TyVar "a" in
   let list_a = TyCon ("list", [ a ]) in
@@ -203,6 +209,7 @@ let%expect_test "list_induction" =
 
 (* Test 3: Multiple base cases *)
 let%expect_test "bool_like_induction" =
+  let () = clear_env () in
   let _ = init () in
   let constructors =
     [ { name = "True"; arg_types = [] }; { name = "False"; arg_types = [] } ]
@@ -217,6 +224,7 @@ let%expect_test "bool_like_induction" =
 
 (* Test 4: Multiple recursive arguments - binary tree *)
 let%expect_test "tree_induction" =
+  let () = clear_env () in
   let _ = init () in
   let a = TyVar "a" in
   let tree_a = TyCon ("tree", [ a ]) in
@@ -236,6 +244,7 @@ let%expect_test "tree_induction" =
 
 (* Test 5: Constructor with only non-recursive args *)
 let%expect_test "option_induction" =
+  let () = clear_env () in
   let _ = init () in
   let a = TyVar "a" in
   let constructors =
@@ -251,6 +260,7 @@ let%expect_test "option_induction" =
 
 (* Test 6: Verify constructors are registered *)
 let%expect_test "constructors_registered" =
+  let () = clear_env () in
   let _ = init () in
   let nat_ty = TyCon ("nat", []) in
   let constructors =
@@ -277,6 +287,7 @@ let%expect_test "constructors_registered" =
 
 (* Test 7: Reject non-positive type *)
 let%expect_test "reject_non_positive" =
+  let () = clear_env () in
   let _ = init () in
   let bad_ty = TyCon ("bad", []) in
   let int_ty = TyCon ("int", []) in
@@ -292,6 +303,7 @@ let%expect_test "reject_non_positive" =
 
 (* Test 8: Reject no base case *)
 let%expect_test "reject_no_base_case" =
+  let () = clear_env () in
   let _ = init () in
   let loop_ty = TyCon ("loop", []) in
   let constructors = [ { name = "Loop"; arg_types = [ loop_ty ] } ] in
@@ -303,6 +315,7 @@ let%expect_test "reject_no_base_case" =
   [%expect {| Correctly rejected no base case |}]
 
 let%expect_test "three_variant_induction" =
+  let () = clear_env () in
   let _ = init () in
   let a = TyVar "a" in
   let result_ty = TyCon ("result", [ a ]) in
@@ -322,4 +335,109 @@ let%expect_test "three_variant_induction" =
     {|
     ========================================
     ∀P. P Err ==> ∀n0. P Ok n0 ==> ∀n0. P n0 ==> P Pending n0 ==> ∀x. P x
+    |}]
+
+(* Test recursion theorems *)
+
+let print_recursion_thm def =
+  match def with
+  | Ok d -> print_endline (Printing.pretty_print_thm d.recursion)
+  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+
+(* Test 1: Simple monomorphic type - nat *)
+let%expect_test "nat_recursion" =
+  let () = clear_env () in
+  let _ = init () in
+  let nat_ty = TyCon ("nat", []) in
+  let constructors =
+    [
+      { name = "Zero"; arg_types = [] };
+      { name = "Suc"; arg_types = [ nat_ty ] };
+    ]
+  in
+  let def = define_inductive "nat" [] constructors in
+  print_recursion_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀Zero_case. ∀Suc_case. ∃g. g Zero = Zero_case ∧ (∀x0. g Suc x0 = Suc_case x0 g x0)
+    |}]
+
+(* Test 2: Polymorphic type - list *)
+let%expect_test "list_recursion" =
+  let () = clear_env () in
+  let _ = init () in
+  let a = TyVar "a" in
+  let list_a = TyCon ("list", [ a ]) in
+  let constructors =
+    [
+      { name = "Nil"; arg_types = [] };
+      { name = "Cons"; arg_types = [ a; list_a ] };
+    ]
+  in
+  let def = define_inductive "list" [ "a" ] constructors in
+  print_recursion_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀Nil_case. ∀Cons_case. ∃g. g Nil = Nil_case ∧ (∀x0. ∀x1. g Cons x0 x1 = Cons_case x0 x1 g x1)
+    |}]
+
+(* Test 3: Multiple base cases - bool_like *)
+let%expect_test "bool_like_recursion" =
+  let () = clear_env () in
+  let _ = init () in
+  let constructors =
+    [
+      { name = "TrueVal"; arg_types = [] };
+      { name = "FalseVal"; arg_types = [] };
+    ]
+  in
+  let def = define_inductive "bool_like" [] constructors in
+  print_recursion_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀TrueVal_case. ∀FalseVal_case. ∃g. g TrueVal = TrueVal_case ∧ g FalseVal = FalseVal_case
+    |}]
+
+(* Test 4: Multiple recursive arguments - binary tree *)
+let%expect_test "tree_recursion" =
+  let () = clear_env () in
+  let _ = init () in
+  let a = TyVar "a" in
+  let tree_a = TyCon ("tree", [ a ]) in
+  let constructors =
+    [
+      { name = "Leaf"; arg_types = [] };
+      { name = "Node"; arg_types = [ a; tree_a; tree_a ] };
+    ]
+  in
+  let def = define_inductive "tree" [ "a" ] constructors in
+  print_recursion_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀Leaf_case. ∀Node_case. ∃g. g Leaf = Leaf_case ∧ (∀x0. ∀x1. ∀x2. g Node x0 x1 x2 = Node_case x0 x1 x2 g x1 g x2)
+    |}]
+
+(* Test 5: Three variants with mixed cases - result *)
+let%expect_test "result_recursion" =
+  let () = clear_env () in
+  let _ = init () in
+  let a = TyVar "a" in
+  let result_ty = TyCon ("result", [ a ]) in
+  let constructors =
+    [
+      { name = "Ok"; arg_types = [ a ] };
+      { name = "Err"; arg_types = [] };
+      { name = "Pending"; arg_types = [ result_ty ] };
+    ]
+  in
+  let def = define_inductive "result" [ "a" ] constructors in
+  print_recursion_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀Ok_case. ∀Err_case. ∀Pending_case. ∃g. (∀x0. g Ok x0 = Ok_case x0) ∧ g Err = Err_case ∧ (∀x0. g Pending x0 = Pending_case x0 g x0)
     |}]
