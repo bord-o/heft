@@ -883,13 +883,6 @@ let make_induction_thm (ty : hol_type) (constructors : constructor_spec list) =
 
   new_axiom theorem
 
-(*
-  ∀ok_case err_case pend_case. 
-  ∃g. 
-    (∀x. g (Ok x) = ok_case x) ∧ 
-    (g Err = err_case) ∧
-    (∀r. g (Pending r) = pend_case r (g r))
-*)
 let make_recursion_thm (ty : hol_type) (constructors : constructor_spec list) =
   let ret_ty = TyVar "r" in
   let g_ty = make_fun_ty ty ret_ty in
@@ -984,11 +977,110 @@ let make_recursion_thm (ty : hol_type) (constructors : constructor_spec list) =
 
   new_axiom theorem
 
-(* let make_distinct_thms constructor_terms = failwith "TODO: make_distinct_thms" *)
-(* let make_injective_thms ty constructors = failwith "TODO: make_injective_thms" *)
+  let all_constructor_pairs constructors =
+  let rec pairs = function
+    | [] -> []
+    | x :: xs -> 
+        let pairs_with_x = List.map (fun y -> (x, y)) xs in
+        pairs_with_x @ pairs xs
+  in
+  pairs constructors
 
-let make_distinct_thms constructor_terms = refl (Var ("r", bool_ty))
-let make_injective_thms ty constructors = refl (Var ("r", bool_ty))
+(* Distinctness Theorems *)
+let make_distinct_thms (ty : hol_type) (constructors : constructor_spec list) =
+  let pairs = all_constructor_pairs constructors in
+  
+  pairs |> List.map (fun (c1, c2) ->
+    (* Create variables for c1's arguments *)
+    let c1_vars = c1.arg_types |> List.mapi (fun i arg_ty ->
+      Var ("x" ^ string_of_int i, arg_ty)
+    ) in
+    
+    (* Create variables for c2's arguments *)
+    let c2_vars = c2.arg_types |> List.mapi (fun i arg_ty ->
+      Var ("y" ^ string_of_int i, arg_ty)
+    ) in
+    
+    (* Build: Constructor1 x0 x1 ... *)
+    let c1_ty = make_constructor_type c1.arg_types ty in
+    let c1_const = Const (c1.name, c1_ty) in
+    let lhs = List.fold_left (fun acc var ->
+      Result.get_ok (make_app acc var)
+    ) c1_const c1_vars in
+    
+    (* Build: Constructor2 y0 y1 ... *)
+    let c2_ty = make_constructor_type c2.arg_types ty in
+    let c2_const = Const (c2.name, c2_ty) in
+    let rhs = List.fold_left (fun acc var ->
+      Result.get_ok (make_app acc var)
+    ) c2_const c2_vars in
+    
+    (* Build: ¬(lhs = rhs) *)
+    let* eq = safe_make_eq lhs rhs in
+    let neq = make_neg eq in
+    
+    (* Quantify over all variables *)
+    let all_vars = c1_vars @ c2_vars in
+    let theorem = make_foralls all_vars neq in
+    
+    (* Assert as axiom *)
+    new_axiom theorem
+  )
+
+(* Injectivity Theorems *)
+let make_injective_thms (ty : hol_type) (constructors : constructor_spec list) =
+  constructors 
+  |> List.filter (fun c -> c.arg_types <> [])
+  |> List.map (fun c ->
+    (* Create two sets of variables *)
+    let vars1 = c.arg_types |> List.mapi (fun i arg_ty ->
+      Var ("x" ^ string_of_int i, arg_ty)
+    ) in
+    let vars2 = c.arg_types |> List.mapi (fun i arg_ty ->
+      Var ("y" ^ string_of_int i, arg_ty)
+    ) in
+    
+    (* Build: Constructor x0 x1 ... *)
+    let c_ty = make_constructor_type c.arg_types ty in
+    let c_const = Const (c.name, c_ty) in
+    let lhs = List.fold_left (fun acc var ->
+      Result.get_ok (make_app acc var)
+    ) c_const vars1 in
+    
+    (* Build: Constructor y0 y1 ... *)
+    let rhs = List.fold_left (fun acc var ->
+      Result.get_ok (make_app acc var)
+    ) c_const vars2 in
+    
+    (* Build premise: lhs = rhs *)
+    let* premise = safe_make_eq lhs rhs in
+    
+    (* Build conclusion: x0 = y0 ∧ x1 = y1 ∧ ... *)
+    let* equalities = List.map2 (fun v1 v2 ->
+      safe_make_eq v1 v2
+    ) vars1 vars2
+    |> List.fold_left (fun acc eq ->
+      match acc, eq with
+      | Ok eqs, Ok e -> Ok (e :: eqs)
+      | Error e, _ -> Error e
+      | _, Error e -> Error e
+    ) (Ok [])
+    |> Result.map List.rev
+    in
+    let conclusion = make_conjs equalities in
+    
+    (* Build: premise → conclusion *)
+    let body = make_imp premise conclusion in
+    
+    (* Quantify over all variables *)
+    let all_vars = vars1 @ vars2 in
+    let theorem = make_foralls all_vars body in
+    
+    (* Assert as axiom *)
+    new_axiom theorem
+  )
+
+
 
 let define_inductive tyname params (constructors : constructor_spec list) =
   let* () =
@@ -1037,9 +1129,9 @@ let define_inductive tyname params (constructors : constructor_spec list) =
 
   let* recursion = make_recursion_thm ty constructors in
 
-  let* distinct = make_distinct_thms constructor_terms in
+  let* distinct = make_distinct_thms ty constructors |> Util.result_of_results [] in
 
-  let* injective = make_injective_thms ty constructors in
+  let* injective = make_injective_thms ty constructors |> Util.result_of_results [] in
 
   let def =
     {
@@ -1047,8 +1139,8 @@ let define_inductive tyname params (constructors : constructor_spec list) =
       constructors = constructor_terms;
       induction;
       recursion;
-      distinct = [ distinct ];
-      injective = [ injective ];
+      distinct =  distinct ;
+      injective =  injective ;
     }
   in
   Hashtbl.add the_inductives tyname def;
