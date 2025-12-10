@@ -35,15 +35,16 @@ let rec pretty_print_hol_term ?(with_type = false) ?(parent_prec = PrecImp) term
     pretty_print_hol_term ~with_type ~parent_prec t
   in
 
-(* Decide if we need parens based on precedence *)
-let needs_parens =
-  match (parent_prec, my_prec) with
-  | PrecAtom, PrecApp -> true (* App needs parens when used as atomic arg *)
-  | PrecAtom, (PrecQuant | PrecImp) -> true
-  | PrecApp, (PrecQuant | PrecImp) -> true
-  | _, PrecAtom -> false (* Atoms never need parens *)
-  | (PrecQuant | PrecImp | PrecApp), _ -> false (* Everything else: no parens *)
-in
+  (* Decide if we need parens based on precedence *)
+  let needs_parens =
+    match (parent_prec, my_prec) with
+    | PrecAtom, PrecApp -> true (* App needs parens when used as atomic arg *)
+    | PrecAtom, (PrecQuant | PrecImp) -> true
+    | PrecApp, (PrecQuant | PrecImp) -> true
+    | _, PrecAtom -> false (* Atoms never need parens *)
+    | (PrecQuant | PrecImp | PrecApp), _ ->
+        false (* Everything else: no parens *)
+  in
   let wrap s = if needs_parens then Format.sprintf "(%s)" s else s in
 
   match term with

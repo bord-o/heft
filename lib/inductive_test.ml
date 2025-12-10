@@ -441,3 +441,145 @@ let%expect_test "result_recursion" =
     ========================================
     ∀Ok_case. ∀Err_case. ∀Pending_case. ∃g. (∀x0. g (Ok x0) = Ok_case x0) ∧ g Err = Err_case ∧ (∀x0. g (Pending x0) = Pending_case x0 (g x0))
     |}]
+
+(* Test distinctness theorems *)
+
+let print_distinct_thms def =
+  match def with
+  | Ok d ->
+      List.iter
+        (fun thm -> print_endline (Printing.pretty_print_thm thm))
+        d.distinct
+  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+
+(* Test 1: Two constructors - nat *)
+let%expect_test "nat_distinctness" =
+  let () = clear_env () in
+  let _ = init () in
+  let nat_ty = TyCon ("nat", []) in
+  let constructors =
+    [
+      { name = "Zero"; arg_types = [] };
+      { name = "Suc"; arg_types = [ nat_ty ] };
+    ]
+  in
+  let def = define_inductive "nat" [] constructors in
+  print_distinct_thms def;
+  [%expect {||}]
+
+(* Test 2: Two constructors - list *)
+let%expect_test "list_distinctness" =
+  let () = clear_env () in
+  let _ = init () in
+  let a = TyVar "a" in
+  let list_a = TyCon ("list", [ a ]) in
+  let constructors =
+    [
+      { name = "Nil"; arg_types = [] };
+      { name = "Cons"; arg_types = [ a; list_a ] };
+    ]
+  in
+  let def = define_inductive "list" [ "a" ] constructors in
+  print_distinct_thms def;
+  [%expect {||}]
+
+(* Test 3: Three constructors - result *)
+let%expect_test "result_distinctness" =
+  let () = clear_env () in
+  let _ = init () in
+  let a = TyVar "a" in
+  let result_ty = TyCon ("result", [ a ]) in
+  let constructors =
+    [
+      { name = "Ok"; arg_types = [ a ] };
+      { name = "Err"; arg_types = [] };
+      { name = "Pending"; arg_types = [ result_ty ] };
+    ]
+  in
+  let def = define_inductive "result" [ "a" ] constructors in
+  print_distinct_thms def;
+  [%expect {||}]
+
+(* Test 4: Four constructors - multiple pairs *)
+let%expect_test "four_constructor_distinctness" =
+  let () = clear_env () in
+  let _ = init () in
+  let constructors =
+    [
+      { name = "A"; arg_types = [] };
+      { name = "B"; arg_types = [] };
+      { name = "C"; arg_types = [] };
+      { name = "D"; arg_types = [] };
+    ]
+  in
+  let def = define_inductive "four" [] constructors in
+  print_distinct_thms def;
+  [%expect {||}]
+
+(* Test injectivity theorems *)
+
+let print_injective_thms def =
+  match def with
+  | Ok d ->
+      List.iter
+        (fun thm -> print_endline (Printing.pretty_print_thm thm))
+        d.injective
+  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+
+(* Test 5: One constructor with one arg - nat *)
+let%expect_test "nat_injectivity" =
+  let () = clear_env () in
+  let _ = init () in
+  let nat_ty = TyCon ("nat", []) in
+  let constructors =
+    [
+      { name = "Zero"; arg_types = [] };
+      { name = "Suc"; arg_types = [ nat_ty ] };
+    ]
+  in
+  let def = define_inductive "nat" [] constructors in
+  print_injective_thms def;
+  [%expect {||}]
+
+(* Test 6: Constructor with multiple args - list *)
+let%expect_test "list_injectivity" =
+  let () = clear_env () in
+  let _ = init () in
+  let a = TyVar "a" in
+  let list_a = TyCon ("list", [ a ]) in
+  let constructors =
+    [
+      { name = "Nil"; arg_types = [] };
+      { name = "Cons"; arg_types = [ a; list_a ] };
+    ]
+  in
+  let def = define_inductive "list" [ "a" ] constructors in
+  print_injective_thms def;
+  [%expect {||}]
+
+(* Test 7: Constructor with three args - tree *)
+let%expect_test "tree_injectivity" =
+  let () = clear_env () in
+  let _ = init () in
+  let a = TyVar "a" in
+  let tree_a = TyCon ("tree", [ a ]) in
+  let constructors =
+    [
+      { name = "Leaf"; arg_types = [] };
+      { name = "Node"; arg_types = [ a; tree_a; tree_a ] };
+    ]
+  in
+  let def = define_inductive "tree" [ "a" ] constructors in
+  print_injective_thms def;
+  [%expect {||}]
+
+(* Test 8: Only nullary constructors - no injectivity theorems *)
+let%expect_test "no_injectivity" =
+  let () = clear_env () in
+  let _ = init () in
+  let constructors =
+    [ { name = "True"; arg_types = [] }; { name = "False"; arg_types = [] } ]
+  in
+  let def = define_inductive "bool_like" [] constructors in
+  print_injective_thms def;
+  [%expect {||}]
