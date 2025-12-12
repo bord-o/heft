@@ -66,12 +66,3 @@ Proof.
     * simpl. lia.
 Qed.
 
-
-(*  let rec pairs = function*)
-(*    | [] -> []*)
-(*    | x :: xs ->*)
-(*        let pairs_with_x = List.map (fun y -> (x, y)) xs in*)
-(*        pairs_with_x @ pairs xs*)
-(*  in*)
-(*  pairs constructors*)
-(**)
