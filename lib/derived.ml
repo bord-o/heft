@@ -247,12 +247,22 @@ let eq_truth_elim th =
   in
   make_exn thm
 
+(* try to apply beta, then get binder from f, instantiate it with the arg f is applied to and beta that*)
+let beta_conv tm =
+  match beta tm with
+  | Ok reduced -> Ok reduced
+  | Error _ ->
+      let* f, arg = destruct_app tm in
+      let* v, _ = destruct_lam f in
+      let* reduced = beta (App (f, v)) in
+      let* instantiated_body = inst [ (arg, v) ] reduced in
+      Ok instantiated_body
+
 (* Probably need beta for these *)
 let conj_left th =
-    print_endline "goal |- p /\\ q should derive |- p";
-    let* _p = refl (make_var "p" bool_ty) in
-    Ok th
-
+  print_endline "goal |- p /\\ q should derive |- p";
+  let* _p = refl (make_var "p" bool_ty) in
+  Ok th
 
 let undisch th =
   print_endline "the goal: {p ==> q, p} ⊢ q";
