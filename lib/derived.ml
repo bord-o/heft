@@ -194,44 +194,34 @@ let exists_def = init_exists ()
 let disj_def = init_disj ()
 let classical_def = init_classical ()
 
-(**)
-
 let ap_term tm th =
-  let thm =
     let* rth = refl tm in
     mk_comb rth th
-  in
-  make_exn thm
 
 let ap_thm th tm =
-  let thm =
     let* term_rfl = refl tm in
     mk_comb th term_rfl
-  in
-  make_exn thm
 
+(* |- x = y should derive |- y = x *)
 let sym th =
   let tm = concl th in
   let* l, _ = destruct_eq tm in
   let* lth = refl l in
   let* r = rator tm in
   let* rr = rator r in
-  let applied = ap_term rr th in
+  let* applied = ap_term rr th in
   let* comb = mk_comb applied lth in
   eq_mp comb lth
 
-(* \p. p = \p. p is true*)
+(* λp. p = λp. p is truth *)
+(* T is already defined, just build up the identity reflection and use eq_mp to get T *)
 let truth =
   let thm =
     let p = Var ("p", bool_ty) in
-    (* p : bool*)
     let id_fun = Lam (p, p) in
-    (*\p. p*)
     let* id_fun_refl = refl id_fun in
-    (* |- \p. p = \p. p  *)
     let* t_def = true_def in
     let* t_def_sym = sym t_def in
-    (* |- (\p. p = \p. p ) = T*)
     eq_mp t_def_sym id_fun_refl
   in
   make_exn thm
@@ -240,6 +230,7 @@ let truth =
 let eq_truth_intro thm = make_exn (deduct_antisym_rule thm truth)
 
 (* |- p = T  should derive |- p *)
+(* flip around and use eq_mp to get p *)
 let eq_truth_elim th =
   let thm =
     let* thm_sym = sym th in
@@ -247,7 +238,8 @@ let eq_truth_elim th =
   in
   make_exn thm
 
-(* try to apply beta, then get binder from f, instantiate it with the arg f is applied to and beta that*)
+(* |- (λx. x /\ x) arg should derive |- arg /\ arg *)
+(* try to apply beta, then get binder from f, instantiate it with the arg f is applied to and beta that *)
 let beta_conv tm =
   match beta tm with
   | Ok reduced -> Ok reduced
@@ -258,14 +250,8 @@ let beta_conv tm =
       let* instantiated_body = inst [ (arg, v) ] reduced in
       Ok instantiated_body
 
-(* Probably need beta for these *)
-let conj_left th =
-  print_endline "goal |- p /\\ q should derive |- p";
-  let* _p = refl (make_var "p" bool_ty) in
-  Ok th
+let conj_left _th = failwith "TODO"
+let conj_right _th = failwith "TODO"
 
-let undisch th =
-  print_endline "the goal: {p ==> q, p} ⊢ q";
-  let* _p = refl (make_var "p" bool_ty) in
-  Ok th
+let undisch _th = failwith "TODO"
 
