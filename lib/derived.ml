@@ -269,13 +269,3 @@ let undisch th =
   let* _p = refl (make_var "p" bool_ty) in
   Ok th
 
-let wip () =
-  let p = make_var "p" bool_ty in
-  let q = make_var "q" bool_ty in
-  let p_imp_q = make_imp p q in
-  let* _p_imp_q_thm = assume p_imp_q in
-
-  let p_and_q = make_conj p q in
-  let* p_and_q_thm = assume p_and_q in
-  (* undisch p_imp_q_thm *)
-  conj_left p_and_q_thm
