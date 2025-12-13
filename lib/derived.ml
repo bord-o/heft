@@ -1,5 +1,6 @@
 open Kernel
 open Result.Syntax
+open Util
 
 let pp_thm th = print_newline @@ print_endline @@ Printing.pretty_print_thm th
 
@@ -258,6 +259,17 @@ let lhs th =
   let* l, _ = destruct_eq (concl th) in
   Ok l
 
+let apply_and_beta th arg =
+  let* applied = ap_thm th arg in
+  let* lhs_tm = lhs applied in
+  let* beta_th = beta_conv lhs_tm in
+  let* rev_beta = sym beta_th in
+  trans rev_beta applied
+
+let unfold_definition def args =
+  let* rev_def = sym def in
+  fold_left_result apply_and_beta rev_def args
+
 (* |- p and |- q should derive |- p /\ q *)
 let conj thl thr =
   let bool_to_bool = make_fun_ty bool_ty bool_ty in
@@ -271,20 +283,9 @@ let conj thl thr =
   let* conj_def = conj_def in
   let* rev_conj_def = sym conj_def in
   let* body = lam f l_thm2 in
-  let* conj_l = ap_thm rev_conj_def (concl thl) in
   (*Need to apply and reduce with P*)
-  let* lhs_l = lhs conj_l in
-  let* applied_l = beta_conv lhs_l in
-  let* rev_applied_l = sym applied_l in
-  let* conj_applied_l = trans rev_applied_l conj_l in
-  (*need to apply and reduce with q *)
-  let* conj_r = ap_thm conj_applied_l (concl thr) in
-  let* lhs_r = lhs conj_r in
-  let* applied_r = beta_conv lhs_r in
-  let* rev_applied_r = sym applied_r in
-  let* conj_applied_r = trans rev_applied_r conj_r in
-  (* use body to get back to p /\ q *)
-  eq_mp conj_applied_r body
+  let* conj_applied = unfold_definition conj_def [ concl thl; concl thr ] in
+  eq_mp conj_applied body
 
 let conj_left _th = failwith "TODO"
 let conj_right _th = failwith "TODO"

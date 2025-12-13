@@ -94,6 +94,21 @@ let%expect_test "lhs_simple" =
   print_term_result thm;
   [%expect {| /\ |}]
 
+let%expect_test "unfold_definition_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+
+  let thm =
+    let* conj_def = conj_def in
+    unfold_definition conj_def [ p; q ]
+  in
+  print_thm_result thm;
+  [%expect
+    {|
+    ========================================
+    (λf. f P Q) = (λf. f T T) = P ∧ Q
+    |}]
+
 let%expect_test "conj_simple" =
   let () = clear_env () in
   let _ = init_types () in
@@ -103,17 +118,10 @@ let%expect_test "conj_simple" =
     conj thl thr
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P
     Q
     ========================================
     P ∧ Q
     |}]
-let%expect_test "unfold_definition_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
-  let _thm = ()
-  in
-  [%expect {|
-  |}]
- 
