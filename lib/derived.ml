@@ -179,31 +179,51 @@ let make_disj p q = App (App (make_disj_const (), p), q)
 let make_neq l r =
   match safe_make_eq l r with Ok eq -> Ok (make_neg eq) | Error e -> Error e
 
+(* ∀p. p /\ ¬p  *)
 let init_classical () =
   let p = Var ("p", bool_ty) in
   let excl_middle = make_forall p (make_disj p (make_neg p)) in
   new_axiom excl_middle
 
 let _ = init_types ()
+(** [T = ((λp:bool. p) = (λp. p))] *)
 let true_def = init_true ()
+(** [∀ = (λP. P = (λx. T))] *)
 let forall_def = init_forall ()
+(** [∧ = (λp q. (λf. f p q) = (λf. f T T))] *)
 let conj_def = init_conj ()
+(** [==> = (λp q. p ∧ q ⟺ p)] *)
 let imp_def = init_imp ()
+(** [F = (∀p. p)] *)
 let false_def = init_false ()
+(** [¬ = (λp. p ==> F)] *)
 let neg_def = init_neg ()
+(** [∃ = (λP. ¬(∀x. ¬(P x)))] *)
 let exists_def = init_exists ()
+(** [∨ = (λp q. ∀r. (p ==> r) ==> (q ==> r) ==> r)] *)
 let disj_def = init_disj ()
+(** [∀p. p /\ ¬p] *)
 let classical_def = init_classical ()
 
-
+(** obtain [p] from [p /\ q]*)
 let conj_left_term = function
   | App (App (Const ("/\\", _), p), _) -> p
   | _ -> failwith "TODO: Not a conj"
 
+(** obtain [q] from [p /\ q]*)
 let conj_right_term = function
   | App (App (Const ("/\\", _), _), q) -> q
   | _ -> failwith "TODO: Not a conj"
 
+(** obtain [p] from [p \/ q]*)
+let disj_left_term = function
+  | App (App (Const ("\\/", _), p), _) -> p
+  | _ -> failwith "TODO: Not a disj"
+
+(** obtain [q] from [p \/ q]*)
+let disj_right_term = function
+  | App (App (Const ("\\/", _), _), q) -> q
+  | _ -> failwith "TODO: Not a disj"
 
 let ap_term tm th =
   let* rth = refl tm in
@@ -213,7 +233,7 @@ let ap_thm th tm =
   let* term_rfl = refl tm in
   mk_comb th term_rfl
 
-(* |- x = y should derive |- y = x *)
+  (* [|- x = y] should derive [|- y = x] *)
 let sym th =
   let tm = concl th in
   let* l, _ = destruct_eq tm in
@@ -224,7 +244,7 @@ let sym th =
   let* comb = mk_comb applied lth in
   eq_mp comb lth
 
-(* λp. p = λp. p is truth *)
+(** [λp. p = λp. p] is truth *)
 (* T is already defined, just build up the identity reflection and use eq_mp to get T *)
 let truth =
   let thm =
@@ -237,10 +257,8 @@ let truth =
   in
   make_exn thm
 
-(*  p should derive |- p = T *)
+(** [|- p] should derive [|- p = T] *)
 let eq_truth_intro thm = deduct_antisym_rule thm truth
-
-(* flip around and use eq_mp to get p *)
 
 (** [|- p = T] should derive [|- p] *)
 let eq_truth_elim th =
@@ -268,7 +286,7 @@ let lhs th =
   let* l, _ = destruct_eq (concl th) in
   Ok l
 
-(* need better conversions *)
+(** recursively apply beta conversions *)
 let rec deep_beta tm =
   match tm with
   | Var _ | Const _ -> refl tm
@@ -290,35 +308,27 @@ let rec deep_beta tm =
       let* body_th = deep_beta body in
       lam v body_th
 
+(** obtain equality after applying a conversion to the left side *)
 let conv_left conv th =
   let c = concl th in
   let* l, _r = destruct_eq c in
-  (* l = r *)
   let* convd = conv l in
-  (* l = l' *)
   let* rev_convd = sym convd in
-  (* l' = l *)
   trans rev_convd th
 
+(** obtain equality after applying a conversion to the right side *)
 let conv_right conv th =
   let c = concl th in
   let* _l, r = destruct_eq c in
-  (* l = r *)
   let* convd = conv r in
-  (* r = r' *)
   trans th convd
 
+(** obtain equality after applying a converion to both sides *)
 let conv_equality conv th =
-  (* l = r *)
   let* left_reduced = conv_left conv th in
-  (* l' = r *)
   let* right_reduced = conv_right conv th in
-  (* l = r' *)
-  (* l' = r' *)
   let* rev_th = sym th in
-  (* r = l *)
   let* l'_eq_r = trans left_reduced rev_th in
-  (* l' = l *)
   let* l'_eq_r' = trans l'_eq_r right_reduced in
   Ok l'_eq_r'
 
@@ -351,28 +361,39 @@ let conj thl thr =
   let* conj_applied = unfold_definition conj_def [ concl thl; concl thr ] in
   eq_mp conj_applied body
 
+let conj_lr selector th =
+  let thl = conj_left_term (concl th) in
+  let thr = conj_right_term (concl th) in
+  let* conj_def = conj_def in
+  let* unfolded_conj = unfold_definition conj_def [ thl; thr ] in
+  let* rev_unfolded_conj = sym unfolded_conj in
+  let* def = eq_mp rev_unfolded_conj th in
+  let* applied = ap_thm def selector in
+
+  let* reduced = conv_equality deep_beta applied in
+  let* eq_elim = eq_truth_elim reduced in
+  Ok eq_elim
+
 (** [|- p /\ q] should derive [|- p] *)
-let conj_left th = 
-    let* select_fst =
-      let x = make_var "x" bool_ty in
-      let y = make_var "y" bool_ty in
-      let* inner = make_lam y x in
-      make_lam x inner
-      (* λx y. x *)
-    in
-    let thl = conj_left_term (concl th) in
-    let thr = conj_right_term (concl th) in
-    let* conj_def = conj_def in
-    let* unfolded_conj = unfold_definition conj_def [ thl; thr ] in
-    let* rev_unfolded_conj = sym unfolded_conj in
-    let* def = eq_mp rev_unfolded_conj th in
-    let* applied = ap_thm def select_fst in
+let conj_left th =
+  let* select_fst  =
+    let x = make_var "x" bool_ty in
+    let y = make_var "y" bool_ty in
+    let* inner = make_lam y x in
+    make_lam x inner
+    (* λx y. x *)
+  in
+    conj_lr select_fst th
 
-    let* reduced = conv_equality deep_beta applied in
-    let* eq_elim = eq_truth_elim reduced in
-    Ok eq_elim
+(* [|- p /\ q] should derive [|- q] *)
+let conj_right th =
+  let* select_snd  =
+    let x = make_var "x" bool_ty in
+    let y = make_var "y" bool_ty in
+    let* inner = make_lam y y in
+    make_lam x inner
+    (* λx y. y *)
+  in
+  conj_lr select_snd th
 
-
-(* |- p /\ q should derive |- q*)
-let conj_right _th = failwith "TODO"
 let undisch _th = failwith "TODO"

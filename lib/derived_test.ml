@@ -130,33 +130,32 @@ let%expect_test "conj_left_simple" =
   let () = clear_env () in
   let _ = init_types () in
   let thm =
-    (* build selector *)
-    let* select_fst =
-      let x = make_var "x" bool_ty in
-      let y = make_var "y" bool_ty in
-      let* inner = make_lam y x in
-      make_lam x inner
-      (* λx y. x *)
-    in
     let* thl = assume p in
     let* thr = assume q in
     let* conj_pq = conj thl thr in
-    let* conj_def = conj_def in
-    let* unfolded_conj = unfold_definition conj_def [ p; q ] in
-    let* rev_unfolded_conj = sym unfolded_conj in
-    let* def = eq_mp rev_unfolded_conj conj_pq in
-    let* applied = ap_thm def select_fst in
-
-    let* reduced = conv_equality deep_beta applied in
-    let* eq_elim = eq_truth_elim reduced in
-    Ok eq_elim
+    conj_left conj_pq
   in
   print_thm_result thm;
-  [%expect
-    {|
+  [%expect {|
     P
     Q
     ========================================
     P
     |}]
 
+let%expect_test "conj_right_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* thl = assume p in
+    let* thr = assume q in
+    let* conj_pq = conj thl thr in
+    conj_right conj_pq
+  in
+  print_thm_result thm;
+  [%expect {|
+    P
+    Q
+    ========================================
+    Q
+    |}]
