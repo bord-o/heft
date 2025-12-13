@@ -195,6 +195,16 @@ let exists_def = init_exists ()
 let disj_def = init_disj ()
 let classical_def = init_classical ()
 
+
+let conj_left_term = function
+  | App (App (Const ("/\\", _), p), _) -> p
+  | _ -> failwith "TODO: Not a conj"
+
+let conj_right_term = function
+  | App (App (Const ("/\\", _), _), q) -> q
+  | _ -> failwith "TODO: Not a conj"
+
+
 let ap_term tm th =
   let* rth = refl tm in
   mk_comb rth th
@@ -227,20 +237,19 @@ let truth =
   in
   make_exn thm
 
-(* |- p should derive |- p = T *)
-let eq_truth_intro thm = make_exn (deduct_antisym_rule thm truth)
+(*  p should derive |- p = T *)
+let eq_truth_intro thm = deduct_antisym_rule thm truth
 
-(* |- p = T  should derive |- p *)
 (* flip around and use eq_mp to get p *)
-let eq_truth_elim th =
-  let thm =
-    let* thm_sym = sym th in
-    eq_mp thm_sym truth
-  in
-  make_exn thm
 
-(* |- (λx. x /\ x) arg should derive |- arg /\ arg *)
+(** [|- p = T] should derive [|- p] *)
+let eq_truth_elim th =
+  let* thm_sym = sym th in
+  eq_mp thm_sym truth
+
 (* try to apply beta, then get binder from f, instantiate it with the arg f is applied to and beta that *)
+
+(** [|- (λx. x /\ x) arg] should derive [|- arg /\ arg] *)
 let beta_conv tm =
   match beta tm with
   | Ok reduced -> Ok reduced
@@ -259,34 +268,111 @@ let lhs th =
   let* l, _ = destruct_eq (concl th) in
   Ok l
 
-let apply_and_beta th arg =
-  let* applied = ap_thm th arg in
-  let* lhs_tm = lhs applied in
-  let* beta_th = beta_conv lhs_tm in
-  let* rev_beta = sym beta_th in
-  trans rev_beta applied
+(* need better conversions *)
+let rec deep_beta tm =
+  match tm with
+  | Var _ | Const _ -> refl tm
+  | App (f, x) -> (
+      let* f_th = deep_beta f in
+      let* x_th = deep_beta x in
+      let* app_th = mk_comb f_th x_th in
+      let* reduced_tm = rhs app_th in
+      let* f', _ = destruct_app reduced_tm in
+      match f' with
+      | Lam _ ->
+          let* beta_th = beta_conv reduced_tm in
+          let* combined = trans app_th beta_th in
+          let* result_tm = rhs combined in
+          let* final_th = deep_beta result_tm in
+          trans combined final_th
+      | _ -> Ok app_th)
+  | Lam (v, body) ->
+      let* body_th = deep_beta body in
+      lam v body_th
 
+let conv_left conv th =
+  let c = concl th in
+  let* l, _r = destruct_eq c in
+  (* l = r *)
+  let* convd = conv l in
+  (* l = l' *)
+  let* rev_convd = sym convd in
+  (* l' = l *)
+  trans rev_convd th
+
+let conv_right conv th =
+  let c = concl th in
+  let* _l, r = destruct_eq c in
+  (* l = r *)
+  let* convd = conv r in
+  (* r = r' *)
+  trans th convd
+
+let conv_equality conv th =
+  (* l = r *)
+  let* left_reduced = conv_left conv th in
+  (* l' = r *)
+  let* right_reduced = conv_right conv th in
+  (* l = r' *)
+  (* l' = r' *)
+  let* rev_th = sym th in
+  (* r = l *)
+  let* l'_eq_r = trans left_reduced rev_th in
+  (* l' = l *)
+  let* l'_eq_r' = trans l'_eq_r right_reduced in
+  Ok l'_eq_r'
+
+(* not sure how general this is, but useful for now *)
 let unfold_definition def args =
+  let apply_and_beta th arg =
+    let* applied = ap_thm th arg in
+    let* lhs_tm = lhs applied in
+    let* beta_th = beta_conv lhs_tm in
+    let* rev_beta = sym beta_th in
+    trans rev_beta applied
+  in
   let* rev_def = sym def in
   fold_left_result apply_and_beta rev_def args
 
-(* |- p and |- q should derive |- p /\ q *)
+(** [|- p, |- q] should derive [|- p /\ q] *)
 let conj thl thr =
   let bool_to_bool = make_fun_ty bool_ty bool_ty in
   let bool_to_bool_to_bool = make_fun_ty bool_ty bool_to_bool in
   let f = make_var "f" bool_to_bool_to_bool in
+  (* build up the definition of conjunction from out terms *)
   let* f_refl = refl f in
-  let l_eqt = eq_truth_intro thl in
-  let r_eqt = eq_truth_intro thr in
+  let* l_eqt = eq_truth_intro thl in
+  let* r_eqt = eq_truth_intro thr in
   let* l_thm1 = mk_comb f_refl l_eqt in
   let* l_thm2 = mk_comb l_thm1 r_eqt in
   let* conj_def = conj_def in
-  let* rev_conj_def = sym conj_def in
   let* body = lam f l_thm2 in
-  (*Need to apply and reduce with P*)
+  (* Need to apply and reduce *)
   let* conj_applied = unfold_definition conj_def [ concl thl; concl thr ] in
   eq_mp conj_applied body
 
-let conj_left _th = failwith "TODO"
+(** [|- p /\ q] should derive [|- p] *)
+let conj_left th = 
+    let* select_fst =
+      let x = make_var "x" bool_ty in
+      let y = make_var "y" bool_ty in
+      let* inner = make_lam y x in
+      make_lam x inner
+      (* λx y. x *)
+    in
+    let thl = conj_left_term (concl th) in
+    let thr = conj_right_term (concl th) in
+    let* conj_def = conj_def in
+    let* unfolded_conj = unfold_definition conj_def [ thl; thr ] in
+    let* rev_unfolded_conj = sym unfolded_conj in
+    let* def = eq_mp rev_unfolded_conj th in
+    let* applied = ap_thm def select_fst in
+
+    let* reduced = conv_equality deep_beta applied in
+    let* eq_elim = eq_truth_elim reduced in
+    Ok eq_elim
+
+
+(* |- p /\ q should derive |- q*)
 let conj_right _th = failwith "TODO"
 let undisch _th = failwith "TODO"

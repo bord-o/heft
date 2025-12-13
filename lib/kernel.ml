@@ -163,8 +163,8 @@ let rec type_of_term = function
 
 let is_var = function Var (_, _) -> true | _ -> false
 let is_const = function Const (_, _) -> true | _ -> false
-let is_abs = function Lam (_, _) -> true | _ -> false
-let is_comb = function App (_, _) -> true | _ -> false
+let is_lam = function Lam (_, _) -> true | _ -> false
+let is_app = function App (_, _) -> true | _ -> false
 let make_var v ty = Var (v, ty)
 
 let make_const name theta =
