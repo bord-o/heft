@@ -195,12 +195,12 @@ let disj_def = init_disj ()
 let classical_def = init_classical ()
 
 let ap_term tm th =
-    let* rth = refl tm in
-    mk_comb rth th
+  let* rth = refl tm in
+  mk_comb rth th
 
 let ap_thm th tm =
-    let* term_rfl = refl tm in
-    mk_comb th term_rfl
+  let* term_rfl = refl tm in
+  mk_comb th term_rfl
 
 (* |- x = y should derive |- y = x *)
 let sym th =
@@ -250,8 +250,42 @@ let beta_conv tm =
       let* instantiated_body = inst [ (arg, v) ] reduced in
       Ok instantiated_body
 
+let rhs th =
+  let* _, r = destruct_eq (concl th) in
+  Ok r
+
+let lhs th =
+  let* l, _ = destruct_eq (concl th) in
+  Ok l
+
+(* |- p and |- q should derive |- p /\ q *)
+let conj thl thr =
+  let bool_to_bool = make_fun_ty bool_ty bool_ty in
+  let bool_to_bool_to_bool = make_fun_ty bool_ty bool_to_bool in
+  let f = make_var "f" bool_to_bool_to_bool in
+  let* f_refl = refl f in
+  let l_eqt = eq_truth_intro thl in
+  let r_eqt = eq_truth_intro thr in
+  let* l_thm1 = mk_comb f_refl l_eqt in
+  let* l_thm2 = mk_comb l_thm1 r_eqt in
+  let* conj_def = conj_def in
+  let* rev_conj_def = sym conj_def in
+  let* body = lam f l_thm2 in
+  let* conj_l = ap_thm rev_conj_def (concl thl) in
+  (*Need to apply and reduce with P*)
+  let* lhs_l = lhs conj_l in
+  let* applied_l = beta_conv lhs_l in
+  let* rev_applied_l = sym applied_l in
+  let* conj_applied_l = trans rev_applied_l conj_l in
+  (*need to apply and reduce with q *)
+  let* conj_r = ap_thm conj_applied_l (concl thr) in
+  let* lhs_r = lhs conj_r in
+  let* applied_r = beta_conv lhs_r in
+  let* rev_applied_r = sym applied_r in
+  let* conj_applied_r = trans rev_applied_r conj_r in
+  (* use body to get back to p /\ q *)
+  eq_mp conj_applied_r body
+
 let conj_left _th = failwith "TODO"
 let conj_right _th = failwith "TODO"
-
 let undisch _th = failwith "TODO"
-
