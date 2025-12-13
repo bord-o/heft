@@ -143,6 +143,26 @@ let%expect_test "conj_left_simple" =
     P
     |}]
 
+let%expect_test "conj_left_nested" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* p_th = assume p in
+    let* q_th = assume q in
+    let* r_th = assume r in
+    let* conj_pq = conj p_th q_th in
+    let* conj_pq_r = conj conj_pq r_th in
+    conj_left conj_pq_r
+  in
+  print_thm_result thm;
+  [%expect {|
+    P
+    Q
+    R
+    ========================================
+    P ∧ Q
+    |}]
+
 let%expect_test "conj_right_simple" =
   let () = clear_env () in
   let _ = init_types () in
@@ -158,4 +178,26 @@ let%expect_test "conj_right_simple" =
     Q
     ========================================
     Q
+    |}]
+
+let%expect_test "undisch_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let p_imp_q = make_imp p q in
+    let* p_imp_q_th = assume p_imp_q in
+    let* imp_def = imp_def in
+    let* conj_def = conj_def in
+    let* imp_applied = unfold_definition imp_def [p; q] in
+    let* rev_imp_applied = sym imp_applied in
+    let* conj_applied = unfold_definition conj_def [p; q] in
+    let* p_imp_q_dest = eq_mp rev_imp_applied p_imp_q_th in
+    let* rev_p_imp_q_dest = sym p_imp_q_dest in
+    let* p_thm = assume p in
+    let* replaced_p = eq_mp rev_p_imp_q_dest p_thm in
+    let* right = conj_right replaced_p in
+    Ok right 
+  in
+  print_thm_result thm;
+  [%expect {|
     |}]
