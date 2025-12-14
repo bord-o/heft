@@ -6,7 +6,9 @@ open Result.Syntax
 let p = Var ("P", bool_ty)
 let q = Var ("Q", bool_ty)
 let r = Var ("R", bool_ty)
+
 let g = Var ("g", TyCon ("fun", [ bool_ty; bool_ty ]))
+
 let x = Var ("x", bool_ty)
 let y = Var ("y", bool_ty)
 
@@ -275,13 +277,13 @@ let%expect_test "mp_simple" =
     Q
     |}]
 
-let%expect_test "disj_right_simple" =
+let%expect_test "gen_simple" =
   let () = clear_env () in
   let _ = init_types () in
   let thm =
-    let* p_th = assume p in
-    let* disj_def = disj_def in
-    Ok disj_def
+      let* g_p = make_app g p in
+      let* p_th = assume g_p in
+      gen p_th
   in
   print_thm_result thm;
   [%expect

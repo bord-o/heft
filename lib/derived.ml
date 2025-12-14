@@ -441,15 +441,30 @@ let mp th_imp th =
     prove_hyp th q_under_p
 
 (** [|- P x] should derive [|- ∀x. P x] when x is not free in hypotheses *)
-let gen _th = 
-    failwith "TODO"
+let gen th = 
+    (*todo check hyps*)
+    let* forall_def = forall_def in
+    let* bind, bod = destruct_app (concl th) in
+
+
+    let* eqt_th = eq_truth_intro th in
+
+    let* tm_lam = make_lam bod (concl th) in
+    print_endline @@ Printing.pretty_print_hol_term ~with_type:true tm_lam;
+    print_endline @@ Printing.pretty_print_thm ~with_type:true forall_def ;
+
+    
+    (* let* lam_th_eq = lam bind eqt_th in *)
+
+    let* applied = unfold_definition forall_def [tm_lam] in
+    Ok applied
 
 (** [|- ∀x. P x] should derive [|- P t] for any term t  *)
 let spec _tm _th = 
     failwith "TODO"
 
     (** [⊢ P] should derive [⊢ P ∨ Q] *)
-let disj_left _th _tm = 
+let disj_left th tm = 
     failwith "TODO"
 
 (** [⊢ Q] should derive [⊢ P ∨ Q] *)
