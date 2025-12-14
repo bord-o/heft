@@ -205,25 +205,31 @@ let disj_def = init_disj ()
 (** [∀p. p /\ ¬p] *)
 let classical_def = init_classical ()
 
+type side = Left  | Right
+let side_of_op op side = function
+  | App (App (Const (oper, _), p), q) when oper = op -> 
+          (match side with
+            | Left -> p
+            | Right -> q)
+  | _ -> failwith ("TODO: Not a " ^ op)
+
 (** obtain [p] from [p /\ q]*)
-let conj_left_term = function
-  | App (App (Const ("/\\", _), p), _) -> p
-  | _ -> failwith "TODO: Not a conj"
+let conj_left_term = Left |> side_of_op "/\\"
 
 (** obtain [q] from [p /\ q]*)
-let conj_right_term = function
-  | App (App (Const ("/\\", _), _), q) -> q
-  | _ -> failwith "TODO: Not a conj"
+let conj_right_term = Right |> side_of_op "/\\"
 
 (** obtain [p] from [p \/ q]*)
-let disj_left_term = function
-  | App (App (Const ("\\/", _), p), _) -> p
-  | _ -> failwith "TODO: Not a disj"
+let disj_left_term = Left |> side_of_op "\\/"
 
 (** obtain [q] from [p \/ q]*)
-let disj_right_term = function
-  | App (App (Const ("\\/", _), _), q) -> q
-  | _ -> failwith "TODO: Not a disj"
+let disj_right_term = Right |> side_of_op "\\/"
+
+(** obtain [p] from [p ==> q]*)
+let imp_left_term = Left |> side_of_op "==>"
+
+(** obtain [q] from [p ==> q]*)
+let imp_right_term = Right |> side_of_op "==>"
 
 let ap_term tm th =
   let* rth = refl tm in
@@ -398,19 +404,15 @@ let conj_right th =
 
   (** [|- p => q] should derive [{q} |- p]*)
 let undisch th = 
-    let l_tm = conj_left_term (concl th) in
-    let r_tm = conj_right_term (concl th) in
+    let l_tm = imp_left_term (concl th) in
+    let r_tm = imp_right_term (concl th) in
     let* assm_l = assume l_tm in
 
     let* imp_def = imp_def in
-    let* conj_def = conj_def in
-
     let* imp_applied = unfold_definition imp_def [l_tm; r_tm] in
     let* rev_imp_applied = sym imp_applied in
-    let* conj_applied = unfold_definition conj_def [l_tm; r_tm] in
 
     let* l_imp_r_dest = eq_mp rev_imp_applied th in
     let* rev_l_imp_r_dest = sym l_imp_r_dest in
     let* replaced_p = eq_mp rev_l_imp_r_dest assm_l in
-    let* right = conj_right replaced_p in
-    Ok right 
+    conj_right replaced_p

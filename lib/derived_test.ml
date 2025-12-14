@@ -136,7 +136,8 @@ let%expect_test "conj_left_simple" =
     conj_left conj_pq
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P
     Q
     ========================================
@@ -155,7 +156,8 @@ let%expect_test "conj_left_nested" =
     conj_left conj_pq_r
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P
     Q
     R
@@ -173,7 +175,8 @@ let%expect_test "conj_right_simple" =
     conj_right conj_pq
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P
     Q
     ========================================
@@ -186,18 +189,13 @@ let%expect_test "undisch_simple" =
   let thm =
     let p_imp_q = make_imp p q in
     let* p_imp_q_th = assume p_imp_q in
-    let* imp_def = imp_def in
-    let* conj_def = conj_def in
-    let* imp_applied = unfold_definition imp_def [p; q] in
-    let* rev_imp_applied = sym imp_applied in
-    let* conj_applied = unfold_definition conj_def [p; q] in
-    let* p_imp_q_dest = eq_mp rev_imp_applied p_imp_q_th in
-    let* rev_p_imp_q_dest = sym p_imp_q_dest in
-    let* p_thm = assume p in
-    let* replaced_p = eq_mp rev_p_imp_q_dest p_thm in
-    let* right = conj_right replaced_p in
-    Ok right 
+    undisch p_imp_q_th
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
+    P
+    P ==> Q
+    ========================================
+    Q
     |}]
