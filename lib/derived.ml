@@ -205,6 +205,10 @@ let disj_def = init_disj ()
 (** [∀p. p /\ ¬p] *)
 let classical_def = init_classical ()
 
+let quantifier_of_forall = function
+    | App (Const ("!", _), Lam (bind, bod) ) -> bind
+    | _ -> failwith "todo"
+
 type side = Left  | Right
 let side_of_op op side = function
   | App (App (Const (oper, _), p), q) when oper = op -> 
@@ -440,28 +444,32 @@ let mp th_imp th =
     let* q_under_p = undisch th_imp in
     prove_hyp th q_under_p
 
-(** [|- P x] should derive [|- ∀x. P x] when x is not free in hypotheses *)
-let gen th = 
-    (*todo check hyps*)
+(** [|- x = x] should derive [|- ∀x. x = x] when x is not free in hypotheses *)
+let gen tm th = 
+    (* don't necessarily need to check hyps, kernel should catch this 
+       either way when the lambda rule is run *)
     let* forall_def = forall_def in
-    let* bind, bod = destruct_app (concl th) in
-
-
+    let var_typ = type_of_var tm in
+    let* pred_lam = make_lam tm (concl th) in
+    let* typed_forall = inst_type ([(make_vartype "a", var_typ)] |> List.to_seq |> Hashtbl.of_seq) forall_def in
     let* eqt_th = eq_truth_intro th in
+    let* eqt_lam = lam (tm) eqt_th in
+    let* forall_applied = unfold_definition typed_forall [pred_lam] in
+    let* mp_def = eq_mp forall_applied eqt_lam in
 
-    let* tm_lam = make_lam bod (concl th) in
-    print_endline @@ Printing.pretty_print_hol_term ~with_type:true tm_lam;
-    print_endline @@ Printing.pretty_print_thm ~with_type:true forall_def ;
+    Ok mp_def 
 
-    
-    (* let* lam_th_eq = lam bind eqt_th in *)
+(** [|- ∀x. x = x] should derive [|- t = t] for any term t  *)
+let spec tm th = 
+    (* Need to get back to x = x then instantiate with tm *)
+    let* forall_def = forall_def in
+    let quant_over = quantifier_of_forall (concl th) in
+    let quant_typ = type_of_var quant_over in
+    let* fa, pred_lam = destruct_app (concl th) in
+    (* print_endline @@ Printing.pretty_print_hol_term  quantified_over; *)
+    pp_thm th;
 
-    let* applied = unfold_definition forall_def [tm_lam] in
-    Ok applied
-
-(** [|- ∀x. P x] should derive [|- P t] for any term t  *)
-let spec _tm _th = 
-    failwith "TODO"
+    Ok forall_def 
 
     (** [⊢ P] should derive [⊢ P ∨ Q] *)
 let disj_left th tm = 

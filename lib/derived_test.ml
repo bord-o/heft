@@ -6,9 +6,8 @@ open Result.Syntax
 let p = Var ("P", bool_ty)
 let q = Var ("Q", bool_ty)
 let r = Var ("R", bool_ty)
-
+let g = Var ("f", TyCon ("fun", [ bool_ty; bool_ty ]))
 let g = Var ("g", TyCon ("fun", [ bool_ty; bool_ty ]))
-
 let x = Var ("x", bool_ty)
 let y = Var ("y", bool_ty)
 
@@ -281,11 +280,23 @@ let%expect_test "gen_simple" =
   let () = clear_env () in
   let _ = init_types () in
   let thm =
-      let* g_p = make_app g p in
-      let* p_th = assume g_p in
-      gen p_th
+    let* x_refl = refl x in
+    gen x x_refl
   in
   print_thm_result thm;
-  [%expect
-    {|
+  [%expect {|
+    ========================================
+    ∀x. x = x
+    |}]
+
+let%expect_test "spec_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* x_refl = refl x in
+    let* gen_x = gen x x_refl in
+    spec y gen_x
+  in
+  print_thm_result thm;
+  [%expect {|
     |}]
