@@ -206,7 +206,7 @@ let disj_def = init_disj ()
 let classical_def = init_classical ()
 
 let quantifier_of_forall = function
-    | App (Const ("!", _), Lam (bind, bod) ) -> bind
+    | App (Const ("!", _), Lam (bind, _) ) -> bind
     | _ -> failwith "todo"
 
 type side = Left  | Right
@@ -455,24 +455,24 @@ let gen tm th =
     let* eqt_th = eq_truth_intro th in
     let* eqt_lam = lam (tm) eqt_th in
     let* forall_applied = unfold_definition typed_forall [pred_lam] in
-    let* mp_def = eq_mp forall_applied eqt_lam in
-
-    Ok mp_def 
+    eq_mp forall_applied eqt_lam
 
 (** [|- ∀x. x = x] should derive [|- t = t] for any term t  *)
 let spec tm th = 
-    (* Need to get back to x = x then instantiate with tm *)
     let* forall_def = forall_def in
     let quant_over = quantifier_of_forall (concl th) in
     let quant_typ = type_of_var quant_over in
-    let* fa, pred_lam = destruct_app (concl th) in
-    (* print_endline @@ Printing.pretty_print_hol_term  quantified_over; *)
-    pp_thm th;
-
-    Ok forall_def 
+    let* typed_forall = inst_type ([(make_vartype "a", quant_typ)] |> List.to_seq |> Hashtbl.of_seq) forall_def in
+    let* _, pred_lam = destruct_app (concl th) in
+    let* forall_applied = unfold_definition typed_forall [pred_lam] in
+    let* rev_app = sym forall_applied in
+    let* inner = eq_mp rev_app th in
+    let* with_t = ap_thm inner tm in
+    let* redux = conv_equality deep_beta with_t in
+    eq_truth_elim redux
 
     (** [⊢ P] should derive [⊢ P ∨ Q] *)
-let disj_left th tm = 
+let disj_left _th _tm = 
     failwith "TODO"
 
 (** [⊢ Q] should derive [⊢ P ∨ Q] *)

@@ -7,7 +7,8 @@ let p = Var ("P", bool_ty)
 let q = Var ("Q", bool_ty)
 let r = Var ("R", bool_ty)
 let g = Var ("f", TyCon ("fun", [ bool_ty; bool_ty ]))
-let g = Var ("g", TyCon ("fun", [ bool_ty; bool_ty ]))
+
+(* let g = Var ("g", TyCon ("fun", [ bool_ty; bool_ty ])) *)
 let x = Var ("x", bool_ty)
 let y = Var ("y", bool_ty)
 
@@ -299,4 +300,6 @@ let%expect_test "spec_simple" =
   in
   print_thm_result thm;
   [%expect {|
+    ========================================
+    y = y
     |}]
