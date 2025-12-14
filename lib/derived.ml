@@ -416,3 +416,20 @@ let undisch th =
     let* rev_l_imp_r_dest = sym l_imp_r_dest in
     let* replaced_p = eq_mp rev_l_imp_r_dest assm_l in
     conj_right replaced_p
+
+(** [{q} |- p] should derive [|- p => q]*)
+let disch tm th = 
+    
+    let* q_and_q_th = assume (make_conj tm tm) in  (* {Q ∧ Q} ⊢ Q ∧ Q *)
+    let* left = conj_left q_and_q_th in          (* {Q ∧ Q} ⊢ Q *)
+
+    let* q_th' = assume tm in 
+    let* q_and_q = conj q_th' q_th' in
+
+    let* imp_def = imp_def in
+    let* eq_th = deduct_antisym_rule left q_and_q in
+    let* rev_eq_th = sym eq_th in
+    let* imp_unfolded = unfold_definition imp_def [tm; tm] in  (* ⊢ Q ⇒ Q = (Q ∧ Q = Q) *)
+    let* result = eq_mp imp_unfolded rev_eq_th in                          (* ⊢ Q ⇒ Q *)
+    Ok result
+    
