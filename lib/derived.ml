@@ -439,3 +439,48 @@ let prove_hyp thl thr =
 let mp th_imp th = 
     let* q_under_p = undisch th_imp in
     prove_hyp th q_under_p
+
+(** [|- P x] should derive [|- ∀x. P x] when x is not free in hypotheses *)
+let gen _th = 
+    failwith "TODO"
+
+(** [|- ∀x. P x] should derive [|- P t] for any term t  *)
+let spec _tm _th = 
+    failwith "TODO"
+
+    (** [⊢ P] should derive [⊢ P ∨ Q] *)
+let disj_left _th _tm = 
+    failwith "TODO"
+
+(** [⊢ Q] should derive [⊢ P ∨ Q] *)
+let disj_right _th _tm = 
+    failwith "TODO"
+
+(** [⊢ P ∨ Q], [{P} ⊢ R], [{Q} ⊢ R] should derive [⊢ R] *)
+let disj_cases _pq_th _pr_th _qr_th = 
+    failwith "TODO"
+
+(** [⊢ P(t)] should derive [⊢ ∃x. P(x)] *)
+let exists _x _tm _th = 
+    failwith "TODO"
+
+(** [⊢ ∃x. P(x)], [{P(x)} ⊢ Q] should derive [⊢ Q] (where x not free in Q) *)
+let choose _x _exists_th _q_th = 
+    failwith "TODO"
+
+(** [{P} ⊢ F] should derive [⊢ ¬P] *)
+let not_intro _th = 
+    failwith "TODO"
+
+(** [⊢ ¬P] should derive [{P} ⊢ F] *)
+let not_elim _th = 
+    failwith "TODO"
+
+(** [⊢ F] should derive [⊢ P] (ex falso quodlibet) *)
+let contr _p _th = 
+    failwith "TODO"
+
+(** [{¬P} ⊢ F] should derive [⊢ P] (classical contradiction) *)
+let ccontr _p _th = 
+    failwith "TODO"
+

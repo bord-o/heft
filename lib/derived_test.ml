@@ -274,3 +274,16 @@ let%expect_test "mp_simple" =
     ========================================
     Q
     |}]
+
+let%expect_test "disj_right_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* p_th = assume p in
+    let* disj_def = disj_def in
+    Ok disj_def
+  in
+  print_thm_result thm;
+  [%expect
+    {|
+    |}]

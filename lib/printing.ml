@@ -63,11 +63,11 @@ let rec pretty_print_hol_term ?(with_type = false) ?(parent_prec = PrecImp) term
       Format.sprintf "%s ∨ %s"
         (aux ~parent_prec:PrecApp p)
         (aux ~parent_prec:PrecApp q)
-  | App (App (Const ("==>", _), p), q) ->
-      wrap
-        (Format.sprintf "%s ==> %s"
-           (aux ~parent_prec:PrecImp p)
-           (aux ~parent_prec:PrecImp q))
+| App (App (Const ("==>", _), p), q) ->
+    wrap
+      (Format.sprintf "%s ==> %s"
+         (aux ~parent_prec:PrecApp p)   (* Force parens on left if it's complex *)
+         (aux ~parent_prec:PrecImp q))
   | App (Const ("!", _), Lam (v, body)) ->
       wrap
         (Format.sprintf "∀%s. %s"

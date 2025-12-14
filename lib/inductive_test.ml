@@ -185,7 +185,7 @@ let%expect_test "nat_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P Zero ==> ∀n0. P n0 ==> P (Suc n0) ==> ∀x. P x
+    ∀P. P Zero ==> (∀n0. P n0 ==> P (Suc n0)) ==> ∀x. P x
     |}]
 
 (* Test 2: Polymorphic type - list *)
@@ -205,7 +205,7 @@ let%expect_test "list_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P Nil ==> ∀n0. ∀n1. P n1 ==> P (Cons n0 n1) ==> ∀x. P x
+    ∀P. P Nil ==> (∀n0. ∀n1. P n1 ==> P (Cons n0 n1)) ==> ∀x. P x
     |}]
 
 (* Test 3: Multiple base cases *)
@@ -240,7 +240,7 @@ let%expect_test "tree_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P Leaf ==> ∀n0. ∀n1. ∀n2. P n1 ==> P n2 ==> P (Node n0 n1 n2) ==> ∀x. P x
+    ∀P. P Leaf ==> (∀n0. ∀n1. ∀n2. P n1 ==> P n2 ==> P (Node n0 n1 n2)) ==> ∀x. P x
     |}]
 
 (* Test 5: Constructor with only non-recursive args *)
@@ -256,7 +256,7 @@ let%expect_test "option_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P None ==> ∀n0. P (Some n0) ==> ∀x. P x
+    ∀P. P None ==> (∀n0. P (Some n0)) ==> ∀x. P x
     |}]
 
 (* Test 6: Verify constructors are registered *)
@@ -335,7 +335,7 @@ let%expect_test "three_variant_induction" =
   [%expect
     {|
     ========================================
-    ∀P. P Err ==> ∀n0. P (Ok n0) ==> ∀n0. P n0 ==> P (Pending n0) ==> ∀x. P x
+    ∀P. P Err ==> (∀n0. P (Ok n0)) ==> (∀n0. P n0 ==> P (Pending n0)) ==> ∀x. P x
     |}]
 
 (* Test recursion theorems *)
