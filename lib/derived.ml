@@ -402,7 +402,7 @@ let conj_right th =
   in
   conj_lr select_snd th
 
-  (** [|- p => q] should derive [{q} |- p]*)
+  (** [|- p => q] should derive [{p} |- q]*)
 let undisch th = 
     let l_tm = imp_left_term (concl th) in
     let r_tm = imp_right_term (concl th) in
@@ -417,7 +417,7 @@ let undisch th =
     let* replaced_p = eq_mp rev_l_imp_r_dest assm_l in
     conj_right replaced_p
 
-(** [{q} |- p] should derive [|- p => q]*)
+(** [{p} |- q] should derive [|- p => q]*)
 let disch tm th = 
     let* assm_conj = assume (make_conj tm (concl th)) in 
     let* assm_conj_left = conj_left assm_conj in         
@@ -430,4 +430,12 @@ let disch tm th =
     let* imp_unfolded = unfold_definition imp_def [tm; (concl th)] in 
     let* result = eq_mp imp_unfolded rev_eq_th in
     Ok result
-    
+
+let prove_hyp thl thr = 
+    let* antisym = (deduct_antisym_rule thl thr) in
+    eq_mp antisym thl
+
+(** [|- p => q, |- p] should derive [|- q] *)
+let mp th_imp th = 
+    let* q_under_p = undisch th_imp in
+    prove_hyp th q_under_p

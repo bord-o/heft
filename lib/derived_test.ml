@@ -227,3 +227,50 @@ let%expect_test "disch_with_real_derivation" =
     ========================================
     P ∧ Q ==> Q
     |}]
+
+let%expect_test "prove_hyp_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* p_th = assume p in
+    let* p_imp_q = assume (make_imp p q) in
+    let* q_under_p = undisch p_imp_q in
+    prove_hyp p_th q_under_p
+  in
+  print_thm_result thm;
+  [%expect
+    {|
+    P
+    P ==> Q
+    ========================================
+    Q
+    |}]
+
+let%expect_test "prove_hyp_removes_assumption" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let t = make_true () in
+    let* t_th = assume t in
+    prove_hyp truth t_th
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    T
+    |}]
+
+let%expect_test "mp_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* p_imp_q_th = assume @@ make_imp (make_true ()) q in
+    mp p_imp_q_th truth
+  in
+  print_thm_result thm;
+  [%expect
+    {|
+    T ==> Q
+    ========================================
+    Q
+    |}]
