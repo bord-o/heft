@@ -471,13 +471,42 @@ let spec tm th =
     let* redux = conv_equality deep_beta with_t in
     eq_truth_elim redux
 
-    (** [⊢ P] should derive [⊢ P ∨ Q] *)
-let disj_left _th _tm = 
-    failwith "TODO"
+(** [⊢ P] should derive [⊢ P ∨ Q] *)
+let disj_left tm th = 
+    let c = concl th in
+    let* disj_def = disj_def in
+
+    let* applied = unfold_definition disj_def [c; tm] in
+
+    let r = make_var "r" bool_ty in
+    
+    let* r_assumed = assume (make_imp (concl th) r) in
+
+    let* r_th = mp r_assumed th in
+    let* tm_disch = disch (make_imp tm r) r_th in
+    let* th_disch = disch (make_imp c r) tm_disch in
+
+    let* gen_th = gen r th_disch in
+
+    eq_mp applied gen_th
 
 (** [⊢ Q] should derive [⊢ P ∨ Q] *)
-let disj_right _th _tm = 
-    failwith "TODO"
+let disj_right th tm = 
+    let c = concl th in
+    let* disj_def = disj_def in
+
+    let* applied = unfold_definition disj_def [tm; c] in
+
+    let r = make_var "r" bool_ty in
+    
+    let* r_assumed = assume (make_imp (concl th) r) in
+
+    let* r_th = mp r_assumed th in
+    let* th_disch = disch (make_imp c r) r_th in
+    let* tm_disch = disch (make_imp tm r) th_disch in
+
+    let* gen_th = gen r tm_disch in
+    eq_mp applied gen_th
 
 (** [⊢ P ∨ Q], [{P} ⊢ R], [{Q} ⊢ R] should derive [⊢ R] *)
 let disj_cases _pq_th _pr_th _qr_th = 

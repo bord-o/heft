@@ -303,3 +303,32 @@ let%expect_test "spec_simple" =
     ========================================
     y = y
     |}]
+
+let%expect_test "disj_left_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* x_refl = refl x in
+    disj_left y x_refl 
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    x = x ∨ y
+    |}]
+
+
+let%expect_test "disj_right_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* x_refl = refl x in
+    disj_right x_refl y
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    y ∨ x = x
+    |}]
+
+
