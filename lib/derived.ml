@@ -205,6 +205,10 @@ let disj_def = init_disj ()
 (** [∀p. p /\ ¬p] *)
 let classical_def = init_classical ()
 
+let term_of_negation = function
+    | App (Const ("~", _), t ) -> t
+    | _ -> failwith "todo"
+
 let quantifier_of_forall = function
     | App (Const ("!", _), Lam (bind, _) ) -> bind
     | _ -> failwith "todo"
@@ -509,8 +513,39 @@ let disj_right th tm =
     eq_mp applied gen_th
 
 (** [⊢ P ∨ Q], [{P} ⊢ R], [{Q} ⊢ R] should derive [⊢ R] *)
-let disj_cases _pq_th _pr_th _qr_th = 
-    failwith "TODO"
+let disj_cases pq_th pr_th qr_th = 
+    let* disj_def = disj_def in
+    let p = disj_left_term (concl pq_th) in
+    let q = disj_right_term (concl pq_th) in
+
+    let* applied = unfold_definition disj_def [p; q] in
+    let* applied_rev = sym applied in
+    let* unfolded = eq_mp applied_rev pq_th in
+
+    let* p_imp_r = disch p pr_th in
+    let* q_imp_r = disch q qr_th in
+
+    let* specced = spec (concl pr_th) unfolded in
+    let* mp1 = mp specced p_imp_r in
+    mp mp1 q_imp_r
+
+(** [⊢ ¬P] should derive [{P} ⊢ F] *)
+let not_elim th = 
+    let* neg_def = neg_def in
+    let negated_term = term_of_negation (concl th) in
+
+    let* applied = unfold_definition neg_def [negated_term] in
+    let* applied_rev = sym applied in
+
+    let* mp1 = eq_mp applied_rev th in
+    undisch mp1
+
+(** [{P} ⊢ F] should derive [⊢ ¬P] *)
+let not_intro tm th = 
+    let* disch_tm = disch tm th in
+    let* neg_def = neg_def in
+    let* applied = unfold_definition neg_def [tm] in
+    eq_mp applied disch_tm
 
 (** [⊢ P(t)] should derive [⊢ ∃x. P(x)] *)
 let exists _x _tm _th = 
@@ -520,13 +555,6 @@ let exists _x _tm _th =
 let choose _x _exists_th _q_th = 
     failwith "TODO"
 
-(** [{P} ⊢ F] should derive [⊢ ¬P] *)
-let not_intro _th = 
-    failwith "TODO"
-
-(** [⊢ ¬P] should derive [{P} ⊢ F] *)
-let not_elim _th = 
-    failwith "TODO"
 
 (** [⊢ F] should derive [⊢ P] (ex falso quodlibet) *)
 let contr _p _th = 

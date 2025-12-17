@@ -6,11 +6,13 @@ open Result.Syntax
 let p = Var ("P", bool_ty)
 let q = Var ("Q", bool_ty)
 let r = Var ("R", bool_ty)
+let s = Var ("S", bool_ty)
 let g = Var ("f", TyCon ("fun", [ bool_ty; bool_ty ]))
 
 (* let g = Var ("g", TyCon ("fun", [ bool_ty; bool_ty ])) *)
 let x = Var ("x", bool_ty)
 let y = Var ("y", bool_ty)
+let z = Var ("z", bool_ty)
 
 let clear_env () =
   Hashtbl.clear the_inductives;
@@ -332,3 +334,57 @@ let%expect_test "disj_right_simple" =
     |}]
 
 
+let%expect_test "disj_cases_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* pr_imp = assume (make_imp p r) in
+    let* pr_th = undisch pr_imp in
+
+    let* qr_imp = assume (make_imp q r) in
+    let* qr_th = undisch qr_imp in
+
+    let* disj_th = assume @@ make_disj p q in
+
+    disj_cases disj_th pr_th qr_th 
+  in
+  print_thm_result thm;
+  [%expect {|
+    P ==> R
+    Q ==> R
+    P ∨ Q
+    ========================================
+    R
+    |}]
+
+let%expect_test "not_elim_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let* neg_p = assume (make_neg p) in   (* {¬P} ⊢ ¬P *)
+    not_elim neg_p                         (* {¬P, P} ⊢ F *)
+  in
+  print_thm_result thm;
+  [%expect {|
+    P
+    ¬P
+    ========================================
+    F
+    |}]
+
+  let%expect_test "not_intro_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    (* Need {P} ⊢ F somehow *)
+    (* Use not_elim to get one! *)
+    let* neg_p = assume (make_neg p) in   (* {¬P} ⊢ ¬P *)
+    let* p_gives_f = not_elim neg_p in    (* {¬P, P} ⊢ F *)
+    not_intro p p_gives_f                  (* {¬P} ⊢ ¬P ... should recover! *)
+  in
+  print_thm_result thm;
+  [%expect {|
+    ¬P
+    ========================================
+    ¬P
+    |}]
