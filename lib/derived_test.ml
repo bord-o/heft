@@ -311,14 +311,13 @@ let%expect_test "disj_left_simple" =
   let _ = init_types () in
   let thm =
     let* x_refl = refl x in
-    disj_left y x_refl 
+    disj_left y x_refl
   in
   print_thm_result thm;
   [%expect {|
     ========================================
     x = x ∨ y
     |}]
-
 
 let%expect_test "disj_right_simple" =
   let () = clear_env () in
@@ -333,7 +332,6 @@ let%expect_test "disj_right_simple" =
     y ∨ x = x
     |}]
 
-
 let%expect_test "disj_cases_simple" =
   let () = clear_env () in
   let _ = init_types () in
@@ -346,10 +344,11 @@ let%expect_test "disj_cases_simple" =
 
     let* disj_th = assume @@ make_disj p q in
 
-    disj_cases disj_th pr_th qr_th 
+    disj_cases disj_th pr_th qr_th
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P ==> R
     Q ==> R
     P ∨ Q
@@ -361,26 +360,25 @@ let%expect_test "not_elim_simple" =
   let () = clear_env () in
   let _ = init_types () in
   let thm =
-    let* neg_p = assume (make_neg p) in   (* {¬P} ⊢ ¬P *)
-    not_elim neg_p                         (* {¬P, P} ⊢ F *)
+    let* neg_p = assume (make_neg p) in
+    not_elim neg_p 
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P
     ¬P
     ========================================
     F
     |}]
 
-  let%expect_test "not_intro_simple" =
+let%expect_test "not_intro_simple" =
   let () = clear_env () in
   let _ = init_types () in
   let thm =
-    (* Need {P} ⊢ F somehow *)
-    (* Use not_elim to get one! *)
-    let* neg_p = assume (make_neg p) in   (* {¬P} ⊢ ¬P *)
-    let* p_gives_f = not_elim neg_p in    (* {¬P, P} ⊢ F *)
-    not_intro p p_gives_f                  (* {¬P} ⊢ ¬P ... should recover! *)
+    let* neg_p = assume (make_neg p) in
+    let* p_gives_f = not_elim neg_p in
+    not_intro p p_gives_f
   in
   print_thm_result thm;
   [%expect {|
@@ -388,3 +386,15 @@ let%expect_test "not_elim_simple" =
     ========================================
     ¬P
     |}]
+
+let%expect_test "exists_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let x = make_var "x" bool_ty in
+    let* p_eq_p = refl p in
+    exists x p p_eq_p 
+  in
+  print_thm_result thm;
+  [%expect {|
+  |}]

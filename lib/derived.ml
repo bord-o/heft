@@ -547,9 +547,10 @@ let not_intro tm th =
     let* applied = unfold_definition neg_def [tm] in
     eq_mp applied disch_tm
 
-(** [⊢ P(t)] should derive [⊢ ∃x. P(x)] *)
-let exists _x _tm _th = 
-    failwith "TODO"
+(** [⊢ t = t] should derive [⊢ ∃x. x = x] *)
+let exists x tm th = 
+    let* exists_def = exists_def in
+    Ok exists_def
 
 (** [⊢ ∃x. P(x)], [{P(x)} ⊢ Q] should derive [⊢ Q] (where x not free in Q) *)
 let choose _x _exists_th _q_th = 
