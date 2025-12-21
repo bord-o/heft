@@ -557,7 +557,6 @@ let contr p th =
 let ccontr p th = 
     let* neg_def = neg_def in
     let neg_p = make_neg p in
-    let* false_def = false_def in
     let* undis = disch neg_p th in
 
     let* applied = unfold_definition neg_def [neg_p] in

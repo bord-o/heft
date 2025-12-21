@@ -13,7 +13,6 @@ let g = Var ("f", TyCon ("fun", [ bool_ty; bool_ty ]))
 let x = Var ("x", bool_ty)
 let y = Var ("y", bool_ty)
 let z = Var ("z", bool_ty)
-
 let axiom_for_test tm = Result.get_ok (new_axiom tm)
 
 let clear_env () =
@@ -394,7 +393,6 @@ let%expect_test "contr_simple" =
   let _ = init_types () in
   let thm =
     let open Result.Syntax in
-    let* false_def = false_def in
     let* false_tm = make_false () |> Result.ok in
     let* false_th = assume false_tm in
     contr x false_th
@@ -414,9 +412,6 @@ let%expect_test "ccontr_simple" =
     let p = make_var "p" bool_ty in
     let not_p = make_neg p in
     let* assumed_not_p = assume not_p in
-    let* false_tm = make_false () |> Result.ok in
-    let* false_th = assume false_tm in
-    let* p_assumed = assume p in
     let* false_from_contradiction = not_elim assumed_not_p in
     ccontr p false_from_contradiction
   in
@@ -542,7 +537,8 @@ let%expect_test "choose_exists_from_assumption" =
     choose x exists_assumed q_th'
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     ∃x. x = x
     ========================================
     T
@@ -568,7 +564,6 @@ let%expect_test "choose_polymorphic" =
     T
     |}]
 
-
 let%expect_test "choose_clean" =
   let () = clear_env () in
   let _ = init_types () in
@@ -577,7 +572,7 @@ let%expect_test "choose_clean" =
     let p_x = Result.get_ok (safe_make_eq x x) in
     let* x_refl = refl x in
     let* exists_th = exists x x x_refl in
-    let q_th = 
+    let q_th =
       let* undischd = undisch (axiom_for_test (make_imp p_x p)) in
       Ok undischd
     in
@@ -594,7 +589,8 @@ let%expect_test "choose_with_real_predicate" =
   let _ = init_types () in
   let thm =
     let x = make_var "x" bool_ty in
-    let p_x = make_conj x (make_neg x) in  (* x ∧ ¬x *)
+    let p_x = make_conj x (make_neg x) in
+    (* x ∧ ¬x *)
     let exists_th = axiom_for_test (make_exists x p_x) in
     let* px_assumed = assume p_x in
     let* x_th = conj_left px_assumed in
