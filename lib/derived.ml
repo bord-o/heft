@@ -581,22 +581,30 @@ let ccontr p th =
 
 
 (** [⊢ t = t] should derive [⊢ ∃x. x = x] *)
-let exists x tm th = 
+let exists x tm th =
     let* exists_def = exists_def in
     let* tm_typ = type_of_term tm in
     let* typed_exists_def = inst_type ([(make_vartype "a", tm_typ)] |> List.to_seq |> Hashtbl.of_seq) exists_def in
-
-    let* quant_c = inst [x,tm] th in
-    let* e_lam = make_lam x (concl quant_c) in
-    let* applied = unfold_definition typed_exists_def [e_lam] in
-
-    let* l = lhs applied in
-
-    let* assm_neg_l = assume (term_of_negation l) in
-    let* speccd = spec tm assm_neg_l in
+    
+    let* pred_lam = make_lam x pred_body in
+    
+    let* applied = unfold_definition typed_exists_def [pred_lam] in
+    let* applied_normal = conv_equality deep_beta applied in
+    
+    let* l = lhs applied_normal in
+    let inner_forall = term_of_negation l in
+    
+    let* assm_forall = assume inner_forall in
+    let* speccd = spec tm assm_forall in
     let* false_th = not_elim speccd in
-    let* cont = prove_hyp th false_th in
-    let* beta_cont = deep_beta (concl cont) in
-    (* let* negated = not_intro (term_of_negation l) cont in *)
-
-    Ok cont 
+    
+    let hyps = hyp false_th in
+    let p_hyp = List.find (fun h -> alphaorder h inner_forall <> 0) hyps in
+    
+    let* p_hyp_refl = refl p_hyp in
+    let* beta_th = conv_left deep_beta p_hyp_refl in  
+    let* p_hyp_th = eq_mp beta_th th in
+    
+    let* false_th' = prove_hyp p_hyp_th false_th in
+    let* neg_forall = not_intro inner_forall false_th' in
+    eq_mp applied_normal neg_forall

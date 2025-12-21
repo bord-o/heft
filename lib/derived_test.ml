@@ -435,4 +435,71 @@ let%expect_test "exists_simple" =
   in
   print_thm_result thm;
   [%expect {|
-  |}]
+    ========================================
+    ∃x. x = x
+    |}]
+
+let%expect_test "exists_different_witness" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let x = make_var "x" bool_ty in
+    let y = make_var "y" bool_ty in
+    let* y_eq_y = refl y in
+    exists x y y_eq_y 
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    ∃x. x = x
+    |}]
+
+let%expect_test "exists_with_implication" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let x = make_var "x" bool_ty in
+    let* p_imp_p = assume (make_imp p p) in
+    let* proved = mp p_imp_p (Result.get_ok (assume p)) in
+    let* p_eq_p = deduct_antisym_rule (Result.get_ok (assume p)) proved in
+    exists x p p_eq_p
+  in
+  print_thm_result thm;
+  [%expect {|
+    P ==> P
+    ========================================
+    ∃x. x = x
+    |}]
+
+let%expect_test "exists_witness_different_from_bound" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let x = make_var "x" bool_ty in
+    let y = make_var "y" bool_ty in
+    let z = make_var "z" bool_ty in
+    let* y_eq_z = assume (Result.get_ok (safe_make_eq y z)) in
+    exists x y y_eq_z
+  in
+  print_thm_result thm;
+  [%expect {|
+    y = z
+    ========================================
+    ∃x. x = z
+    |}]
+
+let%expect_test "exists_polymorphic_type" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let a = TyVar "a" in
+    let x = make_var "x" a in
+    let y = make_var "y" a in
+    let* y_eq_y = refl y in
+    exists x y y_eq_y
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    ∃x. x = x
+    |}]
