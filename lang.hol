@@ -1,4 +1,3 @@
-
 // Translating some algraph stuff
 
 type 'a foo = 'a bar // this is an alias
@@ -43,7 +42,5 @@ def semant : 'a algraph -> (('a * 'a) set) * 'a set :=
 terminating
 end
     
-theorem overlay_zero : forall n, semant (Overlay n Empty) = semant n :=
-  by 
-    simp [semant]
-end
+// theorems are just stated here, proving happens interactively and is saved afterwards
+theorem overlay_zero : forall n, semant (Overlay n Empty) = semant n

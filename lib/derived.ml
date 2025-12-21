@@ -547,21 +547,56 @@ let not_intro tm th =
     let* applied = unfold_definition neg_def [tm] in
     eq_mp applied disch_tm
 
-(** [⊢ t = t] should derive [⊢ ∃x. x = x] *)
-let exists x tm th = 
-    let* exists_def = exists_def in
-    Ok exists_def
-
 (** [⊢ ∃x. P(x)], [{P(x)} ⊢ Q] should derive [⊢ Q] (where x not free in Q) *)
 let choose _x _exists_th _q_th = 
     failwith "TODO"
 
 
 (** [⊢ F] should derive [⊢ P] (ex falso quodlibet) *)
-let contr _p _th = 
-    failwith "TODO"
+let contr p th = 
+    let* false_def = false_def in
+    let* applied = eq_mp false_def th in
+    spec p applied
 
 (** [{¬P} ⊢ F] should derive [⊢ P] (classical contradiction) *)
-let ccontr _p _th = 
-    failwith "TODO"
+let ccontr p th = 
+    let* neg_def = neg_def in
+    let neg_p = make_neg p in
+    let* false_def = false_def in
+    let* undis = disch neg_p th in
 
+    let* applied = unfold_definition neg_def [neg_p] in
+    let* double_neg = eq_mp applied undis in
+
+    let* classical_def = classical_def in
+    let* speccd = spec p classical_def in
+
+    let* disj_p = assume p in
+    let* disj_np = not_elim double_neg in
+    let* disj_np_contr = contr p disj_np in
+
+    let* f = disj_cases speccd disj_p disj_np_contr in
+
+    Ok f 
+
+
+(** [⊢ t = t] should derive [⊢ ∃x. x = x] *)
+let exists x tm th = 
+    let* exists_def = exists_def in
+    let* tm_typ = type_of_term tm in
+    let* typed_exists_def = inst_type ([(make_vartype "a", tm_typ)] |> List.to_seq |> Hashtbl.of_seq) exists_def in
+
+    let* quant_c = inst [x,tm] th in
+    let* e_lam = make_lam x (concl quant_c) in
+    let* applied = unfold_definition typed_exists_def [e_lam] in
+
+    let* l = lhs applied in
+
+    let* assm_neg_l = assume (term_of_negation l) in
+    let* speccd = spec tm assm_neg_l in
+    let* false_th = not_elim speccd in
+    let* cont = prove_hyp th false_th in
+    let* beta_cont = deep_beta (concl cont) in
+    (* let* negated = not_intro (term_of_negation l) cont in *)
+
+    Ok cont 

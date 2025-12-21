@@ -387,6 +387,44 @@ let%expect_test "not_intro_simple" =
     ¬P
     |}]
 
+  let%expect_test "contr_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let open Result.Syntax in
+    let* false_def = false_def in
+    let* false_tm = make_false () |> Result.ok in
+    let* false_th = assume false_tm in
+    contr x false_th
+  in
+  print_thm_result thm;
+  [%expect {|
+    F
+    ========================================
+    x
+    |}]
+
+let%expect_test "ccontr_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let open Result.Syntax in
+    let p = make_var "p" bool_ty in
+    let not_p = make_neg p in
+    let* assumed_not_p = assume not_p in
+    let* false_tm = make_false () |> Result.ok in
+    let* false_th = assume false_tm in
+    let* p_assumed = assume p in
+    let* false_from_contradiction = not_elim assumed_not_p in
+    ccontr p false_from_contradiction
+  in
+  print_thm_result thm;
+  [%expect {|
+    p
+    ========================================
+    p
+    |}]
+
 let%expect_test "exists_simple" =
   let () = clear_env () in
   let _ = init_types () in
