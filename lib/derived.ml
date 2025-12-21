@@ -185,6 +185,30 @@ let init_classical () =
   let excl_middle = make_forall p (make_disj p (make_neg p)) in
   new_axiom excl_middle
 
+
+let make_select_const () =
+  let a = TyVar "a" in
+  let pred_ty = make_fun_ty a bool_ty in
+  Const ("@", make_fun_ty pred_ty a)
+
+let make_select x body =
+  let* l = make_lam x body in
+  Ok (App (make_select_const (), l))
+
+let init_choice () =
+  let a = TyVar "a" in
+  let p_ty = make_fun_ty a bool_ty in
+  let p = Var ("P", p_ty) in
+  let x = Var ("x", a) in
+  
+  let* px = make_app p x in
+  let exists_px = make_exists x px in
+  let* select_x = make_select x px in
+  let* p_select = make_app p select_x in
+  let impl = make_imp exists_px p_select in
+  
+  new_axiom (make_forall p impl)
+
 let _ = init_types ()
 (** [T = ((λp:bool. p) = (λp. p))] *)
 let true_def = init_true ()
@@ -204,6 +228,11 @@ let exists_def = init_exists ()
 let disj_def = init_disj ()
 (** [∀p. p /\ ¬p] *)
 let classical_def = init_classical ()
+let choice_def = init_choice ()
+
+let destruct_exists = function
+    | App (Const ("?", _), Lam (bind, bod) ) -> bind, bod
+    | _ -> failwith "todo"
 
 let term_of_negation = function
     | App (Const ("~", _), t ) -> t
@@ -461,6 +490,8 @@ let gen tm th =
     let* forall_applied = unfold_definition typed_forall [pred_lam] in
     eq_mp forall_applied eqt_lam
 
+let gens tms th = fold_left_result (fun acc a -> gen a acc) th tms
+
 (** [|- ∀x. x = x] should derive [|- t = t] for any term t  *)
 let spec tm th = 
     let* forall_def = forall_def in
@@ -474,6 +505,8 @@ let spec tm th =
     let* with_t = ap_thm inner tm in
     let* redux = conv_equality deep_beta with_t in
     eq_truth_elim redux
+
+let specs tms th = fold_left_result (fun acc a -> spec a acc) th tms
 
 (** [⊢ P] should derive [⊢ P ∨ Q] *)
 let disj_left tm th = 
@@ -632,3 +665,4 @@ let choose x exists_th q_th =
     
     let* false_from_neg_q = prove_hyp forall_neg_px_conv exists_contra in  
     ccontr q false_from_neg_q
+

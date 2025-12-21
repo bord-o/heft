@@ -28,9 +28,6 @@
 - documentation
 
 ## TODOs
-new_definition : term -> thm
-  (* Creates new constant and returns defining equation *)
-
 new_type_definition : string -> term -> thm -> hol_type * thm * thm
   (* Creates new type from subset of existing type *)
   (* Returns: (new_type, abs_fn, rep_fn) and theorems about them *)

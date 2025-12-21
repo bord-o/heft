@@ -605,3 +605,89 @@ let%expect_test "choose_with_real_predicate" =
     ========================================
     P
     |}]
+
+
+let%expect_test "double_negation_implies_p" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+      let neg_neg_p = make_neg (make_neg p) in
+      let p = p in
+      let* start = assume neg_neg_p in
+      let* nelim = not_elim start in
+      let* contr = ccontr p nelim in
+      disch neg_neg_p contr
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    ¬¬P ==> P
+    |}]
+
+let%expect_test "forall_symmetry" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+      let* x_eq_y = safe_make_eq x y in
+
+      let* xy_th = assume x_eq_y in
+      let* yx_th = sym xy_th in
+      let* imp = disch x_eq_y yx_th in
+      gens [x; y] imp
+
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    ∀y. ∀x. x = y ==> y = x
+    |}]
+
+let%expect_test "identity" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+      let* p_th = assume p in
+      disch p p_th
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    P ==> P
+    |}]
+
+let%expect_test "contrapositive" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+      let p_imp_q = make_imp p q in
+
+      let* pq_th = assume p_imp_q in
+      let* nq_th = assume (make_neg q) in
+      let* p_th = assume p in
+      let* qmp = mp pq_th p_th in
+      let* nnq = not_elim nq_th in
+      let* combined = prove_hyp qmp nnq in
+      let* np = not_intro p combined in
+      let* d1 = disch (make_neg q) np in
+      let* d2 = disch p_imp_q d1 in
+      Ok d2 
+
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    (P ==> Q) ==> ¬Q ==> ¬P
+    |}]
+
+let%expect_test "" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+      Ok truth
+
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    T
+    |}]
