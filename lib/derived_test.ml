@@ -14,6 +14,8 @@ let x = Var ("x", bool_ty)
 let y = Var ("y", bool_ty)
 let z = Var ("z", bool_ty)
 
+let axiom_for_test tm = Result.get_ok (new_axiom tm)
+
 let clear_env () =
   Hashtbl.clear the_inductives;
   Hashtbl.clear the_term_constants;
@@ -361,7 +363,7 @@ let%expect_test "not_elim_simple" =
   let _ = init_types () in
   let thm =
     let* neg_p = assume (make_neg p) in
-    not_elim neg_p 
+    not_elim neg_p
   in
   print_thm_result thm;
   [%expect
@@ -387,7 +389,7 @@ let%expect_test "not_intro_simple" =
     ¬P
     |}]
 
-  let%expect_test "contr_simple" =
+let%expect_test "contr_simple" =
   let () = clear_env () in
   let _ = init_types () in
   let thm =
@@ -431,7 +433,7 @@ let%expect_test "exists_simple" =
   let thm =
     let x = make_var "x" bool_ty in
     let* p_eq_p = refl p in
-    exists x p p_eq_p 
+    exists x p p_eq_p
   in
   print_thm_result thm;
   [%expect {|
@@ -446,7 +448,7 @@ let%expect_test "exists_different_witness" =
     let x = make_var "x" bool_ty in
     let y = make_var "y" bool_ty in
     let* y_eq_y = refl y in
-    exists x y y_eq_y 
+    exists x y y_eq_y
   in
   print_thm_result thm;
   [%expect {|
@@ -465,7 +467,8 @@ let%expect_test "exists_with_implication" =
     exists x p p_eq_p
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     P ==> P
     ========================================
     ∃x. x = x
@@ -482,7 +485,8 @@ let%expect_test "exists_witness_different_from_bound" =
     exists x y y_eq_z
   in
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
     y = z
     ========================================
     ∃x. x = z
@@ -502,4 +506,106 @@ let%expect_test "exists_polymorphic_type" =
   [%expect {|
     ========================================
     ∃x. x = x
+    |}]
+
+let%expect_test "choose_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let x = make_var "x" bool_ty in
+    let p_x = Result.get_ok (safe_make_eq x x) in
+    let* x_refl = refl x in
+    let* exists_th = exists x x x_refl in
+    let* px_assumed = assume p_x in
+    let* conj_th = conj px_assumed truth in
+    let* q_th = conj_right conj_th in
+    choose x exists_th q_th
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    T
+    |}]
+
+let%expect_test "choose_exists_from_assumption" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let x = make_var "x" bool_ty in
+    let p_x = Result.get_ok (safe_make_eq x x) in
+    let exists_px = make_exists x p_x in
+    let* exists_assumed = assume exists_px in
+    let* px_assumed = assume p_x in
+    let* q_th = prove_hyp truth px_assumed in
+    let* final = conj q_th truth in
+    let* q_th' = conj_right final in
+    choose x exists_assumed q_th'
+  in
+  print_thm_result thm;
+  [%expect {|
+    ∃x. x = x
+    ========================================
+    T
+    |}]
+
+let%expect_test "choose_polymorphic" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let a = TyVar "a" in
+    let y = make_var "y" a in
+    let p_y = Result.get_ok (safe_make_eq y y) in
+    let* y_refl = refl y in
+    let* exists_th = exists y y y_refl in
+    let* py_assumed = assume p_y in
+    let* conj_th = conj py_assumed truth in
+    let* q_th = conj_right conj_th in
+    choose y exists_th q_th
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    T
+    |}]
+
+
+let%expect_test "choose_clean" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let x = make_var "x" bool_ty in
+    let p_x = Result.get_ok (safe_make_eq x x) in
+    let* x_refl = refl x in
+    let* exists_th = exists x x x_refl in
+    let q_th = 
+      let* undischd = undisch (axiom_for_test (make_imp p_x p)) in
+      Ok undischd
+    in
+    choose x exists_th (Result.get_ok q_th)
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    P
+    |}]
+
+let%expect_test "choose_with_real_predicate" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+    let x = make_var "x" bool_ty in
+    let p_x = make_conj x (make_neg x) in  (* x ∧ ¬x *)
+    let exists_th = axiom_for_test (make_exists x p_x) in
+    let* px_assumed = assume p_x in
+    let* x_th = conj_left px_assumed in
+    let* neg_x_th = conj_right px_assumed in
+    let* false_th = not_elim neg_x_th in
+    let* false_th' = prove_hyp x_th false_th in
+    let* q_th = contr p false_th' in
+    choose x exists_th q_th
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    P
     |}]

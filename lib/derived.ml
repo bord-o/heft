@@ -547,11 +547,6 @@ let not_intro tm th =
     let* applied = unfold_definition neg_def [tm] in
     eq_mp applied disch_tm
 
-(** [⊢ ∃x. P(x)], [{P(x)} ⊢ Q] should derive [⊢ Q] (where x not free in Q) *)
-let choose _x _exists_th _q_th = 
-    failwith "TODO"
-
-
 (** [⊢ F] should derive [⊢ P] (ex falso quodlibet) *)
 let contr p th = 
     let* false_def = false_def in
@@ -575,10 +570,7 @@ let ccontr p th =
     let* disj_np = not_elim double_neg in
     let* disj_np_contr = contr p disj_np in
 
-    let* f = disj_cases speccd disj_p disj_np_contr in
-
-    Ok f 
-
+    disj_cases speccd disj_p disj_np_contr
 
 (** [⊢ t = t] should derive [⊢ ∃x. x = x] *)
 let exists x tm th =
@@ -586,6 +578,7 @@ let exists x tm th =
     let* tm_typ = type_of_term tm in
     let* typed_exists_def = inst_type ([(make_vartype "a", tm_typ)] |> List.to_seq |> Hashtbl.of_seq) exists_def in
     
+    let* pred_body = vsubst [(x, tm)] (concl th) in
     let* pred_lam = make_lam x pred_body in
     
     let* applied = unfold_definition typed_exists_def [pred_lam] in
@@ -608,3 +601,35 @@ let exists x tm th =
     let* false_th' = prove_hyp p_hyp_th false_th in
     let* neg_forall = not_intro inner_forall false_th' in
     eq_mp applied_normal neg_forall
+
+(** [⊢ ∃x. P(x)], [{P(x)} ⊢ Q] should derive [⊢ Q] (where x not free in Q) *)
+let choose x exists_th q_th = 
+    let q = concl q_th in
+    let x_ty = type_of_var x in
+    
+    let* _, pred_lam = destruct_app (concl exists_th) in
+    
+    let p_x_hyp = List.hd (hyp q_th) in
+    
+    let neg_q = make_neg q in
+    let* neg_q_assumed = assume neg_q in
+    let* neg_q_elim = not_elim neg_q_assumed in        
+    let* false_with_px = prove_hyp q_th neg_q_elim in  
+    let* neg_px = not_intro p_x_hyp false_with_px in   
+    let* forall_neg_px = gen x neg_px in               
+    
+    let* exists_def = exists_def in
+    let* typed_exists_def = inst_type ([(make_vartype "a", x_ty)] |> List.to_seq |> Hashtbl.of_seq) exists_def in
+    let* unfolded = unfold_definition typed_exists_def [pred_lam] in
+    let* unfolded_normal = conv_equality deep_beta unfolded in
+    let* exists_as_neg = eq_mp (Result.get_ok (sym unfolded_normal)) exists_th in
+    
+    let* exists_contra = not_elim exists_as_neg in     
+    
+    let forall_hyp = List.hd (hyp exists_contra) in
+    let* forall_refl = refl forall_hyp in
+    let* forall_conv = conv_left deep_beta forall_refl in
+    let* forall_neg_px_conv = eq_mp forall_conv forall_neg_px in
+    
+    let* false_from_neg_q = prove_hyp forall_neg_px_conv exists_contra in  
+    ccontr q false_from_neg_q
