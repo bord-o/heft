@@ -128,6 +128,7 @@ let rec type_substitution type_consts typ =
   | TyCon (tycon, args) ->
       let args' = List.map (type_substitution type_consts) args in
       if args' == args then typ else TyCon (tycon, args')
+      (*TODO: fix this, we should be searching values instead of keys *)
   | _ -> Hashtbl.find_opt type_consts typ |> Option.value ~default:typ
 
 let get_const_term_type name = Hashtbl.find_opt the_term_constants name

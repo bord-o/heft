@@ -679,6 +679,24 @@ let%expect_test "contrapositive" =
     (P ==> Q) ==> ¬Q ==> ¬P
     |}]
 
+
+let%expect_test "neg_sym_simple" =
+  let () = clear_env () in
+  let _ = init_types () in
+  let thm =
+      let* p_eq_q = safe_make_eq p q in
+      let npq = axiom_for_test (make_neg p_eq_q) in
+
+      neg_sym npq
+
+
+  in
+  print_thm_result thm;
+  [%expect {|
+    ========================================
+    ¬Q = P
+    |}]
+
 let%expect_test "" =
   let () = clear_env () in
   let _ = init_types () in

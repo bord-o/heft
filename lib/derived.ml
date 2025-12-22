@@ -241,6 +241,9 @@ let term_of_negation = function
 let quantifier_of_forall = function
     | App (Const ("!", _), Lam (bind, _) ) -> bind
     | _ -> failwith "todo"
+let body_of_forall = function
+    | App (Const ("!", _), Lam (_, bod) ) -> bod
+    | _ -> failwith "todo"
 
 type side = Left  | Right
 let side_of_op op side = function
@@ -665,4 +668,17 @@ let choose x exists_th q_th =
     
     let* false_from_neg_q = prove_hyp forall_neg_px_conv exists_contra in  
     ccontr q false_from_neg_q
+
+(** [|- ~ (x = y)] should derive [|- ~(y = x)] *)
+let neg_sym th = 
+    let tm = concl th in
+    let ntm = term_of_negation tm in
+    let* l, r = destruct_eq ntm in
+    let* r_eq_l = safe_make_eq r l in
+    let* assm = assume r_eq_l in
+    let* flip = sym assm in
+
+    let* neg_th = not_elim th in
+    let* app = prove_hyp flip neg_th in
+    not_intro r_eq_l app
 
