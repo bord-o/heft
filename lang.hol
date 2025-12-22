@@ -1,46 +1,61 @@
-// Translating some algraph stuff
-
-type 'a foo = 'a bar // this is an alias
-
-type 'a algraph =
+type 'a algraph where
   | Empty
   | Vertex 'a
   | Connect ('a algraph) ('a algraph)
-  | Overlay ('a algraph) ('a algraph) // this is an inductive defintion (because of the |)
+  | Overlay ('a algraph) ('a algraph)
 
-def simple : nat -> nat := fn n => S n end
+// add some sugar for this eventually
+type ('a, 'b) pair where
+  | Pair 'a 'b
 
-def semant : 'a algraph -> (('a * 'a) set) * 'a set := 
-    let val nonsense := 9 in
-        fn a => case a of 
-        | Empty => (empty, empty)
-        | Vertex v => (empty, singleton v)
-        | Overlay x y =>
-            let 
-                val sx := semant x 
-                val sy := semant y 
-                val x_edges := fst sx
-                val x_verts := snd sx
-                val y_edges := fst sy
-                val y_verts := snd sy
-            in
-                ((union x_edges y_edges), (union x_verts y_verts))
-            end
-        | Connect x y =>
-            let 
-                val sx := semant x 
-                val sy := semant y 
-                val x_edges := fst sx
-                val x_verts := snd sx
-                val y_edges := fst sy
-                val y_verts := snd sy
-            in
-                ((union (union x_edges y_edges) (cart_prod x_verts y_verts)), (union x_verts y_verts))
-            end
-        end
-    end
-terminating
-end
-    
+def simple : nat -> nat := fn n => S n
+
+fun semant : 'a algraph -> ((((('a, 'a) pair) set), 'a) pair) set where
+  | semant Empty => (empty, empty)
+  | semant (Vertex v) => (empty, singleton v)
+  | semant (Overlay x y) =>
+        let sx := semant x  in
+        let sy := semant y  in
+        let x_edges := fst sx in
+        let x_verts := snd sx in
+        let y_edges := fst sy in
+        let y_verts := snd sy in
+        Pair (union x_edges y_edges) (union x_verts y_verts)
+  | semant (Connect x y) =>
+    //let bindings just desugar before the AST so you could write this and it would be identical
+//        (fn sx =>
+//            (fn sy =>
+//                (fn x_edges => 
+//                    (fn x_verts =>
+//                        (fn y_edges => 
+//                            (fn y_verts =>
+//                                Pair (union (union x_edges y_edges) (cart_prod x_verts y_verts)) (union x_verts y_verts))
+//                                snd sy)
+//                            fst sy)
+//                        snd sx)
+//                    fst sx)
+//                semant y)
+//            semant x
+
+        let sx := semant x  in
+        let sy := semant y  in
+        let x_edges := fst sx in
+        let x_verts := snd sx in
+        let y_edges := fst sy in
+        let y_verts := snd sy in
+        Pair (union (union x_edges y_edges) (cart_prod x_verts y_verts)) (union x_verts y_verts)
+
+fun fst : ('a, 'b) pair -> 'a where
+  | fst (Pair a b) => a
+
+fun fst : ('a, 'b) pair -> 'b where
+  | fst (Pair a b) => b
+
+def abs : int -> int := fn i => if i < 0 then neg i else i
+
 // theorems are just stated here, proving happens interactively and is saved afterwards
+// The ui will run on the file, load up all its definitions, then launch an interactive environment
+// with an overview of all open theorems. this allows for completing them in any order.
+// A serialization of the tactic sequence will be saved to the file for reading, but will also be persisted
+// elsewhere
 theorem overlay_zero : forall n, semant (Overlay n Empty) = semant n
