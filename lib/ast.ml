@@ -1,5 +1,8 @@
 type typ = TyVar of string | TyCon of string * typ list | TyArr of typ * typ
+[@@deriving show]
+
 type pattern = PVar of string | PCon of string * pattern list
+[@@deriving show]
 
 type term =
   | Var of string
@@ -10,22 +13,28 @@ type term =
   | If of term * term * term
   | Forall of string * term
   | Ann of term * typ
+[@@deriving show]
 
-type constructor = string * typ list
-type equation = string * pattern list * term
+type constructor = string * typ list [@@deriving show]
+type equation = string * pattern list * term [@@deriving show]
 
 type type_def = {
   name : string;
   params : string list;
   constructors : constructor list;
 }
+[@@deriving show]
 
-type def = { name : string; typ : typ; body : term }
+type def = { name : string; typ : typ; body : term } [@@deriving show]
+
 type fun_def = { name : string; typ : typ; equations : equation list }
-type theorem = { name : string; statement : term }
+[@@deriving show]
+
+type theorem = { name : string; statement : term } [@@deriving show]
 
 type toplevel =
   | TypeDef of type_def
   | Def of def
   | Fun of fun_def
   | Theorem of theorem
+[@@deriving show]

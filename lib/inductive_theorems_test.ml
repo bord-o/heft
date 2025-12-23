@@ -138,5 +138,41 @@ let%expect_test "test inductive nats" =
   in
 
   print_thm_result thm;
-  [%expect {|
+  [%expect
+    {|
+    ========================================
+    (∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0) ==> ∀x. plus x Zero = x
+
+    plus n' Zero = n'
+
+    plus (Suc n') Zero = Suc n'
+
+    ========================================
+    plus (Suc n') = (λn. Suc (plus n' n))
+
+    ========================================
+    plus (Suc n') Zero = (λn. Suc (plus n' n)) Zero
+
+    ========================================
+    plus (Suc n') Zero = Suc (plus n' Zero)
+
+    plus n' Zero = n'
+    ========================================
+    Suc (plus n' Zero) = Suc n'
+
+    plus n' Zero = n'
+    ========================================
+    plus (Suc n') Zero = Suc n'
+
+    ========================================
+    plus n' Zero = n' ==> plus (Suc n') Zero = Suc n'
+
+    ========================================
+    ∀n'. plus n' Zero = n' ==> plus (Suc n') Zero = Suc n'
+
+    ========================================
+    ∀x. plus x Zero = x
+
+    ========================================
+    T
     |}]
