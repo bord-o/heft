@@ -1,18 +1,23 @@
+type foo where
+  | Bar of nat
+  | Baz of nat nat
+
+
 type 'a algraph where
   | Empty
-  | Vertex 'a
-  | Connect ('a algraph) ('a algraph)
-  | Overlay ('a algraph) ('a algraph)
+  | Vertex  of 'a
+  | Connect of ('a algraph) ('a algraph)
+  | Overlay of ('a algraph) ('a algraph)
 
 // add some sugar for this eventually
-type ('a, 'b) pair where
-  | Pair 'a 'b
+type 'a 'b pair where
+  | Pair of 'a 'b
 
 def simple : nat -> nat := fn n => S n
 
-fun semant : 'a algraph -> ((((('a, 'a) pair) set), 'a) pair) set where
-  | semant Empty => (empty, empty)
-  | semant (Vertex v) => (empty, singleton v)
+fun semant : ('a algraph) -> (((('a 'a pair) set) 'a) pair) set  where
+  | semant Empty => Pair empty empty
+  | semant (Vertex v) => Pair empty (singleton v)
   | semant (Overlay x y) =>
         let sx := semant x  in
         let sy := semant y  in
@@ -45,10 +50,10 @@ fun semant : 'a algraph -> ((((('a, 'a) pair) set), 'a) pair) set where
         let y_verts := snd sy in
         Pair (union (union x_edges y_edges) (cart_prod x_verts y_verts)) (union x_verts y_verts)
 
-fun fst : ('a, 'b) pair -> 'a where
+fun fst : 'a 'b pair -> 'a where
   | fst (Pair a b) => a
 
-fun fst : ('a, 'b) pair -> 'b where
+fun fst : 'a 'b pair -> 'b where
   | fst (Pair a b) => b
 
 def abs : int -> int := fn i => if i < 0 then neg i else i
