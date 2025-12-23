@@ -2,6 +2,7 @@
 open Ast
 open Kernel
 open Result.Syntax
+open Inductive_theorems
 
 let rec hol_of_typ (t : typ) : hol_type =
   match t with
@@ -21,15 +22,16 @@ let hol_of_type_def (td : type_def) =
   Ok def.ty
 
 (*create a hol term from this*)
-let rec hol_of_term ?(type_env = []) (t : Ast.term) : (Kernel.term, Kernel.kernel_error) result =
+let rec hol_of_term ?(type_env = []) (t : Ast.term) :
+    (Kernel.term, Kernel.kernel_error) result =
   match t with
   | Var name -> (
       match List.assoc_opt name type_env with
       | Some ty -> Ok (Kernel.make_var name ty)
-      | None -> Error (Kernel.NotAVar))
+      | None -> Error Kernel.NotAVar)
   | Con name -> (
       match Kernel.get_const_term_type name with
-      | Some ty -> Kernel.make_const name (Hashtbl.create 0)
+      | Some _ty -> Kernel.make_const name (Hashtbl.create 0)
       | None -> Error (Kernel.NotAConstantName name))
   | App (f, a) ->
       let* f_term = hol_of_term ~type_env f in
@@ -52,9 +54,9 @@ let rec hol_of_term ?(type_env = []) (t : Ast.term) : (Kernel.term, Kernel.kerne
       let* lambda = Kernel.make_lam var_term body_term in
       Kernel.make_app lambda value_term
   | If (cond, then_branch, else_branch) ->
-      let* cond_term = hol_of_term ~type_env cond in
+      let* _cond_term = hol_of_term ~type_env cond in
       let* then_term = hol_of_term ~type_env then_branch in
-      let* else_term = hol_of_term ~type_env else_branch in
+      let* _else_term = hol_of_term ~type_env else_branch in
       (* For now, just return the then_branch - proper conditional needs more setup *)
       Ok then_term
   | Forall (var, body) ->
@@ -74,16 +76,28 @@ let rec hol_of_term ?(type_env = []) (t : Ast.term) : (Kernel.term, Kernel.kerne
 
 (*define a constant from this*)
 let hol_of_def d =
-  let* term_hol = hol_of_term d.body in
+  let* _term_hol = hol_of_term d.body in
   let ty_hol = hol_of_typ d.typ in
   let* _ = Kernel.new_constant d.name ty_hol in
   Ok ()
 
+let rec result_type_of_fun_ty = function
+    | TyCon ("fun", [_; ret]) -> (result_type_of_fun_ty ret)
+    | TyCon _ as t -> t
+    | TyVar _ as t -> t
+
+
 (*define a recursive function from this*)
-let hol_of_fun_def fd =
+(* type fun_def = { name : string; typ : typ; equations : equation list } *)
+let hol_of_fun_def (fd : fun_def) =
   let ty_hol = hol_of_typ fd.typ in
-  let* _ = Kernel.new_constant fd.name ty_hol in
-  (* For now, just declare the function - proper recursive definition would need more work *)
+  let res_ty = result_type_of_fun_ty ty_hol in
+  print_endline @@ show_hol_type  res_ty;
+
+  let branches = [] in
+
+  let* _d = define_recursive_function fd.name res_ty branches in
+  
   Ok ()
 
 (* this just wraps hol_of_term for now, I'll add handling later *)
@@ -92,4 +106,17 @@ let hol_of_theorem t =
   Ok statement
 
 (*This iterates through and calls the above functions*)
-let elaborate (defs : toplevel list) = defs
+let rec elaborate = function
+  | [] -> Ok ()
+  | TypeDef td :: defs ->
+      let* _ = hol_of_type_def td in
+      elaborate defs
+  | Def d :: defs ->
+      let* _ = hol_of_def d in
+      elaborate defs
+  | Fun fd :: defs ->
+      let* _ = hol_of_fun_def fd in
+      elaborate defs
+  | Theorem t :: defs ->
+      let* _ = hol_of_theorem t in
+      elaborate defs

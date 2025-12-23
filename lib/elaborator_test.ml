@@ -1,6 +1,5 @@
 open Elaborator
 open Ast
-open Inductive
 open Kernel
 
 let pp_tydef t = print_endline @@ show_type_def t
@@ -15,7 +14,7 @@ type nat where
     
     |}
   in
-  let ast = elaborate (Parser_driver.parse_string test_prog) in
+  let ast = Parser_driver.parse_string test_prog in
   (ast
   |> List.iter @@ fun d ->
      match d with
@@ -57,7 +56,7 @@ type 'a list where
     
     |}
   in
-  let ast = elaborate (Parser_driver.parse_string test_prog) in
+  let ast = Parser_driver.parse_string test_prog in
   (ast
   |> List.iter @@ fun d ->
      match d with
@@ -74,7 +73,8 @@ type 'a list where
      | Def _ -> print_endline "def"
      | Fun _ -> print_endline "fun"
      | Theorem _ -> print_endline "thm");
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀P. P Nil ==> (∀n0. ∀n1. P n1 ==> P (Cons n0 n1)) ==> ∀x. P x
 
@@ -89,15 +89,13 @@ type 'a list where
     |}]
 
 let%expect_test "elaborate_poly_multi_type_def" =
-  let test_prog =
-    {|
+  let test_prog = {|
 
 type 'a 'b pair where
     | Pair of 'a 'b
     
-    |}
-  in
-  let ast = elaborate (Parser_driver.parse_string test_prog) in
+    |} in
+  let ast = Parser_driver.parse_string test_prog in
   (ast
   |> List.iter @@ fun d ->
      match d with
@@ -114,7 +112,8 @@ type 'a 'b pair where
      | Def _ -> print_endline "def"
      | Fun _ -> print_endline "fun"
      | Theorem _ -> print_endline "thm");
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀P. (∀n0. ∀n1. P (Pair n0 n1)) ==> ∀x. P x
 
@@ -127,57 +126,77 @@ type 'a 'b pair where
 
 let%expect_test "hol_of_term_simple_variable" =
   let term_ast = Ast.Var "x" in
-  let type_env = [("x", Kernel.TyVar "'a")] in
+  let type_env = [ ("x", Kernel.TyVar "'a") ] in
   let result = hol_of_term ~type_env term_ast in
-  match result with
+  (match result with
   | Ok hol_term ->
       let term_str = Kernel.show_term hol_term in
       print_endline term_str
-  | Error _ -> print_endline "Error";
-  [%expect.unreachable];
+  | Error _ -> print_endline "Error");
   [%expect {| (Var ("x", (TyVar "'a"))) |}]
 
 let%expect_test "hol_of_term_lambda" =
   let term_ast = Ast.Lam ("x", Ast.Var "x") in
   let result = hol_of_term term_ast in
-  match result with
+  (match result with
   | Ok hol_term ->
       let term_str = Kernel.show_term hol_term in
       print_endline term_str
-  | Error _ -> print_endline "Error";
-  [%expect.unreachable];
-  [%expect {| (Lam ((Var ("x", (TyVar "'a35"))), (Var ("x", (TyVar "'a35"))))) |}]
+  | Error _ -> print_endline "Error");
+  [%expect
+    {| (Lam ((Var ("x", (TyVar "'a35"))), (Var ("x", (TyVar "'a35"))))) |}]
 
 let%expect_test "hol_of_term_let_binding" =
   (* This should translate 'let x = y in x' to '(\x. x) y' *)
   let term_ast = Ast.Let ("x", Ast.Var "y", Ast.Var "x") in
-  let type_env = [("y", Kernel.TyVar "'b")] in
+  let type_env = [ ("y", Kernel.TyVar "'b") ] in
   let result = hol_of_term ~type_env term_ast in
-  match result with
+  (match result with
   | Ok hol_term ->
       let term_str = Kernel.show_term hol_term in
       print_endline term_str
-  | Error _ -> print_endline "Error";
-  [%expect.unreachable];
-  [%expect {|
+  | Error _ -> print_endline "Error");
+  [%expect
+    {|
     (App ((Lam ((Var ("x", (TyVar "'b"))), (Var ("x", (TyVar "'b"))))),
        (Var ("y", (TyVar "'b")))))
     |}]
 
 let%expect_test "hol_of_term_application" =
   let term_ast = Ast.App (Ast.Var "f", Ast.Var "x") in
-  let type_env = [
-    ("f", Kernel.make_fun_ty (Kernel.TyVar "'a") (Kernel.TyVar "'b"));
-    ("x", Kernel.TyVar "'a")
-  ] in
+  let type_env =
+    [
+      ("f", Kernel.make_fun_ty (Kernel.TyVar "'a") (Kernel.TyVar "'b"));
+      ("x", Kernel.TyVar "'a");
+    ]
+  in
   let result = hol_of_term ~type_env term_ast in
-  match result with
+  (match result with
   | Ok hol_term ->
       let term_str = Kernel.show_term hol_term in
       print_endline term_str
-  | Error _ -> print_endline "Error";
-  [%expect.unreachable];
-  [%expect {|
+  | Error _ -> print_endline "Error");
+  [%expect
+    {|
     (App ((Var ("f", (TyCon ("fun", [(TyVar "'a"); (TyVar "'b")])))),
        (Var ("x", (TyVar "'a")))))
+    |}]
+
+let%expect_test "elaborate_simple" =
+  let test_prog = {|
+type fizz where
+    | Buzz 
+    | Bar
+
+fun fizz_flip : fizz -> fizz where
+  | fizz_flip Buzz => Bar
+  | fizz_flip Bar => Buzz
+
+        |} in
+  let ast = Parser_driver.parse_string test_prog in
+  (match elaborate ast with
+  | Ok () -> print_endline "elaborated successfully"
+  | Error e -> print_endline @@ Kernel.show_kernel_error e);
+  [%expect
+    {|
     |}]
