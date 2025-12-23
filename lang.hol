@@ -58,9 +58,11 @@ fun fst : 'a 'b pair -> 'b where
 
 def abs : int -> int := fn i => if lt i Zero then neg i else i
 
+def test : nat -> nat := fn x => if x = x then x else x
+
 // theorems are just stated here, proving happens interactively and is saved afterwards
 // The ui will run on the file, load up all its definitions, then launch an interactive environment
 // with an overview of all open theorems. this allows for completing them in any order.
 // A serialization of the tactic sequence will be saved to the file for reading, but will also be persisted
 // elsewhere
-// theorem overlay_zero : forall n, semant (Overlay n Empty) = semant n
+theorem overlay_zero : forall n, semant (Overlay n Empty) = semant n

@@ -5,7 +5,14 @@ open Ast
 %token <string> LIDENT UIDENT TYVAR
 %token TYPE WHERE OF DEF FUN THEOREM FN LET IN IF THEN ELSE FORALL
 %token LPAREN RPAREN BAR COMMA COLON COLONEQUAL DARROW ARROW
+%token IMPLIES AND OR NOT SELECT EXISTS
 %token EOF EQUALS
+
+%left OR
+%left AND
+%nonassoc IMPLIES
+%nonassoc EQUALS
+%right NOT
 
 %type <Ast.toplevel list> file
 %type <Ast.toplevel> toplevel
@@ -99,8 +106,23 @@ atomic_pattern:
   | c=UIDENT { PCon (c, []) }
   | LPAREN p=pattern RPAREN { p }
 
-(* Terms *)
 term:
+  | t=logical_term { t }
+
+logical_term:
+  | t1=logical_term IMPLIES t2=logical_term
+      { App(App(Con "==>", t1), t2) }
+  | t1=logical_term OR t2=logical_term
+      { App(App(Con "\\/", t1), t2) }
+  | t1=logical_term AND t2=logical_term
+      { App(App(Con "/\\", t1), t2) }
+  | t1=logical_term EQUALS t2=logical_term
+      { App(App(Con "=", t1), t2) }
+  | NOT t=logical_term
+      { App(Con "~", t) }
+  | t=binding_term { t }
+
+binding_term:
   | FN params=nonempty_list(LIDENT) DARROW body=term
       { List.fold_right (fun p b -> Lam (p, b)) params body }
   | LET v=LIDENT COLONEQUAL e=term IN body=term
@@ -108,7 +130,14 @@ term:
   | IF cond=term THEN t=term ELSE e=term
       { If (cond, t, e) }
   | FORALL vars=nonempty_list(LIDENT) COMMA body=term
-      { List.fold_right (fun v b -> Forall (v, b)) vars body }
+      { List.fold_right (fun v b -> 
+          App(Con "forall", Lam(v, b))) vars body }
+  | EXISTS vars=nonempty_list(LIDENT) COMMA body=term
+      { List.fold_right (fun v b -> 
+          App(Con "exists", Lam(v, b))) vars body }
+  | SELECT vars=nonempty_list(LIDENT) COMMA body=term
+      { List.fold_right (fun v b -> 
+          App(Con "@", Lam(v, b))) vars body }
   | t=app_term { t }
 
 app_term:

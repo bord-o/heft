@@ -52,6 +52,12 @@ rule token = parse
   | "=>"       { DARROW }
   | "->"       { ARROW }
   | "="        { EQUALS }
+  | "==>"      { IMPLIES }
+    | "/\\"      { AND }
+    | "\\/"      { OR }
+    | "~"        { NOT }
+    | "exists"   { EXISTS }
+    | "@"        { SELECT }
   
   (* Identifiers *)
   | type_var as tv     { TYVAR tv }
