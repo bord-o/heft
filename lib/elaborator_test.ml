@@ -115,4 +115,69 @@ type 'a 'b pair where
      | Fun _ -> print_endline "fun"
      | Theorem _ -> print_endline "thm");
   [%expect {|
+    ========================================
+    ∀P. (∀n0. ∀n1. P (Pair n0 n1)) ==> ∀x. P x
+
+    ========================================
+    ∀Pair_case. ∃g. ∀x0. ∀x1. g (Pair x0 x1) = Pair_case x0 x1
+
+    ========================================
+    ∀x0. ∀x1. ∀y0. ∀y1. Pair x0 x1 = Pair y0 y1 ==> x0 = y0 ∧ x1 = y1
+    |}]
+
+let%expect_test "hol_of_term_simple_variable" =
+  let term_ast = Ast.Var "x" in
+  let type_env = [("x", Kernel.TyVar "'a")] in
+  let result = hol_of_term ~type_env term_ast in
+  match result with
+  | Ok hol_term ->
+      let term_str = Kernel.show_term hol_term in
+      print_endline term_str
+  | Error _ -> print_endline "Error";
+  [%expect.unreachable];
+  [%expect {| (Var ("x", (TyVar "'a"))) |}]
+
+let%expect_test "hol_of_term_lambda" =
+  let term_ast = Ast.Lam ("x", Ast.Var "x") in
+  let result = hol_of_term term_ast in
+  match result with
+  | Ok hol_term ->
+      let term_str = Kernel.show_term hol_term in
+      print_endline term_str
+  | Error _ -> print_endline "Error";
+  [%expect.unreachable];
+  [%expect {| (Lam ((Var ("x", (TyVar "'a35"))), (Var ("x", (TyVar "'a35"))))) |}]
+
+let%expect_test "hol_of_term_let_binding" =
+  (* This should translate 'let x = y in x' to '(\x. x) y' *)
+  let term_ast = Ast.Let ("x", Ast.Var "y", Ast.Var "x") in
+  let type_env = [("y", Kernel.TyVar "'b")] in
+  let result = hol_of_term ~type_env term_ast in
+  match result with
+  | Ok hol_term ->
+      let term_str = Kernel.show_term hol_term in
+      print_endline term_str
+  | Error _ -> print_endline "Error";
+  [%expect.unreachable];
+  [%expect {|
+    (App ((Lam ((Var ("x", (TyVar "'b"))), (Var ("x", (TyVar "'b"))))),
+       (Var ("y", (TyVar "'b")))))
+    |}]
+
+let%expect_test "hol_of_term_application" =
+  let term_ast = Ast.App (Ast.Var "f", Ast.Var "x") in
+  let type_env = [
+    ("f", Kernel.make_fun_ty (Kernel.TyVar "'a") (Kernel.TyVar "'b"));
+    ("x", Kernel.TyVar "'a")
+  ] in
+  let result = hol_of_term ~type_env term_ast in
+  match result with
+  | Ok hol_term ->
+      let term_str = Kernel.show_term hol_term in
+      print_endline term_str
+  | Error _ -> print_endline "Error";
+  [%expect.unreachable];
+  [%expect {|
+    (App ((Var ("f", (TyCon ("fun", [(TyVar "'a"); (TyVar "'b")])))),
+       (Var ("x", (TyVar "'a")))))
     |}]
