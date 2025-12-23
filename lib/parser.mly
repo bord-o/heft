@@ -94,17 +94,18 @@ equation:
   | name=LIDENT pats=list(pattern) DARROW body=term
       { (name, pats, body) }
 
-(* Patterns *)
 pattern:
   | v=LIDENT { PVar v }
   | c=UIDENT { PCon (c, []) }
   | c=UIDENT args=nonempty_list(atomic_pattern) { PCon (c, args) }
   | LPAREN p=pattern RPAREN { p }
+  | LPAREN p=pattern COLON ty=typ RPAREN { PAnn (p, ty) }
 
 atomic_pattern:
   | v=LIDENT { PVar v }
   | c=UIDENT { PCon (c, []) }
   | LPAREN p=pattern RPAREN { p }
+  | LPAREN p=pattern COLON ty=typ RPAREN { PAnn (p, ty) }
 
 term:
   | t=logical_term { t }

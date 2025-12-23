@@ -1,7 +1,10 @@
 type typ = TyVar of string | TyCon of string * typ list | TyArr of typ * typ
 [@@deriving show]
 
-type pattern = PVar of string | PCon of string * pattern list
+type pattern = 
+  | PVar of string 
+  | PCon of string * pattern list
+  | PAnn of pattern * typ
 [@@deriving show]
 
 type term =
