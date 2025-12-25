@@ -66,3 +66,5 @@ def test : nat -> nat := fn x => if x = x then x else x
 // A serialization of the tactic sequence will be saved to the file for reading, but will also be persisted
 // elsewhere
 theorem overlay_zero : forall n, semant (Overlay n Empty) = semant n
+
+theorem overlay_zero2 : forall n m, semant (Overlay n m) = semant n

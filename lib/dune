@@ -5,8 +5,3 @@
  (preprocess
   (pps ppx_here ppx_expect ppx_deriving.show)))
 
-(menhir
- (modules parser))
-
-(ocamllex
- (modules lexer))
