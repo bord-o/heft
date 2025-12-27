@@ -66,5 +66,3 @@ Proof.
     * simpl. lia.
 Qed.
 
-
-

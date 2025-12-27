@@ -1,0 +1,47 @@
+(type algraph (a)
+  (Empty)
+  (Vertex a)
+  (Connect (algraph a) (algraph a))
+  (Overlay (algraph a) (algraph a)))
+
+(type pair (a b)
+  (Pair a b))
+
+(def simple (-> nat nat)
+  (fn n (S n)))
+
+(fun semant (-> (algraph a) (pair (set (pair a a)) (set a)))
+  ((Empty) (Pair empty empty))
+  (((Vertex v)) (Pair empty (singleton v)))
+  (((Overlay x y))
+    (let sx (semant x)
+    (let sy (semant y)
+    (let x_edges (fst sx)
+    (let x_verts (snd sx)
+    (let y_edges (fst sy)
+    (let y_verts (snd sy)
+    (Pair (union x_edges y_edges) (union x_verts y_verts)))))))))
+  (((Connect x y))
+    (let sx (semant x)
+    (let sy (semant y)
+    (let x_edges (fst sx)
+    (let x_verts (snd sx)
+    (let y_edges (fst sy)
+    (let y_verts (snd sy)
+    (Pair (union (union x_edges y_edges) (cart_prod x_verts y_verts))
+          (union x_verts y_verts))))))))))
+
+(fun fst (-> (pair a b) a)
+  (((Pair a b)) a))
+
+(fun snd (-> (pair a b) b)
+  (((Pair a b)) b))
+
+(def abs (-> int int)
+  (fn i (if (lt i Zero) (neg i) i)))
+
+(def test (-> nat nat)
+  (fn x (if (= x x) x x)))
+
+(theorem overlay_zero
+  (forall (n) (= (semant (Overlay n Empty)) (semant n))))
