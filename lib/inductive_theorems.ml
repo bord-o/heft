@@ -83,6 +83,8 @@ let plus_def =
   let nat_ty = TyCon ("nat", []) in
   let* nat_def = nat_def in
   let suc = nat_def.constructors |> List.assoc_opt "Suc" |> Option.get in
+  let z = nat_def.constructors |> List.assoc_opt "Zero" |> Option.get in
+  print_endline @@ show_term z;
 
   let n = make_var "n" nat_ty in
   let m' = make_var "m'" nat_ty in
