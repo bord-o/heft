@@ -128,8 +128,17 @@ let rec infer env tm =
       let tf = type_of_tm f' in
       (match tf with
        | TyApp ("fun", [arg_ty; ret_ty]) ->
-           let x' = check env x arg_ty in
-           TApp (f', x', ret_ty)
+           let x' = infer env x in
+           let actual_arg_ty = type_of_tm x' in
+           (* Unify arg_ty with actual_arg_ty to instantiate type variables *)
+           let subst = try unify_types [] arg_ty actual_arg_ty with _ ->
+             failwith ("argument type mismatch: expected " ^ show_ty arg_ty ^
+                       " but got " ^ show_ty actual_arg_ty)
+           in
+           let ret_ty' = subst_ty subst ret_ty in
+           let f'' = subst_tm subst f' in
+           let x'' = subst_tm subst x' in
+           TApp (f'', x'', ret_ty')
        | _ -> failwith "expected function type in application")
 
   | Lam (x, ty, body) ->
