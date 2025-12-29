@@ -1,4 +1,4 @@
-open Kernel
+open Holinone
 open Derived
 open Printing
 open Result.Syntax
@@ -9,21 +9,11 @@ let r = Var ("R", bool_ty)
 let s = Var ("S", bool_ty)
 let g = Var ("f", TyCon ("fun", [ bool_ty; bool_ty ]))
 
-(* let g = Var ("g", TyCon ("fun", [ bool_ty; bool_ty ])) *)
 let x = Var ("x", bool_ty)
 let y = Var ("y", bool_ty)
 let z = Var ("z", bool_ty)
 let axiom_for_test tm = Result.get_ok (new_axiom tm)
 
-let clear_env () =
-  Hashtbl.clear the_inductives;
-  Hashtbl.clear the_term_constants;
-  Hashtbl.clear the_type_constants;
-  the_axioms := [];
-  the_definitions := []
-
-let print_term = Fun.compose print_endline show_term
-let print_thm = Fun.compose print_endline show_thm
 let print_types = ref false
 
 let print_thm_result =
@@ -40,8 +30,7 @@ let print_term_result =
     ~error:pp_kernel_error Format.std_formatter
 
 let%expect_test "beta_conv_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
 
   let thm =
     let binder = make_var "x" bool_ty in
@@ -59,8 +48,7 @@ let%expect_test "beta_conv_simple" =
     |}]
 
 let%expect_test "beta_conv_binder_eq_arg" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
 
   let thm =
     let binder = make_var "x" bool_ty in
@@ -78,8 +66,7 @@ let%expect_test "beta_conv_binder_eq_arg" =
     |}]
 
 let%expect_test "rhs_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
 
   let thm =
     let* conj_def = conj_def in
@@ -89,8 +76,7 @@ let%expect_test "rhs_simple" =
   [%expect {| λp. λq. (λf. f p q) = (λf. f T T) |}]
 
 let%expect_test "lhs_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
 
   let thm =
     let* conj_def = conj_def in
@@ -100,8 +86,7 @@ let%expect_test "lhs_simple" =
   [%expect {| /\ |}]
 
 let%expect_test "unfold_definition_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
 
   let thm =
     let* conj_def = conj_def in
@@ -115,8 +100,7 @@ let%expect_test "unfold_definition_simple" =
     |}]
 
 let%expect_test "conj_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* thl = assume p in
     let* thr = assume q in
@@ -132,8 +116,7 @@ let%expect_test "conj_simple" =
     |}]
 
 let%expect_test "conj_left_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* thl = assume p in
     let* thr = assume q in
@@ -150,8 +133,7 @@ let%expect_test "conj_left_simple" =
     |}]
 
 let%expect_test "conj_left_nested" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* p_th = assume p in
     let* q_th = assume q in
@@ -171,8 +153,7 @@ let%expect_test "conj_left_nested" =
     |}]
 
 let%expect_test "conj_right_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* thl = assume p in
     let* thr = assume q in
@@ -189,8 +170,7 @@ let%expect_test "conj_right_simple" =
     |}]
 
 let%expect_test "undisch_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let p_imp_q = make_imp p q in
     let* p_imp_q_th = assume p_imp_q in
@@ -206,8 +186,7 @@ let%expect_test "undisch_simple" =
     |}]
 
 let%expect_test "disch_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* q_th = assume q in
     disch q q_th
@@ -219,8 +198,7 @@ let%expect_test "disch_simple" =
     |}]
 
 let%expect_test "disch_with_real_derivation" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* pq_th = assume (make_conj p q) in
     let* q_th = conj_right pq_th in
@@ -234,8 +212,7 @@ let%expect_test "disch_with_real_derivation" =
     |}]
 
 let%expect_test "prove_hyp_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* p_th = assume p in
     let* p_imp_q = assume (make_imp p q) in
@@ -252,8 +229,7 @@ let%expect_test "prove_hyp_simple" =
     |}]
 
 let%expect_test "prove_hyp_removes_assumption" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let t = make_true () in
     let* t_th = assume t in
@@ -266,8 +242,7 @@ let%expect_test "prove_hyp_removes_assumption" =
     |}]
 
 let%expect_test "mp_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* p_imp_q_th = assume @@ make_imp (make_true ()) q in
     mp p_imp_q_th truth
@@ -281,8 +256,7 @@ let%expect_test "mp_simple" =
     |}]
 
 let%expect_test "gen_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* x_refl = refl x in
     gen x x_refl
@@ -294,8 +268,7 @@ let%expect_test "gen_simple" =
     |}]
 
 let%expect_test "spec_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* x_refl = refl x in
     let* gen_x = gen x x_refl in
@@ -308,8 +281,7 @@ let%expect_test "spec_simple" =
     |}]
 
 let%expect_test "disj_left_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* x_refl = refl x in
     disj_left y x_refl
@@ -321,8 +293,7 @@ let%expect_test "disj_left_simple" =
     |}]
 
 let%expect_test "disj_right_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* x_refl = refl x in
     disj_right x_refl y
@@ -334,8 +305,7 @@ let%expect_test "disj_right_simple" =
     |}]
 
 let%expect_test "disj_cases_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* pr_imp = assume (make_imp p r) in
     let* pr_th = undisch pr_imp in
@@ -358,8 +328,7 @@ let%expect_test "disj_cases_simple" =
     |}]
 
 let%expect_test "not_elim_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* neg_p = assume (make_neg p) in
     not_elim neg_p
@@ -374,8 +343,7 @@ let%expect_test "not_elim_simple" =
     |}]
 
 let%expect_test "not_intro_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* neg_p = assume (make_neg p) in
     let* p_gives_f = not_elim neg_p in
@@ -389,8 +357,7 @@ let%expect_test "not_intro_simple" =
     |}]
 
 let%expect_test "contr_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let open Result.Syntax in
     let* false_tm = make_false () |> Result.ok in
@@ -405,8 +372,7 @@ let%expect_test "contr_simple" =
     |}]
 
 let%expect_test "ccontr_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let open Result.Syntax in
     let p = make_var "p" bool_ty in
@@ -423,8 +389,7 @@ let%expect_test "ccontr_simple" =
     |}]
 
 let%expect_test "exists_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let x = make_var "x" bool_ty in
     let* p_eq_p = refl p in
@@ -437,8 +402,7 @@ let%expect_test "exists_simple" =
     |}]
 
 let%expect_test "exists_different_witness" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let x = make_var "x" bool_ty in
     let y = make_var "y" bool_ty in
@@ -452,8 +416,7 @@ let%expect_test "exists_different_witness" =
     |}]
 
 let%expect_test "exists_with_implication" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let x = make_var "x" bool_ty in
     let* p_imp_p = assume (make_imp p p) in
@@ -470,8 +433,7 @@ let%expect_test "exists_with_implication" =
     |}]
 
 let%expect_test "exists_witness_different_from_bound" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let x = make_var "x" bool_ty in
     let y = make_var "y" bool_ty in
@@ -488,8 +450,7 @@ let%expect_test "exists_witness_different_from_bound" =
     |}]
 
 let%expect_test "exists_polymorphic_type" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let a = TyVar "a" in
     let x = make_var "x" a in
@@ -504,8 +465,7 @@ let%expect_test "exists_polymorphic_type" =
     |}]
 
 let%expect_test "choose_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let x = make_var "x" bool_ty in
     let p_x = Result.get_ok (safe_make_eq x x) in
@@ -523,8 +483,7 @@ let%expect_test "choose_simple" =
     |}]
 
 let%expect_test "choose_exists_from_assumption" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let x = make_var "x" bool_ty in
     let p_x = Result.get_ok (safe_make_eq x x) in
@@ -545,8 +504,7 @@ let%expect_test "choose_exists_from_assumption" =
     |}]
 
 let%expect_test "choose_polymorphic" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let a = TyVar "a" in
     let y = make_var "y" a in
@@ -565,8 +523,7 @@ let%expect_test "choose_polymorphic" =
     |}]
 
 let%expect_test "choose_clean" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let x = make_var "x" bool_ty in
     let p_x = Result.get_ok (safe_make_eq x x) in
@@ -585,8 +542,7 @@ let%expect_test "choose_clean" =
     |}]
 
 let%expect_test "choose_with_real_predicate" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let x = make_var "x" bool_ty in
     let p_x = make_conj x (make_neg x) in
@@ -607,8 +563,7 @@ let%expect_test "choose_with_real_predicate" =
     |}]
 
 let%expect_test "double_negation_implies_p" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let neg_neg_p = make_neg (make_neg p) in
     let p = p in
@@ -624,8 +579,7 @@ let%expect_test "double_negation_implies_p" =
     |}]
 
 let%expect_test "forall_symmetry" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* x_eq_y = safe_make_eq x y in
 
@@ -642,8 +596,7 @@ let%expect_test "forall_symmetry" =
     |}]
 
 let%expect_test "identity" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* p_th = assume p in
     disch p p_th
@@ -655,8 +608,7 @@ let%expect_test "identity" =
     |}]
 
 let%expect_test "contrapositive" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let p_imp_q = make_imp p q in
 
@@ -679,8 +631,7 @@ let%expect_test "contrapositive" =
     |}]
 
 let%expect_test "neg_sym_simple" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm =
     let* p_eq_q = safe_make_eq p q in
     let npq = axiom_for_test (make_neg p_eq_q) in
@@ -694,8 +645,7 @@ let%expect_test "neg_sym_simple" =
     |}]
 
 let%expect_test "" =
-  let () = clear_env () in
-  let _ = init_types () in
+  let () = reset () |> Result.get_ok in
   let thm = Ok truth in
   print_thm_result thm;
   [%expect {|

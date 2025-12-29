@@ -1,5 +1,5 @@
-open Kernel
 open Result.Syntax
+open Holinone
 open Printing
 
 let p = Var ("P", bool_ty)

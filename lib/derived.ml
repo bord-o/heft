@@ -2,11 +2,6 @@ open Kernel
 open Result.Syntax
 open Util
 
-let pp_thm th = print_newline @@ print_endline @@ Printing.pretty_print_thm th
-
-let pp_term trm =
-  print_newline @@ print_endline @@ Printing.pretty_print_hol_term trm
-
 let make_exn (thm : (thm, kernel_error) result) =
   thm
   |> Result.map_error (fun e -> show_kernel_error e)
