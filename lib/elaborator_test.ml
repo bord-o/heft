@@ -852,13 +852,6 @@ let%expect_test "elab" =
     ========================================
     ∀P. P Zmy ==> (∀n0. P n0 ==> P (Smy n0)) ==> ∀x. P x
 
-    nat
-    ========================================
-    ∀Zero_case. ∀Suc_case. ∃g. g Zero = Zero_case ∧ (∀x0. g (Suc x0) = Suc_case x0 (g x0))
-
-    ========================================
-    ∀P. P Zero ==> (∀n0. P n0 ==> P (Suc n0)) ==> ∀x. P x
-
     Zmy
     mynat
     mnat_id
@@ -881,14 +874,8 @@ let%expect_test "elab" =
     bool
     mnat_id2
     (mynat -> mynat)
-    Suc
-    (nat -> nat)
     Smy
     (mynat -> mynat)
-    Zero
-    nat
-    plus
-    (nat -> (nat -> nat))
     ?
     ((a -> bool) -> bool)
     ==>
@@ -937,21 +924,6 @@ let%expect_test "elab" =
 
     ========================================
     ∀P. P Zmy ==> (∀n0. P n0 ==> P (Smy n0)) ==> ∀x. P x
-
-    ========================================
-    plus Zero = (λn. n) ∧ (∀x0. plus (Suc x0) = (λn. Suc (plus x0 n)))
-
-    ========================================
-    ∀x0. ∀y0. Suc x0 = Suc y0 ==> x0 = y0
-
-    ========================================
-    ∀y0. ¬Zero = Suc y0
-
-    ========================================
-    ∀Zero_case. ∀Suc_case. ∃g. g Zero = Zero_case ∧ (∀x0. g (Suc x0) = Suc_case x0 (g x0))
-
-    ========================================
-    ∀P. P Zero ==> (∀n0. P n0 ==> P (Suc n0)) ==> ∀x. P x
 
     ========================================
     ∀P. (∃x. P x) ==> P (@ (λx. P x))

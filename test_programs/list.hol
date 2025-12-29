@@ -1,0 +1,15 @@
+(type list ('a)
+    (Nil)
+    (Cons ('a (list 'a))))
+
+(type nat ()
+    (Z)
+    (S (nat)))
+
+(fun length (-> (list 'a) nat)
+    ( (Nil) Z)
+    ( ((Cons x xs)) (S (length xs))))
+
+(fun append (-> (list 'a) (-> (list 'a) (list 'a)))
+    ( (Nil l) l)
+    ( ((Cons x xs) l) (Cons x (append xs l))))
