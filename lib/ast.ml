@@ -10,6 +10,7 @@ type tm =
   | Eq of tm * tm
   | Forall of (name * ty) list * tm
   | Exists of (name * ty) list * tm
+  | Fix of (name * ty) list * tm
 [@@deriving show]
 
 type constr = name * ty list [@@deriving show]

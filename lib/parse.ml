@@ -35,6 +35,8 @@ let rec parse_tm = function
       Forall (parse_bindings bindings, parse_tm body)
   | Sexp.List [ Sexp.Atom "exists"; bindings; body ] ->
       Exists (parse_bindings bindings, parse_tm body)
+  | Sexp.List [ Sexp.Atom "fix"; bindings; body ] ->
+      Fix (parse_bindings bindings, parse_tm body)
   | Sexp.List [] -> failwith "empty application"
   | Sexp.List (f :: args) ->
       List.fold_left (fun acc arg -> App (acc, parse_tm arg)) (parse_tm f) args

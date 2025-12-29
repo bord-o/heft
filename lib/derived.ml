@@ -259,6 +259,10 @@ let classical_def = init_classical ()
 
 let choice_def = init_choice ()
 
+let destruct_conj = function
+  | App (App (Const ("/\\", _), p), q) -> (p, q)
+  | _ -> failwith "not a conjunction"
+
 let destruct_exists = function
   | App (Const ("?", _), Lam (bind, bod)) -> (bind, bod)
   | _ -> failwith "todo"

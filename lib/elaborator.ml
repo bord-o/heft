@@ -2,6 +2,8 @@ open Parse
 open Inductive
 open Ast
 
+let the_goals = ref []
+
 module Elab = struct
   open Tast
   module K = Kernel
@@ -41,6 +43,9 @@ module Elab = struct
             let var = K.Var (n, elab_ty ty) in
             Derived.make_exists var acc)
           bindings body'
+    | TFix (_, body, _) ->
+        (* fix just introduces bindings for typechecking, elaborates to the body directly *)
+        elab_tm body
 
   let elab_constr_spec (name, arg_tys) : K.constructor_spec =
     { name; arg_types = List.map elab_ty arg_tys }
@@ -183,6 +188,7 @@ module Elab = struct
               let var = K.Var (n, elab_ty ty) in
               Derived.make_exists var acc)
             bindings body'
+      | TFix (_, body, _) -> subst_recursive_calls body
     in
 
     let body' = subst_recursive_calls body in
@@ -261,8 +267,8 @@ module Elab = struct
         let _ = elab_fun name ty clauses env in
         env
     | TDTheorem (name, body) ->
-        let _ = name in
-        let _ = elab_tm body in
+        let t = elab_tm body in
+        the_goals := (name, t) :: !the_goals;
         env
 
   let elab_program tprog =

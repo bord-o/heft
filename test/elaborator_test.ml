@@ -192,5 +192,12 @@ let%expect_test "elab3" =
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   let () = Elab.elab_program tast in
-  [%expect {|
+  (!the_goals
+  |> List.iter @@ fun (name, t) ->
+     print_endline name;
+     print_term t);
+  [%expect
+    {|
+    length_cons
+    ∀x. ∀l. length (Cons x l) = S (length l)
     |}]

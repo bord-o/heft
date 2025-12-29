@@ -12,6 +12,7 @@ type ttm =
   | TEq of ttm * ttm * tty
   | TForall of (name * tty) list * ttm * tty
   | TExists of (name * tty) list * ttm * tty
+  | TFix of (name * tty) list * ttm * tty
 [@@deriving show]
 
 type tclause = ttm list * ttm [@@deriving show]
@@ -35,6 +36,7 @@ let type_of_tm = function
   | TEq (_, _, ty) -> ty
   | TForall (_, _, ty) -> ty
   | TExists (_, _, ty) -> ty
+  | TFix (_, _, ty) -> ty
 
 type env = {
   types : (name * int) list;
@@ -91,6 +93,9 @@ let rec subst_tm subst tm =
   | TExists (bindings, body, ty) ->
       let bindings' = List.map (fun (n, t) -> (n, sty t)) bindings in
       TExists (bindings', subst_tm subst body, sty ty)
+  | TFix (bindings, body, ty) ->
+      let bindings' = List.map (fun (n, t) -> (n, sty t)) bindings in
+      TFix (bindings', subst_tm subst body, sty ty)
 
 let instantiate ty ty_args =
   let tyvars = collect_tyvars [] ty in
@@ -185,6 +190,13 @@ let rec infer env tm =
       in
       let body' = check env' body ty_bool in
       TExists (bindings, body', ty_bool)
+  | Fix (bindings, body) ->
+      let env' =
+        List.fold_left (fun e (n, ty) -> add_local n ty e) env bindings
+      in
+      let body' = infer env' body in
+      let body_ty = type_of_tm body' in
+      TFix (bindings, body', body_ty)
 
 and check env tm expected =
   match (tm, expected) with
