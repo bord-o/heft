@@ -760,3 +760,38 @@ let%expect_test "typecheck: higher order function" =
           ))
        ))
     |}]
+
+let%expect_test "elab" =
+  let prg = {|
+    (type mynat ()
+      (Zmy)
+      (Smy (mynat)))
+
+    (def mnat_id (-> mynat mynat)
+        (fn (n mynat) (n)))
+
+    (fun mnat_id2 (-> mynat mynat)
+        ((Zmy) Zmy)
+        (((Smy n)) (Smy n)))
+
+    (fun mnat_plus (-> mynat (-> mynat mynat))
+        ((Zmy n) Zmy)
+        (((Smy m) n) (Smy (mnat_plus m n))))
+  |} in
+  let ast = parse_string prg in
+  let tast = Tast.check_program ast in
+  let () = Elab.elab_program tast in
+  (Kernel.the_inductives |> Hashtbl.iter @@ fun k (v : Kernel.inductive_def) -> 
+      print_endline k;
+      Derived.pp_thm v.recursion;
+      Derived.pp_thm v.induction
+  );
+  (Kernel.the_term_constants |> Hashtbl.iter @@ fun k (v : Kernel.hol_type) -> 
+      print_endline k;
+      print_endline @@ Printing.pretty_print_hol_type v;
+  );
+  (!Kernel.the_definitions |> List.iter @@ fun t -> Derived.pp_thm t);
+  (!Kernel.the_axioms |> List.iter @@ fun t -> Derived.pp_thm t);
+  [%expect{|
+    |}]
+

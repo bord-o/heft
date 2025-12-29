@@ -167,6 +167,12 @@ module Elab = struct
     ) ctor_args in
 
     let inductive_ty = elab_ty (List.hd arg_tys) in
+    let additional_arg_tys = List.tl arg_tys in
+
+    (* The recursive result type is the full return type including additional args *)
+    let full_ret_ty = List.fold_right (fun arg_ty acc ->
+      K.make_fun_ty (elab_ty arg_ty) acc
+    ) additional_arg_tys (elab_ty ret_ty) in
 
     let recursive_args = List.filter (fun (_, ty) ->
       ty = inductive_ty
@@ -174,11 +180,8 @@ module Elab = struct
 
     let recursive_result_vars = List.mapi (fun i (name, _) ->
       let r_name = "r_" ^ name in
-      let r_ty = K.make_fun_ty inductive_ty (elab_ty ret_ty) in
-      (name, K.Var (r_name, r_ty))
+      (name, K.Var (r_name, full_ret_ty))
     ) recursive_args in
-
-    let additional_arg_tys = List.tl arg_tys in
 
     let additional_args = List.map2 (fun pat ty ->
       match pat with
