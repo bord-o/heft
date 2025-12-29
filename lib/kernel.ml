@@ -77,6 +77,7 @@ type kernel_error =
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
 let the_term_constants : (string, hol_type) Hashtbl.t = Hashtbl.create 512
 let the_inductives : (string, inductive_def) Hashtbl.t = Hashtbl.create 512
+let the_specifications : (string, thm) Hashtbl.t = Hashtbl.create 512
 let the_axioms : thm list ref = ref []
 let the_definitions : thm list ref = ref []
 let bool_ty = TyCon ("bool", [])

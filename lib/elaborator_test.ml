@@ -1,35 +1,41 @@
 open Elaborator
 
 let%expect_test "typecheck: nullary type and constant" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
 
     (def zero nat Z)
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDDef ("zero", (Ast.TyApp ("nat", [])),
        (Tast.TConst ("Z", (Ast.TyApp ("nat", []))))))
     |}]
 
 let%expect_test "typecheck: constructor application" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
 
     (def one nat (S Z))
     (def two nat (S (S Z)))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDDef ("one", (Ast.TyApp ("nat", [])),
        (Tast.TApp (
@@ -57,15 +63,18 @@ let%expect_test "typecheck: constructor application" =
     |}]
 
 let%expect_test "typecheck: polymorphic type" =
-  let prg = {|
+  let prg =
+    {|
     (type list ('a)
       (Nil)
       (Cons ('a (list 'a))))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("list", ["'a"],
        [("Nil", []);
          ("Cons", [(Ast.TyVar "'a"); (Ast.TyApp ("list", [(Ast.TyVar "'a")]))])]
@@ -73,7 +82,8 @@ let%expect_test "typecheck: polymorphic type" =
     |}]
 
 let%expect_test "typecheck: polymorphic instantiation" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
@@ -84,11 +94,13 @@ let%expect_test "typecheck: polymorphic instantiation" =
 
     (def empty_nat_list (list nat) Nil)
     (def singleton_nat (list nat) (Cons Z Nil))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDType ("list", ["'a"],
        [("Nil", []);
@@ -123,18 +135,21 @@ let%expect_test "typecheck: polymorphic instantiation" =
     |}]
 
 let%expect_test "typecheck: lambda with type annotation" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
 
     (def succ (-> nat nat)
       (fn (n nat) (S n)))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDDef ("succ",
        (Ast.TyApp ("fun", [(Ast.TyApp ("nat", [])); (Ast.TyApp ("nat", []))])),
@@ -152,7 +167,8 @@ let%expect_test "typecheck: lambda with type annotation" =
     |}]
 
 let%expect_test "typecheck: let binding" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
@@ -161,11 +177,13 @@ let%expect_test "typecheck: let binding" =
       (let x Z
       (let y (S x)
       (S y))))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDDef ("test", (Ast.TyApp ("nat", [])),
        (Tast.TLet ("x", (Ast.TyApp ("nat", [])),
@@ -191,7 +209,8 @@ let%expect_test "typecheck: let binding" =
     |}]
 
 let%expect_test "typecheck: function application" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
@@ -200,11 +219,13 @@ let%expect_test "typecheck: function application" =
       (fn (n nat) (S n)))
 
     (def two nat (succ (succ Z)))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDDef ("succ",
        (Ast.TyApp ("fun", [(Ast.TyApp ("nat", [])); (Ast.TyApp ("nat", []))])),
@@ -237,7 +258,8 @@ let%expect_test "typecheck: function application" =
     |}]
 
 let%expect_test "typecheck: recursive function simple" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
@@ -245,11 +267,13 @@ let%expect_test "typecheck: recursive function simple" =
     (fun double (-> nat nat)
       ((Z) Z)
       (((S n)) (S (S (double n)))))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDFun ("double",
        (Ast.TyApp ("fun", [(Ast.TyApp ("nat", [])); (Ast.TyApp ("nat", []))])),
@@ -287,7 +311,8 @@ let%expect_test "typecheck: recursive function simple" =
     |}]
 
 let%expect_test "typecheck: recursive function two args" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
@@ -295,11 +320,13 @@ let%expect_test "typecheck: recursive function two args" =
     (fun plus (-> nat nat nat)
       ((Z n) n)
       (((S m) n) (S (plus m n))))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDFun ("plus",
        (Ast.TyApp ("fun",
@@ -347,7 +374,8 @@ let%expect_test "typecheck: recursive function two args" =
     |}]
 
 let%expect_test "typecheck: polymorphic recursive function" =
-  let prg = {|
+  let prg =
+    {|
     (type list ('a)
       (Nil)
       (Cons ('a (list 'a))))
@@ -355,11 +383,13 @@ let%expect_test "typecheck: polymorphic recursive function" =
     (fun tl (-> (list 'a) (list 'a))
       ((Nil) Nil)
       (((Cons x xs)) xs))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("list", ["'a"],
        [("Nil", []);
          ("Cons", [(Ast.TyVar "'a"); (Ast.TyApp ("list", [(Ast.TyVar "'a")]))])]
@@ -394,7 +424,8 @@ let%expect_test "typecheck: polymorphic recursive function" =
     |}]
 
 let%expect_test "typecheck: pair type" =
-  let prg = {|
+  let prg =
+    {|
     (type pair ('a 'b)
       (Pair ('a 'b)))
 
@@ -407,11 +438,13 @@ let%expect_test "typecheck: pair type" =
       (False))
 
     (def my_pair (pair nat bool) (Pair Z True))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("pair", ["'a"; "'b"],
        [("Pair", [(Ast.TyVar "'a"); (Ast.TyVar "'b")])]))
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
@@ -449,7 +482,8 @@ let%expect_test "typecheck: pair type" =
     |}]
 
 let%expect_test "typecheck: nested polymorphic types" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
@@ -460,11 +494,13 @@ let%expect_test "typecheck: nested polymorphic types" =
 
     (def nested (list (list nat))
       (Cons (Cons Z Nil) Nil))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDType ("list", ["'a"],
        [("Nil", []);
@@ -526,18 +562,21 @@ let%expect_test "typecheck: nested polymorphic types" =
     |}]
 
 let%expect_test "typecheck: equality" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
 
     (theorem zero_eq_zero
       (= Z Z))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDTheorem ("zero_eq_zero",
        (Tast.TEq ((Tast.TConst ("Z", (Ast.TyApp ("nat", [])))),
@@ -547,7 +586,8 @@ let%expect_test "typecheck: equality" =
     |}]
 
 let%expect_test "typecheck: if expression" =
-  let prg = {|
+  let prg =
+    {|
     (type bool ()
       (True)
       (False))
@@ -558,11 +598,13 @@ let%expect_test "typecheck: if expression" =
 
     (def test nat
       (if True Z (S Z)))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("bool", [], [("True", []); ("False", [])]))
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDDef ("test", (Ast.TyApp ("nat", [])),
@@ -580,7 +622,8 @@ let%expect_test "typecheck: if expression" =
     |}]
 
 let%expect_test "typecheck: using defined function" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
@@ -598,11 +641,13 @@ let%expect_test "typecheck: using defined function" =
 
     (def tail_of_mylist (list nat)
       (tl mylist))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDType ("list", ["'a"],
        [("Nil", []);
@@ -706,7 +751,8 @@ let%expect_test "typecheck: polymorphic lambda" =
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDDef ("id", (Ast.TyApp ("fun", [(Ast.TyVar "'a"); (Ast.TyVar "'a")])),
        (Tast.TLam ("x", (Ast.TyVar "'a"), (Tast.TVar ("x", (Ast.TyVar "'a"))),
           (Ast.TyApp ("fun", [(Ast.TyVar "'a"); (Ast.TyVar "'a")]))))
@@ -714,7 +760,8 @@ let%expect_test "typecheck: polymorphic lambda" =
     |}]
 
 let%expect_test "typecheck: higher order function" =
-  let prg = {|
+  let prg =
+    {|
     (type nat ()
       (Z)
       (S (nat)))
@@ -723,11 +770,13 @@ let%expect_test "typecheck: higher order function" =
       (fn (f (-> nat nat))
       (fn (x nat)
         (f x))))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
-  [%expect {|
+  [%expect
+    {|
     (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
     (Tast.TDDef ("apply",
        (Ast.TyApp ("fun",
@@ -762,7 +811,8 @@ let%expect_test "typecheck: higher order function" =
     |}]
 
 let%expect_test "elab" =
-  let prg = {|
+  let prg =
+    {|
     (type mynat ()
       (Zmy)
       (Smy (mynat)))
@@ -777,22 +827,24 @@ let%expect_test "elab" =
     (fun mnat_plus (-> mynat (-> mynat mynat))
         ((Zmy n) Zmy)
         (((Smy m) n) (Smy (mnat_plus m n))))
-  |} in
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   let () = Elab.elab_program tast in
-  (Kernel.the_inductives |> Hashtbl.iter @@ fun k (v : Kernel.inductive_def) -> 
-      print_endline k;
-      Derived.pp_thm v.recursion;
-      Derived.pp_thm v.induction
-  );
-  (Kernel.the_term_constants |> Hashtbl.iter @@ fun k (v : Kernel.hol_type) -> 
-      print_endline k;
-      print_endline @@ Printing.pretty_print_hol_type v;
-  );
+  (Kernel.the_inductives
+  |> Hashtbl.iter @@ fun k (v : Kernel.inductive_def) ->
+     print_endline k;
+     Derived.pp_thm v.recursion;
+     Derived.pp_thm v.induction);
+  (Kernel.the_term_constants
+  |> Hashtbl.iter @@ fun k (v : Kernel.hol_type) ->
+     print_endline k;
+     print_endline @@ Printing.pretty_print_hol_type v);
   (!Kernel.the_definitions |> List.iter @@ fun t -> Derived.pp_thm t);
   (!Kernel.the_axioms |> List.iter @@ fun t -> Derived.pp_thm t);
-  [%expect{|
+  [%expect
+    {|
     mynat
     ========================================
     ∀Zmy_case. ∀Smy_case. ∃g. g Zmy = Zmy_case ∧ (∀x0. g (Smy x0) = Smy_case x0 (g x0))
@@ -909,36 +961,32 @@ let%expect_test "elab" =
     |}]
 
 let%expect_test "elab2" =
-  let prg = {|
+  let prg =
+    {|
 
-(type mnat ()
-  (Zm)
-  (Sm (mnat)))
-
+  (type mnat ()
+    (Zm)
+    (Sm (mnat)))
   (type list ('a)
     (Nil)
     (Cons ('a (list 'a))))
-
+  (type option ('a)
+    (None)
+    (Some ('a)))
   (fun length (-> (list 'a) mnat)
     ( (Nil) Zm)
     ( ((Cons x xs)) (Sm (length xs))))
-
-
-  |} in
+  (fun head (-> (list 'a) (option 'a))
+    ( (Nil) None)
+    ( ((Cons x xs)) (Some x)))
+  |}
+  in
   let ast = parse_string prg in
   let tast = Tast.check_program ast in
   let () = Elab.elab_program tast in
-  (* (Kernel.the_inductives |> Hashtbl.iter @@ fun k (v : Kernel.inductive_def) ->  *)
-  (*     print_endline k; *)
-  (*     Derived.pp_thm v.recursion; *)
-  (*     Derived.pp_thm v.induction *)
-  (* ); *)
-  (* (Kernel.the_term_constants |> Hashtbl.iter @@ fun k (v : Kernel.hol_type) ->  *)
-  (*     print_endline k; *)
-  (*     print_endline @@ Printing.pretty_print_hol_type v; *)
-  (* ); *)
-  (* (!Kernel.the_definitions |> List.iter @@ fun t -> Derived.pp_thm t); *)
-  (!Kernel.the_axioms |> List.iter @@ fun t -> Derived.pp_thm t);
-  [%expect{|
+  let length_def = Hashtbl.find Kernel.the_specifications "length" in
+  let head_def = Hashtbl.find Kernel.the_specifications "head" in
+  Derived.pp_thm length_def;
+  Derived.pp_thm head_def;
+  [%expect {|
     |}]
-

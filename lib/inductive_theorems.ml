@@ -28,7 +28,9 @@ let new_specification name ex_thm =
   let* () = new_constant name var_type in
   let new_const = Const (name, var_type) in
   let* defining_property = vsubst [ (new_const, exists_var) ] body in
-  new_axiom defining_property
+  let* thm = new_axiom defining_property in
+  Hashtbl.add the_specifications name thm;
+  Ok thm
 
 (* Extract the inductive type being recursed on from branch terms *)
 let rec find_inductive_type_in_term = function
@@ -68,8 +70,10 @@ let find_recursed_inductive_type branches =
   search branches
 
 (* Define a recursive function on an inductive type *)
-let define_recursive_function func_name return_type inductive_type_name branches =
-  let inductive_def = match Hashtbl.find_opt the_inductives inductive_type_name with
+let define_recursive_function func_name return_type inductive_type_name branches
+    =
+  let inductive_def =
+    match Hashtbl.find_opt the_inductives inductive_type_name with
     | Some def -> def
     | None -> failwith ("Unknown inductive type: " ^ inductive_type_name)
   in

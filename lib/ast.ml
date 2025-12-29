@@ -1,9 +1,5 @@
 type name = string [@@deriving show]
-
-type ty =
-  | TyVar of name
-  | TyApp of name * ty list
-[@@deriving show]
+type ty = TyVar of name | TyApp of name * ty list [@@deriving show]
 
 type tm =
   | Var of name
