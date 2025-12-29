@@ -185,7 +185,6 @@ let init_classical () =
   let excl_middle = make_forall p (make_disj p (make_neg p)) in
   new_axiom excl_middle
 
-
 let make_select_const () =
   let a = TyVar "a" in
   let pred_ty = make_fun_ty a bool_ty in
@@ -200,57 +199,87 @@ let init_choice () =
   let p_ty = make_fun_ty a bool_ty in
   let p = Var ("P", p_ty) in
   let x = Var ("x", a) in
-  
+
   let* px = make_app p x in
   let exists_px = make_exists x px in
   let* select_x = make_select x px in
   let* p_select = make_app p select_x in
   let impl = make_imp exists_px p_select in
-  
+
   new_axiom (make_forall p impl)
 
+let reset () =
+  Hashtbl.clear the_inductives;
+  Hashtbl.clear the_term_constants;
+  Hashtbl.clear the_type_constants;
+  Hashtbl.clear the_specifications;
+  the_axioms := [];
+  the_definitions := [];
+  let _ = init_types () in
+  let _ = init_true () in
+  let _ = init_forall () in
+  let _ = init_conj () in
+  let _ = init_imp () in
+  let _ = init_false () in
+  let _ = init_neg () in
+  let _ = init_exists () in
+  let _ = init_disj () in
+  let _ = init_classical () in
+  let _ = init_choice () in
+  Ok ()
+
 let _ = init_types ()
+
 (** [T = ((λp:bool. p) = (λp. p))] *)
 let true_def = init_true ()
+
 (** [∀ = (λP. P = (λx. T))] *)
 let forall_def = init_forall ()
+
 (** [∧ = (λp q. (λf. f p q) = (λf. f T T))] *)
 let conj_def = init_conj ()
+
 (** [==> = (λp q. p ∧ q ⟺ p)] *)
 let imp_def = init_imp ()
+
 (** [F = (∀p. p)] *)
 let false_def = init_false ()
+
 (** [¬ = (λp. p ==> F)] *)
 let neg_def = init_neg ()
+
 (** [∃ = (λP. ¬(∀x. ¬(P x)))] *)
 let exists_def = init_exists ()
+
 (** [∨ = (λp q. ∀r. (p ==> r) ==> (q ==> r) ==> r)] *)
 let disj_def = init_disj ()
+
 (** [∀p. p /\ ¬p] *)
 let classical_def = init_classical ()
+
 let choice_def = init_choice ()
 
 let destruct_exists = function
-    | App (Const ("?", _), Lam (bind, bod) ) -> bind, bod
-    | _ -> failwith "todo"
+  | App (Const ("?", _), Lam (bind, bod)) -> (bind, bod)
+  | _ -> failwith "todo"
 
 let term_of_negation = function
-    | App (Const ("~", _), t ) -> t
-    | _ -> failwith "todo"
+  | App (Const ("~", _), t) -> t
+  | _ -> failwith "todo"
 
 let quantifier_of_forall = function
-    | App (Const ("!", _), Lam (bind, _) ) -> bind
-    | _ -> failwith "todo"
-let body_of_forall = function
-    | App (Const ("!", _), Lam (_, bod) ) -> bod
-    | _ -> failwith "todo"
+  | App (Const ("!", _), Lam (bind, _)) -> bind
+  | _ -> failwith "todo"
 
-type side = Left  | Right
+let body_of_forall = function
+  | App (Const ("!", _), Lam (_, bod)) -> bod
+  | _ -> failwith "todo"
+
+type side = Left | Right
+
 let side_of_op op side = function
-  | App (App (Const (oper, _), p), q) when oper = op -> 
-          (match side with
-            | Left -> p
-            | Right -> q)
+  | App (App (Const (oper, _), p), q) when oper = op -> (
+      match side with Left -> p | Right -> q)
   | _ -> failwith ("TODO: Not a " ^ op)
 
 (** obtain [p] from [p /\ q]*)
@@ -279,7 +308,7 @@ let ap_thm th tm =
   let* term_rfl = refl tm in
   mk_comb th term_rfl
 
-  (* [|- x = y] should derive [|- y = x] *)
+(* [|- x = y] should derive [|- y = x] *)
 let sym th =
   let tm = concl th in
   let* l, _ = destruct_eq tm in
@@ -290,8 +319,9 @@ let sym th =
   let* comb = mk_comb applied lth in
   eq_mp comb lth
 
-(** [λp. p = λp. p] is truth *)
 (* T is already defined, just build up the identity reflection and use eq_mp to get T *)
+
+(** [λp. p = λp. p] is truth *)
 let truth =
   let thm =
     let p = Var ("p", bool_ty) in
@@ -422,18 +452,18 @@ let conj_lr selector th =
 
 (** [|- p /\ q] should derive [|- p] *)
 let conj_left th =
-  let* select_fst  =
+  let* select_fst =
     let x = make_var "x" bool_ty in
     let y = make_var "y" bool_ty in
     let* inner = make_lam y x in
     make_lam x inner
     (* λx y. x *)
   in
-    conj_lr select_fst th
+  conj_lr select_fst th
 
 (* [|- p /\ q] should derive [|- q] *)
 let conj_right th =
-  let* select_snd  =
+  let* select_snd =
     let x = make_var "x" bool_ty in
     let y = make_var "y" bool_ty in
     let* inner = make_lam y y in
@@ -442,243 +472,258 @@ let conj_right th =
   in
   conj_lr select_snd th
 
-  (** [|- p => q] should derive [{p} |- q]*)
-let undisch th = 
-    let l_tm = imp_left_term (concl th) in
-    let r_tm = imp_right_term (concl th) in
-    let* assm_l = assume l_tm in
+(** [|- p => q] should derive [{p} |- q]*)
+let undisch th =
+  let l_tm = imp_left_term (concl th) in
+  let r_tm = imp_right_term (concl th) in
+  let* assm_l = assume l_tm in
 
-    let* imp_def = imp_def in
-    let* imp_applied = unfold_definition imp_def [l_tm; r_tm] in
-    let* rev_imp_applied = sym imp_applied in
+  let* imp_def = imp_def in
+  let* imp_applied = unfold_definition imp_def [ l_tm; r_tm ] in
+  let* rev_imp_applied = sym imp_applied in
 
-    let* l_imp_r_dest = eq_mp rev_imp_applied th in
-    let* rev_l_imp_r_dest = sym l_imp_r_dest in
-    let* replaced_p = eq_mp rev_l_imp_r_dest assm_l in
-    conj_right replaced_p
+  let* l_imp_r_dest = eq_mp rev_imp_applied th in
+  let* rev_l_imp_r_dest = sym l_imp_r_dest in
+  let* replaced_p = eq_mp rev_l_imp_r_dest assm_l in
+  conj_right replaced_p
 
 (** [{p} |- q] should derive [|- p => q]*)
-let disch tm th = 
-    let* assm_conj = assume (make_conj tm (concl th)) in 
-    let* assm_conj_left = conj_left assm_conj in         
-    let* assm_tm = assume tm in 
-    let* assm_and_th = conj assm_tm th in
+let disch tm th =
+  let* assm_conj = assume (make_conj tm (concl th)) in
+  let* assm_conj_left = conj_left assm_conj in
+  let* assm_tm = assume tm in
+  let* assm_and_th = conj assm_tm th in
 
-    let* imp_def = imp_def in
-    let* eq_th = deduct_antisym_rule assm_conj_left assm_and_th in
-    let* rev_eq_th = sym eq_th in
-    let* imp_unfolded = unfold_definition imp_def [tm; (concl th)] in 
-    let* result = eq_mp imp_unfolded rev_eq_th in
-    Ok result
+  let* imp_def = imp_def in
+  let* eq_th = deduct_antisym_rule assm_conj_left assm_and_th in
+  let* rev_eq_th = sym eq_th in
+  let* imp_unfolded = unfold_definition imp_def [ tm; concl th ] in
+  let* result = eq_mp imp_unfolded rev_eq_th in
+  Ok result
 
-let prove_hyp thl thr = 
-    let* antisym = (deduct_antisym_rule thl thr) in
-    eq_mp antisym thl
+let prove_hyp thl thr =
+  let* antisym = deduct_antisym_rule thl thr in
+  eq_mp antisym thl
 
 (** [|- p => q, |- p] should derive [|- q] *)
-let mp th_imp th = 
-    let* q_under_p = undisch th_imp in
-    prove_hyp th q_under_p
+let mp th_imp th =
+  let* q_under_p = undisch th_imp in
+  prove_hyp th q_under_p
 
 (** [|- x = x] should derive [|- ∀x. x = x] when x is not free in hypotheses *)
-let gen tm th = 
-    (* don't necessarily need to check hyps, kernel should catch this 
+let gen tm th =
+  (* don't necessarily need to check hyps, kernel should catch this 
        either way when the lambda rule is run *)
-    let* forall_def = forall_def in
-    let var_typ = type_of_var tm in
-    let* pred_lam = make_lam tm (concl th) in
-    let* typed_forall = inst_type ([(make_vartype "a", var_typ)] |> List.to_seq |> Hashtbl.of_seq) forall_def in
-    let* eqt_th = eq_truth_intro th in
-    let* eqt_lam = lam (tm) eqt_th in
-    let* forall_applied = unfold_definition typed_forall [pred_lam] in
-    eq_mp forall_applied eqt_lam
+  let* forall_def = forall_def in
+  let var_typ = type_of_var tm in
+  let* pred_lam = make_lam tm (concl th) in
+  let* typed_forall =
+    inst_type
+      ([ (make_vartype "a", var_typ) ] |> List.to_seq |> Hashtbl.of_seq)
+      forall_def
+  in
+  let* eqt_th = eq_truth_intro th in
+  let* eqt_lam = lam tm eqt_th in
+  let* forall_applied = unfold_definition typed_forall [ pred_lam ] in
+  eq_mp forall_applied eqt_lam
 
 let gens tms th = fold_left_result (fun acc a -> gen a acc) th tms
 
-(** [|- ∀x. x = x] should derive [|- t = t] for any term t  *)
-let spec tm th = 
-    let* forall_def = forall_def in
-    let quant_over = quantifier_of_forall (concl th) in
-    let quant_typ = type_of_var quant_over in
-    let* typed_forall = inst_type ([(make_vartype "a", quant_typ)] |> List.to_seq |> Hashtbl.of_seq) forall_def in
-    let* _, pred_lam = destruct_app (concl th) in
-    let* forall_applied = unfold_definition typed_forall [pred_lam] in
-    let* rev_app = sym forall_applied in
-    let* inner = eq_mp rev_app th in
-    let* with_t = ap_thm inner tm in
-    let* redux = conv_equality deep_beta with_t in
-    eq_truth_elim redux
+(** [|- ∀x. x = x] should derive [|- t = t] for any term t *)
+let spec tm th =
+  let* forall_def = forall_def in
+  let quant_over = quantifier_of_forall (concl th) in
+  let quant_typ = type_of_var quant_over in
+  let* typed_forall =
+    inst_type
+      ([ (make_vartype "a", quant_typ) ] |> List.to_seq |> Hashtbl.of_seq)
+      forall_def
+  in
+  let* _, pred_lam = destruct_app (concl th) in
+  let* forall_applied = unfold_definition typed_forall [ pred_lam ] in
+  let* rev_app = sym forall_applied in
+  let* inner = eq_mp rev_app th in
+  let* with_t = ap_thm inner tm in
+  let* redux = conv_equality deep_beta with_t in
+  eq_truth_elim redux
 
 let specs tms th = fold_left_result (fun acc a -> spec a acc) th tms
 
 (** [⊢ P] should derive [⊢ P ∨ Q] *)
-let disj_left tm th = 
-    let c = concl th in
-    let* disj_def = disj_def in
+let disj_left tm th =
+  let c = concl th in
+  let* disj_def = disj_def in
 
-    let* applied = unfold_definition disj_def [c; tm] in
+  let* applied = unfold_definition disj_def [ c; tm ] in
 
-    let r = make_var "r" bool_ty in
-    
-    let* r_assumed = assume (make_imp (concl th) r) in
+  let r = make_var "r" bool_ty in
 
-    let* r_th = mp r_assumed th in
-    let* tm_disch = disch (make_imp tm r) r_th in
-    let* th_disch = disch (make_imp c r) tm_disch in
+  let* r_assumed = assume (make_imp (concl th) r) in
 
-    let* gen_th = gen r th_disch in
+  let* r_th = mp r_assumed th in
+  let* tm_disch = disch (make_imp tm r) r_th in
+  let* th_disch = disch (make_imp c r) tm_disch in
 
-    eq_mp applied gen_th
+  let* gen_th = gen r th_disch in
+
+  eq_mp applied gen_th
 
 (** [⊢ Q] should derive [⊢ P ∨ Q] *)
-let disj_right th tm = 
-    let c = concl th in
-    let* disj_def = disj_def in
+let disj_right th tm =
+  let c = concl th in
+  let* disj_def = disj_def in
 
-    let* applied = unfold_definition disj_def [tm; c] in
+  let* applied = unfold_definition disj_def [ tm; c ] in
 
-    let r = make_var "r" bool_ty in
-    
-    let* r_assumed = assume (make_imp (concl th) r) in
+  let r = make_var "r" bool_ty in
 
-    let* r_th = mp r_assumed th in
-    let* th_disch = disch (make_imp c r) r_th in
-    let* tm_disch = disch (make_imp tm r) th_disch in
+  let* r_assumed = assume (make_imp (concl th) r) in
 
-    let* gen_th = gen r tm_disch in
-    eq_mp applied gen_th
+  let* r_th = mp r_assumed th in
+  let* th_disch = disch (make_imp c r) r_th in
+  let* tm_disch = disch (make_imp tm r) th_disch in
+
+  let* gen_th = gen r tm_disch in
+  eq_mp applied gen_th
 
 (** [⊢ P ∨ Q], [{P} ⊢ R], [{Q} ⊢ R] should derive [⊢ R] *)
-let disj_cases pq_th pr_th qr_th = 
-    let* disj_def = disj_def in
-    let p = disj_left_term (concl pq_th) in
-    let q = disj_right_term (concl pq_th) in
+let disj_cases pq_th pr_th qr_th =
+  let* disj_def = disj_def in
+  let p = disj_left_term (concl pq_th) in
+  let q = disj_right_term (concl pq_th) in
 
-    let* applied = unfold_definition disj_def [p; q] in
-    let* applied_rev = sym applied in
-    let* unfolded = eq_mp applied_rev pq_th in
+  let* applied = unfold_definition disj_def [ p; q ] in
+  let* applied_rev = sym applied in
+  let* unfolded = eq_mp applied_rev pq_th in
 
-    let* p_imp_r = disch p pr_th in
-    let* q_imp_r = disch q qr_th in
+  let* p_imp_r = disch p pr_th in
+  let* q_imp_r = disch q qr_th in
 
-    let* specced = spec (concl pr_th) unfolded in
-    let* mp1 = mp specced p_imp_r in
-    mp mp1 q_imp_r
+  let* specced = spec (concl pr_th) unfolded in
+  let* mp1 = mp specced p_imp_r in
+  mp mp1 q_imp_r
 
 (** [⊢ ¬P] should derive [{P} ⊢ F] *)
-let not_elim th = 
-    let* neg_def = neg_def in
-    let negated_term = term_of_negation (concl th) in
+let not_elim th =
+  let* neg_def = neg_def in
+  let negated_term = term_of_negation (concl th) in
 
-    let* applied = unfold_definition neg_def [negated_term] in
-    let* applied_rev = sym applied in
+  let* applied = unfold_definition neg_def [ negated_term ] in
+  let* applied_rev = sym applied in
 
-    let* mp1 = eq_mp applied_rev th in
-    undisch mp1
+  let* mp1 = eq_mp applied_rev th in
+  undisch mp1
 
 (** [{P} ⊢ F] should derive [⊢ ¬P] *)
-let not_intro tm th = 
-    let* disch_tm = disch tm th in
-    let* neg_def = neg_def in
-    let* applied = unfold_definition neg_def [tm] in
-    eq_mp applied disch_tm
+let not_intro tm th =
+  let* disch_tm = disch tm th in
+  let* neg_def = neg_def in
+  let* applied = unfold_definition neg_def [ tm ] in
+  eq_mp applied disch_tm
 
 (** [⊢ F] should derive [⊢ P] (ex falso quodlibet) *)
-let contr p th = 
-    let* false_def = false_def in
-    let* applied = eq_mp false_def th in
-    spec p applied
+let contr p th =
+  let* false_def = false_def in
+  let* applied = eq_mp false_def th in
+  spec p applied
 
 (** [{¬P} ⊢ F] should derive [⊢ P] (classical contradiction) *)
-let ccontr p th = 
-    let* neg_def = neg_def in
-    let neg_p = make_neg p in
-    let* undis = disch neg_p th in
+let ccontr p th =
+  let* neg_def = neg_def in
+  let neg_p = make_neg p in
+  let* undis = disch neg_p th in
 
-    let* applied = unfold_definition neg_def [neg_p] in
-    let* double_neg = eq_mp applied undis in
+  let* applied = unfold_definition neg_def [ neg_p ] in
+  let* double_neg = eq_mp applied undis in
 
-    let* classical_def = classical_def in
-    let* speccd = spec p classical_def in
+  let* classical_def = classical_def in
+  let* speccd = spec p classical_def in
 
-    let* disj_p = assume p in
-    let* disj_np = not_elim double_neg in
-    let* disj_np_contr = contr p disj_np in
+  let* disj_p = assume p in
+  let* disj_np = not_elim double_neg in
+  let* disj_np_contr = contr p disj_np in
 
-    disj_cases speccd disj_p disj_np_contr
+  disj_cases speccd disj_p disj_np_contr
 
 (** [⊢ t = t] should derive [⊢ ∃x. x = x] *)
 let exists x tm th =
-    let* exists_def = exists_def in
-    let* tm_typ = type_of_term tm in
-    let* typed_exists_def = inst_type ([(make_vartype "a", tm_typ)] |> List.to_seq |> Hashtbl.of_seq) exists_def in
-    
-    let* pred_body = vsubst [(x, tm)] (concl th) in
-    let* pred_lam = make_lam x pred_body in
-    
-    let* applied = unfold_definition typed_exists_def [pred_lam] in
-    let* applied_normal = conv_equality deep_beta applied in
-    
-    let* l = lhs applied_normal in
-    let inner_forall = term_of_negation l in
-    
-    let* assm_forall = assume inner_forall in
-    let* speccd = spec tm assm_forall in
-    let* false_th = not_elim speccd in
-    
-    let hyps = hyp false_th in
-    let p_hyp = List.find (fun h -> alphaorder h inner_forall <> 0) hyps in
-    
-    let* p_hyp_refl = refl p_hyp in
-    let* beta_th = conv_left deep_beta p_hyp_refl in  
-    let* p_hyp_th = eq_mp beta_th th in
-    
-    let* false_th' = prove_hyp p_hyp_th false_th in
-    let* neg_forall = not_intro inner_forall false_th' in
-    eq_mp applied_normal neg_forall
+  let* exists_def = exists_def in
+  let* tm_typ = type_of_term tm in
+  let* typed_exists_def =
+    inst_type
+      ([ (make_vartype "a", tm_typ) ] |> List.to_seq |> Hashtbl.of_seq)
+      exists_def
+  in
+
+  let* pred_body = vsubst [ (x, tm) ] (concl th) in
+  let* pred_lam = make_lam x pred_body in
+
+  let* applied = unfold_definition typed_exists_def [ pred_lam ] in
+  let* applied_normal = conv_equality deep_beta applied in
+
+  let* l = lhs applied_normal in
+  let inner_forall = term_of_negation l in
+
+  let* assm_forall = assume inner_forall in
+  let* speccd = spec tm assm_forall in
+  let* false_th = not_elim speccd in
+
+  let hyps = hyp false_th in
+  let p_hyp = List.find (fun h -> alphaorder h inner_forall <> 0) hyps in
+
+  let* p_hyp_refl = refl p_hyp in
+  let* beta_th = conv_left deep_beta p_hyp_refl in
+  let* p_hyp_th = eq_mp beta_th th in
+
+  let* false_th' = prove_hyp p_hyp_th false_th in
+  let* neg_forall = not_intro inner_forall false_th' in
+  eq_mp applied_normal neg_forall
 
 (** [⊢ ∃x. P(x)], [{P(x)} ⊢ Q] should derive [⊢ Q] (where x not free in Q) *)
-let choose x exists_th q_th = 
-    let q = concl q_th in
-    let x_ty = type_of_var x in
-    
-    let* _, pred_lam = destruct_app (concl exists_th) in
-    
-    let p_x_hyp = List.hd (hyp q_th) in
-    
-    let neg_q = make_neg q in
-    let* neg_q_assumed = assume neg_q in
-    let* neg_q_elim = not_elim neg_q_assumed in        
-    let* false_with_px = prove_hyp q_th neg_q_elim in  
-    let* neg_px = not_intro p_x_hyp false_with_px in   
-    let* forall_neg_px = gen x neg_px in               
-    
-    let* exists_def = exists_def in
-    let* typed_exists_def = inst_type ([(make_vartype "a", x_ty)] |> List.to_seq |> Hashtbl.of_seq) exists_def in
-    let* unfolded = unfold_definition typed_exists_def [pred_lam] in
-    let* unfolded_normal = conv_equality deep_beta unfolded in
-    let* exists_as_neg = eq_mp (Result.get_ok (sym unfolded_normal)) exists_th in
-    
-    let* exists_contra = not_elim exists_as_neg in     
-    
-    let forall_hyp = List.hd (hyp exists_contra) in
-    let* forall_refl = refl forall_hyp in
-    let* forall_conv = conv_left deep_beta forall_refl in
-    let* forall_neg_px_conv = eq_mp forall_conv forall_neg_px in
-    
-    let* false_from_neg_q = prove_hyp forall_neg_px_conv exists_contra in  
-    ccontr q false_from_neg_q
+let choose x exists_th q_th =
+  let q = concl q_th in
+  let x_ty = type_of_var x in
+
+  let* _, pred_lam = destruct_app (concl exists_th) in
+
+  let p_x_hyp = List.hd (hyp q_th) in
+
+  let neg_q = make_neg q in
+  let* neg_q_assumed = assume neg_q in
+  let* neg_q_elim = not_elim neg_q_assumed in
+  let* false_with_px = prove_hyp q_th neg_q_elim in
+  let* neg_px = not_intro p_x_hyp false_with_px in
+  let* forall_neg_px = gen x neg_px in
+
+  let* exists_def = exists_def in
+  let* typed_exists_def =
+    inst_type
+      ([ (make_vartype "a", x_ty) ] |> List.to_seq |> Hashtbl.of_seq)
+      exists_def
+  in
+  let* unfolded = unfold_definition typed_exists_def [ pred_lam ] in
+  let* unfolded_normal = conv_equality deep_beta unfolded in
+  let* exists_as_neg = eq_mp (Result.get_ok (sym unfolded_normal)) exists_th in
+
+  let* exists_contra = not_elim exists_as_neg in
+
+  let forall_hyp = List.hd (hyp exists_contra) in
+  let* forall_refl = refl forall_hyp in
+  let* forall_conv = conv_left deep_beta forall_refl in
+  let* forall_neg_px_conv = eq_mp forall_conv forall_neg_px in
+
+  let* false_from_neg_q = prove_hyp forall_neg_px_conv exists_contra in
+  ccontr q false_from_neg_q
 
 (** [|- ~ (x = y)] should derive [|- ~(y = x)] *)
-let neg_sym th = 
-    let tm = concl th in
-    let ntm = term_of_negation tm in
-    let* l, r = destruct_eq ntm in
-    let* r_eq_l = safe_make_eq r l in
-    let* assm = assume r_eq_l in
-    let* flip = sym assm in
+let neg_sym th =
+  let tm = concl th in
+  let ntm = term_of_negation tm in
+  let* l, r = destruct_eq ntm in
+  let* r_eq_l = safe_make_eq r l in
+  let* assm = assume r_eq_l in
+  let* flip = sym assm in
 
-    let* neg_th = not_elim th in
-    let* app = prove_hyp flip neg_th in
-    not_intro r_eq_l app
-
+  let* neg_th = not_elim th in
+  let* app = prove_hyp flip neg_th in
+  not_intro r_eq_l app

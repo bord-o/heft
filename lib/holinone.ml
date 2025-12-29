@@ -2,5 +2,5 @@ include Kernel
 module Printing = Printing
 module Derived = Derived
 module Inductive = Inductive
-module Parser = Parser
-module Lexer = Lexer
+
+let elaborate = Elaborator.parse_and_elaborate

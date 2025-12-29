@@ -16,6 +16,7 @@ depends: [
   "ppx_deriving"
   "ppx_expect"
   "sexplib"
+  "utop"
   "odoc" {with-doc}
 ]
 build: [

@@ -21,7 +21,7 @@
  (name holinone)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml ppx_here ppx_deriving ppx_expect sexplib)
+ (depends ocaml ppx_here ppx_deriving ppx_expect sexplib utop)
  (tags
   ("add topics" "to describe" your project)))
 
