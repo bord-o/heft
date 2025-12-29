@@ -8,12 +8,10 @@ let q = Var ("Q", bool_ty)
 let r = Var ("R", bool_ty)
 let s = Var ("S", bool_ty)
 let g = Var ("f", TyCon ("fun", [ bool_ty; bool_ty ]))
-
 let x = Var ("x", bool_ty)
 let y = Var ("y", bool_ty)
 let z = Var ("z", bool_ty)
 let axiom_for_test tm = Result.get_ok (new_axiom tm)
-
 let print_types = ref false
 
 let print_thm_result =

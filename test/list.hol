@@ -13,3 +13,7 @@
 (fun append (-> (list 'a) (-> (list 'a) (list 'a)))
     ( (Nil l) l)
     ( ((Cons x xs) l) (Cons x (append xs l))))
+
+(theorem length_cons
+    (forall ((x 'a) (l (list 'a)))
+        (= (length (Cons x l)) (S (length l)))))

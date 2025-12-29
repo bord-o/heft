@@ -810,4 +810,3 @@ let%expect_test "typecheck: higher order function" =
           ))
        ))
     |}]
-

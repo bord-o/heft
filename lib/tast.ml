@@ -10,6 +10,8 @@ type ttm =
   | TLet of name * tty * ttm * ttm * tty
   | TIf of ttm * ttm * ttm * tty
   | TEq of ttm * ttm * tty
+  | TForall of (name * tty) list * ttm * tty
+  | TExists of (name * tty) list * ttm * tty
 [@@deriving show]
 
 type tclause = ttm list * ttm [@@deriving show]
@@ -31,6 +33,8 @@ let type_of_tm = function
   | TLet (_, _, _, _, ty) -> ty
   | TIf (_, _, _, ty) -> ty
   | TEq (_, _, ty) -> ty
+  | TForall (_, _, ty) -> ty
+  | TExists (_, _, ty) -> ty
 
 type env = {
   types : (name * int) list;
@@ -81,6 +85,12 @@ let rec subst_tm subst tm =
   | TIf (c, t, e, ty) ->
       TIf (subst_tm subst c, subst_tm subst t, subst_tm subst e, sty ty)
   | TEq (l, r, ty) -> TEq (subst_tm subst l, subst_tm subst r, sty ty)
+  | TForall (bindings, body, ty) ->
+      let bindings' = List.map (fun (n, t) -> (n, sty t)) bindings in
+      TForall (bindings', subst_tm subst body, sty ty)
+  | TExists (bindings, body, ty) ->
+      let bindings' = List.map (fun (n, t) -> (n, sty t)) bindings in
+      TExists (bindings', subst_tm subst body, sty ty)
 
 let instantiate ty ty_args =
   let tyvars = collect_tyvars [] ty in
@@ -163,6 +173,18 @@ let rec infer env tm =
       let lhs_ty = type_of_tm lhs' in
       let rhs' = check env rhs lhs_ty in
       TEq (lhs', rhs', ty_bool)
+  | Forall (bindings, body) ->
+      let env' =
+        List.fold_left (fun e (n, ty) -> add_local n ty e) env bindings
+      in
+      let body' = check env' body ty_bool in
+      TForall (bindings, body', ty_bool)
+  | Exists (bindings, body) ->
+      let env' =
+        List.fold_left (fun e (n, ty) -> add_local n ty e) env bindings
+      in
+      let body' = check env' body ty_bool in
+      TExists (bindings, body', ty_bool)
 
 and check env tm expected =
   match (tm, expected) with

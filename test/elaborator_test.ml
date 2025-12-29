@@ -3,8 +3,8 @@ open Elaborator
 open Parse
 open Printing
 
-
 let%expect_test "elab" =
+  let () = Derived.reset () |> Result.get_ok in
   let prg =
     {|
     (type mynat ()
@@ -127,6 +127,7 @@ let%expect_test "elab" =
     |}]
 
 let%expect_test "elab2" =
+  let () = Derived.reset () |> Result.get_ok in
   let prg =
     {|
 
@@ -161,4 +162,35 @@ let%expect_test "elab2" =
 
     ========================================
     head Nil = None ∧ (∀x0. ∀x1. head (Cons x0 x1) = Some x0)
+    |}]
+
+let%expect_test "elab3" =
+  let () = Derived.reset () |> Result.get_ok in
+  let prg =
+    {|
+(type list ('a)
+    (Nil)
+    (Cons ('a (list 'a))))
+
+(type nat ()
+    (Z)
+    (S (nat)))
+
+(fun length (-> (list 'a) nat)
+    ( (Nil) Z)
+    ( ((Cons x xs)) (S (length xs))))
+
+(fun append (-> (list 'a) (-> (list 'a) (list 'a)))
+    ( (Nil l) l)
+    ( ((Cons x xs) l) (Cons x (append xs l))))
+
+(theorem length_cons
+    (forall ((x 'a) (l (list 'a)))
+        (= (length (Cons x l)) (S (length l)))))
+  |}
+  in
+  let ast = parse_string prg in
+  let tast = Tast.check_program ast in
+  let () = Elab.elab_program tast in
+  [%expect {|
     |}]

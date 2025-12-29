@@ -8,6 +8,8 @@ type tm =
   | Let of name * tm * tm
   | If of tm * tm * tm
   | Eq of tm * tm
+  | Forall of (name * ty) list * tm
+  | Exists of (name * ty) list * tm
 [@@deriving show]
 
 type constr = name * ty list [@@deriving show]

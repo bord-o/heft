@@ -210,6 +210,11 @@ let reset () =
   Hashtbl.clear the_specifications;
   the_axioms := [];
   the_definitions := [];
+
+  let () =
+    Hashtbl.add the_term_constants "="
+      (TyCon ("fun", [ aty; TyCon ("fun", [ aty; bool_ty ]) ]))
+  in
   let _ = init_types () in
   let _ = init_true () in
   let _ = init_forall () in

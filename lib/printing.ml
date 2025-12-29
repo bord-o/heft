@@ -113,8 +113,5 @@ let pretty_print_thm ?(with_type = false) (Sequent (assm, concl)) =
       Format.sprintf "%s\n%s\n%s" assms bar
         (pretty_print_hol_term ~with_type concl)
 
-
 let print_thm th = print_newline @@ print_endline @@ pretty_print_thm th
-
-let print_term trm =
-  print_newline @@ print_endline @@ pretty_print_hol_term trm
+let print_term trm = print_newline @@ print_endline @@ pretty_print_hol_term trm

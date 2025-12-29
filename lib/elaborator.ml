@@ -27,6 +27,20 @@ module Elab = struct
         match K.safe_make_eq l' r' with
         | Ok eq -> eq
         | Error e -> failwith ("elab_tm eq: " ^ K.show_kernel_error e))
+    | TForall (bindings, body, _) ->
+        let body' = elab_tm body in
+        List.fold_right
+          (fun (n, ty) acc ->
+            let var = K.Var (n, elab_ty ty) in
+            Derived.make_forall var acc)
+          bindings body'
+    | TExists (bindings, body, _) ->
+        let body' = elab_tm body in
+        List.fold_right
+          (fun (n, ty) acc ->
+            let var = K.Var (n, elab_ty ty) in
+            Derived.make_exists var acc)
+          bindings body'
 
   let elab_constr_spec (name, arg_tys) : K.constructor_spec =
     { name; arg_types = List.map elab_ty arg_tys }
@@ -155,6 +169,20 @@ module Elab = struct
           | Ok eq -> eq
           | Error e -> failwith ("subst eq: " ^ K.show_kernel_error e))
       | TIf _ -> failwith "if not supported"
+      | TForall (bindings, body, _) ->
+          let body' = subst_recursive_calls body in
+          List.fold_right
+            (fun (n, ty) acc ->
+              let var = K.Var (n, elab_ty ty) in
+              Derived.make_forall var acc)
+            bindings body'
+      | TExists (bindings, body, _) ->
+          let body' = subst_recursive_calls body in
+          List.fold_right
+            (fun (n, ty) acc ->
+              let var = K.Var (n, elab_ty ty) in
+              Derived.make_exists var acc)
+            bindings body'
     in
 
     let body' = subst_recursive_calls body in
@@ -216,8 +244,7 @@ module Elab = struct
     in
 
     match
-      define_recursive_function name full_ret_ty
-        inductive_type_name branches
+      define_recursive_function name full_ret_ty inductive_type_name branches
     with
     | Ok thm -> thm
     | Error e -> failwith ("define_recursive_function: " ^ K.show_kernel_error e)

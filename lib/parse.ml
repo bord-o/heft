@@ -14,6 +14,14 @@ and parse_arrow = function
   | a :: rest -> TyApp ("fun", [ parse_ty a; parse_arrow rest ])
   | [] -> failwith "arrow requires at least two arguments"
 
+let parse_binding = function
+  | Sexp.List [ Sexp.Atom name; ty ] -> (name, parse_ty ty)
+  | _ -> failwith "invalid binding: expected (name type)"
+
+let parse_bindings = function
+  | Sexp.List bindings -> List.map parse_binding bindings
+  | single -> [ parse_binding single ]
+
 let rec parse_tm = function
   | Sexp.Atom s -> Var s
   | Sexp.List [ Sexp.Atom "fn"; Sexp.List [ Sexp.Atom x; ty ]; body ] ->
@@ -23,6 +31,10 @@ let rec parse_tm = function
   | Sexp.List [ Sexp.Atom "if"; cond; then_; else_ ] ->
       If (parse_tm cond, parse_tm then_, parse_tm else_)
   | Sexp.List [ Sexp.Atom "="; lhs; rhs ] -> Eq (parse_tm lhs, parse_tm rhs)
+  | Sexp.List [ Sexp.Atom "forall"; bindings; body ] ->
+      Forall (parse_bindings bindings, parse_tm body)
+  | Sexp.List [ Sexp.Atom "exists"; bindings; body ] ->
+      Exists (parse_bindings bindings, parse_tm body)
   | Sexp.List [] -> failwith "empty application"
   | Sexp.List (f :: args) ->
       List.fold_left (fun acc arg -> App (acc, parse_tm arg)) (parse_tm f) args
@@ -66,4 +78,3 @@ let parse_string s =
 let parse_file filename =
   let sexps = Sexp.load_sexps filename in
   parse_program sexps
-
