@@ -115,7 +115,7 @@ module Elab = struct
     | Error e -> failwith ("elab_def eq: " ^ K.show_kernel_error e)
 
   let find_inductive_for_type ty =
-    let rec get_head = function
+    let get_head = function
       | TyApp (name, _) -> name
       | _ -> failwith "expected type application"
     in
@@ -140,14 +140,7 @@ module Elab = struct
     in
     go [] func_ty
 
-  let rec get_constructor_arg_count env ctor_name =
-    match List.assoc_opt ctor_name env.constants with
-    | Some ty ->
-        let args, _ = get_arg_types ty in
-        List.length args
-    | None -> failwith ("unknown constructor: " ^ ctor_name)
-
-  let elab_fun_clause func_name func_ty inductive_def clause env =
+  let elab_fun_clause func_name func_ty _inductive_def clause _env =
     let patterns, body = clause in
     let arg_tys, ret_ty = get_arg_types func_ty in
 
@@ -183,8 +176,8 @@ module Elab = struct
     in
 
     let recursive_result_vars =
-      List.mapi
-        (fun i (name, _) ->
+      List.map
+        (fun (name, _) ->
           let r_name = "r_" ^ name in
           (name, K.Var (r_name, full_ret_ty)))
         recursive_args
@@ -322,5 +315,4 @@ let elaborate prog =
 let parse_and_elaborate s =
   let ast = parse_string s in
   let tast = Tast.check_program ast in
-  Elab.elab_program tast 
-    
+  Elab.elab_program tast

@@ -988,5 +988,11 @@ let%expect_test "elab2" =
   let head_def = Hashtbl.find Kernel.the_specifications "head" in
   Derived.pp_thm length_def;
   Derived.pp_thm head_def;
-  [%expect {|
+  [%expect
+    {|
+    ========================================
+    length Nil = Zm ∧ (∀x0. ∀x1. length (Cons x0 x1) = Sm (length x1))
+
+    ========================================
+    head Nil = None ∧ (∀x0. ∀x1. head (Cons x0 x1) = Some x0)
     |}]
