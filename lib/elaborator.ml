@@ -237,12 +237,17 @@ module Elab = struct
 
     (ctor_name, with_ctor_args)
 
+  let get_inductive_type_name = function
+    | TyApp (name, _) -> name
+    | _ -> failwith "expected type application"
+
   let elab_fun name ty clauses env =
     let (arg_tys, ret_ty) = get_arg_types ty in
     if List.length arg_tys = 0 then
       failwith "recursive function must have at least one argument";
 
     let first_arg_ty = List.hd arg_tys in
+    let inductive_type_name = get_inductive_type_name first_arg_ty in
     let inductive_def = find_inductive_for_type first_arg_ty in
 
     let ctor_names = List.map fst inductive_def.constructors in
@@ -261,7 +266,7 @@ module Elab = struct
       K.make_fun_ty (elab_ty arg_ty) acc
     ) (List.tl arg_tys) (elab_ty ret_ty) in
 
-    match Inductive_theorems.define_recursive_function name full_ret_ty branches with
+    match Inductive_theorems.define_recursive_function name full_ret_ty inductive_type_name branches with
     | Ok thm -> thm
     | Error e -> failwith ("define_recursive_function: " ^ K.show_kernel_error e)
 

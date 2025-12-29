@@ -793,5 +793,152 @@ let%expect_test "elab" =
   (!Kernel.the_definitions |> List.iter @@ fun t -> Derived.pp_thm t);
   (!Kernel.the_axioms |> List.iter @@ fun t -> Derived.pp_thm t);
   [%expect{|
+    mynat
+    ========================================
+    ∀Zmy_case. ∀Smy_case. ∃g. g Zmy = Zmy_case ∧ (∀x0. g (Smy x0) = Smy_case x0 (g x0))
+
+    ========================================
+    ∀P. P Zmy ==> (∀n0. P n0 ==> P (Smy n0)) ==> ∀x. P x
+
+    nat
+    ========================================
+    ∀Zero_case. ∀Suc_case. ∃g. g Zero = Zero_case ∧ (∀x0. g (Suc x0) = Suc_case x0 (g x0))
+
+    ========================================
+    ∀P. P Zero ==> (∀n0. P n0 ==> P (Suc n0)) ==> ∀x. P x
+
+    Zmy
+    mynat
+    mnat_id
+    (mynat -> mynat)
+    \/
+    (bool -> (bool -> bool))
+    ~
+    (bool -> bool)
+    mnat_plus
+    (mynat -> (mynat -> mynat))
+    !
+    ((a -> bool) -> bool)
+    =
+    (A -> (A -> bool))
+    /\
+    (bool -> (bool -> bool))
+    T
+    bool
+    F
+    bool
+    mnat_id2
+    (mynat -> mynat)
+    Suc
+    (nat -> nat)
+    Smy
+    (mynat -> mynat)
+    Zero
+    nat
+    plus
+    (nat -> (nat -> nat))
+    ?
+    ((a -> bool) -> bool)
+    ==>
+    (bool -> (bool -> bool))
+    ========================================
+    mnat_id = (λn. n)
+
+    ========================================
+    \/ = (λp. λq. ∀r. (p ==> r) ==> (q ==> r) ==> r)
+
+    ========================================
+    ? = (λP. ¬(∀x. ¬(P x)))
+
+    ========================================
+    ~ = (λp. p ==> F)
+
+    ========================================
+    F = (∀p. p)
+
+    ========================================
+    ==> = (λp. λq. p ∧ q = p)
+
+    ========================================
+    /\ = (λp. λq. (λf. f p q) = (λf. f T T))
+
+    ========================================
+    ! = (λP. P = (λx. T))
+
+    ========================================
+    T = (λp. p) = (λp. p)
+
+    ========================================
+    mnat_plus Zmy = (λn. Zmy) ∧ (∀x0. mnat_plus (Smy x0) = (λn. Smy (mnat_plus x0 n)))
+
+    ========================================
+    mnat_id2 Zmy = Zmy ∧ (∀x0. mnat_id2 (Smy x0) = Smy x0)
+
+    ========================================
+    ∀x0. ∀y0. Smy x0 = Smy y0 ==> x0 = y0
+
+    ========================================
+    ∀y0. ¬Zmy = Smy y0
+
+    ========================================
+    ∀Zmy_case. ∀Smy_case. ∃g. g Zmy = Zmy_case ∧ (∀x0. g (Smy x0) = Smy_case x0 (g x0))
+
+    ========================================
+    ∀P. P Zmy ==> (∀n0. P n0 ==> P (Smy n0)) ==> ∀x. P x
+
+    ========================================
+    plus Zero = (λn. n) ∧ (∀x0. plus (Suc x0) = (λn. Suc (plus x0 n)))
+
+    ========================================
+    ∀x0. ∀y0. Suc x0 = Suc y0 ==> x0 = y0
+
+    ========================================
+    ∀y0. ¬Zero = Suc y0
+
+    ========================================
+    ∀Zero_case. ∀Suc_case. ∃g. g Zero = Zero_case ∧ (∀x0. g (Suc x0) = Suc_case x0 (g x0))
+
+    ========================================
+    ∀P. P Zero ==> (∀n0. P n0 ==> P (Suc n0)) ==> ∀x. P x
+
+    ========================================
+    ∀P. (∃x. P x) ==> P (@ (λx. P x))
+
+    ========================================
+    ∀p. p ∨ ¬p
+    |}]
+
+let%expect_test "elab2" =
+  let prg = {|
+
+(type mnat ()
+  (Zm)
+  (Sm (mnat)))
+
+  (type list ('a)
+    (Nil)
+    (Cons ('a (list 'a))))
+
+  (fun length (-> (list 'a) mnat)
+    ( (Nil) Zm)
+    ( ((Cons x xs)) (Sm (length xs))))
+
+
+  |} in
+  let ast = parse_string prg in
+  let tast = Tast.check_program ast in
+  let () = Elab.elab_program tast in
+  (* (Kernel.the_inductives |> Hashtbl.iter @@ fun k (v : Kernel.inductive_def) ->  *)
+  (*     print_endline k; *)
+  (*     Derived.pp_thm v.recursion; *)
+  (*     Derived.pp_thm v.induction *)
+  (* ); *)
+  (* (Kernel.the_term_constants |> Hashtbl.iter @@ fun k (v : Kernel.hol_type) ->  *)
+  (*     print_endline k; *)
+  (*     print_endline @@ Printing.pretty_print_hol_type v; *)
+  (* ); *)
+  (* (!Kernel.the_definitions |> List.iter @@ fun t -> Derived.pp_thm t); *)
+  (!Kernel.the_axioms |> List.iter @@ fun t -> Derived.pp_thm t);
+  [%expect{|
     |}]
 

@@ -68,8 +68,11 @@ let find_recursed_inductive_type branches =
   search branches
 
 (* Define a recursive function on an inductive type *)
-let define_recursive_function func_name return_type branches =
-  let* _, inductive_def = find_recursed_inductive_type branches in
+let define_recursive_function func_name return_type inductive_type_name branches =
+  let inductive_def = match Hashtbl.find_opt the_inductives inductive_type_name with
+    | Some def -> def
+    | None -> failwith ("Unknown inductive type: " ^ inductive_type_name)
+  in
 
   let type_inst =
     [ (make_vartype "r", return_type) ] |> List.to_seq |> Hashtbl.of_seq
@@ -101,4 +104,4 @@ let plus_def =
   in
 
   let return_type = make_fun_ty nat_ty nat_ty in
-  define_recursive_function "plus" return_type [ zero_case; suc_case ]
+  define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ]
