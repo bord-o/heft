@@ -78,7 +78,11 @@ let builtin_constants =
   ]
 
 let empty_env =
-  { types = [ ("bool", 0); ("fun", 2) ]; constants = builtin_constants; locals = [] }
+  {
+    types = [ ("bool", 0); ("fun", 2) ];
+    constants = builtin_constants;
+    locals = [];
+  }
 
 let add_type name arity env = { env with types = (name, arity) :: env.types }
 

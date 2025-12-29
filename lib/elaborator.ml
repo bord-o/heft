@@ -259,28 +259,64 @@ module Elab = struct
     match decl with
     | TDType (name, params, constrs) ->
         let _ = elab_type_decl name params constrs in
-        env
+        (* Add type and constructors to the environment *)
+        let env = Tast.add_type name (List.length params) env in
+        let ty_params = List.map (fun p -> TyVar p) params in
+        let result_ty = TyApp (name, ty_params) in
+        List.fold_left
+          (fun e (cname, arg_tys) ->
+            let full_ty = Tast.make_constructor_type arg_tys result_ty in
+            Tast.add_constant cname full_ty e)
+          env constrs
     | TDDef (name, ty, body) ->
         let _ = elab_def name ty body in
-        env
+        Tast.add_constant name ty env
     | TDFun (name, ty, clauses) ->
         let _ = elab_fun name ty clauses env in
-        env
+        Tast.add_constant name ty env
     | TDTheorem (name, body) ->
         let t = elab_tm body in
         the_goals := (name, t) :: !the_goals;
         env
 
+  (** Elaborate a program and return the resulting environment *)
+  let elab_program_with_env env tprog = List.fold_left elab_decl env tprog
+
   let elab_program tprog =
-    let _ = List.fold_left elab_decl Tast.empty_env tprog in
+    let _ = elab_program_with_env Tast.empty_env tprog in
     ()
+
+  (** Elaborate a single term in the given environment *)
+  let elab_term_in_env env tm =
+    let ttm = Tast.infer env tm in
+    elab_tm ttm
 end
 
-let elaborate prog =
+(** Elaborate a program and return the final environment for use in tactics *)
+let elaborate_with_env prog =
   let tprog = Tast.check_program prog in
-  Elab.elab_program tprog
+  Elab.elab_program_with_env Tast.empty_env tprog
 
-let parse_and_elaborate s =
+let elaborate prog =
+  let _ = elaborate_with_env prog in
+  ()
+
+(** Parse and elaborate, returning the environment *)
+let parse_and_elaborate_with_env s =
   let ast = parse_string s in
   let tast = Tast.check_program ast in
-  Elab.elab_program tast
+  Elab.elab_program_with_env Tast.empty_env tast
+
+let parse_and_elaborate s =
+  let _ = parse_and_elaborate_with_env s in
+  ()
+
+(** Elaborate a term using an existing environment (e.g., from a proof session)
+*)
+let elab_term env tm = Elab.elab_term_in_env env tm
+
+(** Parse and elaborate a term using an existing environment *)
+let parse_and_elab_term env s =
+  let sexp = Sexplib.Sexp.of_string s in
+  let ast_tm = parse_tm sexp in
+  elab_term env ast_tm
