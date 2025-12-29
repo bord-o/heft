@@ -1,45 +1,155 @@
+open Elaborator
 
-let%expect_test "simple_parse" =
-  let _prg =
-    {|
-    (type pair ('a 'b)
-        (Pair ('a 'b)))
+let%expect_test "parse_simple" =
+  let prg = {|
+    (type nat ()
+      (Z)
+      (S (nat)))
 
-    (type algraph ('a)
-      (Empty ())
-      (Vertex ('a))
-      (Connect ((algraph 'a) (algraph 'a)))
-      (Overlay ((algraph 'a) (algraph 'a))))
-
-    (def simple (-> nat nat)
-      (fn n (S n)))
-
-    (fun semant (-> (algraph 'a) (pair (set (pair 'a 'a)) (set 'a)))
-      ((Empty) (Pair empty empty))
-      ((Vertex v) (Pair empty (singleton v)))
-      ((Overlay x y)
-        (let sx (semant x)
-        (let sy (semant y)
-        (let x_edges (fst sx)
-        (let x_verts (snd sx)
-        (let y_edges (fst sy)
-        (let y_verts (snd sy)
-        (Pair (union x_edges y_edges) (union x_verts y_verts)))))))))
-      ((Connect x y)
-        (let sx (semant x)
-        (let sy (semant y)
-        (let x_edges (fst sx)
-        (let x_verts (snd sx)
-        (let y_edges (fst sy)
-        (let y_verts (snd sy)
-        (Pair (union (union x_edges y_edges) (cart_prod x_verts y_verts))
-              (union x_verts y_verts))))))))))
-    (theorem overlay_zero
-      (forall ((n 'a)) (= (semant (Overlay n Empty)) (semant n))))
-    |}
-  in
-  print_endline "todo";
-  [%expect
-    {|
+    (def zero nat Z)
+  |} in
+  let ast = parse_string prg in
+  List.iter (fun d -> print_endline (Ast.show_decl d)) ast;
+  [%expect {|
+    (Ast.DType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
+    (Ast.DDef ("zero", (Ast.TyApp ("nat", [])), (Ast.Var "Z")))
     |}]
 
+let%expect_test "parse_list" =
+  let prg = {|
+    (type list ('a)
+      (Nil)
+      (Cons ('a (list 'a))))
+
+    (fun tl (-> (list 'a) (list 'a))
+      ((Nil) Nil)
+      (((Cons x xs)) xs))
+  |} in
+  let ast = parse_string prg in
+  List.iter (fun d -> print_endline (Ast.show_decl d)) ast;
+  [%expect {|
+    (Ast.DType ("list", ["'a"],
+       [("Nil", []);
+         ("Cons", [(Ast.TyVar "'a"); (Ast.TyApp ("list", [(Ast.TyVar "'a")]))])]
+       ))
+    (Ast.DFun ("tl",
+       (Ast.TyApp ("fun",
+          [(Ast.TyApp ("list", [(Ast.TyVar "'a")]));
+            (Ast.TyApp ("list", [(Ast.TyVar "'a")]))]
+          )),
+       [([(Ast.Var "Nil")], (Ast.Var "Nil"));
+         ([(Ast.App ((Ast.App ((Ast.Var "Cons"), (Ast.Var "x"))), (Ast.Var "xs")
+              ))
+            ],
+          (Ast.Var "xs"))
+         ]
+       ))
+    |}]
+
+let%expect_test "parse_plus" =
+  let prg = {|
+    (type nat ()
+      (Z)
+      (S (nat)))
+
+    (fun plus (-> nat nat nat)
+      ((Z n) n)
+      (((S m) n) (S (plus m n))))
+  |} in
+  let ast = parse_string prg in
+  List.iter (fun d -> print_endline (Ast.show_decl d)) ast;
+  [%expect {|
+    (Ast.DType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
+    (Ast.DFun ("plus",
+       (Ast.TyApp ("fun",
+          [(Ast.TyApp ("nat", []));
+            (Ast.TyApp ("fun", [(Ast.TyApp ("nat", [])); (Ast.TyApp ("nat", []))]
+               ))
+            ]
+          )),
+       [([(Ast.Var "Z"); (Ast.Var "n")], (Ast.Var "n"));
+         ([(Ast.App ((Ast.Var "S"), (Ast.Var "m"))); (Ast.Var "n")],
+          (Ast.App ((Ast.Var "S"),
+             (Ast.App ((Ast.App ((Ast.Var "plus"), (Ast.Var "m"))), (Ast.Var "n")
+                ))
+             )))
+         ]
+       ))
+    |}]
+
+let%expect_test "typecheck_simple" =
+  let prg = {|
+    (type nat ()
+      (Z)
+      (S (nat)))
+
+    (def zero nat Z)
+  |} in
+  let ast = parse_string prg in
+  let tast = Tast.check_program ast in
+  List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
+  [%expect {|
+    (Tast.TDType ("nat", [], [("Z", []); ("S", [(Ast.TyApp ("nat", []))])]))
+    (Tast.TDDef ("zero", (Ast.TyApp ("nat", [])),
+       (Tast.TConst ("Z", (Ast.TyApp ("nat", []))))))
+    |}]
+
+let%expect_test "typecheck_tl" =
+  let prg = {|
+    (type mynat ()
+        (Z)
+        (S (mynat)))
+
+    (type list ('a)
+      (Nil)
+      (Cons ('a (list 'a))))
+
+    (fun tl (-> (list 'a) (list 'a))
+      ((Nil) Nil)
+      (((Cons x xs)) xs))
+
+    (def mylist (list mynat)
+     (Cons Z (Cons Z Nil)))
+
+    (def applied (-> 'a (list mynat))
+        (fn (x 'a) (tl mylist)))
+  |} in
+  let ast = parse_string prg in
+  let tast = Tast.check_program ast in
+  List.iter (fun d -> print_endline (Tast.show_tdecl d)) tast;
+  [%expect {|
+    (Tast.TDType ("mynat", [], [("Z", []); ("S", [(Ast.TyApp ("mynat", []))])]))
+    (Tast.TDType ("list", ["'a"],
+       [("Nil", []);
+         ("Cons", [(Ast.TyVar "'a"); (Ast.TyApp ("list", [(Ast.TyVar "'a")]))])]
+       ))
+    (Tast.TDFun ("tl",
+       (Ast.TyApp ("fun",
+          [(Ast.TyApp ("list", [(Ast.TyVar "'a")]));
+            (Ast.TyApp ("list", [(Ast.TyVar "'a")]))]
+          )),
+       [([(Tast.TConst ("Nil", (Ast.TyApp ("list", [(Ast.TyVar "'a")]))))],
+         (Tast.TConst ("Nil", (Ast.TyApp ("list", [(Ast.TyVar "'a")])))));
+         ([(Tast.TApp (
+              (Tast.TApp (
+                 (Tast.TConst ("Cons",
+                    (Ast.TyApp ("fun",
+                       [(Ast.TyVar "'a");
+                         (Ast.TyApp ("fun",
+                            [(Ast.TyApp ("list", [(Ast.TyVar "'a")]));
+                              (Ast.TyApp ("list", [(Ast.TyVar "'a")]))]
+                            ))
+                         ]
+                       ))
+                    )),
+                 (Tast.TVar ("x", (Ast.TyVar "'a"))),
+                 (Ast.TyApp ("list", [(Ast.TyVar "'a")])))),
+              (Tast.TVar ("xs", (Ast.TyApp ("list", [(Ast.TyVar "'a")])))),
+              (Ast.TyApp ("list", [(Ast.TyVar "'a")]))))
+            ],
+          (Tast.TVar ("xs", (Ast.TyApp ("list", [(Ast.TyVar "'a")])))))
+         ]
+       ))
+    (Tast.TDDef ("applied", (Ast.TyApp ("list", [(Ast.TyApp ("mynat", []))])),
+       (Tast.TConst ("Nil", (Ast.TyApp ("list", [(Ast.TyApp ("mynat", []))]))))))
+    |}]
