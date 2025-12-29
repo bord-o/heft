@@ -2,7 +2,7 @@ open Holinone
 open Elaborator
 open Parse
 open Derived
-
+open Proof
 (* open Printing *)
 open Tactic
 
@@ -27,10 +27,60 @@ let%expect_test "basic" =
   exec_command session (SetGoal ([], goal));
   show_session session;
 
+  exec_command session (Apply Conj);
+  exec_command session (Apply Refl);
   exec_command session (Apply Refl);
   show_session session;
-
   [%expect {|
+    Set goal:
+    x = x ∧ y = y
+
+
+    === Session State ===
+    Goal stack: 1
+      0: x = x ∧ y = y
+
+    Cached: 0
+    Script length: 0
+    =====================
+
+    Applying conj
+    Tactic needs subgoals: 2
+      0: x = x
+
+      1: y = y
+
+    Subgoals not ready, aborting
+    Applying refl
+    Tactic completed directly
+    Goal solved!
+    ========================================
+    x = x
+
+    Retrying tactic on goal: x = x ∧ y = y
+
+    Subgoals not ready, aborting
+    Still waiting on subgoals
+    Applying refl
+    Tactic completed directly
+    Goal solved!
+    ========================================
+    y = y
+
+    Retrying tactic on goal: x = x ∧ y = y
+
+    All subgoals cached, resuming
+    Tactic completed directly
+    SUCCESS! Goal completed:
+    ========================================
+    x = x ∧ y = y
+
+
+    === Session State ===
+    Goal stack: 0
+    Cached: 3
+    Script length: 3
+    =====================
     |}]
 
 let%expect_test "basic" =
@@ -135,3 +185,133 @@ let%expect_test "basic" =
     Script length: 3
     =====================
     |}]
+
+
+let%expect_test "basic3" =
+  let () = Derived.reset () |> Result.get_ok in
+  let prg = {|
+(type nat ()
+    (Z)
+    (S (nat)))
+(theorem basic_refl
+    (fix ((x nat) (y nat))
+        (\/ (= x x) (= y y))))
+  |} in
+  let ast = parse_string prg in
+  let tast = Tast.check_program ast in
+  let () = Elab.elab_program tast in
+  let goal = List.assoc "basic_refl" !the_goals in
+  let session = create_session () in
+  exec_command session (SetGoal ([], goal));
+  exec_command session (Apply Left);
+  exec_command session (Apply Refl);
+
+  [%expect {|
+    Set goal:
+    x = x ∨ y = y
+
+    Applying left
+    Tactic needs subgoals: 1
+      0: x = x
+
+    Subgoals not ready, aborting
+    Applying refl
+    Tactic completed directly
+    Goal solved!
+    ========================================
+    x = x
+
+    Retrying tactic on goal: x = x ∨ y = y
+
+    All subgoals cached, resuming
+    Tactic completed directly
+    SUCCESS! Goal completed:
+    ========================================
+    x = x ∨ y = y
+    |}]
+
+
+let%expect_test "basic4" =
+  let () = Derived.reset () |> Result.get_ok in
+  let prg = {|
+(type nat ()
+    (Z)
+    (S (nat)))
+(theorem basic_refl
+    (fix ((x nat) (y nat))
+        (\/ (= x x) (= y y))))
+  |} in
+  let ast = parse_string prg in
+  let tast = Tast.check_program ast in
+  let () = Elab.elab_program tast in
+  let goal = List.assoc "basic_refl" !the_goals in
+  let session = create_session () in
+  exec_command session (SetGoal ([], goal));
+  exec_command session (Apply Right);
+  exec_command session (Apply Refl);
+
+  [%expect {|
+    Set goal:
+    x = x ∨ y = y
+
+    Applying right
+    Tactic needs subgoals: 1
+      0: y = y
+
+    Subgoals not ready, aborting
+    Applying refl
+    Tactic completed directly
+    Goal solved!
+    ========================================
+    y = y
+
+    Retrying tactic on goal: x = x ∨ y = y
+
+    All subgoals cached, resuming
+    Tactic completed directly
+    SUCCESS! Goal completed:
+    ========================================
+    x = x ∨ y = y
+    |}]
+
+let%expect_test "basic5" =
+  let () = Derived.reset () |> Result.get_ok in
+  let prg = {|
+(type nat ()
+    (Z)
+    (S (nat)))
+
+  |} in
+  let ast = parse_string prg in
+  let tast = Tast.check_program ast in
+  let () = Elab.elab_program tast in
+  let goal = List.assoc "basic_refl" !the_goals in
+  let session = create_session () in
+  exec_command session (SetGoal ([], goal));
+  exec_command session (Apply Right);
+  exec_command session (Apply Refl);
+
+  [%expect {|
+    Set goal:
+    x = x ∨ y = y
+
+    Applying right
+    Tactic needs subgoals: 1
+      0: y = y
+
+    Subgoals not ready, aborting
+    Applying refl
+    Tactic completed directly
+    Goal solved!
+    ========================================
+    y = y
+
+    Retrying tactic on goal: x = x ∨ y = y
+
+    All subgoals cached, resuming
+    Tactic completed directly
+    SUCCESS! Goal completed:
+    ========================================
+    x = x ∨ y = y
+    |}]
+

@@ -263,6 +263,10 @@ let destruct_conj = function
   | App (App (Const ("/\\", _), p), q) -> (p, q)
   | _ -> failwith "not a conjunction"
 
+let destruct_disj = function
+  | App (App (Const ("\\/", _), p), q) -> (p, q)
+  | _ -> failwith "not a disjunction"
+
 let destruct_exists = function
   | App (Const ("?", _), Lam (bind, bod)) -> (bind, bod)
   | _ -> failwith "todo"

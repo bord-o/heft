@@ -44,8 +44,41 @@ type env = {
   locals : (name * tty) list;
 }
 
+let ty_bool = TyApp ("bool", [])
+let ty_fun a b = TyApp ("fun", [ a; b ])
+
+(* Built-in HOL constants from derived.ml *)
+let builtin_constants =
+  let a = TyVar "'a" in
+  let bool = ty_bool in
+  let bool_to_bool = ty_fun bool bool in
+  let bool_to_bool_to_bool = ty_fun bool bool_to_bool in
+  let pred_a = ty_fun a bool in
+  [
+    (* equality: A -> A -> bool *)
+    ("=", ty_fun a (ty_fun a bool));
+    (* T : bool *)
+    ("T", bool);
+    (* F : bool *)
+    ("F", bool);
+    (* forall: (a -> bool) -> bool *)
+    ("!", ty_fun pred_a bool);
+    (* exists: (a -> bool) -> bool *)
+    ("?", ty_fun pred_a bool);
+    (* conjunction: bool -> bool -> bool *)
+    ("/\\", bool_to_bool_to_bool);
+    (* disjunction: bool -> bool -> bool *)
+    ("\\/", bool_to_bool_to_bool);
+    (* implication: bool -> bool -> bool *)
+    ("==>", bool_to_bool_to_bool);
+    (* negation: bool -> bool *)
+    ("~", bool_to_bool);
+    (* choice/select: (a -> bool) -> a *)
+    ("@", ty_fun pred_a a);
+  ]
+
 let empty_env =
-  { types = [ ("bool", 0); ("fun", 2) ]; constants = []; locals = [] }
+  { types = [ ("bool", 0); ("fun", 2) ]; constants = builtin_constants; locals = [] }
 
 let add_type name arity env = { env with types = (name, arity) :: env.types }
 
@@ -53,8 +86,6 @@ let add_constant name ty env =
   { env with constants = (name, ty) :: env.constants }
 
 let add_local name ty env = { env with locals = (name, ty) :: env.locals }
-let ty_bool = TyApp ("bool", [])
-let ty_fun a b = TyApp ("fun", [ a; b ])
 
 let rec ty_equal t1 t2 =
   match (t1, t2) with
