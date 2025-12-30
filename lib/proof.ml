@@ -91,9 +91,10 @@ let exec_command session = function
   | ShowGoal ->
       Printf.printf "Goal stack (%d goals):\n" (List.length session.goal_stack);
       session.goal_stack
-      |> List.iteri (fun i g ->
+      |> List.iteri (fun i (asms, g) ->
           Printf.printf "  %d: " i;
-          print_term (gconcl g))
+          asms |> List.iter print_term;
+          print_term (g))
   | Apply tac_name -> (
       Printf.printf "Applying %s\n" (name_of_tactic tac_name);
       match apply_tactic session tac_name with
