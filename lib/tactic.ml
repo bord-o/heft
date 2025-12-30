@@ -22,6 +22,7 @@ type tactic_name =
   | Induct of term  (* induction on term t *)
   | Rewrite of thm  (* rewrite goal using equality theorem *)
   | RewriteWith of string  (* lookup theorem by name, then rewrite *)
+  | Beta  (* beta reduce the goal *)
 
 type tactic = goal -> thm
 
@@ -223,15 +224,13 @@ let induct_tac (t : term) : tactic =
       let reduced = eq_mp beta_thm combined |> unwrap_result in
 
       if is_forall_case then
-        (* For forall case, the reduced theorem should already match the goal
-           (both are ∀t. body, just possibly with different bound var names) *)
-        let final_concl = concl reduced in
-        if alphaorder final_concl goal_concl = 0 then
-          reduced
-        else
-          failwith ("INDUCT: result doesn't match goal. Got: " ^
-                    Printing.pretty_print_hol_term final_concl ^
-                    ", Expected: " ^ Printing.pretty_print_hol_term goal_concl)
+        (* reduced proves ∀x. body where x is the induction theorem's variable.
+           We want ∀t. body where t is from our goal. Rename by spec then gen. *)
+        let spec_result = spec t reduced |> unwrap_result in
+        let spec_concl = concl spec_result in
+        let spec_beta = deep_beta spec_concl |> unwrap_result in
+        let body_thm = eq_mp spec_beta spec_result |> unwrap_result in
+        gen t body_thm |> unwrap_result
       else
         (* For free variable case: spec to remove forall and get back the goal *)
         let spec_result = spec t reduced |> unwrap_result in
@@ -391,6 +390,20 @@ let rewrite_with_tac (name : string) : tactic =
   | Some thm -> rewrite_tac thm goal
   | None -> failwith ("REWRITE_WITH: theorem not found: " ^ name)
 
+(** BETA: Beta reduce the goal *)
+let beta_tac : tactic =
+ fun (asms, goal_concl) ->
+  let beta_thm = deep_beta goal_concl |> unwrap_result in
+  let reduced = rhs beta_thm |> unwrap_result in
+  if alphaorder goal_concl reduced = 0 then
+    failwith "BETA: no beta redexes found"
+  else
+    match Effect.perform (Subgoals [ (asms, reduced) ]) with
+    | [ reduced_thm ] ->
+        let beta_sym = sym beta_thm |> unwrap_result in
+        eq_mp beta_sym reduced_thm |> unwrap_result
+    | _ -> failwith "BETA: expected single theorem"
+
 let name_of_tactic = function
   | Assumption -> "assumption"
   | Conj -> "conj"
@@ -407,6 +420,7 @@ let name_of_tactic = function
   | Induct _ -> "induct"
   | Rewrite _ -> "rewrite"
   | RewriteWith name -> "rewrite " ^ name
+  | Beta -> "beta"
 
 let get_tactic = function
   | Assumption -> assumption_tac
@@ -424,3 +438,4 @@ let get_tactic = function
   | Induct t -> induct_tac t
   | Rewrite thm -> rewrite_tac thm
   | RewriteWith name -> rewrite_with_tac name
+  | Beta -> beta_tac

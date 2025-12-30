@@ -833,11 +833,11 @@ let%expect_test "induct_list" =
 
     Goal completed:
     ========================================
-    ∀x. ∀y. length (Cons y x) = S (length x)
+    ∀l. ∀y. length (Cons y l) = S (length l)
 
     Goal stack (0 goals):
     ========================================
-    ∀x. ∀y. length (Cons y x) = S (length x)
+    ∀l. ∀y. length (Cons y l) = S (length l)
     |}]
 
 (* Test that result returns the proven theorem *)
@@ -880,3 +880,79 @@ let%expect_test "result_returns_thm" =
     ∀x. x = x
     |}]
 
+
+
+let%expect_test "nat_plus" =
+  let () = Derived.reset () |> Result.get_ok in
+  let prg = {|
+(type nat ()
+    (Z)
+    (S (nat)))
+
+(fun plus (-> nat (-> nat nat))
+    ( (Z n) n)
+    ( ((S m) n) (S (plus m n))))
+
+(theorem plus_z_l 
+    (forall ((n nat))
+        (= (plus Z n) n)))
+
+(theorem plus_z_r
+    (forall ((n nat))
+        (= (plus n Z) n)))
+  |} in
+  let ast = parse_string prg in
+  let env = Elaborator.elaborate_with_env ast in
+  let goal = List.assoc "plus_z_l" !the_goals in
+  let goal2 = List.assoc "plus_z_r" !the_goals in
+
+  let session = create_session () in
+  let e = exec_command session in
+  let app = fun t -> e (Apply t) in
+
+  e (SetGoal ([], goal));
+  app Gen;
+  app (RewriteWith "plus");
+  app Beta;
+  app Refl;
+
+  e (SetGoal ([], goal2));
+  let n = parse_and_elab_term env "(fix ((n nat)) n)" in
+  app (Induct n);
+  app (RewriteWith "plus");
+  app Beta;
+  app Refl;
+  app Gen;
+  app Intro;
+  app (RewriteWith "plus");
+  app Beta;
+
+
+  e ShowGoal;
+
+  [%expect {|
+    Set goal:
+    ∀n. plus Z n = n
+
+    Applying gen
+    Applying rewrite plus
+    Applying beta
+    Applying refl
+    Goal solved!
+    ========================================
+    n = n
+
+    Goal completed:
+    ========================================
+    (λn. n) n = n
+
+    Goal completed:
+    ========================================
+    plus Z n = n
+
+    Goal completed:
+    ========================================
+    ∀n. plus Z n = n
+
+    Goal stack (0 goals):
+    |}]
