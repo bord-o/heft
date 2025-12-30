@@ -151,3 +151,17 @@ let show_session session =
   Printf.printf "Cached: %d\n" (Hashtbl.length session.cache);
   Printf.printf "Script length: %d\n" (List.length session.script);
   Printf.printf "=====================\n\n"
+
+(** Get the proven theorem for a goal, if complete *)
+let get_thm session goal =
+  Hashtbl.find_opt session.cache goal
+
+(** Check if proof is complete (no pending goals) and return the theorem *)
+let result session =
+  if session.goal_stack <> [] then
+    None
+  else
+    (* Find the first goal in the script - that's our top-level goal *)
+    match session.script with
+    | [] -> None
+    | first :: _ -> Hashtbl.find_opt session.cache first.goal

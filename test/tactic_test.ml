@@ -729,14 +729,15 @@ let%expect_test "induct_list" =
     ( (Nil) Z)
     ( ((Cons x xs)) (S (length xs))))
 
-(theorem length_cons 
-    (forall ((x 'a) (l (list 'a)))
-        (= (length (Cons x l)) (S (length l)))))
+(theorem length_cons
+    (forall ((l (list 'a)) (y 'a))
+        (= (length (Cons y l)) (S (length l)))))
   |} in
   let ast = parse_string prg in
   let env = Elaborator.elaborate_with_env ast in
   let goal = List.assoc "length_cons" !the_goals in
 
+  (* Induct on l, which is now the outermost forall *)
   let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in
 
   let session = create_session () in
@@ -745,18 +746,137 @@ let%expect_test "induct_list" =
 
   e (SetGoal ([], goal));
   app (Induct l);
+
+  (* Nil case: ∀x. length (Cons x Nil) = S (length Nil) *)
   app Gen;
-  app Gen;
-  e ShowSpecs;
   app (RewriteWith "length");
   app (RewriteWith "length");
   app Refl;
-  (* e ShowInductives; *)
-  
+
+  (* Cons case: ∀x. ∀l. (∀x. ...) ==> ∀x. length (Cons x (Cons x l)) = S (length (Cons x l)) *)
+  app Gen;
+  app Gen;
+  app Intro;
+  app Gen;
+  app (RewriteWith "length");
+  app (RewriteWith "length");
+  app Refl;
+
 
   e ShowGoal;
 
+  let proof = result session in
+  (match proof with
+  Some p -> Printing.print_thm p
+  | None -> ());
+
 
   [%expect {|
+    Set goal:
+    ∀l. ∀y. length (Cons y l) = S (length l)
+
+    Applying induct
+    Applying gen
+    Applying rewrite length
+    Applying rewrite length
+    Applying refl
+    Goal solved!
+    ========================================
+    S Z = S Z
+
+    Goal completed:
+    ========================================
+    S (length Nil) = S Z
+
+    Goal completed:
+    ========================================
+    length (Cons y Nil) = S (length Nil)
+
+    Goal completed:
+    ========================================
+    ∀y. length (Cons y Nil) = S (length Nil)
+
+    Applying gen
+    Applying gen
+    Applying intro
+    Applying gen
+    Applying rewrite length
+    Applying rewrite length
+    Applying refl
+    Goal solved!
+    ========================================
+    S (S (length n1)) = S (S (length n1))
+
+    Goal completed:
+    ========================================
+    S (length (Cons n0 n1)) = S (S (length n1))
+
+    Goal completed:
+    ========================================
+    length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1))
+
+    Goal completed:
+    ========================================
+    ∀y. length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1))
+
+    Goal completed:
+    ========================================
+    (∀y. length (Cons y n1) = S (length n1)) ==> ∀y. length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1))
+
+    Goal completed:
+    ========================================
+    ∀n1. (∀y. length (Cons y n1) = S (length n1)) ==> ∀y. length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1))
+
+    Goal completed:
+    ========================================
+    ∀n0. ∀n1. (∀y. length (Cons y n1) = S (length n1)) ==> ∀y. length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1))
+
+    Goal completed:
+    ========================================
+    ∀x. ∀y. length (Cons y x) = S (length x)
+
+    Goal stack (0 goals):
+    ========================================
+    ∀x. ∀y. length (Cons y x) = S (length x)
+    |}]
+
+(* Test that result returns the proven theorem *)
+let%expect_test "result_returns_thm" =
+  let () = Derived.reset () |> Result.get_ok in
+  let a = TyVar "'a" in
+  let x = make_var "x" a in
+  let goal_tm = make_forall x (safe_make_eq x x |> Result.get_ok) in
+  let goal = ([], goal_tm) in
+
+  let session = create_session () in
+  exec_command session (SetGoal goal);
+  exec_command session (Apply Gen);
+  exec_command session (Apply Refl);
+
+  (* Get the result *)
+  (match result session with
+   | Some thm ->
+       print_endline "Got theorem:";
+       Printing.print_thm thm
+   | None ->
+       print_endline "No result (proof incomplete)");
+
+  [%expect {|
+    Set goal:
+    ∀x. x = x
+
+    Applying gen
+    Applying refl
+    Goal solved!
+    ========================================
+    x = x
+
+    Goal completed:
+    ========================================
+    ∀x. x = x
+
+    Got theorem:
+    ========================================
+    ∀x. x = x
     |}]
 

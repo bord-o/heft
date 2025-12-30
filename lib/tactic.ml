@@ -161,7 +161,9 @@ let rec collect_premises tm =
   | _ -> ([], tm)
 
 (** INDUCT t: Perform structural induction on term t.
-    Goal G[t] becomes subgoals for each case of the induction principle. *)
+    For now, only works on the outermost forall-bound variable.
+    Goal ∀v. body becomes subgoals for each case of the induction principle.
+    The predicate is λv. body, which includes any inner foralls. *)
 let induct_tac (t : term) : tactic =
  fun (asms, goal_concl) ->
   (* Get the type of the term we're inducting on *)
@@ -177,18 +179,22 @@ let induct_tac (t : term) : tactic =
   (* Get the induction theorem: ∀P. premise1 → ... → ∀x. P x *)
   let ind_thm = ind_def.induction in
 
-  (* Create the predicate by abstracting t from the goal: λt. goal[t] *)
-  (* First, we need a fresh variable for the abstraction *)
-  let ind_var = make_var "ind_var" t_ty in
-  let pred_body = term_subst t ind_var goal_concl in
-  let pred = Lam (ind_var, pred_body) in
+  (* Build predicate based on whether goal is a forall over t or t is free *)
+  let pred, is_forall_case = match goal_concl with
+    | App (Const ("!", _), Lam (bound_v, body))
+      when alphaorder t bound_v = 0 ->
+        (* Goal is ∀t. body - induct on the outermost forall *)
+        (* Predicate is λt. body (body may contain more foralls, that's fine) *)
+        (Lam (bound_v, body), true)
+    | _ ->
+        (* t is a free variable in the goal - abstract over it *)
+        (Lam (t, goal_concl), false)
+  in
 
   (* Specialize the induction theorem with our predicate *)
-  (* ind_thm is ∀P. body, so we spec with pred to get body[pred/P] *)
   let spec_thm = spec pred ind_thm |> unwrap_result in
 
   (* The specialized theorem has the form: premise1 → premise2 → ... → ∀x. pred x *)
-  (* We need to beta-reduce each premise since they contain (pred arg) *)
   let spec_concl = concl spec_thm in
   let premises, _final_concl = collect_premises spec_concl in
 
@@ -209,18 +215,29 @@ let induct_tac (t : term) : tactic =
       let combined = List.fold_left (fun acc_thm premise_thm ->
         mp acc_thm premise_thm |> unwrap_result
       ) spec_thm thms in
-      (* combined now proves ∀x. pred x, i.e., ∀ind_var. goal[ind_var] *)
-      (* Specialize with t to get goal[t] *)
-      let result = spec t combined |> unwrap_result in
-      (* Beta-reduce to clean up any remaining (λind_var. ...) t *)
-      let result_concl = concl result in
-      let beta_thm = deep_beta result_concl |> unwrap_result in
-      let reduced_concl = rhs beta_thm |> unwrap_result in
-      if alphaorder reduced_concl goal_concl = 0 then
-        (* Use EQ_MP to convert |- (λx.body) t to |- body[t/x] *)
-        eq_mp beta_thm result |> unwrap_result
+      (* combined now proves ∀x. pred x = ∀x. (λt. body) x *)
+
+      (* Beta-reduce: ∀x. (λt. body) x  =>  ∀x. body[x/t] *)
+      let combined_concl = concl combined in
+      let beta_thm = deep_beta combined_concl |> unwrap_result in
+      let reduced = eq_mp beta_thm combined |> unwrap_result in
+
+      if is_forall_case then
+        (* For forall case, the reduced theorem should already match the goal
+           (both are ∀t. body, just possibly with different bound var names) *)
+        let final_concl = concl reduced in
+        if alphaorder final_concl goal_concl = 0 then
+          reduced
+        else
+          failwith ("INDUCT: result doesn't match goal. Got: " ^
+                    Printing.pretty_print_hol_term final_concl ^
+                    ", Expected: " ^ Printing.pretty_print_hol_term goal_concl)
       else
-        failwith "INDUCT: result doesn't match goal after beta reduction"
+        (* For free variable case: spec to remove forall and get back the goal *)
+        let spec_result = spec t reduced |> unwrap_result in
+        let spec_concl = concl spec_result in
+        let spec_beta = deep_beta spec_concl |> unwrap_result in
+        eq_mp spec_beta spec_result |> unwrap_result
 
 (** Extract rewrite rules from a theorem, handling conjunctions.
     Keeps foralls intact - they will be instantiated during matching.
