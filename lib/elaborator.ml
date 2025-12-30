@@ -295,6 +295,7 @@ end
 (** Elaborate a program and return the final environment for use in tactics *)
 let elaborate_with_env prog =
   let tprog = Tast.check_program prog in
+  (* tprog |> List.iter (fun d -> print_endline @@ Tast.show_tdecl d ); *)
   Elab.elab_program_with_env Tast.empty_env tprog
 
 let elaborate prog =

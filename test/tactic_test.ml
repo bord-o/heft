@@ -1053,7 +1053,10 @@ let%expect_test "more_list" =
   |} in
   let ast = parse_string prg in
   let env = Elaborator.elaborate_with_env ast in
+  (* print_endline @@ Tast.show_env env; *)
   let goal = List.assoc "length_map" !the_goals in
+
+  print_endline @@ Printing.pretty_print_hol_term ~with_type:true goal;
 
   let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in
 
@@ -1063,9 +1066,6 @@ let%expect_test "more_list" =
 
   e (SetGoal ([], goal));
   app (Induct l);
-  e ShowInductives;
-  e ShowSpecs;
-  
   e ShowGoal;
 
   [%expect {|

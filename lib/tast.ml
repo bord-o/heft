@@ -43,6 +43,7 @@ type env = {
   constants : (name * tty) list;
   locals : (name * tty) list;
 }
+[@@deriving show]
 
 let ty_bool = TyApp ("bool", [])
 let ty_fun a b = TyApp ("fun", [ a; b ])
@@ -109,6 +110,20 @@ let rec collect_tyvars acc = function
   | TyVar n -> if List.mem n acc then acc else n :: acc
   | TyApp (_, args) -> List.fold_left collect_tyvars acc args
 
+(* Fresh type variable generation for instantiating polymorphic constants *)
+let fresh_counter = ref 0
+
+let fresh_tyvar () =
+  incr fresh_counter;
+  "'_t" ^ string_of_int !fresh_counter
+
+let freshen_ty ty =
+  let tyvars = collect_tyvars [] ty in
+  if tyvars = [] then ty
+  else
+    let subst = List.map (fun v -> (v, TyVar (fresh_tyvar ()))) tyvars in
+    subst_ty subst ty
+
 let rec subst_tm subst tm =
   let sty = subst_ty subst in
   match tm with
@@ -161,7 +176,7 @@ let lookup_var env name =
   | Some ty -> `Local ty
   | None -> (
       match List.assoc_opt name env.constants with
-      | Some ty -> `Const ty
+      | Some ty -> `Const (freshen_ty ty)  (* Freshen type variables for each use *)
       | None -> failwith ("unbound variable: " ^ name))
 
 let rec infer env tm =
@@ -244,6 +259,7 @@ and check env tm expected =
   | Var n, _ -> (
       match List.assoc_opt n env.constants with
       | Some const_ty ->
+          let const_ty = freshen_ty const_ty in  (* Freshen type variables *)
           let subst = unify_types [] const_ty expected in
           let const_ty' = subst_ty subst const_ty in
           TConst (n, const_ty')
@@ -279,6 +295,7 @@ let rec check_pattern env tm expected =
   | Var n -> (
       match List.assoc_opt n env.constants with
       | Some const_ty ->
+          let const_ty = freshen_ty const_ty in
           let subst = unify_types [] (result_type const_ty) expected in
           let const_ty' = subst_ty subst const_ty in
           (TConst (n, const_ty'), [])
@@ -295,6 +312,7 @@ let rec check_pattern env tm expected =
       let ctor_name, ctor_args = get_ctor_and_args tm in
       match List.assoc_opt ctor_name env.constants with
       | Some const_ty ->
+          let const_ty = freshen_ty const_ty in
           let subst = unify_types [] (result_type const_ty) expected in
           let const_ty' = subst_ty subst const_ty in
           let rec check_args ty args =

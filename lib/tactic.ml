@@ -187,9 +187,6 @@ let induct_tac (t : term) : tactic =
       when alphaorder t bound_v = 0 ->
         (* Goal is ∀t. body - induct on the outermost forall *)
         (* Predicate is λt. body (body may contain more foralls, that's fine) *)
-        Printf.printf "DEBUG pred: bound_v = %s, frees = [%s]\n"
-          (Printing.pretty_print_hol_term ~with_type:true bound_v)
-          (String.concat "; " (List.map (fun v -> Printing.pretty_print_hol_term ~with_type:true v) (frees body)));
         (Lam (bound_v, body), true)
     | _ ->
         (* t is a free variable in the goal - abstract over it *)
