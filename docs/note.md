@@ -2,6 +2,10 @@
 
 Profoundly discoverable.
 
+You shouldn't have to know the name of some incantation for a proof.
+
+All tactics and existing lemmas should be discoverable naturally.
+
 ## Roadmap
 
 **Essential Reading (in order):**

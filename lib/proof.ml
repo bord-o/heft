@@ -5,7 +5,13 @@ open Tactic
 
 exception Subgoals_pending
 
-type command = SetGoal of goal | Apply of tactic_name | ShowGoal
+type command =
+  | SetGoal of goal
+  | Apply of tactic_name
+  | ShowGoal
+  | ShowSpecs
+  | ShowInductives
+  | ShowDefs
 type tactic_application = { tactic : tactic_name; goal : goal }
 
 type proof_session = {
@@ -109,6 +115,31 @@ let exec_command session = function
           print_thm thm;
           retry_pending session
       | Pending -> ())
+  | ShowSpecs ->
+      print_endline "Specifications:";
+      the_specifications |> Hashtbl.iter (fun name thm ->
+        Printf.printf "  %s:\n" name;
+        print_thm thm)
+  | ShowInductives ->
+      print_endline "Inductive types:";
+      the_inductives |> Hashtbl.iter (fun name def ->
+        Printf.printf "  %s:\n" name;
+        print_endline "    induction:";
+        print_thm def.induction;
+        print_endline "    recursion:";
+        print_thm def.recursion;
+        if def.distinct <> [] then begin
+          print_endline "    distinct:";
+          List.iter print_thm def.distinct
+        end;
+        if def.injective <> [] then begin
+          print_endline "    injective:";
+          List.iter print_thm def.injective
+        end)
+  | ShowDefs ->
+      print_endline "Definitions:";
+      !the_definitions |> List.iter (fun thm ->
+        print_thm thm)
 
 let show_session session =
   Printf.printf "\n=== Session State ===\n";

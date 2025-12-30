@@ -747,6 +747,9 @@ let%expect_test "induct_list" =
   app (Induct l);
   app Gen;
   app Gen;
+  e ShowSpecs;
+  (* e ShowInductives; *)
+  
 
   e ShowGoal;
 
