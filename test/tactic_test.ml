@@ -748,6 +748,9 @@ let%expect_test "induct_list" =
   app Gen;
   app Gen;
   e ShowSpecs;
+  app (RewriteWith "length");
+  app (RewriteWith "length");
+  app Refl;
   (* e ShowInductives; *)
   
 

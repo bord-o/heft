@@ -20,6 +20,8 @@ type tactic_name =
   | MatchMpTac of thm  (* apply |- P ==> Q to goal Q, creating subgoal P *)
   | SpecTac of term * term  (* generalize goal: replace t with x, wrap in forall *)
   | Induct of term  (* induction on term t *)
+  | Rewrite of thm  (* rewrite goal using equality theorem *)
+  | RewriteWith of string  (* lookup theorem by name, then rewrite *)
 
 type tactic = goal -> thm
 
@@ -220,6 +222,158 @@ let induct_tac (t : term) : tactic =
       else
         failwith "INDUCT: result doesn't match goal after beta reduction"
 
+(** Extract rewrite rules from a theorem, handling conjunctions.
+    Keeps foralls intact - they will be instantiated during matching.
+    Returns a list of theorems (possibly forall-wrapped equalities). *)
+let rec extract_rewrite_rules thm =
+  let c = concl thm in
+  (* Check if it's a conjunction *)
+  match destruct_conj c with
+  | (_, _) ->
+      let left_thm = conj_left thm |> unwrap_result in
+      let right_thm = conj_right thm |> unwrap_result in
+      extract_rewrite_rules left_thm @ extract_rewrite_rules right_thm
+  | exception _ -> [thm]
+
+(** Try to match a pattern term against a target term.
+    Returns Some substitution list if successful, None otherwise.
+    The pattern may contain variables that get bound to subterms of target. *)
+let rec term_match pattern target =
+  match pattern, target with
+  | Var (_, _), _ ->
+      (* Pattern variable matches anything *)
+      Some [(target, pattern)]
+  | Const (n1, _), Const (n2, _) when n1 = n2 ->
+      (* Constants match if names are same (types may differ due to polymorphism) *)
+      Some []
+  | App (f1, x1), App (f2, x2) ->
+      (match term_match f1 f2 with
+       | None -> None
+       | Some s1 ->
+           match term_match x1 x2 with
+           | None -> None
+           | Some s2 -> Some (s1 @ s2))
+  | Lam (Var (n1, _), b1), Lam (Var (n2, _), b2) when n1 = n2 ->
+      term_match b1 b2
+  | _ -> None
+
+(** Strip foralls from a theorem while matching against a target term.
+    Returns the instantiated theorem and remaining LHS to match. *)
+let rec instantiate_foralls thm target =
+  let c = concl thm in
+  match c with
+  | App (Const ("!", _), Lam (v, body)) ->
+      (* Find what the variable should be instantiated to by looking at target structure *)
+      (* First, figure out the LHS pattern after stripping this forall *)
+      let rec get_lhs_pattern tm =
+        match tm with
+        | App (Const ("!", _), Lam (_, inner)) -> get_lhs_pattern inner
+        | _ -> match destruct_eq tm with
+               | Ok (l, _) -> Some l
+               | Error _ -> None
+      in
+      (match get_lhs_pattern body with
+       | None -> None
+       | Some pattern ->
+           (* Try to match pattern against target to find instantiation for v *)
+           match term_match pattern target with
+           | None -> None
+           | Some subst ->
+               (* Find what v maps to in the substitution (v is already a term) *)
+               match List.find_opt (fun (_, pat) -> alphaorder pat v = 0) subst with
+               | Some (inst, _) ->
+                   let spec_thm = spec inst thm |> unwrap_result in
+                   instantiate_foralls spec_thm target
+               | None ->
+                   (* v doesn't appear in pattern, just use v itself *)
+                   let spec_thm = spec v thm |> unwrap_result in
+                   instantiate_foralls spec_thm target)
+  | _ ->
+      (* No more foralls, return the theorem *)
+      Some thm
+
+(** Try to match any rule at this position.
+    Returns Some instantiated equality theorem if a rule matches, None otherwise. *)
+let try_match_rules rules tm =
+  let rec try_rules = function
+    | [] -> None
+    | rule :: rest ->
+        match instantiate_foralls rule tm with
+        | Some inst_thm ->
+            let l = lhs inst_thm |> unwrap_result in
+            if alphaorder tm l = 0 then Some inst_thm
+            else try_rules rest
+        | None -> try_rules rest
+  in
+  try_rules rules
+
+(** Rewrite a term using a list of rewrite rules.
+    Returns |- tm = tm' where tm' has occurrences of l replaced by r,
+    along with a boolean indicating if any rewriting occurred. *)
+let rec rewrite_term rules tm =
+  (* Try to match any rule at this position *)
+  match try_match_rules rules tm with
+  | Some eq_thm -> (eq_thm, true)
+  | None ->
+      match tm with
+      | Var _ | Const _ ->
+          (* No match, return reflexivity *)
+          (refl tm |> unwrap_result, false)
+      | App (f, x) ->
+          let f_thm, f_changed = rewrite_term rules f in
+          let x_thm, x_changed = rewrite_term rules x in
+          if f_changed || x_changed then
+            (mk_comb f_thm x_thm |> unwrap_result, true)
+          else
+            (refl tm |> unwrap_result, false)
+      | Lam (v, body) ->
+          let body_thm, changed = rewrite_term rules body in
+          if changed then
+            (lam v body_thm |> unwrap_result, true)
+          else
+            (refl tm |> unwrap_result, false)
+
+(** Rewrite a term using all rewrite rules extracted from a theorem *)
+let rewrite_term_with_thm thm tm =
+  let rules = extract_rewrite_rules thm in
+  rewrite_term rules tm
+
+(** Lookup a theorem by name from specifications or definitions *)
+let lookup_theorem name =
+  match Hashtbl.find_opt the_specifications name with
+  | Some thm -> Some thm
+  | None ->
+      (* Search definitions for one whose LHS constant matches the name *)
+      !the_definitions |> List.find_opt (fun thm ->
+        match lhs thm with
+        | Ok (Const (n, _)) -> n = name
+        | Ok (Var (n, _)) -> n = name
+        | _ -> false)
+
+(** REWRITE thm: Rewrite the goal using equality theorem.
+    Handles conjunctions of equalities and foralls. *)
+let rewrite_tac (eq_thm : thm) : tactic =
+ fun (asms, goal_concl) ->
+  let rw_thm, changed = rewrite_term_with_thm eq_thm goal_concl in
+  if not changed then
+    failwith "REWRITE: no matching subterm found"
+  else
+    let new_goal = rhs rw_thm |> unwrap_result in
+    match Effect.perform (Subgoals [ (asms, new_goal) ]) with
+    | [ new_thm ] ->
+        (* We have |- new_goal, and rw_thm is |- goal = new_goal *)
+        (* Use sym and eq_mp to get |- goal *)
+        let rw_thm_sym = sym rw_thm |> unwrap_result in
+        eq_mp rw_thm_sym new_thm |> unwrap_result
+    | _ -> failwith "REWRITE: expected single theorem"
+
+(** REWRITE_WITH name: Lookup theorem by name, then rewrite *)
+let rewrite_with_tac (name : string) : tactic =
+ fun goal ->
+  match lookup_theorem name with
+  | Some thm -> rewrite_tac thm goal
+  | None -> failwith ("REWRITE_WITH: theorem not found: " ^ name)
+
 let name_of_tactic = function
   | Assumption -> "assumption"
   | Conj -> "conj"
@@ -234,6 +388,8 @@ let name_of_tactic = function
   | MatchMpTac _ -> "match_mp_tac"
   | SpecTac _ -> "spec_tac"
   | Induct _ -> "induct"
+  | Rewrite _ -> "rewrite"
+  | RewriteWith name -> "rewrite " ^ name
 
 let get_tactic = function
   | Assumption -> assumption_tac
@@ -249,3 +405,5 @@ let get_tactic = function
   | MatchMpTac thm -> match_mp_tac thm
   | SpecTac (t, x) -> spec_tac t x
   | Induct t -> induct_tac t
+  | Rewrite thm -> rewrite_tac thm
+  | RewriteWith name -> rewrite_with_tac name
