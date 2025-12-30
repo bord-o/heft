@@ -926,6 +926,14 @@ let%expect_test "nat_plus" =
   app Intro;
   app (RewriteWith "plus");
   app Beta;
+  app (RewriteAsm 0);
+  app Refl;
+  (match result session with
+   | Some thm ->
+       print_endline "Got theorem:";
+       Printing.print_thm thm
+   | None ->
+       print_endline "No result (proof incomplete)");
 
 
   e ShowGoal;
@@ -954,5 +962,111 @@ let%expect_test "nat_plus" =
     ========================================
     ∀n. plus Z n = n
 
+    Set goal:
+    ∀n. plus n Z = n
+
+    Applying induct
+    Applying rewrite plus
+    Applying beta
+    Applying refl
+    Goal solved!
+    ========================================
+    Z = Z
+
+    Goal completed:
+    ========================================
+    (λn. n) Z = Z
+
+    Goal completed:
+    ========================================
+    plus Z Z = Z
+
+    Applying gen
+    Applying intro
+    Applying rewrite plus
+    Applying beta
+    Applying rewrite_asm 0
+    Applying refl
+    Goal solved!
+    ========================================
+    S n0 = S n0
+
+    Goal completed:
+    plus n0 Z = n0
+    ========================================
+    S (plus n0 Z) = S n0
+
+    Goal completed:
+    plus n0 Z = n0
+    ========================================
+    (λn. S (plus n0 n)) Z = S n0
+
+    Goal completed:
+    plus n0 Z = n0
+    ========================================
+    plus (S n0) Z = S n0
+
+    Goal completed:
+    ========================================
+    plus n0 Z = n0 ==> plus (S n0) Z = S n0
+
+    Goal completed:
+    ========================================
+    ∀n0. plus n0 Z = n0 ==> plus (S n0) Z = S n0
+
+    Goal completed:
+    ========================================
+    ∀n. plus n Z = n
+
+    Got theorem:
+    ========================================
+    ∀n. plus Z n = n
+
     Goal stack (0 goals):
+    |}]
+
+
+
+let%expect_test "more_list" =
+  let () = Derived.reset () |> Result.get_ok in
+  let prg = {|
+(type nat ()
+    (Z)
+    (S (nat)))
+
+(type list ('a)
+    (Nil)
+    (Cons ('a (list 'a))))
+
+(fun map (-> (list 'a) (-> (-> 'a 'b) (list 'b)))
+    ( (Nil f) Nil)
+    ( ((Cons x xs) f) (Cons (f x) (map xs f))))
+
+(fun length (-> (list 'a) nat)
+    ( (Nil) Z)
+    ( ((Cons x xs)) (S (length xs))))
+
+(theorem length_map 
+    (forall ((l (list 'a)) (f (-> 'a 'b)))
+        (= (length l) (length (map l f)))))
+
+  |} in
+  let ast = parse_string prg in
+  let env = Elaborator.elaborate_with_env ast in
+  let goal = List.assoc "length_map" !the_goals in
+
+  let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in
+
+  let session = create_session () in
+  let e = exec_command session in
+  let app = fun t -> e (Apply t) in
+
+  e (SetGoal ([], goal));
+  app (Induct l);
+  e ShowInductives;
+  e ShowSpecs;
+  
+  e ShowGoal;
+
+  [%expect {|
     |}]

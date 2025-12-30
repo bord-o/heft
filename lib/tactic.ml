@@ -22,6 +22,7 @@ type tactic_name =
   | Induct of term  (* induction on term t *)
   | Rewrite of thm  (* rewrite goal using equality theorem *)
   | RewriteWith of string  (* lookup theorem by name, then rewrite *)
+  | RewriteAsm of int  (* rewrite using assumption by index *)
   | Beta  (* beta reduce the goal *)
 
 type tactic = goal -> thm
@@ -186,6 +187,9 @@ let induct_tac (t : term) : tactic =
       when alphaorder t bound_v = 0 ->
         (* Goal is ∀t. body - induct on the outermost forall *)
         (* Predicate is λt. body (body may contain more foralls, that's fine) *)
+        Printf.printf "DEBUG pred: bound_v = %s, frees = [%s]\n"
+          (Printing.pretty_print_hol_term ~with_type:true bound_v)
+          (String.concat "; " (List.map (fun v -> Printing.pretty_print_hol_term ~with_type:true v) (frees body)));
         (Lam (bound_v, body), true)
     | _ ->
         (* t is a free variable in the goal - abstract over it *)
@@ -390,6 +394,16 @@ let rewrite_with_tac (name : string) : tactic =
   | Some thm -> rewrite_tac thm goal
   | None -> failwith ("REWRITE_WITH: theorem not found: " ^ name)
 
+(** REWRITE_ASM n: Rewrite using assumption at index n *)
+let rewrite_asm_tac (n : int) : tactic =
+ fun (asms, goal_concl) ->
+  if n < 0 || n >= List.length asms then
+    failwith ("REWRITE_ASM: invalid assumption index " ^ string_of_int n)
+  else
+    let asm_tm = List.nth asms n in
+    let asm_thm = assume asm_tm |> unwrap_result in
+    rewrite_tac asm_thm (asms, goal_concl)
+
 (** BETA: Beta reduce the goal *)
 let beta_tac : tactic =
  fun (asms, goal_concl) ->
@@ -420,6 +434,7 @@ let name_of_tactic = function
   | Induct _ -> "induct"
   | Rewrite _ -> "rewrite"
   | RewriteWith name -> "rewrite " ^ name
+  | RewriteAsm n -> "rewrite_asm " ^ string_of_int n
   | Beta -> "beta"
 
 let get_tactic = function
@@ -438,4 +453,5 @@ let get_tactic = function
   | Induct t -> induct_tac t
   | Rewrite thm -> rewrite_tac thm
   | RewriteWith name -> rewrite_with_tac name
+  | RewriteAsm n -> rewrite_asm_tac n
   | Beta -> beta_tac
