@@ -19,6 +19,7 @@ type tactic_name =
   | MpTac of thm  (* move theorem into goal as antecedent *)
   | MatchMpTac of thm  (* apply |- P ==> Q to goal Q, creating subgoal P *)
   | SpecTac of term * term  (* generalize goal: replace t with x, wrap in forall *)
+  | Induct of term  (* induction on term t *)
 
 type tactic = goal -> thm
 
@@ -144,6 +145,81 @@ let spec_tac (t : term) (x : term) : tactic =
   | [ forall_thm ] -> spec t forall_thm |> unwrap_result
   | _ -> failwith "SPEC_TAC: expected single theorem"
 
+(** Get the type name from a hol_type *)
+let type_name_of = function
+  | TyCon (name, _) -> name
+  | TyVar _ -> failwith "INDUCT: cannot induct on type variable"
+
+(** Collect premises from a chain of implications: A -> B -> C -> D gives [A; B; C] and D *)
+let rec collect_premises tm =
+  match tm with
+  | App (App (Const ("==>", _), left), right) ->
+      let rest_premises, concl = collect_premises right in
+      (left :: rest_premises, concl)
+  | _ -> ([], tm)
+
+(** INDUCT t: Perform structural induction on term t.
+    Goal G[t] becomes subgoals for each case of the induction principle. *)
+let induct_tac (t : term) : tactic =
+ fun (asms, goal_concl) ->
+  (* Get the type of the term we're inducting on *)
+  let t_ty = type_of_term t |> unwrap_result in
+  let ty_name = type_name_of t_ty in
+
+  (* Look up the inductive definition *)
+  let ind_def = match Hashtbl.find_opt the_inductives ty_name with
+    | Some def -> def
+    | None -> failwith ("INDUCT: no inductive definition for type " ^ ty_name)
+  in
+
+  (* Get the induction theorem: ∀P. premise1 → ... → ∀x. P x *)
+  let ind_thm = ind_def.induction in
+
+  (* Create the predicate by abstracting t from the goal: λt. goal[t] *)
+  (* First, we need a fresh variable for the abstraction *)
+  let ind_var = make_var "ind_var" t_ty in
+  let pred_body = term_subst t ind_var goal_concl in
+  let pred = Lam (ind_var, pred_body) in
+
+  (* Specialize the induction theorem with our predicate *)
+  (* ind_thm is ∀P. body, so we spec with pred to get body[pred/P] *)
+  let spec_thm = spec pred ind_thm |> unwrap_result in
+
+  (* The specialized theorem has the form: premise1 → premise2 → ... → ∀x. pred x *)
+  (* We need to beta-reduce each premise since they contain (pred arg) *)
+  let spec_concl = concl spec_thm in
+  let premises, _final_concl = collect_premises spec_concl in
+
+  (* Beta-reduce each premise to get the actual goals *)
+  let reduce_premise p =
+    let beta_thm = deep_beta p |> unwrap_result in
+    rhs beta_thm |> unwrap_result
+  in
+  let subgoal_terms = List.map reduce_premise premises in
+
+  (* Create subgoals with the same assumptions *)
+  let subgoals : goal list = List.map (fun g -> (asms, g)) subgoal_terms in
+
+  match Effect.perform (Subgoals subgoals) with
+  | thms ->
+      (* We have proofs of all the premises.
+         Apply MP repeatedly to get the conclusion. *)
+      let combined = List.fold_left (fun acc_thm premise_thm ->
+        mp acc_thm premise_thm |> unwrap_result
+      ) spec_thm thms in
+      (* combined now proves ∀x. pred x, i.e., ∀ind_var. goal[ind_var] *)
+      (* Specialize with t to get goal[t] *)
+      let result = spec t combined |> unwrap_result in
+      (* Beta-reduce to clean up any remaining (λind_var. ...) t *)
+      let result_concl = concl result in
+      let beta_thm = deep_beta result_concl |> unwrap_result in
+      let reduced_concl = rhs beta_thm |> unwrap_result in
+      if alphaorder reduced_concl goal_concl = 0 then
+        (* Use EQ_MP to convert |- (λx.body) t to |- body[t/x] *)
+        eq_mp beta_thm result |> unwrap_result
+      else
+        failwith "INDUCT: result doesn't match goal after beta reduction"
+
 let name_of_tactic = function
   | Assumption -> "assumption"
   | Conj -> "conj"
@@ -157,6 +233,7 @@ let name_of_tactic = function
   | MpTac _ -> "mp_tac"
   | MatchMpTac _ -> "match_mp_tac"
   | SpecTac _ -> "spec_tac"
+  | Induct _ -> "induct"
 
 let get_tactic = function
   | Assumption -> assumption_tac
@@ -171,3 +248,4 @@ let get_tactic = function
   | MpTac thm -> mp_tac thm
   | MatchMpTac thm -> match_mp_tac thm
   | SpecTac (t, x) -> spec_tac t x
+  | Induct t -> induct_tac t

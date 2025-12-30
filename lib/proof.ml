@@ -45,25 +45,31 @@ let handle_tactic_effects ~push_unsolved session tactic goal =
   | thm -> thm
 
 (** Try to complete pending goals by re-running their tactics. Called after a
-    goal is solved to propagate completions. *)
+    goal is solved to propagate completions. Keeps iterating until no more
+    progress can be made. *)
 let retry_pending session =
-  session.script
-  |> List.iter (fun app ->
-      if not (goal_is_cached session app.goal) then begin
-        let tactic = get_tactic app.tactic in
-        match
-          handle_tactic_effects ~push_unsolved:false session tactic app.goal
-        with
-        | thm ->
-            print_endline "Goal completed:";
-            print_thm thm;
-            cache_add session app.goal thm;
-            session.goal_stack <-
-              List.filter
-                (fun g -> not (goals_equal g app.goal))
-                session.goal_stack
-        | exception Subgoals_pending -> ()
-      end)
+  let made_progress = ref true in
+  while !made_progress do
+    made_progress := false;
+    session.script
+    |> List.iter (fun app ->
+        if not (goal_is_cached session app.goal) then begin
+          let tactic = get_tactic app.tactic in
+          match
+            handle_tactic_effects ~push_unsolved:false session tactic app.goal
+          with
+          | thm ->
+              print_endline "Goal completed:";
+              print_thm thm;
+              cache_add session app.goal thm;
+              session.goal_stack <-
+                List.filter
+                  (fun g -> not (goals_equal g app.goal))
+                  session.goal_stack;
+              made_progress := true
+          | exception Subgoals_pending -> ()
+        end)
+  done
 
 type tactic_result = Solved of thm | Pending
 

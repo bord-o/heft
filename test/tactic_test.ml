@@ -297,6 +297,12 @@ let%expect_test "eq_tac" =
     ========================================
     q ∧ p
 
+    Goal completed:
+    p
+    q
+    ========================================
+    p ∧ q ==> q ∧ p
+
     Applying intro
     Applying conj
     Applying assumption
@@ -304,12 +310,6 @@ let%expect_test "eq_tac" =
     p
     ========================================
     p
-
-    Goal completed:
-    p
-    q
-    ========================================
-    p ∧ q ==> q ∧ p
 
     Applying assumption
     Goal solved!
@@ -322,6 +322,18 @@ let%expect_test "eq_tac" =
     q
     ========================================
     p ∧ q
+
+    Goal completed:
+    p
+    q
+    ========================================
+    q ∧ p ==> p ∧ q
+
+    Goal completed:
+    p
+    q
+    ========================================
+    q ∧ p = p ∧ q
     |}]
 
 (* Test Exists tactic *)
@@ -520,6 +532,10 @@ let%expect_test "spec_tac" =
     Goal completed:
     ========================================
     ∀n. n = n
+
+    Goal completed:
+    ========================================
+    Z = Z
     |}]
 
 (* Test chained intro for multiple implications *)
@@ -585,6 +601,15 @@ let%expect_test "chained_intro" =
     p
     ========================================
     r ==> p
+
+    Goal completed:
+    p
+    ========================================
+    q ==> r ==> p
+
+    Goal completed:
+    ========================================
+    p ==> q ==> r ==> p
     |}]
 
 (* Test nested forall with gen *)
@@ -622,5 +647,110 @@ let%expect_test "nested_forall" =
     Goal completed:
     ========================================
     ∀y. x = x
+
+    Goal completed:
+    ========================================
+    ∀x. ∀y. x = x
+    |}]
+
+(* Test induction on nat *)
+let%expect_test "induct_nat" =
+  let () = Derived.reset () |> Result.get_ok in
+  let prg = {|
+(type nat ()
+    (Z)
+    (S (nat)))
+(theorem nat_refl
+    (fix ((n nat))
+        (= n n)))
+  |} in
+  let ast = parse_string prg in
+  let env = Elaborator.elaborate_with_env ast in
+  let goal = List.assoc "nat_refl" !the_goals in
+
+  let n = parse_and_elab_term env "(fix ((n nat)) n)" in
+
+  let session = create_session () in
+  let e = exec_command session in
+  let app = fun t -> e (Apply t) in
+
+  e (SetGoal ([], goal));
+  app (Induct n);
+  app Refl;
+  app Gen;
+  app Intro;
+  app Refl;
+  e ShowGoal;
+
+  [%expect {|
+    Set goal:
+    n = n
+
+    Applying induct
+    Applying refl
+    Goal solved!
+    ========================================
+    Z = Z
+
+    Applying gen
+    Applying intro
+    Applying refl
+    Goal solved!
+    ========================================
+    S n0 = S n0
+
+    Goal completed:
+    ========================================
+    n0 = n0 ==> S n0 = S n0
+
+    Goal completed:
+    ========================================
+    ∀n0. n0 = n0 ==> S n0 = S n0
+
+    Goal completed:
+    ========================================
+    n = n
+
+    Goal stack (0 goals):
+    |}]
+
+let%expect_test "induct_list" =
+  let () = Derived.reset () |> Result.get_ok in
+  let prg = {|
+(type nat ()
+    (Z)
+    (S (nat)))
+
+(type list ('a)
+    (Nil)
+    (Cons ('a (list 'a))))
+
+(fun length (-> (list 'a) nat)
+    ( (Nil) Z)
+    ( ((Cons x xs)) (S (length xs))))
+
+(theorem length_cons 
+    (forall ((x 'a) (l (list 'a)))
+        (= (length (Cons x l)) (S (length l)))))
+  |} in
+  let ast = parse_string prg in
+  let env = Elaborator.elaborate_with_env ast in
+  let goal = List.assoc "length_cons" !the_goals in
+
+  let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in
+
+  let session = create_session () in
+  let e = exec_command session in
+  let app = fun t -> e (Apply t) in
+
+  e (SetGoal ([], goal));
+  app (Induct l);
+  app Gen;
+  app Gen;
+
+  e ShowGoal;
+
+
+  [%expect {|
     |}]
 
