@@ -106,7 +106,8 @@ let exec_command session = function
       |> List.iteri (fun i (asms, g) ->
           Printf.printf "  %d: " i;
           asms |> List.iter print_term;
-          print_term (g))
+          print_term g)
+          (* print_endline @@ pretty_print_hol_term ~with_type:true (g)) *)
   | Apply tac_name -> (
       Printf.printf "Applying %s\n" (name_of_tactic tac_name);
       match apply_tactic session tac_name with

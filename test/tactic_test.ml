@@ -1024,12 +1024,81 @@ let%expect_test "nat_plus" =
 
     Goal stack (0 goals):
     |}]
-
-
-
-let%expect_test "more_list" =
+(**)
+(**)
+(**)
+(* let%expect_test "more_list" = *)
+(*   let () = Derived.reset () |> Result.get_ok in *)
+(*   let prg = {| *)
+(* (type nat () *)
+(*     (Z) *)
+(*     (S (nat))) *)
+(**)
+(* (type list ('a) *)
+(*     (Nil) *)
+(*     (Cons ('a (list 'a)))) *)
+(**)
+(* (fun map (-> (list 'a) (-> (-> 'a 'b) (list 'b))) *)
+(*     ( (Nil f) Nil) *)
+(*     ( ((Cons x xs) f) (Cons (f x) (map xs f)))) *)
+(**)
+(* (fun length (-> (list 'a) nat) *)
+(*     ( (Nil) Z) *)
+(*     ( ((Cons x xs)) (S (length xs)))) *)
+(**)
+(* (theorem length_map  *)
+(*     (forall ((l (list 'a)) (f (-> 'a 'b))) *)
+(*         (= (length l) (length (map l f))))) *)
+(**)
+(*   |} in *)
+(*   let ast = parse_string prg in *)
+(*   let env = Elaborator.elaborate_with_env ast in *)
+(*   (* print_endline @@ Tast.show_env env; *) *)
+(*   let goal = List.assoc "length_map" !the_goals in *)
+(**)
+(*   print_endline @@ Printing.pretty_print_hol_term ~with_type:true goal; *)
+(**)
+(*   let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in *)
+(**)
+(*   let session = create_session () in *)
+(*   let e = exec_command session in *)
+(*   let app = fun t -> e (Apply t) in *)
+(**)
+(*   e (SetGoal ([], goal)); *)
+(*   app (Induct l); *)
+(**)
+(*   app Gen; *)
+(*   app (RewriteWith "length"); *)
+(*   app (RewriteWith "map"); *)
+(*   app Beta; *)
+(*   e ShowSpecs; *)
+(*   app (RewriteWith "length"); *)
+(*   app Refl; *)
+(**)
+(*   app Gen; *)
+(*   app Gen; *)
+(*   app Intro; *)
+(*   app Gen; *)
+(*   app (RewriteWith "length"); *)
+(*   app (RewriteWith "map"); *)
+(*   app Beta; *)
+(*   app (RewriteWith "length"); *)
+(*   app (RewriteAsm 0); *)
+(*   e ShowGoal; *)
+(*   app Refl; *)
+(**)
+(**)
+(*   e ShowGoal; *)
+(**)
+(*   [%expect {| *)
+(*     |}] *)
+(**)
+let%expect_test "more_list2" =
   let () = Derived.reset () |> Result.get_ok in
   let prg = {|
+(type pair ('a 'b)
+    (Pair ('a 'b)))
+
 (type nat ()
     (Z)
     (S (nat)))
@@ -1038,25 +1107,42 @@ let%expect_test "more_list" =
     (Nil)
     (Cons ('a (list 'a))))
 
-(fun map (-> (list 'a) (-> (-> 'a 'b) (list 'b)))
-    ( (Nil f) Nil)
-    ( ((Cons x xs) f) (Cons (f x) (map xs f))))
+(fun append (-> (list 'a) (-> (list 'a) (list 'a)))
+    ( (Nil l) l)
+    ( ((Cons x xs) l) (Cons x (append xs l))))
 
 (fun length (-> (list 'a) nat)
     ( (Nil) Z)
     ( ((Cons x xs)) (S (length xs))))
 
-(theorem length_map 
-    (forall ((l (list 'a)) (f (-> 'a 'b)))
-        (= (length l) (length (map l f)))))
+(fun map (-> (list 'a) (-> (-> 'a 'b) (list 'b)))
+    ( (Nil f) Nil)
+    ( ((Cons x xs) f) (Cons (f x) (map xs f))))
+
+(fun pairs (-> (list 'a) (list (pair 'a 'a)))
+    ( (Nil) Nil)
+    ( ((Cons x xs)) 
+            (append (map xs (fn (y 'a) (Pair x y))) (pairs xs))))
+
+(fun plus (-> nat (-> nat nat))
+    ( (Z n) n)
+    ( ((S m) n) (S (plus m n))))
+
+(theorem pairs_cons 
+    (forall ((l (list 'a)) (x 'a))
+        (= 
+            (length (pairs (Cons x l))) 
+            (plus 
+                (length l) 
+                (length (pairs l))))))
 
   |} in
   let ast = parse_string prg in
   let env = Elaborator.elaborate_with_env ast in
   (* print_endline @@ Tast.show_env env; *)
-  let goal = List.assoc "length_map" !the_goals in
+  let goal = List.assoc "pairs_cons" !the_goals in
 
-  print_endline @@ Printing.pretty_print_hol_term ~with_type:true goal;
+  (* print_endline @@ Printing.pretty_print_hol_term ~with_type:true goal; *)
 
   let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in
 
@@ -1065,8 +1151,17 @@ let%expect_test "more_list" =
   let app = fun t -> e (Apply t) in
 
   e (SetGoal ([], goal));
-  app (Induct l);
-  e ShowGoal;
 
-  [%expect {|
-    |}]
+  app (Induct l);
+  app Gen;
+  app (RewriteWith "length");
+  app (RewriteWith "plus");
+  app Beta;
+  app (RewriteWith "pairs");
+  app (RewriteWith "map");
+  app Beta;
+  app (RewriteWith "length");
+  app (RewriteWith "pairs");
+  app (RewriteWith "append");
+
+  e ShowGoal;

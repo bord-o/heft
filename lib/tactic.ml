@@ -32,6 +32,41 @@ exception Kernel_error of kernel_error
 
 let unwrap_result = function Ok x -> x | Error e -> failwith (show_kernel_error e)
 
+(** Collect type variable mappings needed to make pattern types match target types.
+    Returns a list of (target_type, TyVar name) pairs. *)
+let rec collect_type_subst pat_ty tgt_ty =
+  match pat_ty, tgt_ty with
+  | TyVar n, t -> [(t, TyVar n)]
+  | TyCon (n1, args1), TyCon (n2, args2) when n1 = n2 && List.length args1 = List.length args2 ->
+      List.concat (List.map2 collect_type_subst args1 args2)
+  | _ -> []
+
+(** Try to match a pattern term against a target term.
+    Returns Some (term_subst, type_subst) if successful, None otherwise.
+    The pattern may contain variables that get bound to subterms of target.
+    type_subst maps pattern type variables to target types. *)
+let rec term_match pattern target =
+  match pattern, target with
+  | Var (n1, ty1), Var (n2, ty2) when n1 = n2 ->
+      (* Same variable name, just collect type substitution *)
+      Some ([], collect_type_subst ty1 ty2)
+  | Var (_, _), _ ->
+      (* Pattern variable matches anything *)
+      Some ([(target, pattern)], [])
+  | Const (n1, ty1), Const (n2, ty2) when n1 = n2 ->
+      (* Constants match if names are same, collect type substitution *)
+      Some ([], collect_type_subst ty1 ty2)
+  | App (f1, x1), App (f2, x2) ->
+      (match term_match f1 f2 with
+       | None -> None
+       | Some (s1, ts1) ->
+           match term_match x1 x2 with
+           | None -> None
+           | Some (s2, ts2) -> Some (s1 @ s2, ts1 @ ts2))
+  | Lam (Var (n1, _), b1), Lam (Var (n2, _), b2) when n1 = n2 ->
+      term_match b1 b2
+  | _ -> None
+
 (* Example tactics *)
 let conj_tac (asms, concl) =
   let p, q = destruct_conj concl in
@@ -48,8 +83,21 @@ let refl_tac : tactic =
  fun (_asms, concl) ->
   match destruct_eq concl with
   | Ok (l, r) when alphaorder l r = 0 -> refl l |> Result.get_ok
-  | Ok _ -> failwith "REFL_TAC: sides of equality not identical"
-  | Error _ -> failwith "REFL_TAC: goal not an equalit"
+  | Ok (l, r) ->
+      (* Try polymorphic match - sides might differ only in types *)
+      (match term_match l r with
+       | Some (term_subst, _ty_subst) when term_subst = [] ->
+           (* Structurally identical, just type differences in subterms.
+              This shouldn't happen if rewriting preserves type consistency.
+              For now, fail clearly to help diagnose issues. *)
+           print_endline @@ Printing.pretty_print_hol_term ~with_type:true l;
+           print_endline @@ Printing.pretty_print_hol_term ~with_type:true r;
+           failwith "REFL_TAC: goal has inconsistent internal types (l and r differ in subterm types)"
+       | Some (term_subst, _) ->
+           failwith ("REFL_TAC: sides of equality not identical (term_subst has " ^ string_of_int (List.length term_subst) ^ " entries)")
+       | None ->
+           failwith "REFL_TAC: sides of equality not identical (no match)")
+  | Error _ -> failwith "REFL_TAC: goal not an equality"
 
 let left_tac : tactic =
  fun (asms, concl) ->
@@ -252,28 +300,6 @@ let rec extract_rewrite_rules thm =
       extract_rewrite_rules left_thm @ extract_rewrite_rules right_thm
   | exception _ -> [thm]
 
-(** Try to match a pattern term against a target term.
-    Returns Some substitution list if successful, None otherwise.
-    The pattern may contain variables that get bound to subterms of target. *)
-let rec term_match pattern target =
-  match pattern, target with
-  | Var (_, _), _ ->
-      (* Pattern variable matches anything *)
-      Some [(target, pattern)]
-  | Const (n1, _), Const (n2, _) when n1 = n2 ->
-      (* Constants match if names are same (types may differ due to polymorphism) *)
-      Some []
-  | App (f1, x1), App (f2, x2) ->
-      (match term_match f1 f2 with
-       | None -> None
-       | Some s1 ->
-           match term_match x1 x2 with
-           | None -> None
-           | Some s2 -> Some (s1 @ s2))
-  | Lam (Var (n1, _), b1), Lam (Var (n2, _), b2) when n1 = n2 ->
-      term_match b1 b2
-  | _ -> None
-
 (** Strip foralls from a theorem while matching against a target term.
     Returns the instantiated theorem and remaining LHS to match. *)
 let rec instantiate_foralls thm target =
@@ -295,22 +321,31 @@ let rec instantiate_foralls thm target =
            (* Try to match pattern against target to find instantiation for v *)
            match term_match pattern target with
            | None -> None
-           | Some subst ->
+           | Some (subst, ty_subst) ->
+               (* Apply type substitution to theorem first *)
+               let ty_tbl = Hashtbl.create (List.length ty_subst) in
+               List.iter (fun (tgt, src) -> Hashtbl.replace ty_tbl src tgt) ty_subst;
+               let thm' = inst_type ty_tbl thm |> unwrap_result in
                (* Find what v maps to in the substitution (v is already a term) *)
                match List.find_opt (fun (_, pat) -> alphaorder pat v = 0) subst with
                | Some (inst, _) ->
-                   let spec_thm = spec inst thm |> unwrap_result in
+                   let spec_thm = spec inst thm' |> unwrap_result in
                    instantiate_foralls spec_thm target
                | None ->
-                   (* v doesn't appear in pattern, just use v itself *)
-                   let spec_thm = spec v thm |> unwrap_result in
+                   (* v doesn't appear in pattern, just use v itself - also need type-instantiated v *)
+                   let v' = match v with
+                     | Var (name, ty) -> Var (name, type_substitution ty_tbl ty)
+                     | _ -> v
+                   in
+                   let spec_thm = spec v' thm' |> unwrap_result in
                    instantiate_foralls spec_thm target)
   | _ ->
       (* No more foralls, return the theorem *)
       Some thm
 
 (** Try to match any rule at this position.
-    Returns Some instantiated equality theorem if a rule matches, None otherwise. *)
+    Returns Some (instantiated equality theorem, type_subst) if a rule matches, None otherwise.
+    The type_subst is returned so callers can accumulate a global substitution. *)
 let try_match_rules rules tm =
   let rec try_rules = function
     | [] -> None
@@ -318,37 +353,86 @@ let try_match_rules rules tm =
         match instantiate_foralls rule tm with
         | Some inst_thm ->
             let l = lhs inst_thm |> unwrap_result in
-            if alphaorder tm l = 0 then Some inst_thm
-            else try_rules rest
+            (* Use term_match for type-polymorphic comparison and get type substitution *)
+            (match term_match l tm with
+             | Some (_term_subst, ty_subst) ->
+                 (* Convert list to hashtable and apply type substitution *)
+                 let ty_tbl = Hashtbl.create (List.length ty_subst) in
+                 List.iter (fun (tgt, src) -> Hashtbl.replace ty_tbl src tgt) ty_subst;
+                 let inst_thm' = inst_type ty_tbl inst_thm |> unwrap_result in
+                 Some (inst_thm', ty_subst)
+             | None -> try_rules rest)
         | None -> try_rules rest
   in
   try_rules rules
 
+(** Compare two hol_types for equality *)
+let rec ty_eq t1 t2 =
+  match t1, t2 with
+  | TyVar n1, TyVar n2 -> n1 = n2
+  | TyCon (n1, args1), TyCon (n2, args2) ->
+      n1 = n2 && List.length args1 = List.length args2
+      && List.for_all2 ty_eq args1 args2
+  | _ -> false
+
+(** Merge type substitution lists, preferring earlier bindings for the same var *)
+let merge_ty_subst s1 s2 =
+  let existing_vars = List.map snd s1 in
+  let new_bindings = List.filter (fun (_, v) -> not (List.exists (fun v' -> ty_eq v v') existing_vars)) s2 in
+  s1 @ new_bindings
+
+(** Apply a type substitution to a term *)
+let apply_ty_subst_to_term ty_subst tm =
+  if ty_subst = [] then tm
+  else
+    let ty_tbl = Hashtbl.create (List.length ty_subst) in
+    List.iter (fun (tgt, src) -> Hashtbl.replace ty_tbl src tgt) ty_subst;
+    let rec go = function
+      | Var (n, ty) -> Var (n, type_substitution ty_tbl ty)
+      | Const (n, ty) -> Const (n, type_substitution ty_tbl ty)
+      | App (f, x) -> App (go f, go x)
+      | Lam (v, body) -> Lam (go v, go body)
+    in
+    go tm
+
+(** Rewrite a term using a list of rewrite rules.
+    Returns (thm, changed, ty_subst) where:
+    - thm is |- tm = tm' with occurrences of l replaced by r
+    - changed indicates if any rewriting occurred
+    - ty_subst accumulates all type instantiations made during rewriting *)
+let rec rewrite_term_acc rules ty_subst tm =
+  (* Apply accumulated type substitution to term before matching *)
+  let tm' = apply_ty_subst_to_term ty_subst tm in
+  (* Try to match any rule at this position *)
+  match try_match_rules rules tm' with
+  | Some (eq_thm, new_ty_subst) ->
+      let combined_subst = merge_ty_subst ty_subst new_ty_subst in
+      (eq_thm, true, combined_subst)
+  | None ->
+      match tm' with
+      | Var _ | Const _ ->
+          (* No match, return reflexivity *)
+          (refl tm' |> unwrap_result, false, ty_subst)
+      | App (f, x) ->
+          let f_thm, f_changed, ty_subst' = rewrite_term_acc rules ty_subst f in
+          let x_thm, x_changed, ty_subst'' = rewrite_term_acc rules ty_subst' x in
+          if f_changed || x_changed then
+            (mk_comb f_thm x_thm |> unwrap_result, true, ty_subst'')
+          else
+            (refl tm' |> unwrap_result, false, ty_subst'')
+      | Lam (v, body) ->
+          let body_thm, changed, ty_subst' = rewrite_term_acc rules ty_subst body in
+          if changed then
+            (lam v body_thm |> unwrap_result, true, ty_subst')
+          else
+            (refl tm' |> unwrap_result, false, ty_subst')
+
 (** Rewrite a term using a list of rewrite rules.
     Returns |- tm = tm' where tm' has occurrences of l replaced by r,
     along with a boolean indicating if any rewriting occurred. *)
-let rec rewrite_term rules tm =
-  (* Try to match any rule at this position *)
-  match try_match_rules rules tm with
-  | Some eq_thm -> (eq_thm, true)
-  | None ->
-      match tm with
-      | Var _ | Const _ ->
-          (* No match, return reflexivity *)
-          (refl tm |> unwrap_result, false)
-      | App (f, x) ->
-          let f_thm, f_changed = rewrite_term rules f in
-          let x_thm, x_changed = rewrite_term rules x in
-          if f_changed || x_changed then
-            (mk_comb f_thm x_thm |> unwrap_result, true)
-          else
-            (refl tm |> unwrap_result, false)
-      | Lam (v, body) ->
-          let body_thm, changed = rewrite_term rules body in
-          if changed then
-            (lam v body_thm |> unwrap_result, true)
-          else
-            (refl tm |> unwrap_result, false)
+let rewrite_term rules tm =
+  let thm, changed, _ty_subst = rewrite_term_acc rules [] tm in
+  (thm, changed)
 
 (** Rewrite a term using all rewrite rules extracted from a theorem *)
 let rewrite_term_with_thm thm tm =
