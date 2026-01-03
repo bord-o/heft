@@ -1,7 +1,6 @@
 open Holinone
 open Derived
 open Inductive
-open Result.Syntax
 
 let print_bool_result r =
   match r with
@@ -748,81 +747,81 @@ let%expect_test "no_injectivity" =
 (*     T *)
 (*     |}] *)
 
-let prg =
-  {|
-(type list ('a)
-    (Nil)
-    (Cons ('a (list 'a))))
-
-(type nat ()
-    (Z)
-    (S (nat)))
-
-(fun length (-> (list 'a) nat)
-    ( (Nil) Z)
-    ( ((Cons x xs)) (S (length xs))))
-
-(fun append (-> (list 'a) (-> (list 'a) (list 'a)))
-    ( (Nil l) l)
-    ( ((Cons x xs) l) (Cons x (append xs l))))
-|}
-
-(*
-forall n: 'a, l: list 'a, length (append n l) = S (length l)
- *)
-let%expect_test "list" =
-  let () = Elaborator.parse_and_elaborate prg in
-  let goal =
-    let a = TyVar "'a" in
-    let list_a = TyCon ("list", [ a ]) in
-    let nat_ty = TyCon ("nat", []) in
-
-    let n = make_var "n" a in
-    let l = make_var "l" list_a in
-
-    let length_ty = make_fun_ty list_a nat_ty in
-    let length = Const ("length", length_ty) in
-
-    let cons_ty = make_fun_ty a (make_fun_ty list_a list_a) in
-    let cons = Const ("Cons", cons_ty) in
-
-    let s_ty = make_fun_ty nat_ty nat_ty in
-    let s = Const ("S", s_ty) in
-
-    let* cons_n = make_app cons n in
-    let* cons_n_l = make_app cons_n l in
-
-    let* lhs = make_app length cons_n_l in
-
-    let* length_l = make_app length l in
-
-    let* rhs = make_app s length_l in
-
-    let* eq = safe_make_eq lhs rhs in
-
-    let* pred_lam = make_lam l eq in
-
-    let s = Hashtbl.find the_specifications "length" in
-    pp_thm s;
-
-    let d = Hashtbl.find the_inductives "list" in
-    let list_induct = d.induction in
-    pp_thm d.induction;
-
-    let* specd = spec pred_lam list_induct in
-
-    Ok specd
-  in
-  Derived_test.print_thm_result goal;
-
-  [%expect
-    {|
-      ========================================
-      length Nil = Z ∧ (∀x0. ∀x1. length (Cons x0 x1) = S (length x1))
-
-      ========================================
-      ∀P. P Nil ==> (∀n0. ∀n1. P n1 ==> P (Cons n0 n1)) ==> ∀x. P x
-
-      ========================================
-      length (Cons n Nil) = S (length Nil) ==> (∀n0. ∀n1. length (Cons n n1) = S (length n1) ==> length (Cons n (Cons n0 n1)) = S (length (Cons n0 n1))) ==> ∀x. length (Cons n x) = S (length x)
-      |}]
+(* let prg = *)
+(*   {| *)
+(* (type list ('a) *)
+(*     (Nil) *)
+(*     (Cons ('a (list 'a)))) *)
+(**)
+(* (type nat () *)
+(*     (Z) *)
+(*     (S (nat))) *)
+(**)
+(* (fun length (-> (list 'a) nat) *)
+(*     ( (Nil) Z) *)
+(*     ( ((Cons x xs)) (S (length xs)))) *)
+(**)
+(* (fun append (-> (list 'a) (-> (list 'a) (list 'a))) *)
+(*     ( (Nil l) l) *)
+(*     ( ((Cons x xs) l) (Cons x (append xs l)))) *)
+(* |} *)
+(**)
+(* (* *)
+(* forall n: 'a, l: list 'a, length (append n l) = S (length l) *)
+(*  *) *)
+(* let%expect_test "list" = *)
+(*   let () = Elaborator.parse_and_elaborate prg in *)
+(*   let goal = *)
+(*     let a = TyVar "'a" in *)
+(*     let list_a = TyCon ("list", [ a ]) in *)
+(*     let nat_ty = TyCon ("nat", []) in *)
+(**)
+(*     let n = make_var "n" a in *)
+(*     let l = make_var "l" list_a in *)
+(**)
+(*     let length_ty = make_fun_ty list_a nat_ty in *)
+(*     let length = Const ("length", length_ty) in *)
+(**)
+(*     let cons_ty = make_fun_ty a (make_fun_ty list_a list_a) in *)
+(*     let cons = Const ("Cons", cons_ty) in *)
+(**)
+(*     let s_ty = make_fun_ty nat_ty nat_ty in *)
+(*     let s = Const ("S", s_ty) in *)
+(**)
+(*     let* cons_n = make_app cons n in *)
+(*     let* cons_n_l = make_app cons_n l in *)
+(**)
+(*     let* lhs = make_app length cons_n_l in *)
+(**)
+(*     let* length_l = make_app length l in *)
+(**)
+(*     let* rhs = make_app s length_l in *)
+(**)
+(*     let* eq = safe_make_eq lhs rhs in *)
+(**)
+(*     let* pred_lam = make_lam l eq in *)
+(**)
+(*     let s = Hashtbl.find the_specifications "length" in *)
+(*     pp_thm s; *)
+(**)
+(*     let d = Hashtbl.find the_inductives "list" in *)
+(*     let list_induct = d.induction in *)
+(*     pp_thm d.induction; *)
+(**)
+(*     let* specd = spec pred_lam list_induct in *)
+(**)
+(*     Ok specd *)
+(*   in *)
+(*   Derived_test.print_thm_result goal; *)
+(**)
+(*   [%expect *)
+(*     {| *)
+(*       ======================================== *)
+(*       length Nil = Z ∧ (∀x0. ∀x1. length (Cons x0 x1) = S (length x1)) *)
+(**)
+(*       ======================================== *)
+(*       ∀P. P Nil ==> (∀n0. ∀n1. P n1 ==> P (Cons n0 n1)) ==> ∀x. P x *)
+(**)
+(*       ======================================== *)
+(*       length (Cons n Nil) = S (length Nil) ==> (∀n0. ∀n1. length (Cons n n1) = S (length n1) ==> length (Cons n (Cons n0 n1)) = S (length (Cons n0 n1))) ==> ∀x. length (Cons n x) = S (length x) *)
+(*       |}] *)

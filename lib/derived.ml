@@ -5,7 +5,8 @@ open Util
 (** Replace all occurrences of [old_tm] with [new_tm] in [tm] *)
 let rec term_subst old_tm new_tm tm =
   if alphaorder tm old_tm = 0 then new_tm
-  else match tm with
+  else
+    match tm with
     | Var _ | Const _ -> tm
     | App (f, a) -> App (term_subst old_tm new_tm f, term_subst old_tm new_tm a)
     | Lam (v, body) -> Lam (v, term_subst old_tm new_tm body)

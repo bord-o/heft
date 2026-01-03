@@ -432,10 +432,10 @@ let mk_comb (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
           if compare ty tr2 = 0 then
             let* lr_eq = safe_make_eq (App (l1, l2)) (App (r1, r2)) in
             Ok (Sequent (term_union asl1 asl2, lr_eq))
-          else 
-              (print_endline @@ show_hol_type ty;
-              print_endline @@ show_hol_type tr2;
-              Error TypesDontAgree)
+          else (
+            print_endline @@ show_hol_type ty;
+            print_endline @@ show_hol_type tr2;
+            Error TypesDontAgree)
       | _ -> Error TypesDontAgree)
   | _ -> Error NotBothEquations
 
