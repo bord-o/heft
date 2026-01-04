@@ -13,7 +13,6 @@ type _ Effect.t +=
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
 
-let print_kerror e = print_endline @@ show_kernel_error e
 let fail () = perform Fail
 let trace_dbg a = perform (Trace (Debug, a))
 let trace_error a = perform (Trace (Error, a))
@@ -25,16 +24,17 @@ let return_thm = function
       fail ()
 
 let intro_tac (asms, concl) =
-    let thm =
-        let* hyp = side_of_op "==>" Left concl in
-        let* conc = side_of_op "==>" Right concl in
-        trace_dbg "destruct success";
+  let thm =
+    let* hyp = side_of_op "==>" Left concl in
+    let* conc = side_of_op "==>" Right concl in
+    trace_dbg "destruct success";
 
-        let body_thm = perform (Subgoal (hyp::asms, conc)) in
-        let t = disch hyp body_thm in
-        trace_dbg "disch success";
-        t
-    in return_thm thm
+    let body_thm = perform (Subgoal (hyp :: asms, conc)) in
+    let t = disch hyp body_thm in
+    trace_dbg "disch success";
+    t
+  in
+  return_thm thm
 
 let refl_tac (_asms, concl) =
   let thm =
@@ -51,18 +51,14 @@ let refl_tac (_asms, concl) =
   return_thm thm
 
 let assumption_tac (asms, concl) =
-  if List.mem concl asms then (
-    trace_dbg "Found matching assumption";
-    match assume concl with
-    | Ok thm ->
-        trace_dbg "Assumption succeeded";
-        thm
-    | Error e ->
-        trace_error (show_kernel_error e);
-        fail ())
-  else (
+  if not @@ List.mem concl asms then (
     trace_error "goal not in assumptions";
     fail ())
+  else (
+    trace_dbg "Found matching assumption";
+    let t = assume concl in
+    trace_dbg "Assumption succeeded";
+    return_thm t)
 
 let conj_tac : goal -> thm =
  fun (asms, concl) ->
@@ -77,11 +73,7 @@ let conj_tac : goal -> thm =
     trace_dbg "conj success";
     Ok thm
   in
-  match thm with
-  | Ok thm -> thm
-  | Error e ->
-      trace_error @@ print_error e;
-      fail ()
+  return_thm thm
 
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 
