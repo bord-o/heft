@@ -41,7 +41,7 @@ let%expect_test "basic" =
     let goal = make_conj a b in
 
     let next_tactic = next_tactic_of_list [conj_tac; assumption_tac; assumption_tac] in
-    (match prove ([a; b], goal) next_tactic with
+    (match prove ([b], goal) next_tactic with
         Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
         | Incomplete (_asms, g)-> 
                 print_endline "Proof Failed"; 
@@ -50,18 +50,9 @@ let%expect_test "basic" =
 
     [%expect {|
       Destruct succeeded
-      Found matching assumption
-      Assumption succeeded
-      left proved
-      Found matching assumption
-      Assumption succeeded
-      right proved
-      conj success
-      Proof Complete!
+      goal not in assumptions
+      Proof Failed
       A
-      B
-      ========================================
-      A ∧ B
       |}]
 
 let%expect_test "basic2" = 
@@ -104,4 +95,70 @@ let%expect_test "basic3" =
       Proof Complete!
       ========================================
       A ==> A
+      |}]
+
+let%expect_test "basic4" = 
+    let a = make_var "A" bool_ty in
+    let b = make_var "B" bool_ty in
+
+    let goal = make_disj a b  in
+
+    let next_tactic = next_tactic_of_list [left_tac; assumption_tac] in
+    (match prove ([a], goal) next_tactic with
+        Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
+        | Incomplete (_asms, g)-> 
+                print_endline "Proof Failed"; 
+                Printing.print_term g
+    );
+
+    [%expect {|
+      Found matching assumption
+      Assumption succeeded
+      disj_left success
+      Proof Complete!
+      A
+      ========================================
+      A ∨ B
+      |}]
+
+let%expect_test "basic4" = 
+    let a = make_var "A" bool_ty in
+    let b = make_var "B" bool_ty in
+
+    let goal = make_disj a b  in
+
+    let next_tactic = next_tactic_of_list [right_tac; assumption_tac] in
+    (match prove ([a], goal) next_tactic with
+        Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
+        | Incomplete (_asms, g)-> 
+                print_endline "Proof Failed"; 
+                Printing.print_term g
+    );
+
+    [%expect {|
+      goal not in assumptions
+      Proof Failed
+      B
+      |}]
+
+
+let%expect_test "basic5" = 
+    let a = make_var "A" bool_ty in
+    let b = make_var "B" bool_ty in
+    let c = make_var "C" bool_ty in
+
+    let imp_ab = make_imp a b in
+    let imp_abc = make_imp (make_imp c a) b in
+
+    let goal = b  in
+
+    let next_tactic = next_tactic_of_list [with_term_size_ranking apply_tac; assumption_tac] in
+    (match prove ([imp_abc; imp_ab;  a], goal) next_tactic with
+        Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
+        | Incomplete (_asms, g)-> 
+                print_endline "Proof Failed"; 
+                Printing.print_term g
+    );
+
+    [%expect {|
       |}]

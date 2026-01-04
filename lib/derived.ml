@@ -270,6 +270,10 @@ let destruct_conj = function
   | App (App (Const ("/\\", _), p), q) -> Ok (p, q)
   | _ -> Error `NotAConj
 
+let destruct_imp = function
+  | App (App (Const ("==>", _), p), q) -> Ok (p, q)
+  | _ -> Error `NotAnImp
+
 let destruct_disj = function
   | App (App (Const ("\\/", _), p), q) -> Ok (p, q)
   | _ -> Error `NotADisj
