@@ -1,18 +1,54 @@
 open Kernel
 open Derived
+open Printing
 open Effect
 open Effect.Deep
+open Result.Syntax
 
 type goal = term list * term [@@deriving show]
 type level = Debug | Info | Warn | Error
-type _ Effect.t += Subgoal : goal -> thm Effect.t
-type _ Effect.t += Fail : 'a Effect.t
-type _ Effect.t += Trace : (level * string) -> unit Effect.t
+
+type _ Effect.t +=
+  | Subgoal : goal -> thm Effect.t
+  | Fail : 'a Effect.t
+  | Trace : (level * string) -> unit Effect.t
 
 let print_kerror e = print_endline @@ show_kernel_error e
 let fail () = perform Fail
 let trace_dbg a = perform (Trace (Debug, a))
 let trace_error a = perform (Trace (Error, a))
+
+let return_thm = function
+  | Ok thm -> thm
+  | Error e ->
+      trace_error @@ print_error e;
+      fail ()
+
+let intro_tac (asms, concl) =
+    let thm =
+        let* hyp = side_of_op "==>" Left concl in
+        let* conc = side_of_op "==>" Right concl in
+        trace_dbg "destruct success";
+
+        let body_thm = perform (Subgoal (hyp::asms, conc)) in
+        let t = disch hyp body_thm in
+        trace_dbg "disch success";
+        t
+    in return_thm thm
+
+let refl_tac (_asms, concl) =
+  let thm =
+    let* l, r = destruct_eq concl in
+    trace_dbg "destruct success";
+    if l = r then (
+      let t = refl l in
+      trace_dbg "refl success";
+      t)
+    else (
+      trace_error "refl failure: left and right not eq";
+      fail ())
+  in
+  return_thm thm
 
 let assumption_tac (asms, concl) =
   if List.mem concl asms then (
@@ -24,27 +60,28 @@ let assumption_tac (asms, concl) =
     | Error e ->
         trace_error (show_kernel_error e);
         fail ())
-  else (trace_error "goal not in assumptions"; fail ())
+  else (
+    trace_error "goal not in assumptions";
+    fail ())
 
 let conj_tac : goal -> thm =
  fun (asms, concl) ->
-  try
-    let l, r = destruct_conj concl in
+  let thm =
+    let* l, r = destruct_conj concl in
     trace_dbg "Destruct succeeded";
     let lthm = perform (Subgoal (asms, l)) in
     trace_dbg "left proved";
     let rthm = perform (Subgoal (asms, r)) in
     trace_dbg "right proved";
-    match conj lthm rthm with
-    | Ok thm ->
-        trace_dbg "conj success";
-        thm
-    | Error e ->
-        trace_error (show_kernel_error e);
-        fail ()
-  with _ ->
-    trace_error "failed to destruct";
-    fail ()
+    let* thm = conj lthm rthm in
+    trace_dbg "conj success";
+    Ok thm
+  in
+  match thm with
+  | Ok thm -> thm
+  | Error e ->
+      trace_error @@ print_error e;
+      fail ()
 
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 
@@ -53,7 +90,9 @@ let rec prove g next_tactic =
   | None -> Incomplete g
   | Some tactic -> (
       match tactic g with
-      | effect (Trace (_, v)), k -> print_endline v; continue k ()
+      | effect Trace (_, v), k ->
+          print_endline v;
+          continue k ()
       | effect Fail, _k -> Incomplete g
       | effect Subgoal g', k -> (
           match prove g' next_tactic with

@@ -19,7 +19,7 @@ let rec mentions_type tyname ty =
 let is_base_case tyname c = not (List.exists (mentions_type tyname) c.arg_types)
 
 let check_base_case tyname constructors =
-  Ok (List.exists (is_base_case tyname) constructors)
+  List.exists (is_base_case tyname) constructors
 
 let make_constructor_type arg_types result_type =
   List.fold_right
@@ -34,13 +34,10 @@ let rec appears_left_of_arrow tyname ty =
   | TyCon (_, args) -> List.exists (appears_left_of_arrow tyname) args
 
 let check_positivity tyname constructors =
-  let ok =
-    constructors
-    |> List.for_all (fun c ->
-        c.arg_types
-        |> List.for_all (fun ty -> not (appears_left_of_arrow tyname ty)))
-  in
-  Ok ok
+  constructors
+  |> List.for_all (fun c ->
+      c.arg_types
+      |> List.for_all (fun ty -> not (appears_left_of_arrow tyname ty)))
 
 (* forall P. P base_constructor -> (forall n.  P n -> P other_constructor n) -> (forall n. P n)*)
 let make_induction_thm (ty : hol_type) (constructors : constructor_spec list) =
@@ -307,7 +304,7 @@ let make_injective_thms (ty : hol_type) (constructors : constructor_spec list) =
 let define_inductive tyname params (constructors : constructor_spec list) =
   let* () =
     match Hashtbl.find_opt the_type_constants tyname with
-    | Some _ -> Error TypeAlreadyExists
+    | Some _ -> Error `TypeAlreadyExists
     | None -> Ok ()
   in
 
@@ -319,14 +316,14 @@ let define_inductive tyname params (constructors : constructor_spec list) =
     in
     match not_fresh with
     | [] -> Ok ()
-    | _names -> Error ConstructorsAlreadyExist
+    | _names -> Error `ConstructorsAlreadyExist
   in
 
-  let* positive = check_positivity tyname constructors in
-  let* () = if not positive then Error NotPositive else Ok () in
+  let positive = check_positivity tyname constructors in
+  let* () = if not positive then Error `NotPositive else Ok () in
 
-  let* base_case_exists = check_base_case tyname constructors in
-  let* () = if not base_case_exists then Error NoBaseCase else Ok () in
+  let base_case_exists = check_base_case tyname constructors in
+  let* () = if not base_case_exists then Error `NoBaseCase else Ok () in
 
   let* () = new_type tyname (List.length params) in
   let ty_params = List.map (fun p -> TyVar p) params in
@@ -381,7 +378,7 @@ let pp_term trm =
 
 let new_specification name ex_thm =
   let concl_tm = concl ex_thm in
-  let exists_var, body = destruct_exists concl_tm in
+  let* exists_var, body = destruct_exists concl_tm in
   let var_type = type_of_var exists_var in
   let* () = new_constant name var_type in
   let new_const = Const (name, var_type) in
@@ -419,7 +416,8 @@ let find_recursed_inductive_type branches =
   let rec search = function
     | [] ->
         Error
-          (InvariantViolation "Could not determine inductive type from branches")
+          (`InvariantViolation
+             "Could not determine inductive type from branches")
     | branch :: rest -> (
         match find_inductive_type_in_term branch with
         | Some result -> Ok result

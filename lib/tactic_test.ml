@@ -3,7 +3,6 @@ open Kernel
 open Derived
 open Tactic
 
-let%expect_test "basic" = 
     (* let nat_def = *)
     (*   let nat_ty = TyCon ("nat", []) in *)
     (*   define_inductive "nat" [] *)
@@ -36,6 +35,7 @@ let%expect_test "basic" =
     (**)
     (*   let return_type = make_fun_ty nat_ty nat_ty in *)
     (*   define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ] in *)
+let%expect_test "basic" = 
     let a = make_var "A" bool_ty in
     let b = make_var "B" bool_ty in
     let goal = make_conj a b in
@@ -62,4 +62,46 @@ let%expect_test "basic" =
       B
       ========================================
       A ∧ B
+      |}]
+
+let%expect_test "basic2" = 
+    let a = make_var "A" bool_ty in
+    let goal = safe_make_eq a a |> Result.get_ok in
+
+    let next_tactic = next_tactic_of_list [refl_tac] in
+    (match prove ([], goal) next_tactic with
+        Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
+        | Incomplete (_asms, g)-> 
+                print_endline "Proof Failed"; 
+                Printing.print_term g
+    );
+
+    [%expect {|
+      destruct success
+      refl success
+      Proof Complete!
+      ========================================
+      A = A
+      |}]
+
+let%expect_test "basic3" = 
+    let a = make_var "A" bool_ty in
+    let goal = make_imp a a  in
+
+    let next_tactic = next_tactic_of_list [intro_tac; assumption_tac] in
+    (match prove ([], goal) next_tactic with
+        Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
+        | Incomplete (_asms, g)-> 
+                print_endline "Proof Failed"; 
+                Printing.print_term g
+    );
+
+    [%expect {|
+      destruct success
+      Found matching assumption
+      Assumption succeeded
+      disch success
+      Proof Complete!
+      ========================================
+      A ==> A
       |}]

@@ -2,10 +2,7 @@ open Holinone
 open Derived
 open Inductive
 
-let print_bool_result r =
-  match r with
-  | Ok b -> print_endline (string_of_bool b)
-  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+let print_bool_result b = print_endline (string_of_bool b)
 
 let print_induction_thm def =
   match def with
@@ -283,7 +280,7 @@ let%expect_test "reject_non_positive" =
   in
   let result = define_inductive "bad" [] constructors in
   (match result with
-  | Error NotPositive -> print_endline "Correctly rejected non-positive"
+  | Error `NotPositive -> print_endline "Correctly rejected non-positive"
   | Error e -> print_endline ("Wrong error: " ^ show_kernel_error e)
   | Ok _ -> print_endline "ERROR: Should have been rejected!");
   [%expect {| Correctly rejected non-positive |}]
@@ -295,7 +292,7 @@ let%expect_test "reject_no_base_case" =
   let constructors = [ { name = "Loop"; arg_types = [ loop_ty ] } ] in
   let result = define_inductive "loop" [] constructors in
   (match result with
-  | Error NoBaseCase -> print_endline "Correctly rejected no base case"
+  | Error `NoBaseCase -> print_endline "Correctly rejected no base case"
   | Error e -> print_endline ("Wrong error: " ^ show_kernel_error e)
   | Ok _ -> print_endline "ERROR: Should have been rejected!");
   [%expect {| Correctly rejected no base case |}]

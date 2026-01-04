@@ -14,18 +14,20 @@ let z = Var ("z", bool_ty)
 let axiom_for_test tm = Result.get_ok (new_axiom tm)
 let print_types = ref false
 
-let print_thm_result =
+let print_thm_result r =
   Format.pp_print_result
     ~ok:(fun fmt thm ->
       Format.pp_print_string fmt (pretty_print_thm ~with_type:!print_types thm))
-    ~error:pp_kernel_error Format.std_formatter
+    ~error:(fun _f e -> print_endline @@ Printing.print_error e)
+    Format.std_formatter r
 
-let print_term_result =
+let print_term_result r =
   Format.pp_print_result
     ~ok:(fun fmt term ->
       Format.pp_print_string fmt
         (pretty_print_hol_term ~with_type:!print_types term))
-    ~error:pp_kernel_error Format.std_formatter
+    ~error:(fun _f e -> print_endline @@ Printing.print_error e)
+    Format.std_formatter r
 
 let%expect_test "beta_conv_simple" =
   let () = reset () |> Result.get_ok in

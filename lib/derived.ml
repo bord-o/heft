@@ -11,10 +11,8 @@ let rec term_subst old_tm new_tm tm =
     | App (f, a) -> App (term_subst old_tm new_tm f, term_subst old_tm new_tm a)
     | Lam (v, body) -> Lam (v, term_subst old_tm new_tm body)
 
-let make_exn (thm : (thm, kernel_error) result) =
-  thm
-  |> Result.map_error (fun e -> show_kernel_error e)
-  |> Result.error_to_failure
+let make_exn thm =
+  thm |> Result.map_error (fun _e -> "Todo") |> Result.error_to_failure
 
 (**)
 (* initialization *)
@@ -269,35 +267,35 @@ let classical_def = init_classical ()
 let choice_def = init_choice ()
 
 let destruct_conj = function
-  | App (App (Const ("/\\", _), p), q) -> (p, q)
-  | _ -> failwith "not a conjunction"
+  | App (App (Const ("/\\", _), p), q) -> Ok (p, q)
+  | _ -> Error `NotAConj
 
 let destruct_disj = function
-  | App (App (Const ("\\/", _), p), q) -> (p, q)
-  | _ -> failwith "not a disjunction"
+  | App (App (Const ("\\/", _), p), q) -> Ok (p, q)
+  | _ -> Error `NotADisj
 
 let destruct_exists = function
-  | App (Const ("?", _), Lam (bind, bod)) -> (bind, bod)
-  | _ -> failwith "todo"
+  | App (Const ("?", _), Lam (bind, bod)) -> Ok (bind, bod)
+  | _ -> Error `NotAnExists
 
 let term_of_negation = function
-  | App (Const ("~", _), t) -> t
-  | _ -> failwith "todo"
+  | App (Const ("~", _), t) -> Ok t
+  | _ -> Error `NotANegation
 
 let quantifier_of_forall = function
-  | App (Const ("!", _), Lam (bind, _)) -> bind
-  | _ -> failwith "todo"
+  | App (Const ("!", _), Lam (bind, _)) -> Ok bind
+  | _ -> Error `NotAForall
 
 let body_of_forall = function
-  | App (Const ("!", _), Lam (_, bod)) -> bod
-  | _ -> failwith "todo"
+  | App (Const ("!", _), Lam (_, bod)) -> Ok bod
+  | _ -> Error `NotAForall
 
 type side = Left | Right
 
 let side_of_op op side = function
   | App (App (Const (oper, _), p), q) when oper = op -> (
-      match side with Left -> p | Right -> q)
-  | _ -> failwith ("TODO: Not a " ^ op)
+      match side with Left -> Ok p | Right -> Ok q)
+  | _ -> Error (`OperationDoesntMatch op)
 
 (** obtain [p] from [p /\ q]*)
 let conj_left_term = Left |> side_of_op "/\\"
@@ -455,8 +453,8 @@ let conj thl thr =
   eq_mp conj_applied body
 
 let conj_lr selector th =
-  let thl = conj_left_term (concl th) in
-  let thr = conj_right_term (concl th) in
+  let* thl = conj_left_term (concl th) in
+  let* thr = conj_right_term (concl th) in
   let* conj_def = conj_def in
   let* unfolded_conj = unfold_definition conj_def [ thl; thr ] in
   let* rev_unfolded_conj = sym unfolded_conj in
@@ -491,8 +489,8 @@ let conj_right th =
 
 (** [|- p => q] should derive [{p} |- q]*)
 let undisch th =
-  let l_tm = imp_left_term (concl th) in
-  let r_tm = imp_right_term (concl th) in
+  let* l_tm = imp_left_term (concl th) in
+  let* r_tm = imp_right_term (concl th) in
   let* assm_l = assume l_tm in
 
   let* imp_def = imp_def in
@@ -549,7 +547,7 @@ let gens tms th = fold_left_result (fun acc a -> gen a acc) th tms
 (** [|- ∀x. x = x] should derive [|- t = t] for any term t *)
 let spec tm th =
   let* forall_def = forall_def in
-  let quant_over = quantifier_of_forall (concl th) in
+  let* quant_over = quantifier_of_forall (concl th) in
   let quant_typ = type_of_var quant_over in
   let* typed_forall =
     inst_type
@@ -606,8 +604,8 @@ let disj_right th tm =
 (** [⊢ P ∨ Q], [{P} ⊢ R], [{Q} ⊢ R] should derive [⊢ R] *)
 let disj_cases pq_th pr_th qr_th =
   let* disj_def = disj_def in
-  let p = disj_left_term (concl pq_th) in
-  let q = disj_right_term (concl pq_th) in
+  let* p = disj_left_term (concl pq_th) in
+  let* q = disj_right_term (concl pq_th) in
 
   let* applied = unfold_definition disj_def [ p; q ] in
   let* applied_rev = sym applied in
@@ -623,7 +621,7 @@ let disj_cases pq_th pr_th qr_th =
 (** [⊢ ¬P] should derive [{P} ⊢ F] *)
 let not_elim th =
   let* neg_def = neg_def in
-  let negated_term = term_of_negation (concl th) in
+  let* negated_term = term_of_negation (concl th) in
 
   let* applied = unfold_definition neg_def [ negated_term ] in
   let* applied_rev = sym applied in
@@ -679,7 +677,7 @@ let exists x tm th =
   let* applied_normal = conv_equality deep_beta applied in
 
   let* l = lhs applied_normal in
-  let inner_forall = term_of_negation l in
+  let* inner_forall = term_of_negation l in
 
   let* assm_forall = assume inner_forall in
   let* speccd = spec tm assm_forall in
@@ -735,7 +733,7 @@ let choose x exists_th q_th =
 (** [|- ~ (x = y)] should derive [|- ~(y = x)] *)
 let neg_sym th =
   let tm = concl th in
-  let ntm = term_of_negation tm in
+  let* ntm = term_of_negation tm in
   let* l, r = destruct_eq ntm in
   let* r_eq_l = safe_make_eq r l in
   let* assm = assume r_eq_l in
