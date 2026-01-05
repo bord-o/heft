@@ -17,6 +17,7 @@ depends: [
   "ppx_expect"
   "sexplib"
   "utop"
+  "multicont"
   "odoc" {with-doc}
 ]
 build: [

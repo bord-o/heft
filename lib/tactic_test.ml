@@ -152,7 +152,7 @@ let%expect_test "basic5" =
 
     let goal = b  in
 
-    let next_tactic = next_tactic_of_list [with_term_size_ranking apply_tac; assumption_tac] in
+    let next_tactic = next_tactic_of_list [with_first_success_choice apply_tac; assumption_tac] in
     (match prove ([imp_abc; imp_ab;  a], goal) next_tactic with
         Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
         | Incomplete (_asms, g)-> 
@@ -161,4 +161,16 @@ let%expect_test "basic5" =
     );
 
     [%expect {|
+      assume chosen h success
+      goal not in assumptions
+      Couldn't complete goal C ==> A with current choice, retrying with another option
+      assume chosen h success
+      Found matching assumption
+      Assumption succeeded
+      mp success
+      Proof Complete!
+      A
+      A ==> B
+      ========================================
+      B
       |}]

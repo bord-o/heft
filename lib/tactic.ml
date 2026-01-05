@@ -14,6 +14,7 @@ type _ Effect.t +=
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Rank : term list -> term list Effect.t
+  | TacticQueue : (goal -> thm) Queue.t Effect.t
 
 let fail () = perform Fail
 let trace_dbg a = perform (Trace (Debug, a))
@@ -125,11 +126,21 @@ let conj_tac : goal -> thm =
 
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 
-let rec prove g next_tactic =
-  match next_tactic () with
-  | None -> Incomplete g
+(* 
+   As a general rule, custom handlers should handle the least amount of 
+   effects possible. The main handler captures all effects, but implements only basic
+   interpretations of them.
+*)
+let rec prove g tactic_queue =
+  match Queue.take_opt tactic_queue with
+  | None -> 
+          trace_error "Out of tactics";
+          Incomplete g
   | Some tactic -> (
       match tactic g with
+      (* TacticQueue gives the current tactics waiting to be applied *)
+      | effect TacticQueue, k -> 
+              continue k tactic_queue
       (* Trace is a unified interface for logs and errors *)
       | effect Trace (_, v), k ->
           print_endline v;
@@ -147,7 +158,7 @@ let rec prove g next_tactic =
           | c :: _ -> continue k c)
       (* Subgoal is used for branching the proof state *)
       | effect Subgoal g', k -> (
-          match prove g' next_tactic with
+          match prove g' tactic_queue with
           | Complete thm -> continue k thm
           | incomplete -> incomplete)
       (* When a proof is complete we extract the theorem *)
@@ -155,7 +166,33 @@ let rec prove g next_tactic =
 
 let next_tactic_of_list l =
   let q = Queue.of_seq (List.to_seq l) in
-  fun () -> Queue.take_opt q
+  q
+
+(* Here we need to handle general failure and incomplete subgoals. *)
+let with_first_success_choice tac =
+ fun goal ->
+  match tac goal with
+  | effect Choose choices, k ->
+      let r = Multicont.Deep.promote k in
+      let q = perform TacticQueue in
+
+      let rec try_each = function
+        | [] ->
+            trace_error "no choices available";
+            fail ()
+        | c :: cs -> (
+            match Multicont.Deep.resume r c with
+            | effect Fail, _ -> try_each cs
+            | effect Subgoal g', k' ->
+              (match prove g' (Queue.copy q) with
+              | Complete thm -> continue k' thm
+              | Incomplete (_, conc) -> 
+                      trace_dbg (Format.sprintf "Couldn't complete goal %s with current choice, retrying with another option" (pretty_print_hol_term conc));
+                      try_each cs)
+            | thm -> thm)
+      in
+      try_each choices
+  | v -> v
 
 let with_term_size_ranking tac =
   let rec term_size (t : term) =
