@@ -42,8 +42,11 @@ let%expect_test "basic" =
 
   let next_tactic =
     next_tactic_of_list
-    @@ wrap_all with_first_success_choice
-         [ conj_tac; assumption_tac; assumption_tac ]
+      [
+        conj_tac;
+        with_first_success_choice assumption_tac;
+        with_first_success_choice assumption_tac;
+      ]
   in
   (match prove ([ a; b ], goal) next_tactic with
   | Complete thm ->
@@ -53,7 +56,8 @@ let%expect_test "basic" =
       print_endline "Proof Failed";
       Printing.print_term g);
 
-  [%expect {|
+  [%expect
+    {|
     Destruct succeeded
     0: A
     1: B
@@ -143,7 +147,7 @@ let%expect_test "basic4" =
       A ∨ B
       |}]
 
-let%expect_test "basic4" =
+let%expect_test "basic5" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
 
@@ -173,7 +177,7 @@ let%expect_test "basic4" =
     A ∨ B
     |}]
 
-let%expect_test "basic5" =
+let%expect_test "basic6" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let c = make_var "C" bool_ty in
