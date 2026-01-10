@@ -115,8 +115,9 @@ let refl_tac (_asms, concl) =
   return_thm thm
 
 let assumption_tac (asms, concl) =
-  if not @@ List.mem concl asms then (
-    trace_error "goal not in assumptions";
+  let asm = perform (Choose asms) in
+  if concl <> asm then (
+    trace_error "assumption doesn't match the goal";
     fail ())
   else (
     trace_dbg "Found matching assumption";
@@ -152,7 +153,7 @@ type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 let rec prove g tactic_queue =
   match Queue.take_opt tactic_queue with
   | None ->
-      trace_error "Out of tactics";
+      print_endline "Out of tactics";
       Incomplete g
   | Some tactic -> (
       match tactic g with
@@ -160,7 +161,7 @@ let rec prove g tactic_queue =
       | effect TacticQueue, k -> continue k tactic_queue
       (* Trace is a unified interface for logs and errors *)
       | effect Trace (_, v), k ->
-              print_endline v;
+          print_endline v;
           continue k ()
       (* Rank is used to sort terms by an undetermined heuristic *)
       | effect Rank terms, k -> continue k terms
