@@ -41,7 +41,7 @@ let%expect_test "basic" =
     let goal = make_conj a b in
 
     let next_tactic = next_tactic_of_list [conj_tac; assumption_tac; assumption_tac] in
-    (match prove ([b], goal) next_tactic with
+    (match prove ([a; b], goal) next_tactic with
         Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
         | Incomplete (_asms, g)-> 
                 print_endline "Proof Failed"; 
@@ -50,9 +50,19 @@ let%expect_test "basic" =
 
     [%expect {|
       Destruct succeeded
-      goal not in assumptions
-      Proof Failed
+      0: A
+      1: B
+      Found matching assumption
+      Assumption succeeded
+      0: B
+      Found matching assumption
+      Assumption succeeded
+      conj success
+      Proof Complete!
       A
+      B
+      ========================================
+      A ∧ B
       |}]
 
 let%expect_test "basic2" = 
@@ -128,7 +138,7 @@ let%expect_test "basic4" =
     let goal = make_disj a b  in
 
     let next_tactic = next_tactic_of_list [right_tac; assumption_tac] in
-    (match prove ([a], goal) next_tactic with
+    (match prove ([a; b], goal) next_tactic with
         Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
         | Incomplete (_asms, g)-> 
                 print_endline "Proof Failed"; 
@@ -136,9 +146,13 @@ let%expect_test "basic4" =
     );
 
     [%expect {|
-      goal not in assumptions
-      Proof Failed
+      Found matching assumption
+      Assumption succeeded
+      disj_right success
+      Proof Complete!
       B
+      ========================================
+      A ∨ B
       |}]
 
 

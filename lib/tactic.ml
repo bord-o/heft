@@ -11,13 +11,14 @@ type level = Debug | Info | Warn | Error
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
   | Choose : 'a list -> 'a Effect.t
+  | Rank : term list -> term list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
-  | Rank : term list -> term list Effect.t
   | TacticQueue : (goal -> thm) Queue.t Effect.t
 
 let fail () = perform Fail
 let trace_dbg a = perform (Trace (Debug, a))
+let trace_info a = perform (Trace (Info, a))
 let trace_error a = perform (Trace (Error, a))
 
 let return_thm = function
@@ -25,6 +26,20 @@ let return_thm = function
   | Error e ->
       trace_error @@ print_error e;
       fail ()
+
+let rec choose_subgoals acc = function
+  | [] -> List.rev acc
+  | goals ->
+      (goals
+      |> List.iteri @@ fun idx g ->
+         trace_info (string_of_int idx ^ ": " ^ pretty_print_hol_term (snd g));
+         ());
+      let chosen = perform (Choose goals) in
+      let thm = perform (Subgoal chosen) in
+      let rest = List.filter (( <> ) chosen) goals in
+      choose_subgoals ((chosen, thm) :: acc) rest
+
+let wrap_all handler = List.map @@ fun t -> handler t
 
 let left_tac (asms, concl) =
   let thm =
@@ -114,11 +129,14 @@ let conj_tac : goal -> thm =
   let thm =
     let* l, r = destruct_conj concl in
     trace_dbg "Destruct succeeded";
-    let lthm = perform (Subgoal (asms, l)) in
-    trace_dbg "left proved";
-    let rthm = perform (Subgoal (asms, r)) in
-    trace_dbg "right proved";
+
+    let goals = [ (asms, l); (asms, r) ] in
+    let solved = choose_subgoals [] goals in
+    let lthm = solved |> List.assoc (asms, l) in
+    let rthm = solved |> List.assoc (asms, r) in
+
     let* thm = conj lthm rthm in
+
     trace_dbg "conj success";
     Ok thm
   in
@@ -133,17 +151,16 @@ type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 *)
 let rec prove g tactic_queue =
   match Queue.take_opt tactic_queue with
-  | None -> 
-          trace_error "Out of tactics";
-          Incomplete g
+  | None ->
+      trace_error "Out of tactics";
+      Incomplete g
   | Some tactic -> (
       match tactic g with
       (* TacticQueue gives the current tactics waiting to be applied *)
-      | effect TacticQueue, k -> 
-              continue k tactic_queue
+      | effect TacticQueue, k -> continue k tactic_queue
       (* Trace is a unified interface for logs and errors *)
       | effect Trace (_, v), k ->
-          print_endline v;
+              print_endline v;
           continue k ()
       (* Rank is used to sort terms by an undetermined heuristic *)
       | effect Rank terms, k -> continue k terms
@@ -183,15 +200,39 @@ let with_first_success_choice tac =
         | c :: cs -> (
             match Multicont.Deep.resume r c with
             | effect Fail, _ -> try_each cs
-            | effect Subgoal g', k' ->
-              (match prove g' (Queue.copy q) with
-              | Complete thm -> continue k' thm
-              | Incomplete (_, conc) -> 
-                      trace_dbg (Format.sprintf "Couldn't complete goal %s with current choice, retrying with another option" (pretty_print_hol_term conc));
-                      try_each cs)
+            | effect Subgoal g', k' -> (
+                match prove g' (Queue.copy q) with
+                | Complete thm -> continue k' thm
+                | Incomplete (_, conc) ->
+                    trace_dbg
+                      (Format.sprintf
+                         "Couldn't complete goal %s with current choice, \
+                          retrying with another option"
+                         (pretty_print_hol_term conc));
+                    try_each cs)
             | thm -> thm)
       in
       try_each choices
+  | v -> v
+
+let with_interactive_choice tac =
+ fun goal ->
+  match tac goal with
+  | effect Trace (_, s), k ->
+      print_endline s;
+      continue k ()
+  | effect Choose choices, k ->
+      if List.is_empty choices then fail ()
+      else
+        let rec get_choice cs =
+          let idx = read_int () in
+          match List.nth_opt cs idx with
+          | Some c -> c
+          | None ->
+              print_endline "Invalid choice";
+              get_choice cs
+        in
+        continue k (get_choice choices)
   | v -> v
 
 let with_term_size_ranking tac =
