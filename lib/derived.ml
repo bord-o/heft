@@ -286,6 +286,10 @@ let term_of_negation = function
   | App (Const ("~", _), t) -> Ok t
   | _ -> Error `NotANegation
 
+let destruct_forall = function
+  | App (Const ("!", _), Lam (bind, bod)) -> Ok (bind, bod)
+  | _ -> Error `NotAForall
+
 let quantifier_of_forall = function
   | App (Const ("!", _), Lam (bind, _)) -> Ok bind
   | _ -> Error `NotAForall

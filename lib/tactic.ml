@@ -7,6 +7,7 @@ open Result.Syntax
 
 type goal = term list * term [@@deriving show]
 type level = Debug | Info | Warn | Error
+type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
@@ -89,6 +90,8 @@ let apply_tac (asms, concl) =
 
 let intro_tac (asms, concl) =
   let thm =
+      print_endline "intro try";
+      print_term concl;
     let* hyp = side_of_op "==>" Left concl in
     let* conc = side_of_op "==>" Right concl in
     trace_dbg "destruct success";
@@ -143,7 +146,66 @@ let conj_tac : goal -> thm =
   in
   return_thm thm
 
-type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
+let contr_tac : goal -> thm =
+ fun (asms, concl) ->
+  let thm =
+    let false_tm = make_false () in
+    let fthm = perform (Subgoal (asms, false_tm)) in
+    let* thm = contr concl fthm in
+    Ok thm
+  in
+  return_thm thm
+
+let gen_tac : goal -> thm =
+ fun (asms, concl) ->
+  let thm =
+    let* x, body = destruct_forall concl in
+    let body_thm = perform (Subgoal (asms, body)) in
+    let* thm = gen x body_thm in
+    Ok thm
+  in
+  return_thm thm
+
+(* 
+   need to fetch the appropriate induction definition of the type we are 
+   inducting on (the general var)
+ *)
+let induct_tac : goal -> thm =
+ fun (asms, concl) ->
+  let thm =
+    let* induction_var, bod = destruct_forall concl in
+    let* ty = type_of_term induction_var in
+    let* ty_name, _ = destruct_type ty in
+
+    let inductive_def =
+      match Hashtbl.find_opt the_inductives ty_name with
+      | None ->
+          trace_error "quantified type is not an inductive";
+          fail ()
+      | Some d -> d
+    in
+
+    let binder = make_var "pred_binder" ty in
+    let* p = make_lam binder bod in
+
+    let* inst_induction = spec p inductive_def.induction in
+    (* print_endline @@ pretty_print_thm ~with_type:true inductive_def.induction; *)
+
+    (*TODO this all needs to be a loop to account for multiple cases*)
+    let* base_case, rest = destruct_imp (Kernel.concl inst_induction) in
+    let* inductive_case, _= destruct_imp rest in
+    let thms =
+      choose_subgoals [] [ (asms, base_case); (asms, inductive_case) ]
+    in
+    let base_thm = thms |> List.assoc (asms, base_case) in
+    let ind_thm = thms |> List.assoc (asms, inductive_case) in
+
+    let* base_sat = mp inst_induction base_thm in
+    let* thm = mp base_sat ind_thm in
+
+    Ok thm
+  in
+  return_thm thm
 
 (* 
    As a general rule, custom handlers should handle the least amount of 
@@ -171,8 +233,8 @@ let rec prove g tactic_queue =
       | effect Choose choices, k -> (
           match choices with
           | [] ->
-              trace_error "no choices available";
-              fail ()
+              print_endline "no choices available";
+              Incomplete g
           | c :: _ -> continue k c)
       (* Subgoal is used for branching the proof state *)
       | effect Subgoal g', k -> (
@@ -202,6 +264,7 @@ let with_first_success_choice tac =
             match Multicont.Deep.resume r c with
             | effect Fail, _ -> try_each cs
             | effect Subgoal g', k' -> (
+                let nq = Queue.copy q in
                 match prove g' (Queue.copy q) with
                 | Complete thm -> continue k' thm
                 | Incomplete (_, conc) ->

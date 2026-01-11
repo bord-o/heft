@@ -1,5 +1,6 @@
 open Kernel
 open Derived
+open Inductive
 open Tactic
 
 (* let nat_def = *)
@@ -218,4 +219,119 @@ let%expect_test "basic6" =
     A ==> B
     ========================================
     B
+    |}]
+
+let%expect_test "basic7" =
+  let a = make_var "A" bool_ty in
+
+  let goal = a in
+
+  let next_tactic = next_tactic_of_list [ contr_tac; assumption_tac ] in
+  (match prove ([ make_false () ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Found matching assumption
+    Assumption succeeded
+    Proof Complete!
+    F
+    ========================================
+    A
+    |}]
+
+let%expect_test "basic8" =
+  let a = make_var "A" bool_ty in
+
+  let goal = a in
+
+  let next_tactic = next_tactic_of_list [ contr_tac; assumption_tac ] in
+  (match prove ([ make_false () ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Found matching assumption
+    Assumption succeeded
+    Proof Complete!
+    F
+    ========================================
+    A
+    |}]
+
+let err = Result.get_ok
+
+let%expect_test "basic9" =
+  let a = make_var "A" bool_ty in
+  let x = make_var "x" bool_ty in
+
+  let goal = make_forall x (make_imp a a) in
+
+  let next_tactic =
+    next_tactic_of_list [ gen_tac; intro_tac; assumption_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    destruct success
+    Found matching assumption
+    Assumption succeeded
+    disch success
+    Proof Complete!
+    ========================================
+    ∀x. A ==> A
+    |}]
+
+let%expect_test "basic10" =
+  let a = make_var "A" bool_ty in
+  let nat_def =
+    let nat_ty = TyCon ("nat", []) in
+    define_inductive "nat" []
+      [
+        { name = "Zero"; arg_types = [] };
+        { name = "Suc"; arg_types = [ nat_ty ] };
+      ]
+    |> err
+  in
+  let x = make_var "x" nat_def.ty in
+
+  let goal = make_forall x (make_imp a a) in
+
+  let next_tactic =
+    next_tactic_of_list
+      [
+        with_first_success_choice induct_tac;
+        intro_tac;
+        assumption_tac;
+        gen_tac;
+        intro_tac;
+        assumption_tac;
+      ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect {|
     |}]

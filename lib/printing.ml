@@ -162,3 +162,4 @@ let print_error = function
   | `NotAForall -> "NotAForall"
   | `NotANegation -> "NotANegation"
   | `NotAConj -> "NotAConj"
+  | `NotAnImp -> "NotAnImp"
