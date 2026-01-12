@@ -4,8 +4,8 @@ open Tactic
 open Inductive
 
 let err = Result.get_ok
-let () =
 
+let () =
   let a = make_var "A" bool_ty in
   let nat_def =
     let nat_ty = TyCon ("nat", []) in
@@ -31,11 +31,10 @@ let () =
         assumption_tac;
       ]
   in
-  (match prove ([], goal) next_tactic with
+  match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
   | Incomplete (_asms, g) ->
       print_endline "Proof Failed";
-      Printing.print_term g);
-
+      Printing.print_term g

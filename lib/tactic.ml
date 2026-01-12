@@ -90,8 +90,6 @@ let apply_tac (asms, concl) =
 
 let intro_tac (asms, concl) =
   let thm =
-      print_endline "intro try";
-      print_term concl;
     let* hyp = side_of_op "==>" Left concl in
     let* conc = side_of_op "==>" Right concl in
     trace_dbg "destruct success";
@@ -193,7 +191,7 @@ let induct_tac : goal -> thm =
 
     (*TODO this all needs to be a loop to account for multiple cases*)
     let* base_case, rest = destruct_imp (Kernel.concl inst_induction) in
-    let* inductive_case, _= destruct_imp rest in
+    let* inductive_case, _ = destruct_imp rest in
     let thms =
       choose_subgoals [] [ (asms, base_case); (asms, inductive_case) ]
     in
@@ -248,6 +246,46 @@ let next_tactic_of_list l =
   let q = Queue.of_seq (List.to_seq l) in
   q
 
+let with_bfs tac =
+ fun goal ->
+  (* This has all the tactics but the one being wrapped *)
+  trace_dbg "inside bfs";
+  let tactics = perform TacticQueue in
+  let tac_q = Queue.copy tactics in
+  let rec handle (q : (goal -> 'a) Queue.t) r =
+      trace_dbg "hit handle";
+    match r with
+    (*lets skip if a tactic doesn't apply*)
+    | effect Subgoal g, k -> (
+        match Queue.take_opt q with
+        | None -> 
+                trace_dbg "out of tactics";
+                fail ()
+        | Some t ->
+                trace_dbg "trying subgoal";
+            let (thm : thm) = handle q (t g) in
+            continue k thm)
+    | effect Choose choices, k ->
+        let r = Multicont.Deep.promote k in
+        (* we will automatically stop trying choices when handle returns a value (thm)*)
+        let rec try_each = function
+          | [] -> 
+                  trace_dbg "out of choices";
+                  fail ()
+          | c :: cs -> (
+              match Multicont.Deep.resume r c with
+              | effect Fail, _ -> 
+                      (trace_dbg "trying other choices";
+                      try_each cs)
+              | v -> trace_dbg "continuing with choice"; handle q v)
+        in
+        try_each choices
+    | v -> 
+            trace_dbg "returning from bfs";
+            v
+  in
+  handle tac_q (tac goal)
+
 (* Here we need to handle general failure and incomplete subgoals. *)
 let with_first_success_choice tac =
  fun goal ->
@@ -264,7 +302,6 @@ let with_first_success_choice tac =
             match Multicont.Deep.resume r c with
             | effect Fail, _ -> try_each cs
             | effect Subgoal g', k' -> (
-                let nq = Queue.copy q in
                 match prove g' (Queue.copy q) with
                 | Complete thm -> continue k' thm
                 | Incomplete (_, conc) ->

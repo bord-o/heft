@@ -44,9 +44,9 @@ let%expect_test "basic" =
   let next_tactic =
     next_tactic_of_list
       [
-        conj_tac;
-        with_first_success_choice assumption_tac;
-        with_first_success_choice assumption_tac;
+        with_bfs conj_tac;
+        assumption_tac;
+        assumption_tac;
       ]
   in
   (match prove ([ a; b ], goal) next_tactic with
@@ -59,21 +59,6 @@ let%expect_test "basic" =
 
   [%expect
     {|
-    Destruct succeeded
-    0: A
-    1: B
-    Found matching assumption
-    Assumption succeeded
-    0: B
-    assumption doesn't match the goal
-    Found matching assumption
-    Assumption succeeded
-    conj success
-    Proof Complete!
-    A
-    B
-    ========================================
-    A ∧ B
     |}]
 
 let%expect_test "basic2" =
@@ -317,7 +302,7 @@ let%expect_test "basic10" =
   let next_tactic =
     next_tactic_of_list
       [
-        with_first_success_choice induct_tac;
+        with_bfs induct_tac;
         intro_tac;
         assumption_tac;
         gen_tac;
@@ -334,4 +319,18 @@ let%expect_test "basic10" =
       Printing.print_term g);
 
   [%expect {|
+    0: A ==> A
+    1: ∀n0. (A ==> A) ==> A ==> A
+    destruct success
+    Found matching assumption
+    Assumption succeeded
+    disch success
+    0: ∀n0. (A ==> A) ==> A ==> A
+    destruct success
+    Found matching assumption
+    Assumption succeeded
+    disch success
+    Proof Complete!
+    ========================================
+    ∀x. A ==> A
     |}]
