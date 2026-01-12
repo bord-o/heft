@@ -64,6 +64,10 @@ let right_tac (asms, concl) =
   in
   return_thm thm
 
+let or_tac (asms, concl) =
+  let tac = perform (Choose [ left_tac; right_tac ]) in
+  tac (asms, concl)
+
 let apply_tac (asms, concl) =
   (* Find implications in the asms that match the conclusion *)
   let matching =
@@ -246,53 +250,75 @@ let next_tactic_of_list l =
   let q = Queue.of_seq (List.to_seq l) in
   q
 
-let with_bfs tac =
+let with_try tac =
  fun goal ->
-  (* This has all the tactics but the one being wrapped *)
-  trace_dbg "inside bfs";
+  match tac goal with
+  | effect Fail, _ -> (
+      let tactics = perform TacticQueue in
+      match Queue.take_opt tactics with
+      | None -> fail ()
+      | Some next_tac -> next_tac goal
+      (* runs in ambient handler, not this one *))
+  | v -> v
+
+let with_dfs tac =
+ fun goal ->
+  (* trace_dbg "inside bfs"; *)
   let tactics = perform TacticQueue in
   let tac_q = Queue.copy tactics in
-  let rec handle (q : (goal -> 'a) Queue.t) r =
-      trace_dbg "hit handle";
-    match r with
-    (*lets skip if a tactic doesn't apply*)
+
+  let rec handle (q : (goal -> thm) Queue.t) (f : unit -> thm) =
+    trace_dbg (Format.sprintf "queue length: %d" (Queue.length q));
+    (* trace_dbg "hit handle"; *)
+    match f () with
+    (* Execute inside the match *)
+    | effect TacticQueue, k -> continue k q
     | effect Subgoal g, k -> (
         match Queue.take_opt q with
-        | None -> 
-                trace_dbg "out of tactics";
-                fail ()
+        | None ->
+            trace_dbg "out of tactics";
+            fail ()
         | Some t ->
-                trace_dbg "trying subgoal";
-            let (thm : thm) = handle q (t g) in
-            continue k thm)
+            trace_dbg "trying subgoal";
+            let thm = handle q (fun () -> t g) in
+            handle q (fun () -> continue k thm)
+            (* Wrap continuation too *))
     | effect Choose choices, k ->
+        trace_dbg (Format.sprintf "Choose with %d choices" (List.length choices));
         let r = Multicont.Deep.promote k in
-        (* we will automatically stop trying choices when handle returns a value (thm)*)
+        let saved_q = Queue.copy q in
+
         let rec try_each = function
-          | [] -> 
-                  trace_dbg "out of choices";
-                  fail ()
+          | [] ->
+              trace_dbg "out of choices";
+              fail ()
           | c :: cs -> (
-              match Multicont.Deep.resume r c with
-              | effect Fail, _ -> 
-                      (trace_dbg "trying other choices";
-                      try_each cs)
-              | v -> trace_dbg "continuing with choice"; handle q v)
+              let q' = Queue.copy saved_q in
+              trace_dbg
+                (Format.sprintf
+                   "trying choice, saved_q length: %d, q' length: %d"
+                   (Queue.length saved_q) (Queue.length q'));
+              match handle q' (fun () -> Multicont.Deep.resume r c) with
+              | effect Fail, _ ->
+                  trace_dbg
+                    (Format.sprintf "failed, q length now: %d" (Queue.length q));
+                  try_each cs
+              | v -> v)
         in
         try_each choices
-    | v -> 
-            trace_dbg "returning from bfs";
-            v
+    | v ->
+        (* trace_dbg "returning from bfs"; *)
+        v
   in
-  handle tac_q (tac goal)
+  handle tac_q (fun () -> tac goal)
+(* Initial call with thunk *)
 
 (* Here we need to handle general failure and incomplete subgoals. *)
-let with_first_success_choice tac =
+let with_first_success tac =
  fun goal ->
   match tac goal with
   | effect Choose choices, k ->
       let r = Multicont.Deep.promote k in
-      let q = perform TacticQueue in
 
       let rec try_each = function
         | [] ->
@@ -301,16 +327,6 @@ let with_first_success_choice tac =
         | c :: cs -> (
             match Multicont.Deep.resume r c with
             | effect Fail, _ -> try_each cs
-            | effect Subgoal g', k' -> (
-                match prove g' (Queue.copy q) with
-                | Complete thm -> continue k' thm
-                | Incomplete (_, conc) ->
-                    trace_dbg
-                      (Format.sprintf
-                         "Couldn't complete goal %s with current choice, \
-                          retrying with another option"
-                         (pretty_print_hol_term conc));
-                    try_each cs)
             | thm -> thm)
       in
       try_each choices

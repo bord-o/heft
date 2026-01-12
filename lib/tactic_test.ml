@@ -44,9 +44,9 @@ let%expect_test "basic" =
   let next_tactic =
     next_tactic_of_list
       [
-        with_bfs conj_tac;
-        assumption_tac;
-        assumption_tac;
+        conj_tac;
+        with_first_success assumption_tac;
+        with_first_success assumption_tac;
       ]
   in
   (match prove ([ a; b ], goal) next_tactic with
@@ -59,6 +59,21 @@ let%expect_test "basic" =
 
   [%expect
     {|
+    Destruct succeeded
+    0: A
+    1: B
+    Found matching assumption
+    Assumption succeeded
+    0: B
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    conj success
+    Proof Complete!
+    A
+    B
+    ========================================
+    A ∧ B
     |}]
 
 let%expect_test "basic2" =
@@ -141,7 +156,7 @@ let%expect_test "basic5" =
 
   let next_tactic =
     next_tactic_of_list
-    @@ wrap_all with_first_success_choice [ right_tac; assumption_tac ]
+    @@ wrap_all with_first_success [ right_tac; assumption_tac ]
   in
   (match prove ([ a; b ], goal) next_tactic with
   | Complete thm ->
@@ -175,7 +190,7 @@ let%expect_test "basic6" =
 
   let next_tactic =
     next_tactic_of_list
-    @@ wrap_all with_first_success_choice [ apply_tac; assumption_tac ]
+    @@ wrap_all with_dfs [ apply_tac; apply_tac; assumption_tac ]
   in
   (match prove ([ imp_abc; imp_ab; a ], goal) next_tactic with
   | Complete thm ->
@@ -188,11 +203,6 @@ let%expect_test "basic6" =
   [%expect
     {|
     assume chosen h success
-    assumption doesn't match the goal
-    assumption doesn't match the goal
-    assumption doesn't match the goal
-    no choices available
-    Couldn't complete goal C ==> A with current choice, retrying with another option
     assume chosen h success
     assumption doesn't match the goal
     assumption doesn't match the goal
@@ -302,7 +312,7 @@ let%expect_test "basic10" =
   let next_tactic =
     next_tactic_of_list
       [
-        with_bfs induct_tac;
+        induct_tac;
         intro_tac;
         assumption_tac;
         gen_tac;
@@ -318,7 +328,8 @@ let%expect_test "basic10" =
       print_endline "Proof Failed";
       Printing.print_term g);
 
-  [%expect {|
+  [%expect
+    {|
     0: A ==> A
     1: ∀n0. (A ==> A) ==> A ==> A
     destruct success
@@ -333,4 +344,88 @@ let%expect_test "basic10" =
     Proof Complete!
     ========================================
     ∀x. A ==> A
+    |}]
+
+let%expect_test "nested_conj_dfs" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let c = make_var "C" bool_ty in
+  let d = make_var "D" bool_ty in
+  (* Goal: (A ∧ B) ∧ (C ∧ D) *)
+  let ab = make_conj a b in
+  let cd = make_conj c d in
+  let goal = make_conj ab cd in
+  let next_tactic =
+    next_tactic_of_list
+      [
+        with_dfs conj_tac;
+        conj_tac;
+        assumption_tac;
+        assumption_tac;
+        conj_tac;
+        assumption_tac;
+        assumption_tac;
+      ]
+  in
+  (match prove ([ a; b; c; d ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+  [%expect
+    {|
+    Destruct succeeded
+    0: A ∧ B
+    1: C ∧ D
+    Destruct succeeded
+    0: A
+    1: B
+    Found matching assumption
+    Assumption succeeded
+    0: B
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    conj success
+    0: C ∧ D
+    Destruct succeeded
+    0: C
+    1: D
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    0: D
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    conj success
+    conj success
+    Proof Complete!
+    A
+    B
+    C
+    D
+    ========================================
+    A ∧ B ∧ C ∧ D
+    |}]
+
+let%expect_test "dfs_backtrack" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  (* Goal: A ∨ B, but only B is available *)
+  let goal = make_disj a b in
+  let next_tactic = next_tactic_of_list [ with_dfs or_tac; assumption_tac ] in
+  (match prove ([ b ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+  [%expect {|
     |}]

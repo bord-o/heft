@@ -23,7 +23,7 @@ let () =
   let next_tactic =
     next_tactic_of_list
       [
-        with_first_success_choice induct_tac;
+        (* with_first_success_choice induct_tac; *)
         intro_tac;
         assumption_tac;
         gen_tac;
