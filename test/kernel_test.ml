@@ -1,5 +1,5 @@
 open Result.Syntax
-open Holinone
+open Heft 
 open Printing
 
 let p = Var ("P", bool_ty)

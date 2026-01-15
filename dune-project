@@ -1,26 +1,24 @@
 (lang dune 3.20)
 
-(name holinone)
-
-(using menhir 3.0)
+(name heft)
 
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github bord-o/heft))
 
-(authors "Author Name <author@example.com>")
+(authors "Brody Little <brodylittle011@gmail.com>")
 
-(maintainers "Maintainer Name <maintainer@example.com>")
+(maintainers "Brody Little <brodylittle011@gmail.com>")
 
 (license LICENSE)
 
 (documentation https://url/to/documentation)
 
 (package
- (name holinone)
- (synopsis "A short synopsis")
- (description "A longer description")
+ (name heft)
+ (synopsis "interactive theorem proving with algebraic effects")
+ (description "applying algebraic effects to a HOL tactic system for composable tactics and ergonomic proof search")
  (depends ocaml ppx_here ppx_deriving ppx_expect sexplib utop multicont)
  (tags
   ("add topics" "to describe" your project)))

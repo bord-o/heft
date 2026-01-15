@@ -441,6 +441,7 @@ let define_recursive_function func_name return_type inductive_type_name branches
   let* instantiated_thm = specs branches typed_recursion_thm in
   new_specification func_name instantiated_thm
 
+(* Examples *)
 (* let nat_def = *)
 (*   let nat_ty = TyCon ("nat", []) in *)
 (*   define_inductive "nat" [] *)
