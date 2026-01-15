@@ -19,7 +19,7 @@
  (name heft)
  (synopsis "interactive theorem proving with algebraic effects")
  (description "applying algebraic effects to a HOL tactic system for composable tactics and ergonomic proof search")
- (depends ocaml ppx_here ppx_deriving ppx_expect sexplib utop multicont)
+ (depends ocaml ppx_here ppx_deriving ppx_expect sexplib utop multicont ocamlformat)
  (tags
   ("add topics" "to describe" your project)))
 
