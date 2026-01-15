@@ -1,1 +1,1 @@
-print_endline "HOL Effectful Tactics"
+print_endline "Effectful Tactics"
