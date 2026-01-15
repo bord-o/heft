@@ -19,6 +19,7 @@ depends: [
   "sexplib"
   "utop"
   "multicont"
+  "ocamlformat"
   "odoc" {with-doc}
 ]
 build: [
