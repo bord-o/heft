@@ -1,4 +1,4 @@
-# Understanding HOL Light's Inference Rules
+# HOL Light Cheat Sheet
 
 ## Part 1: The 10 Primitive Rules (Intuitive Explanations)
 
@@ -312,22 +312,4 @@ Then `EQ_MP (⊢ A = B) (⊢ A)` gives `⊢ B`.
 | DEDUCT_ANTISYM_RULE | {p}⊢q, {q}⊢p | ⊢ p = q |
 | INST | substitution, thm | thm with vars replaced |
 | INST_TYPE | type subst, thm | thm with types replaced |
-
----
-
-## Part 7: Exercises
-
-1. **Trace through TRANS**: Here's its implementation:
-   ```ocaml
-   let TRANS th1 th2 =
-     let l1,r1 = dest_eq (concl th1)
-     and l2,r2 = dest_eq (concl th2) in
-     MK_COMB(AP_TERM (rator (rator (concl th1))) th1,th2)
-     (* ... need to check r1 = l2 ... *)
-   ```
-   Can you see how it uses AP_TERM and MK_COMB similarly to SYM?
-
-2. **Implement CONTRAPOS**: Given `⊢ p ⇒ q`, derive `⊢ ¬q ⇒ ¬p`. You'll need to use the definitions of `⇒` and `¬`.
-
-3. **Why can't we just do `INST [`0`, `x + 1`]`?**: Think about what would go wrong if we could substitute for non-variables.
 

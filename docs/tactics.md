@@ -16,29 +16,14 @@ Tactics are often built in a monolithic fashion, where decisions about how to ca
 
 ## Concept : Tactic Handlers
 
+todo
+
+## Effectful Tactic Combinators
+
+todo
+
+## Searching with Tactic Handlers
+
+todo
 
 
-```ocaml
-type _ Effect.t += Subgoal : goal -> thm Effect.t
-type _ Effect.t += Fail : unit Effect.t
-
-let conj_tac : goal -> thm = fun (asms, concl) ->
-    let l, r = destruct_conj concl |> Result.value ~default:(perform Fail) in
-    let lthm = perform (Subgoal (asms, l) in
-    let rthm = perform (Subgoal (asms, r) in
-    conj lthm rthm
-
-
-type proof_state = Incomplete of goal | Complete of thm
-
-let rec prove g = function
-    | [] -> Incomplete g
-    | tactic::tactics ->
-        (match tactic g with
-            | effect (Fail), k -> Incomplete g
-            | effect (Subgoal g'), k ->
-                (match prove g' tactics with
-                    | Complete thm -> Complete (continue k thm)
-                    | incomplete -> incompleteA)
-            | thm -> Complete thm)
-```
