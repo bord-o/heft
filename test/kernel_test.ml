@@ -1,5 +1,5 @@
 open Result.Syntax
-open Heft 
+open Heft
 open Printing
 
 let p = Var ("P", bool_ty)

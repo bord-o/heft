@@ -1,4 +1,4 @@
-open Heft 
+open Heft
 open Derived
 open Printing
 open Result.Syntax

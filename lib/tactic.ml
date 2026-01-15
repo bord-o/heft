@@ -338,7 +338,7 @@ let with_interactive_choice tac =
         continue k (get_choice choices)
   | v -> v
 
-let with_term_size_ranking  tac =
+let with_term_size_ranking tac =
   let rec term_size (t : term) =
     match t with
     | Var (_, _) -> 1
