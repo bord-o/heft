@@ -1,1167 +1,628 @@
-(* open Holinone *)
-(* open Elaborator *)
-(* open Parse *)
-(* open Derived *)
-(* open Proof *)
+open Holinone
+open Derived
+open Inductive
+open Tactic
+open Effect
+open Printing
+
+type dfs_res = Success | Failure
+
+let test_dfs () =
+  let print_choice = function
+    | `A -> print_endline "A"
+    | `B -> print_endline "B"
+    | `C -> print_endline "C"
+    | `D -> print_endline "D"
+    | `E -> print_endline "E"
+    | `F -> print_endline "F"
+    | `G -> print_endline "G"
+    | `H -> print_endline "H"
+    | `I -> print_endline "I"
+  in
+  let choice = perform @@ Choose [ `A; `B; `C ] in
+  let choice2 = perform @@ Choose [ `D; `E; `F ] in
+  let choice3 = perform @@ Choose [ `G; `H; `I ] in
+  List.iter print_choice [ choice; choice2; choice3 ];
+
+  match (choice, choice2, choice3) with `C, `F, `G -> Success | _ -> Failure
+
+let choice_dfs () =
+  match test_dfs () with
+  | effect Choose cs, k ->
+      let r = Multicont.Deep.promote k in
+      let rec try' = function
+        | [] -> Failure
+        | this :: rest -> (
+            print_endline "trying next";
+            match Multicont.Deep.resume r this with
+            | Success -> Success
+            | Failure -> try' rest)
+      in
+      try' cs
+  | v ->
+      print_endline
+        (match v with
+        | Success -> "computation returned Success"
+        | Failure -> "computation returned Failure");
+      v
+
+let%expect_test "choice test" =
+  (match choice_dfs () with
+  | Success -> print_endline "success"
+  | Failure -> print_endline "failure");
+  [%expect
+    {|
+    trying next
+    trying next
+    trying next
+    A
+    D
+    G
+    computation returned Failure
+    trying next
+    A
+    D
+    H
+    computation returned Failure
+    trying next
+    A
+    D
+    I
+    computation returned Failure
+    trying next
+    trying next
+    A
+    E
+    G
+    computation returned Failure
+    trying next
+    A
+    E
+    H
+    computation returned Failure
+    trying next
+    A
+    E
+    I
+    computation returned Failure
+    trying next
+    trying next
+    A
+    F
+    G
+    computation returned Failure
+    trying next
+    A
+    F
+    H
+    computation returned Failure
+    trying next
+    A
+    F
+    I
+    computation returned Failure
+    trying next
+    trying next
+    trying next
+    B
+    D
+    G
+    computation returned Failure
+    trying next
+    B
+    D
+    H
+    computation returned Failure
+    trying next
+    B
+    D
+    I
+    computation returned Failure
+    trying next
+    trying next
+    B
+    E
+    G
+    computation returned Failure
+    trying next
+    B
+    E
+    H
+    computation returned Failure
+    trying next
+    B
+    E
+    I
+    computation returned Failure
+    trying next
+    trying next
+    B
+    F
+    G
+    computation returned Failure
+    trying next
+    B
+    F
+    H
+    computation returned Failure
+    trying next
+    B
+    F
+    I
+    computation returned Failure
+    trying next
+    trying next
+    trying next
+    C
+    D
+    G
+    computation returned Failure
+    trying next
+    C
+    D
+    H
+    computation returned Failure
+    trying next
+    C
+    D
+    I
+    computation returned Failure
+    trying next
+    trying next
+    C
+    E
+    G
+    computation returned Failure
+    trying next
+    C
+    E
+    H
+    computation returned Failure
+    trying next
+    C
+    E
+    I
+    computation returned Failure
+    trying next
+    trying next
+    C
+    F
+    G
+    computation returned Success
+    success
+    |}]
+(* let nat_def = *)
+(*   let nat_ty = TyCon ("nat", []) in *)
+(*   define_inductive "nat" [] *)
+(*     [ *)
+(*       { name = "Zero"; arg_types = [] }; *)
+(*       { name = "Suc"; arg_types = [ nat_ty ] }; *)
+(*     ] in *)
+(**)
+(* let plus_def = *)
+(*   let _ = init_types () in *)
+(*   let nat_ty = TyCon ("nat", []) in *)
+(*   let* nat_def = nat_def in *)
+(*   let suc = nat_def.constructors |> List.assoc_opt "Suc" |> Option.get in *)
+(*   let z = nat_def.constructors |> List.assoc_opt "Zero" |> Option.get in *)
+(*   print_endline @@ show_term z; *)
 (**)
-(* (* open Printing *) *)
-(* open Tactic *)
-(**)
-(* let%expect_test "basic_conj_refl" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = *)
-(*     {| *)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(* (theorem basic_refl *)
-(*     (fix ((x nat) (y nat)) *)
-(*         (/\ (= x x) (= y y)))) *)
-(*   |} *)
-(*   in *)
-(*   let ast = parse_string prg in *)
-(*   let tast = Tast.check_program ast in *)
-(*   let () = Elab.elab_program tast in *)
-(*   (* (!the_goals |> List.iter @@ fun (name, t) -> *) *)
-(*   (*     print_endline name; *) *)
-(*   (*     print_term t); *) *)
-(*   let goal = List.assoc "basic_refl" !the_goals in *)
-(*   let session = create_session () in *)
-(**)
-(*   exec_command session (SetGoal ([], goal)); *)
-(*   exec_command session (Apply Conj); *)
-(*   exec_command session (Apply Refl); *)
-(*   exec_command session (Apply Refl); *)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     x = x ∧ y = y *)
-(**)
-(*     Applying conj *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     x = x *)
-(**)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     y = y *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     x = x ∧ y = y *)
-(*     |}] *)
-(**)
-(* let%expect_test "basic_conj_assm" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let session = create_session () in *)
-(*   let p = make_var "p" bool_ty in *)
-(*   let q = make_var "q" bool_ty in *)
-(**)
-(*   exec_command session (SetGoal ([ p; q ], make_conj p q)); *)
-(*   exec_command session (Apply Conj); *)
-(*   exec_command session (Apply Assumption); *)
-(*   exec_command session (Apply Assumption); *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     p ∧ q *)
-(**)
-(*     Applying conj *)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     p *)
-(*     ======================================== *)
-(*     p *)
-(**)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     q *)
-(*     ======================================== *)
-(*     q *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     q *)
-(*     ======================================== *)
-(*     p ∧ q *)
-(*     |}] *)
-(**)
-(* let%expect_test "basic_disj_left" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = *)
-(*     {| *)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(* (theorem basic_refl *)
-(*     (fix ((x nat) (y nat)) *)
-(*         (\/ (= x x) (= y y)))) *)
-(*   |} *)
-(*   in *)
-(*   let ast = parse_string prg in *)
-(*   let tast = Tast.check_program ast in *)
-(*   let () = Elab.elab_program tast in *)
-(*   let goal = List.assoc "basic_refl" !the_goals in *)
-(*   let session = create_session () in *)
-(*   exec_command session (SetGoal ([], goal)); *)
-(*   exec_command session (Apply Left); *)
-(*   exec_command session (Apply Refl); *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     x = x ∨ y = y *)
-(**)
-(*     Applying left *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     x = x *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     x = x ∨ y = y *)
-(*     |}] *)
-(**)
-(* let%expect_test "basic_disj_right" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = *)
-(*     {| *)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(* (theorem basic_refl *)
-(*     (fix ((x nat) (y nat)) *)
-(*         (\/ (= x x) (= y y)))) *)
-(*   |} *)
-(*   in *)
-(*   let ast = parse_string prg in *)
-(*   let tast = Tast.check_program ast in *)
-(*   let () = Elab.elab_program tast in *)
-(*   let goal = List.assoc "basic_refl" !the_goals in *)
-(*   let session = create_session () in *)
-(*   exec_command session (SetGoal ([], goal)); *)
-(*   exec_command session (Apply Right); *)
-(*   exec_command session (Apply Refl); *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     x = x ∨ y = y *)
-(**)
-(*     Applying right *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     y = y *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     x = x ∨ y = y *)
-(*     |}] *)
-(**)
-(* let%expect_test "basic_gen" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = {| *)
-(* (theorem basic  *)
-(*     (forall ((x 'a)) *)
-(*         (= x x))) *)
-(*   |} in *)
-(*   let ast = parse_string prg in *)
-(*   let _env = Elaborator.elaborate_with_env ast in *)
-(*   let goal = List.assoc "basic" !the_goals in *)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let s = fun () -> e ShowGoal in *)
-(*   let a = fun t -> e (Apply t) in *)
-(*   e (SetGoal ([], goal)); *)
-(*   a Gen; *)
-(*   s (); *)
-(*   a Refl; *)
-(**)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     ∀x. x = x *)
-(**)
-(*     Applying gen *)
-(*     Goal stack (1 goals): *)
-(*       0: x = x *)
-(**)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     x = x *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀x. x = x *)
-(*     |}] *)
-(**)
-(* let%expect_test "basic_intro" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = {| *)
-(* (theorem basic *)
-(*     (fix ((b bool)) *)
-(*         (==> b b))) *)
-(*   |} in *)
-(*   let ast = parse_string prg in *)
-(*   let _env = Elaborator.elaborate_with_env ast in *)
-(*   let goal = List.assoc "basic" !the_goals in *)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   e (SetGoal ([], goal)); *)
-(*   let show = fun () -> e ShowGoal in *)
-(*   let app = fun t -> e (Apply t) in *)
-(**)
-(*   app Intro; *)
-(*   show (); *)
-(*   app Assumption; *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     b ==> b *)
-(**)
-(*     Applying intro *)
-(*     Goal stack (1 goals): *)
-(*       0: b *)
-(**)
-(*     b *)
-(**)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     b *)
-(*     ======================================== *)
-(*     b *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     b ==> b *)
-(*     |}] *)
-(**)
-(* (* Test EqTac: prove P = Q by proving both implications *) *)
-(* let%expect_test "eq_tac" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let p = make_var "p" bool_ty in *)
-(*   let q = make_var "q" bool_ty in *)
-(*   (* Goal: (p /\ q) = (q /\ p) with p, q as assumptions to make it provable *) *)
-(*   let pq = make_conj p q in *)
-(*   let qp = make_conj q p in *)
-(*   let goal_tm = safe_make_eq pq qp |> Result.get_ok in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(**)
-(*   e (SetGoal ([p; q], goal_tm)); *)
-(*   app EqTac; *)
-(*   (* First subgoal: (p /\ q) ==> (q /\ p) *) *)
-(*   app Intro; *)
-(*   app Conj; *)
-(*   app Assumption;  (* q from p /\ q assumption *) *)
-(*   app Assumption;  (* p from p /\ q assumption *) *)
-(*   (* Second subgoal: (q /\ p) ==> (p /\ q) *) *)
-(*   app Intro; *)
-(*   app Conj; *)
-(*   app Assumption; *)
-(*   app Assumption; *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     p ∧ q = q ∧ p *)
-(**)
-(*     Applying eq_tac *)
-(*     Applying intro *)
-(*     Applying conj *)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     q *)
-(*     ======================================== *)
-(*     q *)
-(**)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     p *)
-(*     ======================================== *)
-(*     p *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     q *)
-(*     ======================================== *)
-(*     q ∧ p *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     q *)
-(*     ======================================== *)
-(*     p ∧ q ==> q ∧ p *)
-(**)
-(*     Applying intro *)
-(*     Applying conj *)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     p *)
-(*     ======================================== *)
-(*     p *)
-(**)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     q *)
-(*     ======================================== *)
-(*     q *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     q *)
-(*     ======================================== *)
-(*     p ∧ q *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     q *)
-(*     ======================================== *)
-(*     q ∧ p ==> p ∧ q *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     q *)
-(*     ======================================== *)
-(*     q ∧ p = p ∧ q *)
-(*     |}] *)
-(**)
-(* (* Test Exists tactic *) *)
-(* let%expect_test "exists_tac" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = {| *)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(* (theorem exists_z *)
-(*     (exists ((n nat)) *)
-(*         (= n n))) *)
-(*   |} in *)
-(*   let ast = parse_string prg in *)
-(*   let env = Elaborator.elaborate_with_env ast in *)
-(*   let goal = List.assoc "exists_z" !the_goals in *)
-(*   (* Get Z constructor as witness *) *)
-(*   let z = Elaborator.parse_and_elab_term env "Z" in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(**)
-(*   e (SetGoal ([], goal)); *)
-(*   app (Exists z); *)
-(*   app Refl; *)
-(**)
-(*   [%expect {| *)
-(*     Set goal: *)
-(*     ∃n. n = n *)
-(**)
-(*     Applying exists *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     Z = Z *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∃n. n = n *)
-(*     |}] *)
-(**)
-(* (* Test MpTac: move theorem conclusion into goal as antecedent *) *)
-(* let%expect_test "mp_tac" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let p = make_var "p" bool_ty in *)
-(*   let q = make_var "q" bool_ty in *)
-(**)
-(*   (* Create theorem |- p (by assuming p) *) *)
-(*   let p_thm = assume p |> Result.get_ok in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(*   let show = fun () -> e ShowGoal in *)
-(**)
-(*   (* Goal: q, with p in assumptions *) *)
-(*   e (SetGoal ([p], q)); *)
-(*   show (); *)
-(*   (* Use MP_TAC with |- p to transform goal to p ==> q *) *)
-(*   app (MpTac p_thm); *)
-(*   show (); *)
-(*   (* Now goal is p ==> q, use intro *) *)
-(*   app Intro; *)
-(*   show (); *)
-(*   (* Now we have p in assumptions but need q - this will fail *) *)
-(*   (* Actually let's make this provable by using p = q *) *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     q *)
-(**)
-(*     Goal stack (1 goals): *)
-(*       0: p *)
-(**)
-(*     q *)
-(**)
-(*     Applying mp_tac *)
-(*     Goal stack (1 goals): *)
-(*       0: p *)
-(**)
-(*     p ==> q *)
-(**)
-(*     Applying intro *)
-(*     Goal stack (1 goals): *)
-(*       0: p *)
-(**)
-(*     p *)
-(**)
-(*     q *)
-(*     |}] *)
-(**)
-(* (* Test MatchMpTac: apply implication theorem to goal *) *)
-(* let%expect_test "match_mp_tac" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let p = make_var "p" bool_ty in *)
-(*   let q = make_var "q" bool_ty in *)
-(**)
-(*   (* Create theorem |- p ==> q (by assuming p ==> q) *) *)
-(*   let p_imp_q = make_imp p q in *)
-(*   let imp_thm = assume p_imp_q |> Result.get_ok in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(*   let show = fun () -> e ShowGoal in *)
-(**)
-(*   (* Goal: q *) *)
-(*   e (SetGoal ([p], q)); *)
-(*   show (); *)
-(*   (* Use MATCH_MP_TAC with p ==> q to reduce goal to p *) *)
-(*   app (MatchMpTac imp_thm); *)
-(*   show (); *)
-(*   (* Now goal is p, use assumption *) *)
-(*   app Assumption; *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     q *)
-(**)
-(*     Goal stack (1 goals): *)
-(*       0: p *)
-(**)
-(*     q *)
-(**)
-(*     Applying match_mp_tac *)
-(*     Goal stack (1 goals): *)
-(*       0: p *)
-(**)
-(*     p *)
-(**)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     p *)
-(*     ======================================== *)
-(*     p *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     p ==> q *)
-(*     ======================================== *)
-(*     q *)
-(*     |}] *)
-(**)
-(* (* Test SpecTac: generalize goal *) *)
-(* let%expect_test "spec_tac" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = {| *)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(*   |} in *)
-(*   let ast = parse_string prg in *)
-(*   let env = Elaborator.elaborate_with_env ast in *)
-(*   let z = Elaborator.parse_and_elab_term env "Z" in *)
-(*   let nat_ty = type_of_term z |> Result.get_ok in *)
 (*   let n = make_var "n" nat_ty in *)
-(**)
-(*   (* Goal: Z = Z *) *)
-(*   let goal_tm = safe_make_eq z z |> Result.get_ok in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(*   let show = fun () -> e ShowGoal in *)
-(**)
-(*   e (SetGoal ([], goal_tm)); *)
-(*   show (); *)
-(*   (* Generalize Z to n, making goal ∀n. n = n *) *)
-(*   app (SpecTac (z, n)); *)
-(*   show (); *)
-(*   (* Now prove ∀n. n = n *) *)
-(*   app Gen; *)
-(*   app Refl; *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     Z = Z *)
-(**)
-(*     Goal stack (1 goals): *)
-(*       0: Z = Z *)
-(**)
-(*     Applying spec_tac *)
-(*     Goal stack (1 goals): *)
-(*       0: ∀n. n = n *)
-(**)
-(*     Applying gen *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     n = n *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀n. n = n *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     Z = Z *)
-(*     |}] *)
-(**)
-(* (* Test chained intro for multiple implications *) *)
-(* let%expect_test "chained_intro" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let p = make_var "p" bool_ty in *)
-(*   let q = make_var "q" bool_ty in *)
-(*   let r = make_var "r" bool_ty in *)
-(**)
-(*   (* Goal: p ==> q ==> r ==> p *) *)
-(*   let goal_tm = make_imp p (make_imp q (make_imp r p)) in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(*   let show = fun () -> e ShowGoal in *)
-(**)
-(*   e (SetGoal ([], goal_tm)); *)
-(*   app Intro; *)
-(*   show (); *)
-(*   app Intro; *)
-(*   show (); *)
-(*   app Intro; *)
-(*   show (); *)
-(*   app Assumption; *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     p ==> q ==> r ==> p *)
-(**)
-(*     Applying intro *)
-(*     Goal stack (1 goals): *)
-(*       0: p *)
-(**)
-(*     q ==> r ==> p *)
-(**)
-(*     Applying intro *)
-(*     Goal stack (1 goals): *)
-(*       0: q *)
-(**)
-(*     p *)
-(**)
-(*     r ==> p *)
-(**)
-(*     Applying intro *)
-(*     Goal stack (1 goals): *)
-(*       0: r *)
-(**)
-(*     q *)
-(**)
-(*     p *)
-(**)
-(*     p *)
-(**)
-(*     Applying assumption *)
-(*     Goal solved! *)
-(*     p *)
-(*     ======================================== *)
-(*     p *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     ======================================== *)
-(*     r ==> p *)
-(**)
-(*     Goal completed: *)
-(*     p *)
-(*     ======================================== *)
-(*     q ==> r ==> p *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     p ==> q ==> r ==> p *)
-(*     |}] *)
-(**)
-(* (* Test nested forall with gen *) *)
-(* let%expect_test "nested_forall" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let a = TyVar "'a" in *)
-(*   let x = make_var "x" a in *)
-(*   let y = make_var "y" a in *)
-(**)
-(*   (* Goal: ∀x. ∀y. x = x *) *)
-(*   let inner = make_forall y (safe_make_eq x x |> Result.get_ok) in *)
-(*   let goal_tm = make_forall x inner in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(**)
-(*   e (SetGoal ([], goal_tm)); *)
-(*   app Gen; *)
-(*   app Gen; *)
-(*   app Refl; *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     Set goal: *)
-(*     ∀x. ∀y. x = x *)
-(**)
-(*     Applying gen *)
-(*     Applying gen *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     x = x *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀y. x = x *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀x. ∀y. x = x *)
-(*     |}] *)
-(**)
-(* (* Test induction on nat *) *)
-(* let%expect_test "induct_nat" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = {| *)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(* (theorem nat_refl *)
-(*     (fix ((n nat)) *)
-(*         (= n n))) *)
-(*   |} in *)
-(*   let ast = parse_string prg in *)
-(*   let env = Elaborator.elaborate_with_env ast in *)
-(*   let goal = List.assoc "nat_refl" !the_goals in *)
-(**)
-(*   let n = parse_and_elab_term env "(fix ((n nat)) n)" in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(**)
-(*   e (SetGoal ([], goal)); *)
-(*   app (Induct n); *)
-(*   app Refl; *)
-(*   app Gen; *)
-(*   app Intro; *)
-(*   app Refl; *)
-(*   e ShowGoal; *)
-(**)
-(*   [%expect {| *)
-(*     Set goal: *)
-(*     n = n *)
-(**)
-(*     Applying induct *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     Z = Z *)
-(**)
-(*     Applying gen *)
-(*     Applying intro *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     S n0 = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     n0 = n0 ==> S n0 = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀n0. n0 = n0 ==> S n0 = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     n = n *)
-(**)
-(*     Goal stack (0 goals): *)
-(*     |}] *)
-(**)
-(* let%expect_test "induct_list" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = {| *)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(**)
-(* (type list ('a) *)
-(*     (Nil) *)
-(*     (Cons ('a (list 'a)))) *)
-(**)
-(* (fun length (-> (list 'a) nat) *)
-(*     ( (Nil) Z) *)
-(*     ( ((Cons x xs)) (S (length xs)))) *)
-(**)
-(* (theorem length_cons *)
-(*     (forall ((l (list 'a)) (y 'a)) *)
-(*         (= (length (Cons y l)) (S (length l))))) *)
-(*   |} in *)
-(*   let ast = parse_string prg in *)
-(*   let env = Elaborator.elaborate_with_env ast in *)
-(*   let goal = List.assoc "length_cons" !the_goals in *)
-(**)
-(*   (* Induct on l, which is now the outermost forall *) *)
-(*   let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(**)
-(*   e (SetGoal ([], goal)); *)
-(*   app (Induct l); *)
-(**)
-(*   (* Nil case: ∀x. length (Cons x Nil) = S (length Nil) *) *)
-(*   app Gen; *)
-(*   app (RewriteWith "length"); *)
-(*   app (RewriteWith "length"); *)
-(*   app Refl; *)
-(**)
-(*   (* Cons case: ∀x. ∀l. (∀x. ...) ==> ∀x. length (Cons x (Cons x l)) = S (length (Cons x l)) *) *)
-(*   app Gen; *)
-(*   app Gen; *)
-(*   app Intro; *)
-(*   app Gen; *)
-(*   app (RewriteWith "length"); *)
-(*   app (RewriteWith "length"); *)
-(*   app Refl; *)
-(**)
-(**)
-(*   e ShowGoal; *)
-(**)
-(*   let proof = result session in *)
-(*   (match proof with *)
-(*   Some p -> Printing.print_thm p *)
-(*   | None -> ()); *)
-(**)
-(**)
-(*   [%expect {| *)
-(*     Set goal: *)
-(*     ∀l. ∀y. length (Cons y l) = S (length l) *)
-(**)
-(*     Applying induct *)
-(*     Applying gen *)
-(*     Applying rewrite length *)
-(*     Applying rewrite length *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     S Z = S Z *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     S (length Nil) = S Z *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     length (Cons y Nil) = S (length Nil) *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀y. length (Cons y Nil) = S (length Nil) *)
-(**)
-(*     Applying gen *)
-(*     Applying gen *)
-(*     Applying intro *)
-(*     Applying gen *)
-(*     Applying rewrite length *)
-(*     Applying rewrite length *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     S (S (length n1)) = S (S (length n1)) *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     S (length (Cons n0 n1)) = S (S (length n1)) *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1)) *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀y. length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1)) *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     (∀y. length (Cons y n1) = S (length n1)) ==> ∀y. length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1)) *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀n1. (∀y. length (Cons y n1) = S (length n1)) ==> ∀y. length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1)) *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀n0. ∀n1. (∀y. length (Cons y n1) = S (length n1)) ==> ∀y. length (Cons y (Cons n0 n1)) = S (length (Cons n0 n1)) *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀l. ∀y. length (Cons y l) = S (length l) *)
-(**)
-(*     Goal stack (0 goals): *)
-(*     ======================================== *)
-(*     ∀l. ∀y. length (Cons y l) = S (length l) *)
-(*     |}] *)
-(**)
-(* (* Test that result returns the proven theorem *) *)
-(* let%expect_test "result_returns_thm" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let a = TyVar "'a" in *)
-(*   let x = make_var "x" a in *)
-(*   let goal_tm = make_forall x (safe_make_eq x x |> Result.get_ok) in *)
-(*   let goal = ([], goal_tm) in *)
-(**)
-(*   let session = create_session () in *)
-(*   exec_command session (SetGoal goal); *)
-(*   exec_command session (Apply Gen); *)
-(*   exec_command session (Apply Refl); *)
-(**)
-(*   (* Get the result *) *)
-(*   (match result session with *)
-(*    | Some thm -> *)
-(*        print_endline "Got theorem:"; *)
-(*        Printing.print_thm thm *)
-(*    | None -> *)
-(*        print_endline "No result (proof incomplete)"); *)
-(**)
-(*   [%expect {| *)
-(*     Set goal: *)
-(*     ∀x. x = x *)
-(**)
-(*     Applying gen *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     x = x *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀x. x = x *)
-(**)
-(*     Got theorem: *)
-(*     ======================================== *)
-(*     ∀x. x = x *)
-(*     |}] *)
-(**)
-(**)
-(**)
-(* let%expect_test "nat_plus" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = {| *)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(**)
-(* (fun plus (-> nat (-> nat nat)) *)
-(*     ( (Z n) n) *)
-(*     ( ((S m) n) (S (plus m n)))) *)
-(**)
-(* (theorem plus_z_l  *)
-(*     (forall ((n nat)) *)
-(*         (= (plus Z n) n))) *)
-(**)
-(* (theorem plus_z_r *)
-(*     (forall ((n nat)) *)
-(*         (= (plus n Z) n))) *)
-(*   |} in *)
-(*   let ast = parse_string prg in *)
-(*   let env = Elaborator.elaborate_with_env ast in *)
-(*   let goal = List.assoc "plus_z_l" !the_goals in *)
-(*   let goal2 = List.assoc "plus_z_r" !the_goals in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(**)
-(*   e (SetGoal ([], goal)); *)
-(*   app Gen; *)
-(*   app (RewriteWith "plus"); *)
-(*   app Beta; *)
-(*   app Refl; *)
-(**)
-(*   e (SetGoal ([], goal2)); *)
-(*   let n = parse_and_elab_term env "(fix ((n nat)) n)" in *)
-(*   app (Induct n); *)
-(*   app (RewriteWith "plus"); *)
-(*   app Beta; *)
-(*   app Refl; *)
-(*   app Gen; *)
-(*   app Intro; *)
-(*   app (RewriteWith "plus"); *)
-(*   app Beta; *)
-(*   app (RewriteAsm 0); *)
-(*   app Refl; *)
-(*   (match result session with *)
-(*    | Some thm -> *)
-(*        print_endline "Got theorem:"; *)
-(*        Printing.print_thm thm *)
-(*    | None -> *)
-(*        print_endline "No result (proof incomplete)"); *)
-(**)
-(**)
-(*   e ShowGoal; *)
-(**)
-(*   [%expect {| *)
-(*     Set goal: *)
-(*     ∀n. plus Z n = n *)
-(**)
-(*     Applying gen *)
-(*     Applying rewrite plus *)
-(*     Applying beta *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     n = n *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     (λn. n) n = n *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     plus Z n = n *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀n. plus Z n = n *)
-(**)
-(*     Set goal: *)
-(*     ∀n. plus n Z = n *)
-(**)
-(*     Applying induct *)
-(*     Applying rewrite plus *)
-(*     Applying beta *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     Z = Z *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     (λn. n) Z = Z *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     plus Z Z = Z *)
-(**)
-(*     Applying gen *)
-(*     Applying intro *)
-(*     Applying rewrite plus *)
-(*     Applying beta *)
-(*     Applying rewrite_asm 0 *)
-(*     Applying refl *)
-(*     Goal solved! *)
-(*     ======================================== *)
-(*     S n0 = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     plus n0 Z = n0 *)
-(*     ======================================== *)
-(*     S (plus n0 Z) = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     plus n0 Z = n0 *)
-(*     ======================================== *)
-(*     (λn. S (plus n0 n)) Z = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     plus n0 Z = n0 *)
-(*     ======================================== *)
-(*     plus (S n0) Z = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     plus n0 Z = n0 ==> plus (S n0) Z = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀n0. plus n0 Z = n0 ==> plus (S n0) Z = S n0 *)
-(**)
-(*     Goal completed: *)
-(*     ======================================== *)
-(*     ∀n. plus n Z = n *)
-(**)
-(*     Got theorem: *)
-(*     ======================================== *)
-(*     ∀n. plus Z n = n *)
-(**)
-(*     Goal stack (0 goals): *)
-(*     |}] *)
-(* (**) *)
-(* (**) *)
-(* (**) *)
-(* (* let%expect_test "more_list" = *) *)
-(* (*   let () = Derived.reset () |> Result.get_ok in *) *)
-(* (*   let prg = {| *) *)
-(* (* (type nat () *) *)
-(* (*     (Z) *) *)
-(* (*     (S (nat))) *) *)
-(* (**) *)
-(* (* (type list ('a) *) *)
-(* (*     (Nil) *) *)
-(* (*     (Cons ('a (list 'a)))) *) *)
-(* (**) *)
-(* (* (fun map (-> (list 'a) (-> (-> 'a 'b) (list 'b))) *) *)
-(* (*     ( (Nil f) Nil) *) *)
-(* (*     ( ((Cons x xs) f) (Cons (f x) (map xs f)))) *) *)
-(* (**) *)
-(* (* (fun length (-> (list 'a) nat) *) *)
-(* (*     ( (Nil) Z) *) *)
-(* (*     ( ((Cons x xs)) (S (length xs)))) *) *)
-(* (**) *)
-(* (* (theorem length_map  *) *)
-(* (*     (forall ((l (list 'a)) (f (-> 'a 'b))) *) *)
-(* (*         (= (length l) (length (map l f))))) *) *)
-(* (**) *)
-(* (*   |} in *) *)
-(* (*   let ast = parse_string prg in *) *)
-(* (*   let env = Elaborator.elaborate_with_env ast in *) *)
-(* (*   (* print_endline @@ Tast.show_env env; *) *) *)
-(* (*   let goal = List.assoc "length_map" !the_goals in *) *)
-(* (**) *)
-(* (*   print_endline @@ Printing.pretty_print_hol_term ~with_type:true goal; *) *)
-(* (**) *)
-(* (*   let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in *) *)
-(* (**) *)
-(* (*   let session = create_session () in *) *)
-(* (*   let e = exec_command session in *) *)
-(* (*   let app = fun t -> e (Apply t) in *) *)
-(* (**) *)
-(* (*   e (SetGoal ([], goal)); *) *)
-(* (*   app (Induct l); *) *)
-(* (**) *)
-(* (*   app Gen; *) *)
-(* (*   app (RewriteWith "length"); *) *)
-(* (*   app (RewriteWith "map"); *) *)
-(* (*   app Beta; *) *)
-(* (*   e ShowSpecs; *) *)
-(* (*   app (RewriteWith "length"); *) *)
-(* (*   app Refl; *) *)
-(* (**) *)
-(* (*   app Gen; *) *)
-(* (*   app Gen; *) *)
-(* (*   app Intro; *) *)
-(* (*   app Gen; *) *)
-(* (*   app (RewriteWith "length"); *) *)
-(* (*   app (RewriteWith "map"); *) *)
-(* (*   app Beta; *) *)
-(* (*   app (RewriteWith "length"); *) *)
-(* (*   app (RewriteAsm 0); *) *)
-(* (*   e ShowGoal; *) *)
-(* (*   app Refl; *) *)
-(* (**) *)
-(* (**) *)
-(* (*   e ShowGoal; *) *)
-(* (**) *)
-(* (*   [%expect {| *) *)
-(* (*     |}] *) *)
-(* (**) *)
-(* let%expect_test "more_list2" = *)
-(*   let () = Derived.reset () |> Result.get_ok in *)
-(*   let prg = {| *)
-(* (type pair ('a 'b) *)
-(*     (Pair ('a 'b))) *)
-(**)
-(* (type nat () *)
-(*     (Z) *)
-(*     (S (nat))) *)
-(**)
-(* (type list ('a) *)
-(*     (Nil) *)
-(*     (Cons ('a (list 'a)))) *)
-(**)
-(* (fun append (-> (list 'a) (-> (list 'a) (list 'a))) *)
-(*     ( (Nil l) l) *)
-(*     ( ((Cons x xs) l) (Cons x (append xs l)))) *)
-(**)
-(* (fun length (-> (list 'a) nat) *)
-(*     ( (Nil) Z) *)
-(*     ( ((Cons x xs)) (S (length xs)))) *)
-(**)
-(* (fun map (-> (list 'a) (-> (-> 'a 'b) (list 'b))) *)
-(*     ( (Nil f) Nil) *)
-(*     ( ((Cons x xs) f) (Cons (f x) (map xs f)))) *)
-(**)
-(* (fun pairs (-> (list 'a) (list (pair 'a 'a))) *)
-(*     ( (Nil) Nil) *)
-(*     ( ((Cons x xs))  *)
-(*             (append (map xs (fn (y 'a) (Pair x y))) (pairs xs)))) *)
-(**)
-(* (fun plus (-> nat (-> nat nat)) *)
-(*     ( (Z n) n) *)
-(*     ( ((S m) n) (S (plus m n)))) *)
-(**)
-(* (theorem pairs_cons  *)
-(*     (forall ((l (list 'a)) (x 'a)) *)
-(*         (=  *)
-(*             (length (pairs (Cons x l)))  *)
-(*             (plus  *)
-(*                 (length l)  *)
-(*                 (length (pairs l)))))) *)
-(**)
-(*   |} in *)
-(*   let ast = parse_string prg in *)
-(*   let env = Elaborator.elaborate_with_env ast in *)
-(*   (* print_endline @@ Tast.show_env env; *) *)
-(*   let goal = List.assoc "pairs_cons" !the_goals in *)
-(**)
-(*   (* print_endline @@ Printing.pretty_print_hol_term ~with_type:true goal; *) *)
-(**)
-(*   let l = parse_and_elab_term env "(fix ((l (list 'a))) l)" in *)
-(**)
-(*   let session = create_session () in *)
-(*   let e = exec_command session in *)
-(*   let app = fun t -> e (Apply t) in *)
-(**)
-(*   e (SetGoal ([], goal)); *)
-(**)
-(*   app (Induct l); *)
-(*   app Gen; *)
-(*   app (RewriteWith "length"); *)
-(*   app (RewriteWith "plus"); *)
-(*   app Beta; *)
-(*   app (RewriteWith "pairs"); *)
-(*   app (RewriteWith "map"); *)
-(*   app Beta; *)
-(*   app (RewriteWith "length"); *)
-(*   app (RewriteWith "pairs"); *)
-(*   app (RewriteWith "append"); *)
-(**)
-(*   e ShowGoal; *)
+(*   let m' = make_var "m'" nat_ty in *)
+(*   let r = make_var "r" (make_fun_ty nat_ty nat_ty) in *)
+(**)
+(*   let* zero_case = make_lam n n in *)
+(*   (* λn. n *) *)
+(*   let* suc_case = *)
+(*     let* r_n = make_app r n in *)
+(*     let* suc_rn = make_app suc r_n in *)
+(*     let* lam_n_suc_rn = make_lam n suc_rn in *)
+(*     let* lam_r = make_lam r lam_n_suc_rn in *)
+(*     make_lam m' lam_r (* λm'. λr. λn. Suc (r n) *) *)
+(*   in *)
+(**)
+(*   let return_type = make_fun_ty nat_ty nat_ty in *)
+(*   define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ] in *)
+
+let%expect_test "basic" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let goal = make_conj a b in
+
+  let next_tactic =
+    next_tactic_of_list
+      [
+        with_skip_fail conj_tac;
+        with_first_success assumption_tac;
+        with_first_success assumption_tac;
+      ]
+  in
+  (match prove ([ a; b ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Destruct succeeded
+    0: A
+    1: B
+    Found matching assumption
+    Assumption succeeded
+    0: B
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    conj success
+    Proof Complete!
+    A
+    B
+    ========================================
+    A ∧ B
+    |}]
+
+let%expect_test "basic2" =
+  let a = make_var "A" bool_ty in
+  let goal = safe_make_eq a a |> Result.get_ok in
+
+  let next_tactic = next_tactic_of_list [ refl_tac ] in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+      destruct success
+      refl success
+      Proof Complete!
+      ========================================
+      A = A
+      |}]
+
+let%expect_test "basic3" =
+  let a = make_var "A" bool_ty in
+  let goal = make_imp a a in
+
+  let next_tactic = next_tactic_of_list [ intro_tac; assumption_tac ] in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+      destruct success
+      Found matching assumption
+      Assumption succeeded
+      disch success
+      Proof Complete!
+      ========================================
+      A ==> A
+      |}]
+
+let%expect_test "basic4" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+
+  let goal = make_disj a b in
+
+  let next_tactic = next_tactic_of_list [ left_tac; assumption_tac ] in
+  (match prove ([ a ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+      Found matching assumption
+      Assumption succeeded
+      disj_left success
+      Proof Complete!
+      A
+      ========================================
+      A ∨ B
+      |}]
+
+let%expect_test "basic5" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+
+  let goal = make_disj a b in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_first_success [ right_tac; assumption_tac ]
+  in
+  (match prove ([ a; b ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    disj_right success
+    Proof Complete!
+    B
+    ========================================
+    A ∨ B
+    |}]
+
+let%expect_test "basic6" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let c = make_var "C" bool_ty in
+
+  let imp_ab = make_imp a b in
+  let imp_abc = make_imp (make_imp c a) b in
+
+  let goal = b in
+
+  let next_tactic =
+      next_tactic_of_list [ apply_tac;  assumption_tac ]
+  in
+  (match prove_dfs ([ imp_abc; imp_ab; a ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    assume chosen h success
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    assume chosen h success
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    mp success
+    Proof Complete!
+    A
+    A ==> B
+    ========================================
+    B
+    |}]
+
+let%expect_test "basic7" =
+  let a = make_var "A" bool_ty in
+
+  let goal = a in
+
+  let next_tactic = next_tactic_of_list [ contr_tac; assumption_tac ] in
+  (match prove_dfs ([ make_false () ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Found matching assumption
+    Assumption succeeded
+    Proof Complete!
+    F
+    ========================================
+    A
+    |}]
+
+let%expect_test "basic8" =
+  let a = make_var "A" bool_ty in
+
+  let goal = a in
+
+  let next_tactic = next_tactic_of_list [ contr_tac; assumption_tac ] in
+  (match prove ([ make_false () ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Found matching assumption
+    Assumption succeeded
+    Proof Complete!
+    F
+    ========================================
+    A
+    |}]
+
+let err = Result.get_ok
+
+let%expect_test "basic9" =
+  let a = make_var "A" bool_ty in
+  let x = make_var "x" bool_ty in
+
+  let goal = make_forall x (make_imp a a) in
+
+  let next_tactic =
+    next_tactic_of_list [ gen_tac; intro_tac; assumption_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    destruct success
+    Found matching assumption
+    Assumption succeeded
+    disch success
+    Proof Complete!
+    ========================================
+    ∀x. A ==> A
+    |}]
+
+let%expect_test "basic10" =
+  let a = make_var "A" bool_ty in
+  let nat_def =
+    let nat_ty = TyCon ("nat", []) in
+    define_inductive "nat" []
+      [
+        { name = "Zero"; arg_types = [] };
+        { name = "Suc"; arg_types = [ nat_ty ] };
+      ]
+    |> err
+  in
+  let x = make_var "x" nat_def.ty in
+
+  let goal = make_forall x (make_imp a a) in
+
+  let next_tactic =
+    next_tactic_of_list
+      [
+        induct_tac;
+        intro_tac;
+        assumption_tac;
+        gen_tac;
+        intro_tac;
+        assumption_tac;
+      ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    0: A ==> A
+    1: ∀n0. (A ==> A) ==> A ==> A
+    destruct success
+    Found matching assumption
+    Assumption succeeded
+    disch success
+    0: ∀n0. (A ==> A) ==> A ==> A
+    destruct success
+    Found matching assumption
+    Assumption succeeded
+    disch success
+    Proof Complete!
+    ========================================
+    ∀x. A ==> A
+    |}]
+
+let%expect_test "dfs_backtrack" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let c = make_var "C" bool_ty in
+  let d = make_var "D" bool_ty in
+  let e = make_var "E" bool_ty in
+  let f = make_var "F" bool_ty in
+  (* Goal: A ∨ B, but only B is available *)
+
+  let goal = make_disj (make_disj e (make_disj (make_disj c d) (make_disj a b))) f in
+  print_term goal;
+  let next_tactic = next_tactic_of_list [ with_repeat or_tac; assumption_tac ] in
+  (match prove_dfs  ([ f ], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+  [%expect
+    {|
+    E ∨ C ∨ D ∨ A ∨ B ∨ F
+
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    Found matching assumption
+    Assumption succeeded
+    disj_right success
+    Proof Complete!
+    F
+    ========================================
+    E ∨ C ∨ D ∨ A ∨ B ∨ F
+    |}]
+
+let%expect_test "dfs_conj_backtrack" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let c = make_var "C" bool_ty in
+  (* Goal: (A ∨ B) ∧ C, only have [B; C] *)
+  let left = make_disj a b in
+  let goal = make_conj left c in
+  let next_tactic = next_tactic_of_list [ 
+    conj_tac; 
+    with_skip_fail or_tac; 
+    assumption_tac; 
+  ] in
+  (match prove_dfs ([ b; c ], goal) next_tactic with
+  | Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+
+  [%expect {|
+    Destruct succeeded
+    0: A ∨ B
+    1: C
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    disj_right success
+    0: C
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    conj success
+    Proof Complete!
+    B
+    C
+    ========================================
+    A ∨ B ∧ C
+    |}]
