@@ -246,80 +246,66 @@ let rec prove g tactic_queue =
       (* When a proof is complete we extract the theorem *)
       | thm -> Complete thm)
 
+let with_skip_fail tac =
+ fun goal ->
+  match tac goal with effect Fail, _ -> perform (Subgoal goal) | thm -> thm
+
+let with_repeat tac =
+  let rec aux (asms, concl) =
+    match tac (asms, concl) with
+    | effect Fail, _ -> perform (Subgoal (asms, concl))
+    | effect Subgoal g, k ->
+        let thm = aux g in
+        continue k thm
+    | thm -> thm
+  in
+  aux
+
+let rec prove_dfs g tactic_queue =
+  match Queue.take_opt tactic_queue with
+  | None ->
+      print_endline "Out of tactics";
+      Incomplete g
+  | Some tactic ->
+      let rec handler (f : unit -> proof_state) =
+        match f () with
+        | effect TacticQueue, k -> continue k tactic_queue
+        | effect Trace (_, v), k ->
+            print_endline v;
+            continue k ()
+        | effect Rank terms, k -> continue k terms
+        | effect Fail, _k -> Incomplete g
+        | effect Choose choices, k ->
+            let r = Multicont.Deep.promote k in
+            let rec try_each = function
+              | [] -> Incomplete g
+              | c :: cs ->
+                  let t =
+                    match handler @@ fun () -> Multicont.Deep.resume r c with
+                    | Complete thm -> Complete thm
+                    | Incomplete _ -> try_each cs
+                  in
+                  t
+            in
+            try_each choices
+        | effect Subgoal g', k -> (
+            match prove_dfs g' (Queue.copy tactic_queue) with
+            | Complete thm -> continue k thm
+            | incomplete -> incomplete)
+        | thm -> thm
+      in
+      handler (fun () -> Complete (tactic g))
+
 let next_tactic_of_list l =
   let q = Queue.of_seq (List.to_seq l) in
   q
 
-let with_try tac =
- fun goal ->
-  match tac goal with
-  | effect Fail, _ -> (
-      let tactics = perform TacticQueue in
-      match Queue.take_opt tactics with
-      | None -> fail ()
-      | Some next_tac -> next_tac goal
-      (* runs in ambient handler, not this one *))
-  | v -> v
-
-let with_dfs tac =
- fun goal ->
-  (* trace_dbg "inside bfs"; *)
-  let tactics = perform TacticQueue in
-  let tac_q = Queue.copy tactics in
-
-  let rec handle (q : (goal -> thm) Queue.t) (f : unit -> thm) =
-    trace_dbg (Format.sprintf "queue length: %d" (Queue.length q));
-    (* trace_dbg "hit handle"; *)
-    match f () with
-    (* Execute inside the match *)
-    | effect TacticQueue, k -> continue k q
-    | effect Subgoal g, k -> (
-        match Queue.take_opt q with
-        | None ->
-            trace_dbg "out of tactics";
-            fail ()
-        | Some t ->
-            trace_dbg "trying subgoal";
-            let thm = handle q (fun () -> t g) in
-            handle q (fun () -> continue k thm)
-            (* Wrap continuation too *))
-    | effect Choose choices, k ->
-        trace_dbg (Format.sprintf "Choose with %d choices" (List.length choices));
-        let r = Multicont.Deep.promote k in
-        let saved_q = Queue.copy q in
-
-        let rec try_each = function
-          | [] ->
-              trace_dbg "out of choices";
-              fail ()
-          | c :: cs -> (
-              let q' = Queue.copy saved_q in
-              trace_dbg
-                (Format.sprintf
-                   "trying choice, saved_q length: %d, q' length: %d"
-                   (Queue.length saved_q) (Queue.length q'));
-              match handle q' (fun () -> Multicont.Deep.resume r c) with
-              | effect Fail, _ ->
-                  trace_dbg
-                    (Format.sprintf "failed, q length now: %d" (Queue.length q));
-                  try_each cs
-              | v -> v)
-        in
-        try_each choices
-    | v ->
-        (* trace_dbg "returning from bfs"; *)
-        v
-  in
-  handle tac_q (fun () -> tac goal)
-(* Initial call with thunk *)
-
-(* Here we need to handle general failure and incomplete subgoals. *)
+(* this only trys choices at one level, for actual dfs we need a full handler *)
 let with_first_success tac =
  fun goal ->
   match tac goal with
   | effect Choose choices, k ->
       let r = Multicont.Deep.promote k in
-
       let rec try_each = function
         | [] ->
             trace_error "no choices available";
@@ -352,7 +338,7 @@ let with_interactive_choice tac =
         continue k (get_choice choices)
   | v -> v
 
-let with_term_size_ranking tac =
+let with_term_size_ranking  tac =
   let rec term_size (t : term) =
     match t with
     | Var (_, _) -> 1

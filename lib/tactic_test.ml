@@ -2,7 +2,195 @@ open Kernel
 open Derived
 open Inductive
 open Tactic
+open Effect
+open Printing
 
+type dfs_res = Success | Failure
+
+let test_dfs () =
+  let print_choice = function
+    | `A -> print_endline "A"
+    | `B -> print_endline "B"
+    | `C -> print_endline "C"
+    | `D -> print_endline "D"
+    | `E -> print_endline "E"
+    | `F -> print_endline "F"
+    | `G -> print_endline "G"
+    | `H -> print_endline "H"
+    | `I -> print_endline "I"
+  in
+  let choice = perform @@ Choose [ `A; `B; `C ] in
+  let choice2 = perform @@ Choose [ `D; `E; `F ] in
+  let choice3 = perform @@ Choose [ `G; `H; `I ] in
+  List.iter print_choice [ choice; choice2; choice3 ];
+
+  match (choice, choice2, choice3) with `C, `F, `G -> Success | _ -> Failure
+
+let choice_dfs () =
+  match test_dfs () with
+  | effect Choose cs, k ->
+      let r = Multicont.Deep.promote k in
+      let rec try' = function
+        | [] -> Failure
+        | this :: rest -> (
+            print_endline "trying next";
+            match Multicont.Deep.resume r this with
+            | Success -> Success
+            | Failure -> try' rest)
+      in
+      try' cs
+  | v ->
+      print_endline
+        (match v with
+        | Success -> "computation returned Success"
+        | Failure -> "computation returned Failure");
+      v
+
+let%expect_test "choice test" =
+  (match choice_dfs () with
+  | Success -> print_endline "success"
+  | Failure -> print_endline "failure");
+  [%expect
+    {|
+    trying next
+    trying next
+    trying next
+    A
+    D
+    G
+    computation returned Failure
+    trying next
+    A
+    D
+    H
+    computation returned Failure
+    trying next
+    A
+    D
+    I
+    computation returned Failure
+    trying next
+    trying next
+    A
+    E
+    G
+    computation returned Failure
+    trying next
+    A
+    E
+    H
+    computation returned Failure
+    trying next
+    A
+    E
+    I
+    computation returned Failure
+    trying next
+    trying next
+    A
+    F
+    G
+    computation returned Failure
+    trying next
+    A
+    F
+    H
+    computation returned Failure
+    trying next
+    A
+    F
+    I
+    computation returned Failure
+    trying next
+    trying next
+    trying next
+    B
+    D
+    G
+    computation returned Failure
+    trying next
+    B
+    D
+    H
+    computation returned Failure
+    trying next
+    B
+    D
+    I
+    computation returned Failure
+    trying next
+    trying next
+    B
+    E
+    G
+    computation returned Failure
+    trying next
+    B
+    E
+    H
+    computation returned Failure
+    trying next
+    B
+    E
+    I
+    computation returned Failure
+    trying next
+    trying next
+    B
+    F
+    G
+    computation returned Failure
+    trying next
+    B
+    F
+    H
+    computation returned Failure
+    trying next
+    B
+    F
+    I
+    computation returned Failure
+    trying next
+    trying next
+    trying next
+    C
+    D
+    G
+    computation returned Failure
+    trying next
+    C
+    D
+    H
+    computation returned Failure
+    trying next
+    C
+    D
+    I
+    computation returned Failure
+    trying next
+    trying next
+    C
+    E
+    G
+    computation returned Failure
+    trying next
+    C
+    E
+    H
+    computation returned Failure
+    trying next
+    C
+    E
+    I
+    computation returned Failure
+    trying next
+    trying next
+    C
+    F
+    G
+    computation returned Success
+    success
+    |}]
 (* let nat_def = *)
 (*   let nat_ty = TyCon ("nat", []) in *)
 (*   define_inductive "nat" [] *)
@@ -44,7 +232,7 @@ let%expect_test "basic" =
   let next_tactic =
     next_tactic_of_list
       [
-        conj_tac;
+        with_skip_fail conj_tac;
         with_first_success assumption_tac;
         with_first_success assumption_tac;
       ]
@@ -189,10 +377,9 @@ let%expect_test "basic6" =
   let goal = b in
 
   let next_tactic =
-    next_tactic_of_list
-    @@ wrap_all with_dfs [ apply_tac; apply_tac; assumption_tac ]
+      next_tactic_of_list [ apply_tac;  assumption_tac ]
   in
-  (match prove ([ imp_abc; imp_ab; a ], goal) next_tactic with
+  (match prove_dfs ([ imp_abc; imp_ab; a ], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
@@ -203,6 +390,9 @@ let%expect_test "basic6" =
   [%expect
     {|
     assume chosen h success
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    assumption doesn't match the goal
     assume chosen h success
     assumption doesn't match the goal
     assumption doesn't match the goal
@@ -222,7 +412,7 @@ let%expect_test "basic7" =
   let goal = a in
 
   let next_tactic = next_tactic_of_list [ contr_tac; assumption_tac ] in
-  (match prove ([ make_false () ], goal) next_tactic with
+  (match prove_dfs ([ make_false () ], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
@@ -346,28 +536,19 @@ let%expect_test "basic10" =
     ∀x. A ==> A
     |}]
 
-let%expect_test "nested_conj_dfs" =
+let%expect_test "dfs_backtrack" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let c = make_var "C" bool_ty in
   let d = make_var "D" bool_ty in
-  (* Goal: (A ∧ B) ∧ (C ∧ D) *)
-  let ab = make_conj a b in
-  let cd = make_conj c d in
-  let goal = make_conj ab cd in
-  let next_tactic =
-    next_tactic_of_list
-      [
-        with_dfs conj_tac;
-        conj_tac;
-        assumption_tac;
-        assumption_tac;
-        conj_tac;
-        assumption_tac;
-        assumption_tac;
-      ]
-  in
-  (match prove ([ a; b; c; d ], goal) next_tactic with
+  let e = make_var "E" bool_ty in
+  let f = make_var "F" bool_ty in
+  (* Goal: A ∨ B, but only B is available *)
+
+  let goal = make_disj (make_disj e (make_disj (make_disj c d) (make_disj a b))) f in
+  print_term goal;
+  let next_tactic = next_tactic_of_list [ with_repeat or_tac; assumption_tac ] in
+  (match prove_dfs  ([ f ], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
@@ -376,56 +557,72 @@ let%expect_test "nested_conj_dfs" =
       Printing.print_term g);
   [%expect
     {|
-    Destruct succeeded
-    0: A ∧ B
-    1: C ∧ D
-    Destruct succeeded
-    0: A
-    1: B
+    E ∨ C ∨ D ∨ A ∨ B ∨ F
+
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    OperationDoesntMatch
     Found matching assumption
     Assumption succeeded
-    0: B
-    assumption doesn't match the goal
-    Found matching assumption
-    Assumption succeeded
-    conj success
-    0: C ∧ D
-    Destruct succeeded
-    0: C
-    1: D
-    assumption doesn't match the goal
-    assumption doesn't match the goal
-    Found matching assumption
-    Assumption succeeded
-    0: D
-    assumption doesn't match the goal
-    assumption doesn't match the goal
-    assumption doesn't match the goal
-    Found matching assumption
-    Assumption succeeded
-    conj success
-    conj success
+    disj_right success
     Proof Complete!
-    A
-    B
-    C
-    D
+    F
     ========================================
-    A ∧ B ∧ C ∧ D
+    E ∨ C ∨ D ∨ A ∨ B ∨ F
     |}]
 
-let%expect_test "dfs_backtrack" =
+let%expect_test "dfs_conj_backtrack" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
-  (* Goal: A ∨ B, but only B is available *)
-  let goal = make_disj a b in
-  let next_tactic = next_tactic_of_list [ with_dfs or_tac; assumption_tac ] in
-  (match prove ([ b ], goal) next_tactic with
-  | Complete thm ->
-      print_endline "Proof Complete!";
-      Printing.print_thm thm
-  | Incomplete (_asms, g) ->
-      print_endline "Proof Failed";
-      Printing.print_term g);
+  let c = make_var "C" bool_ty in
+  (* Goal: (A ∨ B) ∧ C, only have [B; C] *)
+  let left = make_disj a b in
+  let goal = make_conj left c in
+  let next_tactic = next_tactic_of_list [ 
+    conj_tac; 
+    with_skip_fail or_tac; 
+    assumption_tac; 
+  ] in
+  (match prove_dfs ([ b; c ], goal) next_tactic with
+  | Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+
   [%expect {|
+    Destruct succeeded
+    0: A ∨ B
+    1: C
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    disj_right success
+    0: C
+    OperationDoesntMatch
+    assumption doesn't match the goal
+    Found matching assumption
+    Assumption succeeded
+    conj success
+    Proof Complete!
+    B
+    C
+    ========================================
+    A ∨ B ∧ C
     |}]
