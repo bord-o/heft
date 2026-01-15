@@ -1,4 +1,4 @@
-open Heft 
+open Heft
 open Derived
 open Inductive
 open Tactic
@@ -198,7 +198,6 @@ let%expect_test "choice test" =
 (*       { name = "Zero"; arg_types = [] }; *)
 (*       { name = "Suc"; arg_types = [ nat_ty ] }; *)
 (*     ] in *)
-(**)
 (* let plus_def = *)
 (*   let _ = init_types () in *)
 (*   let nat_ty = TyCon ("nat", []) in *)
@@ -206,11 +205,9 @@ let%expect_test "choice test" =
 (*   let suc = nat_def.constructors |> List.assoc_opt "Suc" |> Option.get in *)
 (*   let z = nat_def.constructors |> List.assoc_opt "Zero" |> Option.get in *)
 (*   print_endline @@ show_term z; *)
-(**)
 (*   let n = make_var "n" nat_ty in *)
 (*   let m' = make_var "m'" nat_ty in *)
 (*   let r = make_var "r" (make_fun_ty nat_ty nat_ty) in *)
-(**)
 (*   let* zero_case = make_lam n n in *)
 (*   (* λn. n *) *)
 (*   let* suc_case = *)
@@ -220,7 +217,6 @@ let%expect_test "choice test" =
 (*     let* lam_r = make_lam r lam_n_suc_rn in *)
 (*     make_lam m' lam_r (* λm'. λr. λn. Suc (r n) *) *)
 (*   in *)
-(**)
 (*   let return_type = make_fun_ty nat_ty nat_ty in *)
 (*   define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ] in *)
 
@@ -376,9 +372,7 @@ let%expect_test "basic6" =
 
   let goal = b in
 
-  let next_tactic =
-      next_tactic_of_list [ apply_tac;  assumption_tac ]
-  in
+  let next_tactic = next_tactic_of_list [ apply_tac; assumption_tac ] in
   (match prove_dfs ([ imp_abc; imp_ab; a ], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -545,10 +539,14 @@ let%expect_test "dfs_backtrack" =
   let f = make_var "F" bool_ty in
   (* Goal: A ∨ B, but only B is available *)
 
-  let goal = make_disj (make_disj e (make_disj (make_disj c d) (make_disj a b))) f in
+  let goal =
+    make_disj (make_disj e (make_disj (make_disj c d) (make_disj a b))) f
+  in
   print_term goal;
-  let next_tactic = next_tactic_of_list [ with_repeat or_tac; assumption_tac ] in
-  (match prove_dfs  ([ f ], goal) next_tactic with
+  let next_tactic =
+    next_tactic_of_list [ with_repeat or_tac; assumption_tac ]
+  in
+  (match prove_dfs ([ f ], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
@@ -596,16 +594,17 @@ let%expect_test "dfs_conj_backtrack" =
   (* Goal: (A ∨ B) ∧ C, only have [B; C] *)
   let left = make_disj a b in
   let goal = make_conj left c in
-  let next_tactic = next_tactic_of_list [ 
-    conj_tac; 
-    with_skip_fail or_tac; 
-    assumption_tac; 
-  ] in
+  let next_tactic =
+    next_tactic_of_list [ conj_tac; with_skip_fail or_tac; assumption_tac ]
+  in
   (match prove_dfs ([ b; c ], goal) next_tactic with
-  | Complete thm -> print_endline "Proof Complete!"; Printing.print_thm thm
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
   | Incomplete _ -> print_endline "Proof Failed");
 
-  [%expect {|
+  [%expect
+    {|
     Destruct succeeded
     0: A ∨ B
     1: C
