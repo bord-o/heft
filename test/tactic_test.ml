@@ -625,3 +625,40 @@ let%expect_test "dfs_conj_backtrack" =
     ========================================
     A ∨ B ∧ C
     |}]
+
+let%expect_test "dfs_conj_assumptions" =
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let r = make_var "R" bool_ty in
+
+  let p_imp_q = make_imp p q in
+  let q_imp_r = make_imp q r in
+  let p_imp_r = make_imp p r in
+  let goal = make_imp (make_conj p_imp_q q_imp_r) p_imp_r in
+
+  let next_tactic =
+    next_tactic_of_list
+      [
+        intro_tac;
+        elim_conj_asm_tac;
+        intro_tac;
+        apply_tac;
+        apply_tac;
+        assumption_tac;
+      ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, conc) ->
+      print_endline "Proof Failed";
+      List.iter
+        (fun t ->
+          print_endline "assumption: ";
+          print_term t)
+        asms;
+      print_term conc);
+
+  [%expect {|
+    |}]

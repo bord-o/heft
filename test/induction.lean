@@ -18,3 +18,19 @@ theorem test_a (n : Nat) : ∀ (n:Nat), a -> a := by
       
 
 
+variable {p : Prop}
+variable {q : Prop}
+variable {r : Prop}
+theorem test_nest : ((p -> q) /\ (q -> r)) -> (p -> r) := by 
+  intro ha
+  cases ha with
+  | intro hl hr => 
+    intro hp
+    apply hr
+    apply hl
+    assumption
+
+    
+  
+  
+

@@ -148,6 +148,23 @@ let conj_tac : goal -> thm =
   in
   return_thm thm
 
+let elim_conj_asm_tac (asms, concl) =
+  let conjs = List.filter is_conj asms in
+  if List.is_empty conjs then fail ()
+  else
+    let thm =
+      let chosen = perform (Choose conjs) in
+      let* l, r = destruct_conj chosen in
+      let asms' = l :: r :: List.filter (( <> ) chosen) asms in
+      let sub_thm = perform (Subgoal (asms', concl)) in
+      let* conj_asm = assume chosen in
+      let* l_thm = conj_left conj_asm in
+      let* r_thm = conj_right conj_asm in
+      let* p_1 = prove_hyp r_thm sub_thm in
+      prove_hyp l_thm p_1
+    in
+    return_thm thm
+
 let contr_tac : goal -> thm =
  fun (asms, concl) ->
   let thm =
