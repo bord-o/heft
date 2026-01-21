@@ -660,7 +660,8 @@ let%expect_test "dfs_conj_assumptions" =
         asms;
       print_term conc);
 
-  [%expect {|
+  [%expect
+    {|
     destruct success
     destruct success
     assume chosen h success
@@ -674,4 +675,259 @@ let%expect_test "dfs_conj_assumptions" =
     Proof Complete!
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
+    |}]
+
+let%expect_test "complete_prop_automation" =
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let r = make_var "R" bool_ty in
+
+  let p_imp_q = make_imp p q in
+  let q_imp_r = make_imp q r in
+  let p_imp_r = make_imp p r in
+  let goal = make_imp (make_conj p_imp_q q_imp_r) p_imp_r in
+
+  let next_tactic = next_tactic_of_list [ with_repeat pauto_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, conc) ->
+      print_endline "Proof Failed";
+      List.iter
+        (fun t ->
+          print_endline "assumption: ";
+          print_term t)
+        asms;
+      print_term conc);
+
+  [%expect
+    {|
+    destruct success
+    destruct success
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    Out of tactics
+    assume chosen h success
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    Out of tactics
+    assume chosen h success
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    Out of tactics
+    assumption doesn't match the goal
+    Out of tactics
+    assumption doesn't match the goal
+    Out of tactics
+    Found matching assumption
+    Assumption succeeded
+    mp success
+    mp success
+    disch success
+    disch success
+    Proof Complete!
+    ========================================
+    (P ==> Q) ∧ (Q ==> R) ==> P ==> R
+    |}]
+
+let%expect_test "dfs_disj_assumptions" =
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let r = make_var "R" bool_ty in
+  let p_or_q = make_disj p q in
+  let p_imp_r = make_imp p r in
+  let q_imp_r = make_imp q r in
+  let goal = make_imp p_or_q (make_imp p_imp_r (make_imp q_imp_r r)) in
+  let next_tactic =
+    next_tactic_of_list
+      [
+        intro_tac;
+        intro_tac;
+        intro_tac;
+        elim_disj_asm_tac;
+        apply_tac;
+        assumption_tac;
+        apply_tac;
+        assumption_tac;
+      ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, conc) ->
+      print_endline "Proof Failed";
+      List.iter
+        (fun t ->
+          print_endline "assumption: ";
+          print_term t)
+        asms;
+      print_term conc);
+  [%expect
+    {|
+    destruct success
+    destruct success
+    destruct success
+    0: R
+    1: R
+    assume chosen h success
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    assume chosen h success
+    Found matching assumption
+    Assumption succeeded
+    mp success
+    0: R
+    assume chosen h success
+    Found matching assumption
+    Assumption succeeded
+    mp success
+    disch success
+    disch success
+    disch success
+    Proof Complete!
+    ========================================
+    P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
+    |}]
+
+let%expect_test "pauto_disj_elimination" =
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let r = make_var "R" bool_ty in
+  let p_or_q = make_disj p q in
+  let p_imp_r = make_imp p r in
+  let q_imp_r = make_imp q r in
+  let goal = make_imp p_or_q (make_imp p_imp_r (make_imp q_imp_r r)) in
+  let next_tactic = next_tactic_of_list [ with_repeat pauto_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, conc) ->
+      print_endline "Proof Failed";
+      List.iter
+        (fun t ->
+          print_endline "assumption: ";
+          print_term t)
+        asms;
+      print_term conc);
+  [%expect
+    {|
+    destruct success
+    destruct success
+    destruct success
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    0: R
+    1: R
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    Out of tactics
+    assume chosen h success
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    Out of tactics
+    assumption doesn't match the goal
+    Out of tactics
+    assumption doesn't match the goal
+    Out of tactics
+    assumption doesn't match the goal
+    Out of tactics
+    assume chosen h success
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    Out of tactics
+    Found matching assumption
+    Assumption succeeded
+    mp success
+    0: R
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    Out of tactics
+    assume chosen h success
+    OperationDoesntMatch
+    Out of tactics
+    NotAConj
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    OperationDoesntMatch
+    Out of tactics
+    Out of tactics
+    Out of tactics
+    Found matching assumption
+    Assumption succeeded
+    mp success
+    disch success
+    disch success
+    disch success
+    Proof Complete!
+    ========================================
+    P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
     |}]

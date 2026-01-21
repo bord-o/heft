@@ -148,6 +148,29 @@ let conj_tac : goal -> thm =
   in
   return_thm thm
 
+let elim_disj_asm_tac : goal -> thm =
+ fun (asms, concl) ->
+  let disjs = List.filter is_disj asms in
+  if List.is_empty disjs then fail ()
+  else
+    let thm =
+      let chosen = perform (Choose disjs) in
+      let* l, r = destruct_disj chosen in
+      let asms' = List.filter (( <> ) chosen) asms in
+
+      let left_goal = (l :: asms', concl) in
+      let right_goal = (r :: asms', concl) in
+      let goals = [ left_goal; right_goal ] in
+
+      let solved = choose_subgoals [] goals in
+      let left_thm = solved |> List.assoc left_goal in
+      let right_thm = solved |> List.assoc right_goal in
+
+      let* disj_asm = assume chosen in
+      disj_cases disj_asm left_thm right_thm
+    in
+    return_thm thm
+
 let elim_conj_asm_tac (asms, concl) =
   let conjs = List.filter is_conj asms in
   if List.is_empty conjs then fail ()
@@ -225,6 +248,25 @@ let induct_tac : goal -> thm =
     Ok thm
   in
   return_thm thm
+
+(* Complete automation for propositional logic goals *)
+let pauto_tac : goal -> thm =
+ fun goal ->
+  let tac =
+    perform
+    @@ Choose
+         [
+           intro_tac;
+           conj_tac;
+           left_tac;
+           right_tac;
+           elim_conj_asm_tac;
+           elim_disj_asm_tac;
+           apply_tac;
+           assumption_tac;
+         ]
+  in
+  tac goal
 
 (* 
    As a general rule, custom handlers should handle the least amount of 
