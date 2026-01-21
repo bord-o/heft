@@ -661,4 +661,17 @@ let%expect_test "dfs_conj_assumptions" =
       print_term conc);
 
   [%expect {|
+    destruct success
+    destruct success
+    assume chosen h success
+    assume chosen h success
+    Found matching assumption
+    Assumption succeeded
+    mp success
+    mp success
+    disch success
+    disch success
+    Proof Complete!
+    ========================================
+    (P ==> Q) ∧ (Q ==> R) ==> P ==> R
     |}]
