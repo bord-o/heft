@@ -1200,3 +1200,118 @@ let%expect_test "complex_nested" =
     ========================================
     ((P ==> Q) ==> P) ==> P
     |}]
+
+
+let%expect_test "four_variable_distribution" =
+  (* (A ∨ B) ∧ (C ∨ D) ⟹ (A ∧ C) ∨ (A ∧ D) ∨ (B ∧ C) ∨ (B ∧ D) *)
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let c = make_var "C" bool_ty in
+  let d = make_var "D" bool_ty in
+  let goal = make_imp 
+    (make_conj (make_disj a b) (make_disj c d))
+    (make_disj (make_conj a c) 
+      (make_disj (make_conj a d) 
+        (make_disj (make_conj b c) (make_conj b d)))) in
+  let next_tactic = next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect {|
+    Proof Complete!
+    ========================================
+    A ∨ B ∧ C ∨ D ==> A ∧ C ∨ A ∧ D ∨ B ∧ C ∨ B ∧ D
+    |}]
+
+let%expect_test "implication_chain" =
+  (* (A ⟹ B) ⟹ (B ⟹ C) ⟹ (C ⟹ D) ⟹ (A ⟹ D) *)
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let c = make_var "C" bool_ty in
+  let d = make_var "D" bool_ty in
+  let goal = make_imp (make_imp a b)
+    (make_imp (make_imp b c)
+      (make_imp (make_imp c d)
+        (make_imp a d))) in
+  let next_tactic = next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect {|
+    Proof Complete!
+    ========================================
+    (A ==> B) ==> (B ==> C) ==> (C ==> D) ==> A ==> D
+    |}]
+
+let%expect_test "contraposition_chain" =
+  (* (A ⟹ B) ⟹ (B ⟹ C) ⟹ (¬C ⟹ ¬A) *)
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let c = make_var "C" bool_ty in
+  let goal = make_imp (make_imp a b)
+    (make_imp (make_imp b c)
+      (make_imp (make_neg c) (make_neg a))) in
+  let next_tactic = next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect {|
+    Proof Complete!
+    ========================================
+    (A ==> B) ==> (B ==> C) ==> ¬C ==> ¬A
+    |}]
+
+let%expect_test "absorption_law" =
+  (* P ∧ (P ∨ Q) ⟺ P - just one direction here *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp (make_conj p (make_disj p q)) p in
+  let next_tactic = next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect {|
+    Proof Complete!
+    ========================================
+    P ∧ P ∨ Q ==> P
+    |}]
+
+let%expect_test "absorption_law_converse" =
+  (* P ⟹ P ∧ (P ∨ Q) *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp p (make_conj p (make_disj p q)) in
+  let next_tactic = next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect {|
+    Proof Complete!
+    ========================================
+    P ==> P ∧ P ∨ Q
+    |}]
+
+let%expect_test "not_false_is_true" =
+  (* ¬⊥ *)
+  let goal = make_neg (make_false ()) in
+  let next_tactic = next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect {|
+    Proof Complete!
+    ========================================
+    ¬F
+    |}]
