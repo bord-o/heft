@@ -288,6 +288,8 @@ let destruct_disj = function
   | App (App (Const ("\\/", _), p), q) -> Ok (p, q)
   | _ -> Error `NotADisj
 
+let is_imp t = match destruct_imp t with Error `NotAnImp -> false | _ -> true
+
 let destruct_exists = function
   | App (Const ("?", _), Lam (bind, bod)) -> Ok (bind, bod)
   | _ -> Error `NotAnExists
@@ -295,6 +297,9 @@ let destruct_exists = function
 let term_of_negation = function
   | App (Const ("~", _), t) -> Ok t
   | _ -> Error `NotANegation
+
+let is_neg t =
+  match term_of_negation t with Error `NotANegation -> false | _ -> true
 
 let destruct_forall = function
   | App (Const ("!", _), Lam (bind, bod)) -> Ok (bind, bod)

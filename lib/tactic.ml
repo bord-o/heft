@@ -92,6 +92,45 @@ let apply_tac (asms, concl) =
   in
   return_thm thm
 
+let apply_neg_tac : goal -> thm =
+ fun (asms, concl) ->
+  let false_tm = make_false () in
+  if concl <> false_tm then fail ()
+  else
+    let negs = List.filter is_neg asms in
+    if List.is_empty negs then fail ()
+    else
+      let thm =
+        let chosen = perform (Choose negs) in
+        let* p = term_of_negation chosen in
+        if List.mem p asms then fail ()
+        else
+          let* neg_thm = assume chosen in
+          let* elim = not_elim neg_thm in
+          let sub_thm = perform (Subgoal (asms, p)) in
+          prove_hyp sub_thm elim
+      in
+      return_thm thm
+
+let mp_asm_tac : goal -> thm =
+ fun (asms, concl) ->
+  let imps = List.filter is_imp asms in
+  if List.is_empty imps then fail ()
+  else
+    let thm =
+      let chosen_imp = perform (Choose imps) in
+      let* prem, conc = destruct_imp chosen_imp in
+      if List.mem prem asms && not (List.mem conc asms) then
+        let asms' = conc :: asms in
+        let sub_thm = perform (Subgoal (asms', concl)) in
+        let* imp_thm = assume chosen_imp in
+        let* prem_thm = assume prem in
+        let* conc_thm = mp imp_thm prem_thm in
+        prove_hyp conc_thm sub_thm
+      else fail ()
+    in
+    return_thm thm
+
 let intro_tac (asms, concl) =
   let thm =
     let* hyp = side_of_op "==>" Left concl in
@@ -188,15 +227,60 @@ let elim_conj_asm_tac (asms, concl) =
     in
     return_thm thm
 
-let contr_tac : goal -> thm =
+let neg_elim_tac : goal -> thm =
+ fun (asms, concl) ->
+  let negs = List.filter is_neg asms in
+  if List.is_empty negs then fail ()
+  else
+    let thm =
+      let chosen_neg = perform (Choose negs) in
+      let* p = term_of_negation chosen_neg in
+      if List.mem p asms then
+        let* neg_thm = assume chosen_neg in
+        let* p_thm = assume p in
+        let* false_thm = not_elim neg_thm in
+        let* false_proved = prove_hyp p_thm false_thm in
+        contr concl false_proved
+      else fail ()
+    in
+    return_thm thm
+
+let neg_intro_tac : goal -> thm =
  fun (asms, concl) ->
   let thm =
-    let false_tm = make_false () in
-    let fthm = perform (Subgoal (asms, false_tm)) in
-    let* thm = contr concl fthm in
-    Ok thm
+    let* p = term_of_negation concl in
+    if List.mem p asms then fail ()
+    else
+      let f = make_false () in
+      let goal' = (p :: asms, f) in
+      let sub_thm = perform (Subgoal goal') in
+      not_intro p sub_thm
   in
   return_thm thm
+
+let ccontr_tac : goal -> thm =
+ fun (asms, concl) ->
+  let false_tm = make_false () in
+  let neg_concl = make_neg concl in
+  if concl = false_tm || List.mem neg_concl asms then fail ()
+  else
+    let thm =
+      let goal' = (neg_concl :: asms, false_tm) in
+      let sub_thm = perform (Subgoal goal') in
+      ccontr concl sub_thm
+    in
+    return_thm thm
+
+let false_elim_tac : goal -> thm =
+ fun (asms, concl) ->
+  let false_tm = make_false () in
+  if List.mem false_tm asms then
+    let thm =
+      let* false_thm = assume false_tm in
+      contr concl false_thm
+    in
+    return_thm thm
+  else fail ()
 
 let gen_tac : goal -> thm =
  fun (asms, concl) ->
@@ -256,14 +340,20 @@ let pauto_tac : goal -> thm =
     perform
     @@ Choose
          [
+           assumption_tac;
            intro_tac;
+           neg_intro_tac;
            conj_tac;
-           left_tac;
-           right_tac;
            elim_conj_asm_tac;
            elim_disj_asm_tac;
+           false_elim_tac;
+           neg_elim_tac;
            apply_tac;
-           assumption_tac;
+           apply_neg_tac;
+           mp_asm_tac;
+           left_tac;
+           right_tac;
+           ccontr_tac;
          ]
   in
   tac goal
@@ -314,8 +404,10 @@ let with_repeat tac =
     match tac (asms, concl) with
     | effect Fail, _ -> perform (Subgoal (asms, concl))
     | effect Subgoal g, k ->
+        let r = Multicont.Deep.promote k in
         let thm = aux g in
-        continue k thm
+        (* idk man *)
+        Multicont.Deep.resume r thm
     | thm -> thm
   in
   aux
@@ -323,7 +415,7 @@ let with_repeat tac =
 let rec prove_dfs g tactic_queue =
   match Queue.take_opt tactic_queue with
   | None ->
-      print_endline "Out of tactics";
+      (* print_endline "Out of tactics"; *)
       Incomplete g
   | Some tactic ->
       let rec handler (f : unit -> proof_state) =

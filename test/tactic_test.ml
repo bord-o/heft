@@ -405,7 +405,7 @@ let%expect_test "basic7" =
 
   let goal = a in
 
-  let next_tactic = next_tactic_of_list [ contr_tac; assumption_tac ] in
+  let next_tactic = next_tactic_of_list [ ccontr_tac; assumption_tac ] in
   (match prove_dfs ([ make_false () ], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -416,6 +416,7 @@ let%expect_test "basic7" =
 
   [%expect
     {|
+    assumption doesn't match the goal
     Found matching assumption
     Assumption succeeded
     Proof Complete!
@@ -429,7 +430,7 @@ let%expect_test "basic8" =
 
   let goal = a in
 
-  let next_tactic = next_tactic_of_list [ contr_tac; assumption_tac ] in
+  let next_tactic = next_tactic_of_list [ false_elim_tac; assumption_tac ] in
   (match prove ([ make_false () ], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -440,8 +441,6 @@ let%expect_test "basic8" =
 
   [%expect
     {|
-    Found matching assumption
-    Assumption succeeded
     Proof Complete!
     F
     ========================================
@@ -704,51 +703,29 @@ let%expect_test "complete_prop_automation" =
   [%expect
     {|
     destruct success
+    assumption doesn't match the goal
     destruct success
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    Out of tactics
-    assume chosen h success
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    Out of tactics
-    assume chosen h success
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    Out of tactics
     assumption doesn't match the goal
-    Out of tactics
     assumption doesn't match the goal
-    Out of tactics
+    OperationDoesntMatch
+    NotANegation
+    NotAConj
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    NotANegation
+    NotAConj
+    assume chosen h success
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    assumption doesn't match the goal
+    OperationDoesntMatch
+    NotANegation
+    NotAConj
+    assume chosen h success
+    assumption doesn't match the goal
+    assumption doesn't match the goal
     Found matching assumption
     Assumption succeeded
     mp success
@@ -829,7 +806,9 @@ let%expect_test "pauto_disj_elimination" =
   let p_imp_r = make_imp p r in
   let q_imp_r = make_imp q r in
   let goal = make_imp p_or_q (make_imp p_imp_r (make_imp q_imp_r r)) in
-  let next_tactic = next_tactic_of_list [ with_repeat pauto_tac ] in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -844,90 +823,380 @@ let%expect_test "pauto_disj_elimination" =
       print_term conc);
   [%expect
     {|
+    Proof Complete!
+    ========================================
+    P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
+    |}]
+
+let%expect_test "false_elim_tac_test" =
+  (* ⊥ in assumptions, prove anything *)
+  let p = make_var "P" bool_ty in
+  let false_tm = make_false () in
+  let goal = make_imp false_tm p in
+  let next_tactic = next_tactic_of_list [ intro_tac; false_elim_tac ] in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
     destruct success
-    destruct success
-    destruct success
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    0: R
-    1: R
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    Out of tactics
-    assume chosen h success
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    Out of tactics
-    assumption doesn't match the goal
-    Out of tactics
-    assumption doesn't match the goal
-    Out of tactics
-    assumption doesn't match the goal
-    Out of tactics
-    assume chosen h success
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    Out of tactics
-    Found matching assumption
-    Assumption succeeded
-    mp success
-    0: R
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    Out of tactics
-    assume chosen h success
-    OperationDoesntMatch
-    Out of tactics
-    NotAConj
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    OperationDoesntMatch
-    Out of tactics
-    Out of tactics
-    Out of tactics
-    Found matching assumption
-    Assumption succeeded
-    mp success
     disch success
+    Proof Complete!
+    ========================================
+    F ==> P
+    |}]
+
+let%expect_test "neg_elim_tac_test" =
+  (* P and ¬P in assumptions, prove anything *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp p (make_imp (make_neg p) q) in
+  let next_tactic =
+    next_tactic_of_list [ intro_tac; intro_tac; neg_elim_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    destruct success
+    destruct success
     disch success
     disch success
     Proof Complete!
     ========================================
-    P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
+    P ==> ¬P ==> Q
+    |}]
+
+let%expect_test "neg_intro_tac_test" =
+  (* Goal is ¬P, reduce to [P] ⊢ ⊥ *)
+  (* Prove: P ⟹ ¬¬P *)
+  let p = make_var "P" bool_ty in
+  let goal = make_imp p (make_neg (make_neg p)) in
+  let next_tactic =
+    next_tactic_of_list [ intro_tac; neg_intro_tac; neg_elim_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    destruct success
+    disch success
+    Proof Complete!
+    ========================================
+    P ==> ¬¬P
+    |}]
+
+let%expect_test "ccontr_tac_test" =
+  (* Classical: assume ¬P, derive ⊥, conclude P *)
+  (* Prove: ¬¬P ⟹ P (requires classical logic) *)
+  let p = make_var "P" bool_ty in
+  let goal = make_imp (make_neg (make_neg p)) p in
+  let next_tactic =
+    next_tactic_of_list [ intro_tac; ccontr_tac; neg_elim_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    destruct success
+    disch success
+    Proof Complete!
+    ========================================
+    ¬¬P ==> P
+    |}]
+
+let%expect_test "modus_tollens" =
+  (* (P ⟹ Q) ⟹ ¬Q ⟹ ¬P *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp (make_imp p q) (make_imp (make_neg q) (make_neg p)) in
+  let next_tactic =
+    next_tactic_of_list
+      [ intro_tac; intro_tac; neg_intro_tac; mp_asm_tac; neg_elim_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      List.iter
+        (fun t ->
+          print_endline "assumption: ";
+          print_term t)
+        asms;
+      print_term g);
+  [%expect
+    {|
+    destruct success
+    destruct success
+    disch success
+    disch success
+    Proof Complete!
+    ========================================
+    (P ==> Q) ==> ¬Q ==> ¬P
+    |}]
+
+let%expect_test "excluded_middle_pauto" =
+  (* P ∨ ¬P (requires classical logic) *)
+  let p = make_var "P" bool_ty in
+  let goal = make_disj p (make_neg p) in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    P ∨ ¬P
+    |}]
+
+let%expect_test "contraposition" =
+  (* (P ⟹ Q) ⟹ (¬Q ⟹ ¬P) *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp (make_imp p q) (make_imp (make_neg q) (make_neg p)) in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    (P ==> Q) ==> ¬Q ==> ¬P
+    |}]
+
+let%expect_test "distribution_and_over_or" =
+  (* P ∧ (Q ∨ R) ⟹ (P ∧ Q) ∨ (P ∧ R) *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let r = make_var "R" bool_ty in
+  let goal =
+    make_imp
+      (make_conj p (make_disj q r))
+      (make_disj (make_conj p q) (make_conj p r))
+  in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    P ∧ Q ∨ R ==> P ∧ Q ∨ P ∧ R
+    |}]
+
+let%expect_test "distribution_or_over_and" =
+  (* P ∨ (Q ∧ R) ⟹ (P ∨ Q) ∧ (P ∨ R) *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let r = make_var "R" bool_ty in
+  let goal =
+    make_imp
+      (make_disj p (make_conj q r))
+      (make_conj (make_disj p q) (make_disj p r))
+  in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
+    |}]
+
+let%expect_test "de_morgan_and" =
+  (* ¬(P ∧ Q) ⟹ ¬P ∨ ¬Q - requires classical *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal =
+    make_imp (make_neg (make_conj p q)) (make_disj (make_neg p) (make_neg q))
+  in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ¬P ∧ Q ==> ¬P ∨ ¬Q
+    |}]
+
+let%expect_test "de_morgan_or" =
+  (* ¬(P ∨ Q) ⟹ ¬P ∧ ¬Q - intuitionistic *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal =
+    make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
+  in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ¬P ∨ Q ==> ¬P ∧ ¬Q
+    |}]
+
+let%expect_test "de_morgan_or_converse" =
+  (* ¬P ∧ ¬Q ⟹ ¬(P ∨ Q) - intuitionistic *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal =
+    make_imp (make_conj (make_neg p) (make_neg q)) (make_neg (make_disj p q))
+  in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ¬P ∧ ¬Q ==> ¬P ∨ Q
+    |}]
+
+let%expect_test "implication_as_disjunction" =
+  (* (P ⟹ Q) ⟹ ¬P ∨ Q - requires classical *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp (make_imp p q) (make_disj (make_neg p) q) in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    (P ==> Q) ==> ¬P ∨ Q
+    |}]
+
+let%expect_test "disjunction_as_implication" =
+  (* ¬P ∨ Q ⟹ (P ⟹ Q) - intuitionistic *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp (make_disj (make_neg p) q) (make_imp p q) in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ¬P ∨ Q ==> P ==> Q
+    |}]
+
+let%expect_test "triple_negation" =
+  (* ¬¬¬P ⟹ ¬P - intuitionistic *)
+  let p = make_var "P" bool_ty in
+  let goal = make_imp (make_neg (make_neg (make_neg p))) (make_neg p) in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ¬¬¬P ==> ¬P
+    |}]
+
+let%expect_test "explosion" =
+  (* P ⟹ ¬P ⟹ Q *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp p (make_imp (make_neg p) q) in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    P ==> ¬P ==> Q
+    |}]
+
+let%expect_test "complex_nested" =
+  (* ((P ⟹ Q) ⟹ P) ⟹ P - Peirce's law, requires classical *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal = make_imp (make_imp (make_imp p q) p) p in
+  let next_tactic =
+    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+  in
+  (match prove_dfs ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ((P ==> Q) ==> P) ==> P
     |}]
