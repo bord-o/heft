@@ -6,7 +6,7 @@ open Effect.Deep
 open Result.Syntax
 
 type goal = term list * term [@@deriving show]
-type level = Debug | Info | Warn | Error
+type level = Debug | Info | Warn | Error | Proof
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 
 type _ Effect.t +=
@@ -21,9 +21,12 @@ let fail () = perform Fail
 let trace_dbg a = perform (Trace (Debug, a))
 let trace_info a = perform (Trace (Info, a))
 let trace_error a = perform (Trace (Error, a))
+let trace_proof a = perform (Trace (Proof, a))
 
-let return_thm = function
-  | Ok thm -> thm
+let return_thm ?(from = "unknown") = function
+  | Ok thm ->
+      perform (Trace (Proof, from));
+      thm
   | Error e ->
       trace_error @@ print_error e;
       fail ()
@@ -51,7 +54,7 @@ let left_tac (asms, concl) =
     trace_dbg "disj_left success";
     t
   in
-  return_thm thm
+  return_thm ~from:"left_tac" thm
 
 let right_tac (asms, concl) =
   let thm =
@@ -62,11 +65,12 @@ let right_tac (asms, concl) =
     trace_dbg "disj_right success";
     t
   in
-  return_thm thm
+  return_thm ~from:"right_tac" thm
 
 let or_tac (asms, concl) =
   let tac = perform (Choose [ left_tac; right_tac ]) in
-  tac (asms, concl)
+  let thm = Ok (tac (asms, concl)) in
+  return_thm ~from:"or_tac" thm
 
 let apply_tac (asms, concl) =
   (* Find implications in the asms that match the conclusion *)
@@ -90,7 +94,7 @@ let apply_tac (asms, concl) =
     trace_dbg "mp success";
     thm
   in
-  return_thm thm
+  return_thm ~from:"apply_tac" thm
 
 let apply_neg_tac : goal -> thm =
  fun (asms, concl) ->
@@ -110,7 +114,7 @@ let apply_neg_tac : goal -> thm =
           let sub_thm = perform (Subgoal (asms, p)) in
           prove_hyp sub_thm elim
       in
-      return_thm thm
+      return_thm ~from:"apply_neg_tac" thm
 
 let mp_asm_tac : goal -> thm =
  fun (asms, concl) ->
@@ -129,7 +133,7 @@ let mp_asm_tac : goal -> thm =
         prove_hyp conc_thm sub_thm
       else fail ()
     in
-    return_thm thm
+    return_thm ~from:"mp_asm_tac" thm
 
 let intro_tac (asms, concl) =
   let thm =
@@ -142,7 +146,7 @@ let intro_tac (asms, concl) =
     trace_dbg "disch success";
     t
   in
-  return_thm thm
+  return_thm ~from:"intro_tac" thm
 
 let refl_tac (_asms, concl) =
   let thm =
@@ -156,7 +160,7 @@ let refl_tac (_asms, concl) =
       trace_error "refl failure: left and right not eq";
       fail ())
   in
-  return_thm thm
+  return_thm ~from:"refl_tac" thm
 
 let assumption_tac (asms, concl) =
   let asm = perform (Choose asms) in
@@ -167,7 +171,7 @@ let assumption_tac (asms, concl) =
     trace_dbg "Found matching assumption";
     let t = assume concl in
     trace_dbg "Assumption succeeded";
-    return_thm t)
+    return_thm ~from:"assumption_tac" t)
 
 let conj_tac : goal -> thm =
  fun (asms, concl) ->
@@ -185,7 +189,7 @@ let conj_tac : goal -> thm =
     trace_dbg "conj success";
     Ok thm
   in
-  return_thm thm
+  return_thm ~from:"conj_tac" thm
 
 let elim_disj_asm_tac : goal -> thm =
  fun (asms, concl) ->
@@ -208,7 +212,7 @@ let elim_disj_asm_tac : goal -> thm =
       let* disj_asm = assume chosen in
       disj_cases disj_asm left_thm right_thm
     in
-    return_thm thm
+    return_thm ~from:"elim_disj_asm_tac" thm
 
 let elim_conj_asm_tac (asms, concl) =
   let conjs = List.filter is_conj asms in
@@ -225,7 +229,7 @@ let elim_conj_asm_tac (asms, concl) =
       let* p_1 = prove_hyp r_thm sub_thm in
       prove_hyp l_thm p_1
     in
-    return_thm thm
+    return_thm ~from:"elim_conj_asm_tac" thm
 
 let neg_elim_tac : goal -> thm =
  fun (asms, concl) ->
@@ -243,7 +247,7 @@ let neg_elim_tac : goal -> thm =
         contr concl false_proved
       else fail ()
     in
-    return_thm thm
+    return_thm ~from:"neg_elim_tac" thm
 
 let neg_intro_tac : goal -> thm =
  fun (asms, concl) ->
@@ -256,7 +260,7 @@ let neg_intro_tac : goal -> thm =
       let sub_thm = perform (Subgoal goal') in
       not_intro p sub_thm
   in
-  return_thm thm
+  return_thm ~from:"neg_intro_tac" thm
 
 let ccontr_tac : goal -> thm =
  fun (asms, concl) ->
@@ -269,7 +273,7 @@ let ccontr_tac : goal -> thm =
       let sub_thm = perform (Subgoal goal') in
       ccontr concl sub_thm
     in
-    return_thm thm
+    return_thm ~from:"ccontr_tac" thm
 
 let false_elim_tac : goal -> thm =
  fun (asms, concl) ->
@@ -279,7 +283,7 @@ let false_elim_tac : goal -> thm =
       let* false_thm = assume false_tm in
       contr concl false_thm
     in
-    return_thm thm
+    return_thm ~from:"false_elim_tac" thm
   else fail ()
 
 let gen_tac : goal -> thm =
@@ -290,7 +294,7 @@ let gen_tac : goal -> thm =
     let* thm = gen x body_thm in
     Ok thm
   in
-  return_thm thm
+  return_thm ~from:"gen_tac" thm
 
 (* 
    need to fetch the appropriate induction definition of the type we are 
@@ -331,7 +335,7 @@ let induct_tac : goal -> thm =
 
     Ok thm
   in
-  return_thm thm
+  return_thm ~from:"induction_tac" thm
 
 (* Complete automation for propositional logic goals *)
 let pauto_tac : goal -> thm =
@@ -412,15 +416,16 @@ let with_repeat tac =
   in
   aux
 
-let rec prove_dfs g tactic_queue =
+let rec prove_dfs_traced g tactic_queue trace_ref =
   match Queue.take_opt tactic_queue with
-  | None ->
-      (* print_endline "Out of tactics"; *)
-      Incomplete g
+  | None -> Incomplete g
   | Some tactic ->
       let rec handler (f : unit -> proof_state) =
         match f () with
         | effect TacticQueue, k -> continue k tactic_queue
+        | effect Trace (Proof, v), k ->
+            trace_ref := v :: !trace_ref;
+            continue k ()
         | effect Trace (_, v), k ->
             print_endline v;
             continue k ()
@@ -430,22 +435,32 @@ let rec prove_dfs g tactic_queue =
             let r = Multicont.Deep.promote k in
             let rec try_each = function
               | [] -> Incomplete g
-              | c :: cs ->
-                  let t =
-                    match handler @@ fun () -> Multicont.Deep.resume r c with
-                    | Complete thm -> Complete thm
-                    | Incomplete _ -> try_each cs
-                  in
-                  t
+              | c :: cs -> (
+                  let snapshot = !trace_ref in
+                  let result = handler (fun () -> Multicont.Deep.resume r c) in
+                  match result with
+                  | Complete thm -> Complete thm
+                  | Incomplete _ ->
+                      trace_ref := snapshot;
+                      try_each cs)
             in
             try_each choices
         | effect Subgoal g', k -> (
-            match prove_dfs g' (Queue.copy tactic_queue) with
+            match prove_dfs_traced g' (Queue.copy tactic_queue) trace_ref with
             | Complete thm -> continue k thm
             | incomplete -> incomplete)
         | thm -> thm
       in
       handler (fun () -> Complete (tactic g))
+
+let prove_dfs g tactic_queue =
+  let trace_ref = ref [] in
+  prove_dfs_traced g tactic_queue trace_ref
+
+let prove_dfs_with_trace g tactic_queue =
+  let trace_ref = ref [] in
+  let result = prove_dfs_traced g tactic_queue trace_ref in
+  (!trace_ref, result)
 
 let next_tactic_of_list l =
   let q = Queue.of_seq (List.to_seq l) in
@@ -508,5 +523,12 @@ let with_term_size_ranking tac =
         continue k sorted
     | v -> v
 
-let with_no_trace tac =
- fun goal -> match tac goal with effect Trace _, k -> continue k () | v -> v
+let with_no_trace ?(show_proof = false) tac =
+ fun goal ->
+  match tac goal with
+  | effect Trace (Info, _), k -> continue k ()
+  | effect Trace (Debug, _), k -> continue k ()
+  | effect Trace (Error, _), k -> continue k ()
+  | effect Trace (Warn, _), k -> continue k ()
+  | effect Trace (Proof, _), k when not show_proof -> continue k ()
+  | v -> v

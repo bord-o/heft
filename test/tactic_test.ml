@@ -248,11 +248,14 @@ let%expect_test "basic" =
     1: B
     Found matching assumption
     Assumption succeeded
+    assumption_tac
     0: B
     assumption doesn't match the goal
     Found matching assumption
     Assumption succeeded
+    assumption_tac
     conj success
+    conj_tac
     Proof Complete!
     A
     B
@@ -275,12 +278,13 @@ let%expect_test "basic2" =
 
   [%expect
     {|
-      destruct success
-      refl success
-      Proof Complete!
-      ========================================
-      A = A
-      |}]
+    destruct success
+    refl success
+    refl_tac
+    Proof Complete!
+    ========================================
+    A = A
+    |}]
 
 let%expect_test "basic3" =
   let a = make_var "A" bool_ty in
@@ -297,14 +301,16 @@ let%expect_test "basic3" =
 
   [%expect
     {|
-      destruct success
-      Found matching assumption
-      Assumption succeeded
-      disch success
-      Proof Complete!
-      ========================================
-      A ==> A
-      |}]
+    destruct success
+    Found matching assumption
+    Assumption succeeded
+    assumption_tac
+    disch success
+    intro_tac
+    Proof Complete!
+    ========================================
+    A ==> A
+    |}]
 
 let%expect_test "basic4" =
   let a = make_var "A" bool_ty in
@@ -323,14 +329,16 @@ let%expect_test "basic4" =
 
   [%expect
     {|
-      Found matching assumption
-      Assumption succeeded
-      disj_left success
-      Proof Complete!
-      A
-      ========================================
-      A ∨ B
-      |}]
+    Found matching assumption
+    Assumption succeeded
+    assumption_tac
+    disj_left success
+    left_tac
+    Proof Complete!
+    A
+    ========================================
+    A ∨ B
+    |}]
 
 let%expect_test "basic5" =
   let a = make_var "A" bool_ty in
@@ -355,7 +363,9 @@ let%expect_test "basic5" =
     assumption doesn't match the goal
     Found matching assumption
     Assumption succeeded
+    assumption_tac
     disj_right success
+    right_tac
     Proof Complete!
     B
     ========================================
@@ -441,6 +451,7 @@ let%expect_test "basic8" =
 
   [%expect
     {|
+    false_elim_tac
     Proof Complete!
     F
     ========================================
@@ -471,7 +482,10 @@ let%expect_test "basic9" =
     destruct success
     Found matching assumption
     Assumption succeeded
+    assumption_tac
     disch success
+    intro_tac
+    gen_tac
     Proof Complete!
     ========================================
     ∀x. A ==> A
@@ -518,12 +532,18 @@ let%expect_test "basic10" =
     destruct success
     Found matching assumption
     Assumption succeeded
+    assumption_tac
     disch success
+    intro_tac
     0: ∀n0. (A ==> A) ==> A ==> A
     destruct success
     Found matching assumption
     Assumption succeeded
+    assumption_tac
     disch success
+    intro_tac
+    gen_tac
+    induction_tac
     Proof Complete!
     ========================================
     ∀x. A ==> A
@@ -940,8 +960,13 @@ let%expect_test "modus_tollens" =
     {|
     destruct success
     destruct success
+    neg_elim_tac
+    mp_asm_tac
+    neg_intro_tac
     disch success
+    intro_tac
     disch success
+    intro_tac
     Proof Complete!
     ========================================
     (P ==> Q) ==> ¬Q ==> ¬P
@@ -1333,4 +1358,41 @@ let%expect_test "not_false_is_true" =
     Proof Complete!
     ========================================
     ¬F
+    |}]
+
+let%expect_test "print found proof" =
+  (* ¬(P ∨ Q) ⟹ ¬P ∧ ¬Q - intuitionistic *)
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let goal =
+    make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
+  in
+  let next_tactic =
+    next_tactic_of_list
+      [ with_repeat @@ with_no_trace ~show_proof:true pauto_tac ]
+  in
+  (match prove_dfs_with_trace ([], goal) next_tactic with
+  | t, Complete thm ->
+      List.iter print_endline t;
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | _t, Incomplete _ -> print_endline "Proof Failed");
+  [%expect
+    {|
+    intro_tac
+    conj_tac
+    neg_intro_tac
+    apply_neg_tac
+    left_tac
+    ccontr_tac
+    apply_neg_tac
+    right_tac
+    assumption_tac
+    neg_intro_tac
+    apply_neg_tac
+    left_tac
+    assumption_tac
+    Proof Complete!
+    ========================================
+    ¬P ∨ Q ==> ¬P ∧ ¬Q
     |}]
