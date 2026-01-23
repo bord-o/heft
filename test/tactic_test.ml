@@ -1224,21 +1224,27 @@ let%expect_test "manual version " =
     ¬P ∨ Q ==> ¬P ∧ ¬Q
     |}]
 
-let%expect_test "print found proof" =
+let%expect_test "dfs demorgans" =
   (* ¬(P ∨ Q) ⟹ ¬P ∧ ¬Q - intuitionistic *)
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let goal =
     make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
   in
+  let fuel = ref 0 in
   let next_tactic =
     next_tactic_of_list
-      [ with_repeat @@ with_no_trace ~show_proof:true pauto_tac ]
+      [
+        with_repeat
+        @@ with_no_trace ~show_proof:true
+        @@ (with_fuel_counter fuel) pauto_tac;
+      ]
   in
   (match prove_dfs_with_trace ([], goal) next_tactic with
   | t, Complete thm ->
       List.iter print_endline t;
       print_endline "Proof Complete!";
+      Printf.printf "With fuel usage: %d\n" !fuel;
       Printing.print_thm thm
   | _t, Incomplete _ -> print_endline "Proof Failed");
   [%expect
@@ -1257,6 +1263,7 @@ let%expect_test "print found proof" =
     left_tac
     assumption_tac
     Proof Complete!
+    With fuel usage: 260
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
     |}]
@@ -1268,14 +1275,20 @@ let%expect_test "bfs demorgans" =
   let goal =
     make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
   in
+  let fuel = ref 0 in
   let next_tactic =
     next_tactic_of_list
-      [ with_repeat @@ with_no_trace ~show_proof:true pauto_tac ]
+      [
+        with_repeat
+        @@ with_no_trace ~show_proof:true
+        @@ (with_fuel_counter fuel) pauto_tac;
+      ]
   in
   (match prove_bfs_with_trace ([], goal) next_tactic with
   | t, Complete thm ->
       List.iter print_endline t;
       print_endline "Proof Complete!";
+      Printf.printf "With fuel usage: %d\n" !fuel;
       Printing.print_thm thm
   | _t, Incomplete _ -> print_endline "Proof Failed");
   [%expect
@@ -1291,6 +1304,7 @@ let%expect_test "bfs demorgans" =
     left_tac
     assumption_tac
     Proof Complete!
+    With fuel usage: 28728
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
     |}]

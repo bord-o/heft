@@ -23,6 +23,7 @@ type _ Effect.t +=
   | Rank : term list -> term list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
+  | Burn : int -> unit Effect.t
   | TacticQueue : (goal -> thm) Queue.t Effect.t
 
 let as_list : type a. a choosable -> a list = function
@@ -32,6 +33,7 @@ let as_list : type a. a choosable -> a list = function
   | Unknown xs -> xs
 
 let fail () = perform Fail
+let burn n = perform (Burn n)
 let trace_dbg a = perform (Trace (Debug, a))
 let trace_info a = perform (Trace (Info, a))
 let trace_error a = perform (Trace (Error, a))
@@ -67,6 +69,7 @@ let wrap_all handler = List.map @@ fun t -> handler t
 
 let left_tac : tactic =
  fun (asms, concl) ->
+  burn 3;
   let thm =
     let* l = side_of_op "\\/" Left concl in
     let* r = side_of_op "\\/" Right concl in
@@ -79,6 +82,7 @@ let left_tac : tactic =
 
 let right_tac : tactic =
  fun (asms, concl) ->
+  burn 3;
   let thm =
     let* l = side_of_op "\\/" Left concl in
     let* r = side_of_op "\\/" Right concl in
@@ -91,12 +95,14 @@ let right_tac : tactic =
 
 let or_tac : tactic =
  fun (asms, concl) ->
+  burn 3;
   let tac = choose_tactics [ left_tac; right_tac ] in
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
 let apply_tac : tactic =
  fun (asms, concl) ->
+  burn 3;
   (* Find implications in the asms that match the conclusion *)
   let matching =
     asms
@@ -122,6 +128,7 @@ let apply_tac : tactic =
 
 let apply_neg_tac : tactic =
  fun (asms, concl) ->
+  burn 3;
   let false_tm = make_false () in
   if concl <> false_tm then fail ()
   else
@@ -142,6 +149,7 @@ let apply_neg_tac : tactic =
 
 let mp_asm_tac : tactic =
  fun (asms, concl) ->
+  burn 3;
   let imps = List.filter is_imp asms in
   if List.is_empty imps then fail ()
   else
@@ -161,6 +169,7 @@ let mp_asm_tac : tactic =
 
 let intro_tac : tactic =
  fun (asms, concl) ->
+  burn 1;
   let thm =
     let* hyp = side_of_op "==>" Left concl in
     let* conc = side_of_op "==>" Right concl in
@@ -190,6 +199,7 @@ let refl_tac : tactic =
 
 let assumption_tac : tactic =
  fun (asms, concl) ->
+  burn 1;
   let asm = choose_terms asms in
   if concl <> asm then (
     trace_error "assumption doesn't match the goal";
@@ -202,6 +212,7 @@ let assumption_tac : tactic =
 
 let conj_tac : tactic =
  fun (asms, concl) ->
+  burn 1;
   let thm =
     let* l, r = destruct_conj concl in
     trace_dbg "Destruct succeeded";
@@ -220,6 +231,7 @@ let conj_tac : tactic =
 
 let elim_disj_asm_tac : tactic =
  fun (asms, concl) ->
+  burn 4;
   let disjs = List.filter is_disj asms in
   if List.is_empty disjs then fail ()
   else
@@ -243,6 +255,7 @@ let elim_disj_asm_tac : tactic =
 
 let elim_conj_asm_tac : tactic =
  fun (asms, concl) ->
+  burn 1;
   let conjs = List.filter is_conj asms in
   if List.is_empty conjs then fail ()
   else
@@ -261,6 +274,7 @@ let elim_conj_asm_tac : tactic =
 
 let neg_elim_tac : tactic =
  fun (asms, concl) ->
+  burn 2;
   let negs = List.filter is_neg asms in
   if List.is_empty negs then fail ()
   else
@@ -279,6 +293,7 @@ let neg_elim_tac : tactic =
 
 let neg_intro_tac : tactic =
  fun (asms, concl) ->
+  burn 2;
   let thm =
     let* p = term_of_negation concl in
     if List.mem p asms then fail ()
@@ -292,6 +307,7 @@ let neg_intro_tac : tactic =
 
 let ccontr_tac : tactic =
  fun (asms, concl) ->
+  burn 8;
   let false_tm = make_false () in
   let neg_concl = make_neg concl in
   if concl = false_tm || List.mem neg_concl asms then fail ()
@@ -305,6 +321,7 @@ let ccontr_tac : tactic =
 
 let false_elim_tac : tactic =
  fun (asms, concl) ->
+  burn 1;
   let false_tm = make_false () in
   if List.mem false_tm asms then
     let thm =
@@ -316,6 +333,7 @@ let false_elim_tac : tactic =
 
 let gen_tac : tactic =
  fun (asms, concl) ->
+  burn 1;
   let thm =
     let* x, body = destruct_forall concl in
     let body_thm = perform (Subgoal (asms, body)) in
@@ -330,6 +348,7 @@ let gen_tac : tactic =
  *)
 let induct_tac : tactic =
  fun (asms, concl) ->
+  burn 5;
   let thm =
     let* induction_var, bod = destruct_forall concl in
     let* ty = type_of_term induction_var in
@@ -403,6 +422,7 @@ let rec prove g tactic_queue =
       match tactic g with
       (* TacticQueue gives the current tactics waiting to be applied *)
       | effect TacticQueue, k -> continue k tactic_queue
+      | effect Burn _, k -> continue k ()
       (* Trace is a unified interface for logs and errors *)
       | effect Trace (_, v), k ->
           print_endline v;
@@ -438,6 +458,7 @@ let rec prove_bfs_traced g tactic_queue trace_ref =
       let rec handler (f : unit -> proof_state) =
         match f () with
         | effect TacticQueue, k -> continue k tactic_queue
+        | effect Burn _, k -> continue k ()
         | effect Trace (Proof, v), k ->
             trace_ref := v :: !trace_ref;
             continue k ()
@@ -480,6 +501,7 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
       let rec handler (f : unit -> proof_state) =
         match f () with
         | effect TacticQueue, k -> continue k tactic_queue
+        | effect Burn _, k -> continue k ()
         | effect Trace (Proof, v), k ->
             trace_ref := v :: !trace_ref;
             continue k ()
@@ -622,6 +644,14 @@ let with_term_size_ranking : tactic_combinator =
         in
         continue k sorted
     | v -> v
+
+let with_fuel_counter r : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Burn n, k ->
+      r := !r + n;
+      continue k ()
+  | v -> v
 
 let with_no_trace ?(show_proof = false) : tactic_combinator =
  fun tac goal ->
