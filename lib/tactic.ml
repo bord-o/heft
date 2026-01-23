@@ -8,14 +8,27 @@ open Result.Syntax
 type goal = term list * term [@@deriving show]
 type level = Debug | Info | Warn | Error | Proof
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
+type tactic = goal -> thm
+
+type _ choosable =
+  | Term : term list -> term choosable
+  | Goal : goal list -> goal choosable
+  | Tactic : tactic list -> tactic choosable
+  | Unknown : 'a list -> 'a choosable
 
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
-  | Choose : 'a list -> 'a Effect.t
+  | Choose : 'a choosable -> 'a Effect.t
   | Rank : term list -> term list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | TacticQueue : (goal -> thm) Queue.t Effect.t
+
+let as_list : type a. a choosable -> a list = function
+  | Term ts -> ts
+  | Goal gs -> gs
+  | Tactic tacs -> tacs
+  | Unknown xs -> xs
 
 let fail () = perform Fail
 let trace_dbg a = perform (Trace (Debug, a))
@@ -31,6 +44,11 @@ let return_thm ?(from = "unknown") = function
       trace_error @@ print_error e;
       fail ()
 
+let choose_goals gs = perform (Choose (Goal gs))
+let choose_terms gs = perform (Choose (Term gs))
+let choose_tactics gs = perform (Choose (Tactic gs))
+let choose_unknowns gs = perform (Choose (Unknown gs))
+
 let rec choose_subgoals acc = function
   | [] -> List.rev acc
   | goals ->
@@ -38,7 +56,8 @@ let rec choose_subgoals acc = function
       |> List.iteri @@ fun idx g ->
          trace_info (string_of_int idx ^ ": " ^ pretty_print_hol_term (snd g));
          ());
-      let chosen = perform (Choose goals) in
+      let chosen = perform @@ Choose (Goal goals) in
+
       let thm = perform (Subgoal chosen) in
       let rest = List.filter (( <> ) chosen) goals in
       choose_subgoals ((chosen, thm) :: acc) rest
@@ -68,7 +87,7 @@ let right_tac (asms, concl) =
   return_thm ~from:"right_tac" thm
 
 let or_tac (asms, concl) =
-  let tac = perform (Choose [ left_tac; right_tac ]) in
+  let tac = choose_tactics [ left_tac; right_tac ] in
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
@@ -83,7 +102,7 @@ let apply_tac (asms, concl) =
   in
 
   let premises = perform (Rank (List.map fst matching)) in
-  let h = perform (Choose premises) in
+  let h = choose_terms premises in
   let chosen = matching |> List.assoc h in
 
   let thm =
@@ -105,7 +124,7 @@ let apply_neg_tac : goal -> thm =
     if List.is_empty negs then fail ()
     else
       let thm =
-        let chosen = perform (Choose negs) in
+        let chosen = choose_terms negs in
         let* p = term_of_negation chosen in
         if List.mem p asms then fail ()
         else
@@ -122,7 +141,7 @@ let mp_asm_tac : goal -> thm =
   if List.is_empty imps then fail ()
   else
     let thm =
-      let chosen_imp = perform (Choose imps) in
+      let chosen_imp = choose_terms imps in
       let* prem, conc = destruct_imp chosen_imp in
       if List.mem prem asms && not (List.mem conc asms) then
         let asms' = conc :: asms in
@@ -163,7 +182,7 @@ let refl_tac (_asms, concl) =
   return_thm ~from:"refl_tac" thm
 
 let assumption_tac (asms, concl) =
-  let asm = perform (Choose asms) in
+  let asm = choose_terms asms in
   if concl <> asm then (
     trace_error "assumption doesn't match the goal";
     fail ())
@@ -197,7 +216,7 @@ let elim_disj_asm_tac : goal -> thm =
   if List.is_empty disjs then fail ()
   else
     let thm =
-      let chosen = perform (Choose disjs) in
+      let chosen = choose_terms disjs in
       let* l, r = destruct_disj chosen in
       let asms' = List.filter (( <> ) chosen) asms in
 
@@ -219,7 +238,7 @@ let elim_conj_asm_tac (asms, concl) =
   if List.is_empty conjs then fail ()
   else
     let thm =
-      let chosen = perform (Choose conjs) in
+      let chosen = choose_terms conjs in
       let* l, r = destruct_conj chosen in
       let asms' = l :: r :: List.filter (( <> ) chosen) asms in
       let sub_thm = perform (Subgoal (asms', concl)) in
@@ -237,7 +256,7 @@ let neg_elim_tac : goal -> thm =
   if List.is_empty negs then fail ()
   else
     let thm =
-      let chosen_neg = perform (Choose negs) in
+      let chosen_neg = choose_terms negs in
       let* p = term_of_negation chosen_neg in
       if List.mem p asms then
         let* neg_thm = assume chosen_neg in
@@ -341,24 +360,23 @@ let induct_tac : goal -> thm =
 let pauto_tac : goal -> thm =
  fun goal ->
   let tac =
-    perform
-    @@ Choose
-         [
-           assumption_tac;
-           intro_tac;
-           neg_intro_tac;
-           conj_tac;
-           elim_conj_asm_tac;
-           elim_disj_asm_tac;
-           false_elim_tac;
-           neg_elim_tac;
-           apply_tac;
-           apply_neg_tac;
-           mp_asm_tac;
-           left_tac;
-           right_tac;
-           ccontr_tac;
-         ]
+    choose_tactics
+      [
+        assumption_tac;
+        intro_tac;
+        neg_intro_tac;
+        conj_tac;
+        elim_conj_asm_tac;
+        elim_disj_asm_tac;
+        false_elim_tac;
+        neg_elim_tac;
+        apply_tac;
+        apply_neg_tac;
+        mp_asm_tac;
+        left_tac;
+        right_tac;
+        ccontr_tac;
+      ]
   in
   tac goal
 
@@ -386,7 +404,7 @@ let rec prove g tactic_queue =
       | effect Fail, _k -> Incomplete g
       (* Choose is used to decide how to explore options *)
       | effect Choose choices, k -> (
-          match choices with
+          match as_list choices with
           | [] ->
               print_endline "no choices available";
               Incomplete g
@@ -444,7 +462,7 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
                       trace_ref := snapshot;
                       try_each cs)
             in
-            try_each choices
+            try_each (as_list choices)
         | effect Subgoal g', k -> (
             match prove_dfs_traced g' (Queue.copy tactic_queue) trace_ref with
             | Complete thm -> continue k thm
@@ -481,7 +499,7 @@ let with_first_success tac =
             | effect Fail, _ -> try_each cs
             | thm -> thm)
       in
-      try_each choices
+      try_each (as_list choices)
   | v -> v
 
 let with_interactive_choice tac =
@@ -491,7 +509,7 @@ let with_interactive_choice tac =
       print_endline s;
       continue k ()
   | effect Choose choices, k ->
-      if List.is_empty choices then fail ()
+      if List.is_empty (as_list choices) then fail ()
       else
         let rec get_choice cs =
           let idx = read_int () in
@@ -501,8 +519,24 @@ let with_interactive_choice tac =
               print_endline "Invalid choice";
               get_choice cs
         in
-        continue k (get_choice choices)
+        continue k (get_choice (as_list choices))
   | v -> v
+
+let with_nth_choice n tac =
+ fun goal ->
+  match tac goal with
+  | effect Choose cs, k -> (
+      match List.nth_opt (as_list cs) n with
+      | None -> fail ()
+      | Some c -> continue k c)
+  | v -> v
+
+let with_term_choice (t : term) tac =
+ fun goal ->
+  match tac goal with
+  | effect Choose (Term terms), k ->
+      if List.mem t terms then continue k t else fail ()
+  | x -> x
 
 let with_term_size_ranking tac =
   let rec term_size (t : term) =

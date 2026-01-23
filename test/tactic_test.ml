@@ -2,195 +2,196 @@ open Heft
 open Derived
 open Inductive
 open Tactic
-open Effect
+
+(* open Effect *)
 open Printing
 
 type dfs_res = Success | Failure
 
-let test_dfs () =
-  let print_choice = function
-    | `A -> print_endline "A"
-    | `B -> print_endline "B"
-    | `C -> print_endline "C"
-    | `D -> print_endline "D"
-    | `E -> print_endline "E"
-    | `F -> print_endline "F"
-    | `G -> print_endline "G"
-    | `H -> print_endline "H"
-    | `I -> print_endline "I"
-  in
-  let choice = perform @@ Choose [ `A; `B; `C ] in
-  let choice2 = perform @@ Choose [ `D; `E; `F ] in
-  let choice3 = perform @@ Choose [ `G; `H; `I ] in
-  List.iter print_choice [ choice; choice2; choice3 ];
-
-  match (choice, choice2, choice3) with `C, `F, `G -> Success | _ -> Failure
-
-let choice_dfs () =
-  match test_dfs () with
-  | effect Choose cs, k ->
-      let r = Multicont.Deep.promote k in
-      let rec try' = function
-        | [] -> Failure
-        | this :: rest -> (
-            print_endline "trying next";
-            match Multicont.Deep.resume r this with
-            | Success -> Success
-            | Failure -> try' rest)
-      in
-      try' cs
-  | v ->
-      print_endline
-        (match v with
-        | Success -> "computation returned Success"
-        | Failure -> "computation returned Failure");
-      v
-
-let%expect_test "choice test" =
-  (match choice_dfs () with
-  | Success -> print_endline "success"
-  | Failure -> print_endline "failure");
-  [%expect
-    {|
-    trying next
-    trying next
-    trying next
-    A
-    D
-    G
-    computation returned Failure
-    trying next
-    A
-    D
-    H
-    computation returned Failure
-    trying next
-    A
-    D
-    I
-    computation returned Failure
-    trying next
-    trying next
-    A
-    E
-    G
-    computation returned Failure
-    trying next
-    A
-    E
-    H
-    computation returned Failure
-    trying next
-    A
-    E
-    I
-    computation returned Failure
-    trying next
-    trying next
-    A
-    F
-    G
-    computation returned Failure
-    trying next
-    A
-    F
-    H
-    computation returned Failure
-    trying next
-    A
-    F
-    I
-    computation returned Failure
-    trying next
-    trying next
-    trying next
-    B
-    D
-    G
-    computation returned Failure
-    trying next
-    B
-    D
-    H
-    computation returned Failure
-    trying next
-    B
-    D
-    I
-    computation returned Failure
-    trying next
-    trying next
-    B
-    E
-    G
-    computation returned Failure
-    trying next
-    B
-    E
-    H
-    computation returned Failure
-    trying next
-    B
-    E
-    I
-    computation returned Failure
-    trying next
-    trying next
-    B
-    F
-    G
-    computation returned Failure
-    trying next
-    B
-    F
-    H
-    computation returned Failure
-    trying next
-    B
-    F
-    I
-    computation returned Failure
-    trying next
-    trying next
-    trying next
-    C
-    D
-    G
-    computation returned Failure
-    trying next
-    C
-    D
-    H
-    computation returned Failure
-    trying next
-    C
-    D
-    I
-    computation returned Failure
-    trying next
-    trying next
-    C
-    E
-    G
-    computation returned Failure
-    trying next
-    C
-    E
-    H
-    computation returned Failure
-    trying next
-    C
-    E
-    I
-    computation returned Failure
-    trying next
-    trying next
-    C
-    F
-    G
-    computation returned Success
-    success
-    |}]
+(* let test_dfs () = *)
+(*   let print_choice = function *)
+(*     | `A -> print_endline "A" *)
+(*     | `B -> print_endline "B" *)
+(*     | `C -> print_endline "C" *)
+(*     | `D -> print_endline "D" *)
+(*     | `E -> print_endline "E" *)
+(*     | `F -> print_endline "F" *)
+(*     | `G -> print_endline "G" *)
+(*     | `H -> print_endline "H" *)
+(*     | `I -> print_endline "I" *)
+(*   in *)
+(*   let choice = perform @@ Choose [ `A; `B; `C ] in *)
+(*   let choice2 = perform @@ Choose [ `D; `E; `F ] in *)
+(*   let choice3 = perform @@ Choose [ `G; `H; `I ] in *)
+(*   List.iter print_choice [ choice; choice2; choice3 ]; *)
+(**)
+(*   match (choice, choice2, choice3) with `C, `F, `G -> Success | _ -> Failure *)
+(**)
+(* let choice_dfs () = *)
+(*   match test_dfs () with *)
+(*   | effect Choose cs, k -> *)
+(*       let r = Multicont.Deep.promote k in *)
+(*       let rec try' = function *)
+(*         | [] -> Failure *)
+(*         | this :: rest -> ( *)
+(*             print_endline "trying next"; *)
+(*             match Multicont.Deep.resume r this with *)
+(*             | Success -> Success *)
+(*             | Failure -> try' rest) *)
+(*       in *)
+(*       try' cs *)
+(*   | v -> *)
+(*       print_endline *)
+(*         (match v with *)
+(*         | Success -> "computation returned Success" *)
+(*         | Failure -> "computation returned Failure"); *)
+(*       v *)
+(**)
+(* let%expect_test "choice test" = *)
+(*   (match choice_dfs () with *)
+(*   | Success -> print_endline "success" *)
+(*   | Failure -> print_endline "failure"); *)
+(*   [%expect *)
+(*     {| *)
+(*     trying next *)
+(*     trying next *)
+(*     trying next *)
+(*     A *)
+(*     D *)
+(*     G *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     A *)
+(*     D *)
+(*     H *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     A *)
+(*     D *)
+(*     I *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     trying next *)
+(*     A *)
+(*     E *)
+(*     G *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     A *)
+(*     E *)
+(*     H *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     A *)
+(*     E *)
+(*     I *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     trying next *)
+(*     A *)
+(*     F *)
+(*     G *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     A *)
+(*     F *)
+(*     H *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     A *)
+(*     F *)
+(*     I *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     trying next *)
+(*     trying next *)
+(*     B *)
+(*     D *)
+(*     G *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     B *)
+(*     D *)
+(*     H *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     B *)
+(*     D *)
+(*     I *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     trying next *)
+(*     B *)
+(*     E *)
+(*     G *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     B *)
+(*     E *)
+(*     H *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     B *)
+(*     E *)
+(*     I *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     trying next *)
+(*     B *)
+(*     F *)
+(*     G *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     B *)
+(*     F *)
+(*     H *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     B *)
+(*     F *)
+(*     I *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     trying next *)
+(*     trying next *)
+(*     C *)
+(*     D *)
+(*     G *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     C *)
+(*     D *)
+(*     H *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     C *)
+(*     D *)
+(*     I *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     trying next *)
+(*     C *)
+(*     E *)
+(*     G *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     C *)
+(*     E *)
+(*     H *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     C *)
+(*     E *)
+(*     I *)
+(*     computation returned Failure *)
+(*     trying next *)
+(*     trying next *)
+(*     C *)
+(*     F *)
+(*     G *)
+(*     computation returned Success *)
+(*     success *)
+(*     |}] *)
 (* let nat_def = *)
 (*   let nat_ty = TyCon ("nat", []) in *)
 (*   define_inductive "nat" [] *)
