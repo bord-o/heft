@@ -426,6 +426,53 @@ let rec prove g tactic_queue =
       (* When a proof is complete we extract the theorem *)
       | thm -> Complete thm)
 
+type pending_proof =
+  | PendingProof : (unit -> proof_state) * string list -> pending_proof
+
+let rec prove_bfs_traced g tactic_queue trace_ref =
+  match Queue.take_opt tactic_queue with
+  | None -> Incomplete g
+  | Some tactic ->
+      let q : pending_proof Queue.t = Queue.create () in
+
+      let rec handler (f : unit -> proof_state) =
+        match f () with
+        | effect TacticQueue, k -> continue k tactic_queue
+        | effect Trace (Proof, v), k ->
+            trace_ref := v :: !trace_ref;
+            continue k ()
+        | effect Trace (_, v), k ->
+            print_endline v;
+            continue k ()
+        | effect Rank terms, k -> continue k terms
+        | effect Fail, _k -> Incomplete g
+        | effect Choose choices, k ->
+            let r = Multicont.Deep.promote k in
+            let snapshot = !trace_ref in
+            List.iter
+              (fun x ->
+                Queue.add
+                  (PendingProof ((fun () -> Multicont.Deep.resume r x), snapshot))
+                  q)
+              (as_list choices);
+            next ()
+        | effect Subgoal g', k -> (
+            match prove_bfs_traced g' (Queue.copy tactic_queue) trace_ref with
+            | Complete thm -> continue k thm
+            | incomplete -> incomplete)
+        | thm -> thm
+      and next () =
+        match Queue.take_opt q with
+        | None -> Incomplete g
+        | Some (PendingProof (thunk, snapshot)) -> (
+            trace_ref := snapshot;
+            match handler thunk with
+            | Complete thm -> Complete thm
+            | Incomplete _ -> next ())
+      in
+
+      handler (fun () -> Complete (tactic g))
+
 let rec prove_dfs_traced g tactic_queue trace_ref =
   match Queue.take_opt tactic_queue with
   | None -> Incomplete g
@@ -462,6 +509,15 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
         | thm -> thm
       in
       handler (fun () -> Complete (tactic g))
+
+let prove_bfs g tactic_queue =
+  let trace_ref = ref [] in
+  prove_bfs_traced g tactic_queue trace_ref
+
+let prove_bfs_with_trace g tactic_queue =
+  let trace_ref = ref [] in
+  let result = prove_bfs_traced g tactic_queue trace_ref in
+  (!trace_ref, result)
 
 let prove_dfs g tactic_queue =
   let trace_ref = ref [] in
