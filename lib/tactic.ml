@@ -9,6 +9,7 @@ type goal = term list * term [@@deriving show]
 type level = Debug | Info | Warn | Error | Proof
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 type tactic = goal -> thm
+type tactic_combinator = tactic -> tactic
 
 type _ choosable =
   | Term : term list -> term choosable
@@ -64,7 +65,8 @@ let rec choose_subgoals acc = function
 
 let wrap_all handler = List.map @@ fun t -> handler t
 
-let left_tac (asms, concl) =
+let left_tac : tactic =
+ fun (asms, concl) ->
   let thm =
     let* l = side_of_op "\\/" Left concl in
     let* r = side_of_op "\\/" Right concl in
@@ -75,7 +77,8 @@ let left_tac (asms, concl) =
   in
   return_thm ~from:"left_tac" thm
 
-let right_tac (asms, concl) =
+let right_tac : tactic =
+ fun (asms, concl) ->
   let thm =
     let* l = side_of_op "\\/" Left concl in
     let* r = side_of_op "\\/" Right concl in
@@ -86,12 +89,14 @@ let right_tac (asms, concl) =
   in
   return_thm ~from:"right_tac" thm
 
-let or_tac (asms, concl) =
+let or_tac : tactic =
+ fun (asms, concl) ->
   let tac = choose_tactics [ left_tac; right_tac ] in
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
-let apply_tac (asms, concl) =
+let apply_tac : tactic =
+ fun (asms, concl) ->
   (* Find implications in the asms that match the conclusion *)
   let matching =
     asms
@@ -115,7 +120,7 @@ let apply_tac (asms, concl) =
   in
   return_thm ~from:"apply_tac" thm
 
-let apply_neg_tac : goal -> thm =
+let apply_neg_tac : tactic =
  fun (asms, concl) ->
   let false_tm = make_false () in
   if concl <> false_tm then fail ()
@@ -135,7 +140,7 @@ let apply_neg_tac : goal -> thm =
       in
       return_thm ~from:"apply_neg_tac" thm
 
-let mp_asm_tac : goal -> thm =
+let mp_asm_tac : tactic =
  fun (asms, concl) ->
   let imps = List.filter is_imp asms in
   if List.is_empty imps then fail ()
@@ -154,7 +159,8 @@ let mp_asm_tac : goal -> thm =
     in
     return_thm ~from:"mp_asm_tac" thm
 
-let intro_tac (asms, concl) =
+let intro_tac : tactic =
+ fun (asms, concl) ->
   let thm =
     let* hyp = side_of_op "==>" Left concl in
     let* conc = side_of_op "==>" Right concl in
@@ -167,7 +173,8 @@ let intro_tac (asms, concl) =
   in
   return_thm ~from:"intro_tac" thm
 
-let refl_tac (_asms, concl) =
+let refl_tac : tactic =
+ fun (_asms, concl) ->
   let thm =
     let* l, r = destruct_eq concl in
     trace_dbg "destruct success";
@@ -181,7 +188,8 @@ let refl_tac (_asms, concl) =
   in
   return_thm ~from:"refl_tac" thm
 
-let assumption_tac (asms, concl) =
+let assumption_tac : tactic =
+ fun (asms, concl) ->
   let asm = choose_terms asms in
   if concl <> asm then (
     trace_error "assumption doesn't match the goal";
@@ -192,7 +200,7 @@ let assumption_tac (asms, concl) =
     trace_dbg "Assumption succeeded";
     return_thm ~from:"assumption_tac" t)
 
-let conj_tac : goal -> thm =
+let conj_tac : tactic =
  fun (asms, concl) ->
   let thm =
     let* l, r = destruct_conj concl in
@@ -210,7 +218,7 @@ let conj_tac : goal -> thm =
   in
   return_thm ~from:"conj_tac" thm
 
-let elim_disj_asm_tac : goal -> thm =
+let elim_disj_asm_tac : tactic =
  fun (asms, concl) ->
   let disjs = List.filter is_disj asms in
   if List.is_empty disjs then fail ()
@@ -233,7 +241,8 @@ let elim_disj_asm_tac : goal -> thm =
     in
     return_thm ~from:"elim_disj_asm_tac" thm
 
-let elim_conj_asm_tac (asms, concl) =
+let elim_conj_asm_tac : tactic =
+ fun (asms, concl) ->
   let conjs = List.filter is_conj asms in
   if List.is_empty conjs then fail ()
   else
@@ -250,7 +259,7 @@ let elim_conj_asm_tac (asms, concl) =
     in
     return_thm ~from:"elim_conj_asm_tac" thm
 
-let neg_elim_tac : goal -> thm =
+let neg_elim_tac : tactic =
  fun (asms, concl) ->
   let negs = List.filter is_neg asms in
   if List.is_empty negs then fail ()
@@ -268,7 +277,7 @@ let neg_elim_tac : goal -> thm =
     in
     return_thm ~from:"neg_elim_tac" thm
 
-let neg_intro_tac : goal -> thm =
+let neg_intro_tac : tactic =
  fun (asms, concl) ->
   let thm =
     let* p = term_of_negation concl in
@@ -281,7 +290,7 @@ let neg_intro_tac : goal -> thm =
   in
   return_thm ~from:"neg_intro_tac" thm
 
-let ccontr_tac : goal -> thm =
+let ccontr_tac : tactic =
  fun (asms, concl) ->
   let false_tm = make_false () in
   let neg_concl = make_neg concl in
@@ -294,7 +303,7 @@ let ccontr_tac : goal -> thm =
     in
     return_thm ~from:"ccontr_tac" thm
 
-let false_elim_tac : goal -> thm =
+let false_elim_tac : tactic =
  fun (asms, concl) ->
   let false_tm = make_false () in
   if List.mem false_tm asms then
@@ -305,7 +314,7 @@ let false_elim_tac : goal -> thm =
     return_thm ~from:"false_elim_tac" thm
   else fail ()
 
-let gen_tac : goal -> thm =
+let gen_tac : tactic =
  fun (asms, concl) ->
   let thm =
     let* x, body = destruct_forall concl in
@@ -319,7 +328,7 @@ let gen_tac : goal -> thm =
    need to fetch the appropriate induction definition of the type we are 
    inducting on (the general var)
  *)
-let induct_tac : goal -> thm =
+let induct_tac : tactic =
  fun (asms, concl) ->
   let thm =
     let* induction_var, bod = destruct_forall concl in
@@ -357,7 +366,7 @@ let induct_tac : goal -> thm =
   return_thm ~from:"induction_tac" thm
 
 (* Complete automation for propositional logic goals *)
-let pauto_tac : goal -> thm =
+let pauto_tac : tactic =
  fun goal ->
   let tac =
     choose_tactics
@@ -417,23 +426,6 @@ let rec prove g tactic_queue =
       (* When a proof is complete we extract the theorem *)
       | thm -> Complete thm)
 
-let with_skip_fail tac =
- fun goal ->
-  match tac goal with effect Fail, _ -> perform (Subgoal goal) | thm -> thm
-
-let with_repeat tac =
-  let rec aux (asms, concl) =
-    match tac (asms, concl) with
-    | effect Fail, _ -> perform (Subgoal (asms, concl))
-    | effect Subgoal g, k ->
-        let r = Multicont.Deep.promote k in
-        let thm = aux g in
-        (* idk man *)
-        Multicont.Deep.resume r thm
-    | thm -> thm
-  in
-  aux
-
 let rec prove_dfs_traced g tactic_queue trace_ref =
   match Queue.take_opt tactic_queue with
   | None -> Incomplete g
@@ -484,9 +476,27 @@ let next_tactic_of_list l =
   let q = Queue.of_seq (List.to_seq l) in
   q
 
+let with_skip_fail : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Fail, _ -> perform (Subgoal goal) | thm -> thm
+
+let with_repeat : tactic_combinator =
+ fun tac ->
+  let rec aux (asms, concl) =
+    match tac (asms, concl) with
+    | effect Fail, _ -> perform (Subgoal (asms, concl))
+    | effect Subgoal g, k ->
+        let r = Multicont.Deep.promote k in
+        let thm = aux g in
+        (* idk man *)
+        Multicont.Deep.resume r thm
+    | thm -> thm
+  in
+  aux
+
 (* this only trys choices at one level, for actual dfs we need a full handler *)
-let with_first_success tac =
- fun goal ->
+let with_first_success : tactic_combinator =
+ fun tac goal ->
   match tac goal with
   | effect Choose choices, k ->
       let r = Multicont.Deep.promote k in
@@ -502,8 +512,8 @@ let with_first_success tac =
       try_each (as_list choices)
   | v -> v
 
-let with_interactive_choice tac =
- fun goal ->
+let with_interactive_choice : tactic_combinator =
+ fun tac goal ->
   match tac goal with
   | effect Trace (_, s), k ->
       print_endline s;
@@ -522,8 +532,8 @@ let with_interactive_choice tac =
         continue k (get_choice (as_list choices))
   | v -> v
 
-let with_nth_choice n tac =
- fun goal ->
+let with_nth_choice n : tactic_combinator =
+ fun tac goal ->
   match tac goal with
   | effect Choose cs, k -> (
       match List.nth_opt (as_list cs) n with
@@ -531,14 +541,14 @@ let with_nth_choice n tac =
       | Some c -> continue k c)
   | v -> v
 
-let with_term_choice (t : term) tac =
- fun goal ->
+let with_term_choice (t : term) : tactic_combinator =
+ fun tac goal ->
   match tac goal with
   | effect Choose (Term terms), k ->
       if List.mem t terms then continue k t else fail ()
   | x -> x
 
-let with_term_size_ranking tac =
+let with_term_size_ranking : tactic_combinator =
   let rec term_size (t : term) =
     match t with
     | Var (_, _) -> 1
@@ -546,7 +556,7 @@ let with_term_size_ranking tac =
     | App (l, r) -> 1 + term_size l + term_size r
     | Lam (bind, bod) -> 1 + term_size bind + term_size bod
   in
-  fun goal ->
+  fun tac goal ->
     match tac goal with
     | effect Rank terms, k ->
         let sorted =
@@ -557,8 +567,8 @@ let with_term_size_ranking tac =
         continue k sorted
     | v -> v
 
-let with_no_trace ?(show_proof = false) tac =
- fun goal ->
+let with_no_trace ?(show_proof = false) : tactic_combinator =
+ fun tac goal ->
   match tac goal with
   | effect Trace (Info, _), k -> continue k ()
   | effect Trace (Debug, _), k -> continue k ()
