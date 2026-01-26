@@ -385,7 +385,7 @@ let induct_tac : tactic =
   return_thm ~from:"induction_tac" thm
 
 (* Complete automation for propositional logic goals *)
-let pauto_tac : tactic =
+let ctauto_tac : tactic =
  fun goal ->
   let tac =
     choose_tactics

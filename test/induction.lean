@@ -34,3 +34,4 @@ theorem test_nest : ((p -> q) /\ (q -> r)) -> (p -> r) := by
   
   
 theorem test_demorgans : ¬(p ∧ q) -> ¬p ∨ ¬q := by grind
+theorem test_taut2: ((¬a -> b) ∧ (¬a -> ¬b)) -> a := by grind

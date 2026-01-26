@@ -521,7 +521,7 @@ let%expect_test "complete_prop_automation" =
   let p_imp_r = make_imp p r in
   let goal = make_imp (make_conj p_imp_q q_imp_r) p_imp_r in
 
-  let next_tactic = next_tactic_of_list [ with_repeat pauto_tac ] in
+  let next_tactic = next_tactic_of_list [ with_repeat ctauto_tac ] in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -642,7 +642,7 @@ let%expect_test "pauto_disj_elimination" =
   let q_imp_r = make_imp q r in
   let goal = make_imp p_or_q (make_imp p_imp_r (make_imp q_imp_r r)) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -792,7 +792,7 @@ let%expect_test "excluded_middle_pauto" =
   let p = make_var "P" bool_ty in
   let goal = make_disj p (make_neg p) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -812,7 +812,7 @@ let%expect_test "contraposition" =
   let q = make_var "Q" bool_ty in
   let goal = make_imp (make_imp p q) (make_imp (make_neg q) (make_neg p)) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -837,7 +837,7 @@ let%expect_test "distribution_and_over_or" =
       (make_disj (make_conj p q) (make_conj p r))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -862,7 +862,7 @@ let%expect_test "distribution_or_over_and" =
       (make_conj (make_disj p q) (make_disj p r))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -884,7 +884,7 @@ let%expect_test "de_morgan_and" =
     make_imp (make_neg (make_conj p q)) (make_disj (make_neg p) (make_neg q))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -906,7 +906,7 @@ let%expect_test "de_morgan_or" =
     make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -928,7 +928,7 @@ let%expect_test "de_morgan_or_converse" =
     make_imp (make_conj (make_neg p) (make_neg q)) (make_neg (make_disj p q))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -948,7 +948,7 @@ let%expect_test "implication_as_disjunction" =
   let q = make_var "Q" bool_ty in
   let goal = make_imp (make_imp p q) (make_disj (make_neg p) q) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -968,7 +968,7 @@ let%expect_test "disjunction_as_implication" =
   let q = make_var "Q" bool_ty in
   let goal = make_imp (make_disj (make_neg p) q) (make_imp p q) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -987,7 +987,7 @@ let%expect_test "triple_negation" =
   let p = make_var "P" bool_ty in
   let goal = make_imp (make_neg (make_neg (make_neg p))) (make_neg p) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1007,7 +1007,7 @@ let%expect_test "explosion" =
   let q = make_var "Q" bool_ty in
   let goal = make_imp p (make_imp (make_neg p) q) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1027,7 +1027,7 @@ let%expect_test "complex_nested" =
   let q = make_var "Q" bool_ty in
   let goal = make_imp (make_imp (make_imp p q) p) p in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1054,7 +1054,7 @@ let%expect_test "four_variable_distribution" =
          (make_disj (make_conj a d) (make_disj (make_conj b c) (make_conj b d))))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1079,7 +1079,7 @@ let%expect_test "implication_chain" =
       (make_imp (make_imp b c) (make_imp (make_imp c d) (make_imp a d)))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1103,7 +1103,7 @@ let%expect_test "contraposition_chain" =
       (make_imp (make_imp b c) (make_imp (make_neg c) (make_neg a)))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1123,7 +1123,7 @@ let%expect_test "absorption_law" =
   let q = make_var "Q" bool_ty in
   let goal = make_imp (make_conj p (make_disj p q)) p in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1143,7 +1143,7 @@ let%expect_test "absorption_law_converse" =
   let q = make_var "Q" bool_ty in
   let goal = make_imp p (make_conj p (make_disj p q)) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1161,7 +1161,7 @@ let%expect_test "not_false_is_true" =
   (* ¬⊥ *)
   let goal = make_neg (make_false ()) in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace pauto_tac ]
+    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
   in
   (match prove_dfs ([], goal) next_tactic with
   | Complete thm ->
@@ -1237,7 +1237,7 @@ let%expect_test "dfs demorgans" =
       [
         with_repeat
         @@ with_no_trace ~show_proof:true
-        @@ (with_fuel_counter fuel) pauto_tac;
+        @@ (with_fuel_counter fuel) ctauto_tac;
       ]
   in
   (match prove_dfs_with_trace ([], goal) next_tactic with
@@ -1281,7 +1281,7 @@ let%expect_test "bfs demorgans" =
       [
         with_repeat
         @@ with_no_trace ~show_proof:true
-        @@ (with_fuel_counter fuel) pauto_tac;
+        @@ (with_fuel_counter fuel) ctauto_tac;
       ]
   in
   (match prove_bfs_with_trace ([], goal) next_tactic with
@@ -1307,4 +1307,53 @@ let%expect_test "bfs demorgans" =
     With fuel usage: 28728
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
+    |}]
+
+let%expect_test "another tautology" =
+  let mkvar s = make_var s bool_ty in
+
+  let a = mkvar "a" in
+  let b = mkvar "b" in
+  (* let c = mkvar "c" in *)
+
+  let na = make_neg a in
+  let nb = make_neg b in
+
+  let na_imp_nb = make_imp na nb in
+  let na_imp_b = make_imp na b in
+
+  let conjd = make_conj na_imp_b na_imp_nb in
+
+  let goal = make_imp conjd a in
+
+  let fuel = ref 0 in
+  let next_tactic =
+    next_tactic_of_list
+      [
+        with_repeat
+        @@ with_no_trace ~show_proof:true
+        @@ (with_fuel_counter fuel) ctauto_tac;
+      ]
+  in
+  (match prove_bfs_with_trace ([], goal) next_tactic with
+  | t, Complete thm ->
+      List.iter print_endline t;
+      print_endline "Proof Complete!";
+      Printf.printf "With fuel usage: %d\n" !fuel;
+      Printing.print_thm thm
+  | _t, Incomplete _ ->
+      Printf.printf "With fuel usage: %d\n" !fuel;
+      print_endline "Proof Failed");
+  [%expect
+    {|
+    intro_tac
+    elim_conj_asm_tac
+    ccontr_tac
+    mp_asm_tac
+    mp_asm_tac
+    neg_elim_tac
+    Proof Complete!
+    With fuel usage: 1440
+    ========================================
+    (¬a ==> b) ∧ (¬a ==> ¬b) ==> a
     |}]
