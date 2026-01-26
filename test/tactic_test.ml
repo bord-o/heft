@@ -193,12 +193,15 @@ let%expect_test "basic6" =
   let c = make_var "C" bool_ty in
 
   let imp_ab = make_imp a b in
-  let imp_abc = make_imp (make_imp c a) b in
+  let imp_cab = make_imp (make_imp c a) b in
 
   let goal = b in
 
-  let next_tactic = next_tactic_of_list [ apply_tac; assumption_tac ] in
-  (match prove_dfs ([ imp_abc; imp_ab; a ], goal) next_tactic with
+  let next_tactic =
+    next_tactic_of_list
+      [ apply_tac |> with_term a; with_first_success assumption_tac ]
+  in
+  (match prove ([ imp_cab; imp_ab; a ], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
@@ -208,16 +211,23 @@ let%expect_test "basic6" =
 
   [%expect
     {|
-    assume chosen h success
-    assumption doesn't match the goal
-    assumption doesn't match the goal
-    assumption doesn't match the goal
+    C ==> A
+
+    A
+
+    t
+    A
+
+    hit choice
+    continueing
     assume chosen h success
     assumption doesn't match the goal
     assumption doesn't match the goal
     Found matching assumption
     Assumption succeeded
+    assumption_tac
     mp success
+    apply_tac
     Proof Complete!
     A
     A ==> B

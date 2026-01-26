@@ -102,6 +102,9 @@ let or_tac : tactic =
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
+(*TODO: make the choice happen on the whole terms, not just the destructured
+  implication. This lets the user choose a term they can actually see
+   *)
 let apply_tac : tactic =
  fun (asms, concl) ->
   burn 3;
@@ -621,7 +624,7 @@ let with_nth_choice n : tactic_combinator =
       | Some c -> continue k c)
   | v -> v
 
-let with_term_choice (t : term) : tactic_combinator =
+let with_term (t : term) : tactic_combinator =
  fun tac goal ->
   match tac goal with
   | effect Choose (Term terms), k ->
