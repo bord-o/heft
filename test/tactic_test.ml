@@ -1326,16 +1326,21 @@ let%expect_test "another tautology" =
 
   let goal = make_imp conjd a in
 
-  let fuel = ref 0 in
+  let initial_fuel = 900 in
+  let fuel = ref initial_fuel in
+
   let next_tactic =
     next_tactic_of_list
       [
         with_repeat
         @@ with_no_trace ~show_proof:true
-        @@ (with_fuel_counter fuel) ctauto_tac;
+        @@ (with_fuel_limit fuel) ctauto_tac;
       ]
   in
   (match prove_bfs_with_trace ([], goal) next_tactic with
+  | exception Out_of_fuel ->
+      print_endline "out of fuel";
+      Printf.printf "With fuel usage: %d\n" (initial_fuel - !fuel)
   | t, Complete thm ->
       List.iter print_endline t;
       print_endline "Proof Complete!";
@@ -1344,16 +1349,7 @@ let%expect_test "another tautology" =
   | _t, Incomplete _ ->
       Printf.printf "With fuel usage: %d\n" !fuel;
       print_endline "Proof Failed");
-  [%expect
-    {|
-    intro_tac
-    elim_conj_asm_tac
-    ccontr_tac
-    mp_asm_tac
-    mp_asm_tac
-    neg_elim_tac
-    Proof Complete!
-    With fuel usage: 1440
-    ========================================
-    (¬a ==> b) ∧ (¬a ==> ¬b) ==> a
+  [%expect {|
+    out of fuel
+    With fuel usage: 900
     |}]

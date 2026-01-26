@@ -17,6 +17,8 @@ type _ choosable =
   | Tactic : tactic list -> tactic choosable
   | Unknown : 'a list -> 'a choosable
 
+exception Out_of_fuel
+
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
   | Choose : 'a choosable -> 'a Effect.t
@@ -644,6 +646,14 @@ let with_term_size_ranking : tactic_combinator =
         in
         continue k sorted
     | v -> v
+
+let with_fuel_limit limit : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Burn n, k ->
+      limit := !limit - n;
+      if !limit <= 0 then discontinue k Out_of_fuel else continue k ()
+  | v -> v
 
 let with_fuel_counter r : tactic_combinator =
  fun tac goal ->
