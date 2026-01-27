@@ -199,7 +199,7 @@ let%expect_test "basic6" =
 
   let next_tactic =
     next_tactic_of_list
-      [ apply_tac |> with_term a; with_first_success assumption_tac ]
+      [ apply_tac |> with_term imp_ab; with_first_success assumption_tac ]
   in
   (match prove ([ imp_cab; imp_ab; a ], goal) next_tactic with
   | Complete thm ->
@@ -211,15 +211,6 @@ let%expect_test "basic6" =
 
   [%expect
     {|
-    C ==> A
-
-    A
-
-    t
-    A
-
-    hit choice
-    continueing
     assume chosen h success
     assumption doesn't match the goal
     assumption doesn't match the goal

@@ -102,9 +102,6 @@ let or_tac : tactic =
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
-(*TODO: make the choice happen on the whole terms, not just the destructured
-  implication. This lets the user choose a term they can actually see
-   *)
 let apply_tac : tactic =
  fun (asms, concl) ->
   burn 3;
@@ -113,13 +110,12 @@ let apply_tac : tactic =
     asms
     |> List.filter_map (fun asm ->
         match destruct_imp asm with
-        | Ok (prem, conc) when conc = concl -> Some (prem, asm)
+        | Ok (prem, conc) when conc = concl -> Some (asm, prem)
         | _ -> None)
   in
 
-  let premises = perform (Rank (List.map fst matching)) in
-  let h = choose_terms premises in
-  let chosen = matching |> List.assoc h in
+  let chosen = choose_terms (List.map fst matching) in
+  let h = matching |> List.assoc chosen in
 
   let thm =
     let* assumed = assume chosen in
