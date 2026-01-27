@@ -114,7 +114,8 @@ let apply_tac : tactic =
         | _ -> None)
   in
 
-  let chosen = choose_terms (List.map fst matching) in
+  let choices = perform (Rank (List.map fst matching)) in
+  let chosen = choose_terms choices in
   let h = matching |> List.assoc chosen in
 
   let thm =
