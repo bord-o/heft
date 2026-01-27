@@ -102,7 +102,8 @@ let rec pretty_print_hol_term ?(with_type = false) ?(parent_prec = PrecImp) term
            (aux ~parent_prec:PrecAtom bind)
            (aux ~parent_prec:PrecQuant body))
 
-let pretty_print_thm ?(with_type = false) (Sequent (assm, concl)) =
+let pretty_print_thm ?(with_type = false) thm =
+  let assm, concl = destruct_thm thm in
   let bar = String.make 40 '=' in
   match assm with
   | [] -> Format.sprintf "%s\n%s" bar (pretty_print_hol_term ~with_type concl)
