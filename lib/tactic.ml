@@ -26,7 +26,7 @@ type _ Effect.t +=
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Burn : int -> unit Effect.t
-  | TacticQueue : (goal -> thm) Queue.t Effect.t
+  | Rewrites : unit -> term list Effect.t
 
 let as_list : type a. a choosable -> a list = function
   | Term ts -> ts
@@ -423,7 +423,6 @@ let rec prove g tactic_queue =
   | Some tactic -> (
       match tactic g with
       (* TacticQueue gives the current tactics waiting to be applied *)
-      | effect TacticQueue, k -> continue k tactic_queue
       | effect Burn _, k -> continue k ()
       (* Trace is a unified interface for logs and errors *)
       | effect Trace (_, v), k ->
@@ -459,7 +458,6 @@ let rec prove_bfs_traced g tactic_queue trace_ref =
 
       let rec handler (f : unit -> proof_state) =
         match f () with
-        | effect TacticQueue, k -> continue k tactic_queue
         | effect Burn _, k -> continue k ()
         | effect Trace (Proof, v), k ->
             trace_ref := v :: !trace_ref;
@@ -502,7 +500,6 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
   | Some tactic ->
       let rec handler (f : unit -> proof_state) =
         match f () with
-        | effect TacticQueue, k -> continue k tactic_queue
         | effect Burn _, k -> continue k ()
         | effect Trace (Proof, v), k ->
             trace_ref := v :: !trace_ref;
