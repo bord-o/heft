@@ -11,6 +11,12 @@ type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 type tactic = goal -> thm
 type tactic_combinator = tactic -> tactic
 
+type _ rankable =
+  | Term : term list -> term rankable
+  | Goal : goal list -> goal rankable
+  | Tactic : tactic list -> tactic rankable
+  | Unknown : 'a list -> 'a rankable
+
 type _ choosable =
   | Term : term list -> term choosable
   | Goal : goal list -> goal choosable
@@ -22,13 +28,19 @@ exception Out_of_fuel
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
   | Choose : 'a choosable -> 'a Effect.t
-  | Rank : term list -> term list Effect.t
+  | Rank : 'a rankable -> 'a list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Burn : int -> unit Effect.t
   | Rewrites : unit -> term list Effect.t
 
-let as_list : type a. a choosable -> a list = function
+let as_ranked_list : type a. a rankable -> a list = function
+  | Term ts -> ts
+  | Goal gs -> gs
+  | Tactic tacs -> tacs
+  | Unknown xs -> xs
+
+let as_chosen_list : type a. a choosable -> a list = function
   | Term ts -> ts
   | Goal gs -> gs
   | Tactic tacs -> tacs
@@ -53,6 +65,7 @@ let choose_goals gs = perform (Choose (Goal gs))
 let choose_terms gs = perform (Choose (Term gs))
 let choose_tactics gs = perform (Choose (Tactic gs))
 let choose_unknowns gs = perform (Choose (Unknown gs))
+let rank_terms ts = perform (Rank (Term ts))
 
 let rec choose_subgoals acc = function
   | [] -> List.rev acc
@@ -114,7 +127,7 @@ let apply_tac : tactic =
         | _ -> None)
   in
 
-  let choices = perform (Rank (List.map fst matching)) in
+  let choices = rank_terms (List.map fst matching) in
   let chosen = choose_terms choices in
   let h = matching |> List.assoc chosen in
 
@@ -429,12 +442,12 @@ let rec prove g tactic_queue =
           print_endline v;
           continue k ()
       (* Rank is used to sort terms by an undetermined heuristic *)
-      | effect Rank terms, k -> continue k terms
+      | effect Rank (Term terms), k -> continue k terms
       (* This represents failure for any reason *)
       | effect Fail, _k -> Incomplete g
       (* Choose is used to decide how to explore options *)
       | effect Choose choices, k -> (
-          match as_list choices with
+          match as_chosen_list choices with
           | [] ->
               print_endline "no choices available";
               Incomplete g
@@ -465,7 +478,7 @@ let rec prove_bfs_traced g tactic_queue trace_ref =
         | effect Trace (_, v), k ->
             print_endline v;
             continue k ()
-        | effect Rank terms, k -> continue k terms
+        | effect Rank (Term terms), k -> continue k terms
         | effect Fail, _k -> Incomplete g
         | effect Choose choices, k ->
             let r = Multicont.Deep.promote k in
@@ -475,7 +488,7 @@ let rec prove_bfs_traced g tactic_queue trace_ref =
                 Queue.add
                   (PendingProof ((fun () -> Multicont.Deep.resume r x), snapshot))
                   q)
-              (as_list choices);
+              (as_chosen_list choices);
             next ()
         | effect Subgoal g', k -> (
             match prove_bfs_traced g' (Queue.copy tactic_queue) trace_ref with
@@ -507,7 +520,7 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
         | effect Trace (_, v), k ->
             print_endline v;
             continue k ()
-        | effect Rank terms, k -> continue k terms
+        | effect Rank (Term terms), k -> continue k terms
         | effect Fail, _k -> Incomplete g
         | effect Choose choices, k ->
             let r = Multicont.Deep.promote k in
@@ -522,7 +535,7 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
                       trace_ref := snapshot;
                       try_each cs)
             in
-            try_each (as_list choices)
+            try_each (as_chosen_list choices)
         | effect Subgoal g', k -> (
             match prove_dfs_traced g' (Queue.copy tactic_queue) trace_ref with
             | Complete thm -> continue k thm
@@ -586,7 +599,7 @@ let with_first_success : tactic_combinator =
             | effect Fail, _ -> try_each cs
             | thm -> thm)
       in
-      try_each (as_list choices)
+      try_each (as_chosen_list choices)
   | v -> v
 
 let with_interactive_choice : tactic_combinator =
@@ -596,7 +609,7 @@ let with_interactive_choice : tactic_combinator =
       print_endline s;
       continue k ()
   | effect Choose choices, k ->
-      if List.is_empty (as_list choices) then fail ()
+      if List.is_empty (as_chosen_list choices) then fail ()
       else
         let rec get_choice cs =
           let idx = read_int () in
@@ -606,14 +619,14 @@ let with_interactive_choice : tactic_combinator =
               print_endline "Invalid choice";
               get_choice cs
         in
-        continue k (get_choice (as_list choices))
+        continue k (get_choice (as_chosen_list choices))
   | v -> v
 
 let with_nth_choice n : tactic_combinator =
  fun tac goal ->
   match tac goal with
   | effect Choose cs, k -> (
-      match List.nth_opt (as_list cs) n with
+      match List.nth_opt (as_chosen_list cs) n with
       | None -> fail ()
       | Some c -> continue k c)
   | v -> v
@@ -635,7 +648,7 @@ let with_term_size_ranking : tactic_combinator =
   in
   fun tac goal ->
     match tac goal with
-    | effect Rank terms, k ->
+    | effect Rank (Term terms), k ->
         let sorted =
           List.stable_sort
             (fun l r -> compare (term_size l) (term_size r))

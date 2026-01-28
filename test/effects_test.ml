@@ -34,7 +34,7 @@ let choice_bfs () =
         let k = Multicont.Deep.promote k' in
         List.iter
           (fun x -> Queue.add (Pending (fun () -> Multicont.Deep.resume k x)) q)
-          (as_list lst);
+          (as_chosen_list lst);
         next ()
     | v -> v
   and next () =
@@ -79,7 +79,7 @@ let choice_dfs () =
             | Success -> Success
             | Failure -> try' rest)
       in
-      try' (as_list cs)
+      try' (as_chosen_list cs)
   | v ->
       print_endline
         (match v with
