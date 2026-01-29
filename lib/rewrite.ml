@@ -128,3 +128,11 @@ ok so moving forward:
         repeats rewriting until failure
 
  *)
+
+let rec subterms tm =
+  tm
+  ::
+  (match tm with
+  | Var _ | Const _ -> []
+  | App (func, arg) -> subterms func @ subterms arg
+  | Lam (_, bod) -> subterms bod)

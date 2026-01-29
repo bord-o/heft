@@ -1394,4 +1394,12 @@ let%expect_test "rewrite_basic" =
       Printing.print_term g);
 
   [%expect {|
+    Two = add One One
+
+    assume_tac
+    rewrite_exact_left_tac
+    Proof Complete!
+    Two = add One One
+    ========================================
+    add Zero Two = add One One
     |}]
