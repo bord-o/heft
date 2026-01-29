@@ -1,5 +1,6 @@
 open Kernel
-(* AI code ahead: *)
+open Result.Syntax
+(* BEWARE, AI code ahead: *)
 
 let rec type_match (env : (hol_type * hol_type) list) ty_pat ty_target :
     (hol_type * hol_type) list option =
@@ -136,3 +137,117 @@ let rec subterms tm =
   | Var _ | Const _ -> []
   | App (func, arg) -> subterms func @ subterms arg
   | Lam (_, bod) -> subterms bod)
+
+(* does lhs of rule match any subterms of t? *)
+let rec matches (rule: term)  = function
+  | [] ->  []
+  | tm::tms ->
+    match match_term rule tm with
+      Some m -> m :: (matches rule tms)
+      | None -> matches rule tms
+    
+let subterm_matches (rule : thm) (tm: term) =
+  let* rule_lhs, _ = destruct_eq (concl rule) in
+  let subt = subterms tm in
+  Ok (matches rule_lhs subt)
+
+(*
+  add (S m) n = S (add m n)
+
+  add (add 1 2) 3 = 6
+
+  when rewriting, what subterms do we get for lhs of goal?
+    add (add 1 2) 3
+    add 1 2
+    3
+    1
+    2
+  how do we know how to relate each of these back to the goal for thm construction?
+  what are the other situations of inner rewrites to worry about?
+
+*)
+
+(* Instantiate a rewrite rule with a match result.
+   Given rule: |- lhs = rhs and match_result from matching lhs against target,
+   returns |- target = rhs[substituted] *)
+let instantiate_rule (rule : thm) (env : match_result) =
+  let* type_inst_rule = inst_type env.type_sub rule in
+  (* inst expects (replacement, target_var), but match_result has (pattern_var, target_term) *)
+  let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
+  inst term_sub_flipped type_inst_rule
+
+(* Try to rewrite tm at the root using rule.
+   Returns Some (|- tm = tm') if lhs of rule matches tm, None otherwise *)
+let rewrite_at_root (rule : thm) (tm : term) =
+  let* rule_lhs, _ = destruct_eq (concl rule) in
+  match match_term rule_lhs tm with
+  | Some env ->
+      let* inst_rule = instantiate_rule rule env in
+      Ok (Some inst_rule)
+  | None -> Ok None
+
+(* Rewrite once somewhere in tm using rule.
+   Tries root first, then recursively descends into subterms.
+   Returns |- tm = tm' if successful. *)
+let rec rewrite_once (rule : thm) (tm : term) =
+  (* First, try to match at the root *)
+  let* root_result = rewrite_at_root rule tm in
+  match root_result with
+  | Some thm -> Ok thm
+  | None ->
+      (* Try subterms *)
+      match tm with
+      | Var _ | Const _ -> Error `NoRewriteMatch
+      | App (f, x) -> (
+          (* Try rewriting in function position first *)
+          match rewrite_once rule f with
+          | Ok f_eq ->
+              (* f_eq : |- f = f', need |- f x = f' x *)
+              Derived.ap_thm f_eq x
+          | Error `NoRewriteMatch -> (
+              (* Try rewriting in argument position *)
+              match rewrite_once rule x with
+              | Ok x_eq ->
+                  (* x_eq : |- x = x', need |- f x = f x' *)
+                  Derived.ap_term f x_eq
+              | Error `NoRewriteMatch -> Error `NoRewriteMatch
+              | Error e -> Error e)
+          | Error e -> Error e)
+      | Lam (v, body) -> (
+          match rewrite_once rule body with
+          | Ok body_eq ->
+              (* body_eq : |- body = body', need |- λv.body = λv.body' *)
+              lam v body_eq
+          | Error e -> Error e)
+
+(* Rewrite repeatedly until no more rewrites apply *)
+let rec rewrite_all (rule : thm) (tm : term) =
+  match rewrite_once rule tm with
+  | Error `NoRewriteMatch -> refl tm  (* No rewrite possible, return reflexivity *)
+  | Error e -> Error e
+  | Ok step_thm ->
+      (* step_thm : |- tm = tm' *)
+      let* _, tm' = destruct_eq (concl step_thm) in
+      let* rest_thm = rewrite_all rule tm' in
+      (* rest_thm : |- tm' = tm'' *)
+      trans step_thm rest_thm
+
+(* Rewrite using multiple rules, trying each in order until one works *)
+let rec rewrite_once_with_rules (rules : thm list) (tm : term) =
+  match rules with
+  | [] -> Error `NoRewriteMatch
+  | rule :: rest -> (
+      match rewrite_once rule tm with
+      | Ok thm -> Ok thm
+      | Error `NoRewriteMatch -> rewrite_once_with_rules rest tm
+      | Error e -> Error e)
+
+(* Repeatedly rewrite using multiple rules until no more apply *)
+let rec rewrite_all_with_rules (rules : thm list) (tm : term) =
+  match rewrite_once_with_rules rules tm with
+  | Error `NoRewriteMatch -> refl tm
+  | Error e -> Error e
+  | Ok step_thm ->
+      let* _, tm' = destruct_eq (concl step_thm) in
+      let* rest_thm = rewrite_all_with_rules rules tm' in
+      trans step_thm rest_thm

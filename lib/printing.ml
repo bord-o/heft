@@ -165,3 +165,4 @@ let print_error = function
   | `NotAConj -> "NotAConj"
   | `NotADisj -> "NotADisj"
   | `NotAnImp -> "NotAnImp"
+  | `NoRewriteMatch -> "NoRewriteMatch"

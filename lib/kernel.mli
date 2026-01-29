@@ -89,7 +89,8 @@ type kernel_error =
   | `TypeVariableNotAConstructor of string
   | `TypesDontAgree
   | `UnexpectedLambdaForm
-  | `WrongNumberOfTypeArgs of string ]
+  | `WrongNumberOfTypeArgs of string
+  | `NoRewriteMatch ]
 
 val pp_kernel_error :
   Ppx_deriving_runtime.Format.formatter ->

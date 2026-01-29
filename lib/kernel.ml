@@ -71,7 +71,8 @@ type kernel_error =
   | `NameMappingError of string
   | `DefinitionError of string
   | `TypeDefinitionError of string
-  | `Todo ]
+  | `Todo
+  | `NoRewriteMatch ]
 [@@deriving show { with_path = false }]
 
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512

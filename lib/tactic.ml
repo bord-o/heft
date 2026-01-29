@@ -169,34 +169,22 @@ let apply_neg_tac : tactic =
 let assume_tac : tactic =
  fun (_asms, conc) -> return_thm ~from:"assume_tac" @@ assume conc
 
-(* tries to rewrite the lhs of goal using exact matches (no subterm matching) *)
-let rewrite_exact_left_tac : tactic =
+(* tries to rewrite the goal using subterm matching *)
+let rewrite_tac : tactic =
  fun (asms, conc) ->
   burn 2;
   let thm =
     let rules = perform (Rewrites ()) in
     let chosen_rule = choose_theorems rules in
 
-    let* l_rule, _ = destruct_eq (concl chosen_rule) in
     let* l_goal, r_goal = destruct_eq conc in
-
-    match match_term l_rule l_goal with
-    | None -> fail ()
-    | Some theta ->
-        (* instantiate types first, then terms *)
-        let* thm =
-          inst_type
-            (theta.type_sub)
-            chosen_rule
-        in
-        let* thm = inst (List.map (fun (l, r) -> (r, l)) theta.term_sub) thm in
-        let _, ir_rule = destruct_eq (concl thm) |> Result.get_ok in
-        (* goal: l_goal = r_goal, we have: l_goal = ir_rule, need: ir_rule = r_goal *)
-        let* sub = safe_make_eq ir_rule r_goal in
-        let subthm = perform @@ Subgoal (asms, sub) in
-        trans thm subthm
+    let* rw_thm = rewrite_once chosen_rule l_goal in
+    let* _, l_rewritten = destruct_eq (concl rw_thm) in
+    let* sub = safe_make_eq l_rewritten r_goal in
+    let subthm = perform @@ Subgoal (asms, sub) in
+    trans rw_thm subthm
   in
-  return_thm ~from:"rewrite_exact_left_tac" thm
+  return_thm ~from:"rewrite_tac" thm
 
 let mp_asm_tac : tactic =
  fun (asms, concl) ->

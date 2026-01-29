@@ -1383,7 +1383,7 @@ let%expect_test "rewrite_basic" =
   in
   let next_tactic =
     next_tactic_of_list
-      [ rewrite_exact_left_tac |> with_rewrites [ eq_thm ]; assume_tac ]
+      [ rewrite_tac |> with_rewrites [ eq_thm ]; assume_tac ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1396,7 +1396,7 @@ let%expect_test "rewrite_basic" =
   [%expect
     {|
     assume_tac
-    rewrite_exact_left_tac
+    rewrite_tac
     Proof Complete!
     Two = add One One
     ========================================
