@@ -172,32 +172,31 @@ let assume_tac : tactic =
 (* tries to rewrite the lhs of goal using exact matches (no subterm matching) *)
 let rewrite_exact_left_tac : tactic =
  fun (asms, conc) ->
-  let rules = perform (Rewrites ()) in
-  let chosen_rule = choose_theorems rules in
+  burn 2;
+  let thm =
+    let rules = perform (Rewrites ()) in
+    let chosen_rule = choose_theorems rules in
 
-  (* destruct the rule *)
-  let l_rule, _r_rule = destruct_eq (concl chosen_rule) |> Result.get_ok in
-  (* destruct the goal *)
-  let l_goal, r_goal = destruct_eq conc |> Result.get_ok in
+    let* l_rule, _ = destruct_eq (concl chosen_rule) in
+    let* l_goal, r_goal = destruct_eq conc in
 
-  match match_term l_rule l_goal with
-  | None ->
-      trace_dbg "failed to match";
-      fail ()
-  | Some theta ->
-      let thm =
+    match match_term l_rule l_goal with
+    | None -> fail ()
+    | Some theta ->
+        (* instantiate types first, then terms *)
         let* thm =
-          inst (List.map (fun (l, r) -> (r, l)) theta.term_sub) chosen_rule
+          inst_type
+            (theta.type_sub |> List.to_seq |> Hashtbl.of_seq)
+            chosen_rule
         in
-        let _il_rule, ir_rule = destruct_eq (concl thm) |> Result.get_ok in
-        (* trace_dbg (Printf.sprintf "successful match: %s" (pretty_print_thm thm)); *)
+        let* thm = inst (List.map (fun (l, r) -> (r, l)) theta.term_sub) thm in
+        let _, ir_rule = destruct_eq (concl thm) |> Result.get_ok in
+        (* goal: l_goal = r_goal, we have: l_goal = ir_rule, need: ir_rule = r_goal *)
         let* sub = safe_make_eq ir_rule r_goal in
-        print_term sub;
-
         let subthm = perform @@ Subgoal (asms, sub) in
         trans thm subthm
-      in
-      return_thm ~from:"rewrite_exact_left_tac" thm
+  in
+  return_thm ~from:"rewrite_exact_left_tac" thm
 
 let mp_asm_tac : tactic =
  fun (asms, concl) ->

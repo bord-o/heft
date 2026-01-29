@@ -1393,9 +1393,8 @@ let%expect_test "rewrite_basic" =
       print_endline "Proof Failed";
       Printing.print_term g);
 
-  [%expect {|
-    Two = add One One
-
+  [%expect
+    {|
     assume_tac
     rewrite_exact_left_tac
     Proof Complete!
