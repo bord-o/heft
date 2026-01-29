@@ -124,13 +124,13 @@ let rec type_vars = function
       |> List.sort_uniq compare
   | TyVar _ as tv -> [ tv ]
 
-let rec type_substitution (type_consts : (hol_type, hol_type) Hashtbl.t)
+let rec type_substitution (type_consts : (hol_type * hol_type) list)
     (typ : hol_type) : hol_type =
   match typ with
   | TyCon (tycon, args) ->
       let args' = List.map (type_substitution type_consts) args in
       if args' == args then typ else TyCon (tycon, args')
-  | _ -> Hashtbl.find_opt type_consts typ |> Option.value ~default:typ
+  | _ -> List.assoc_opt typ type_consts |> Option.value ~default:typ
 
 let get_const_term_type name = Hashtbl.find_opt the_term_constants name
 
@@ -294,7 +294,7 @@ and needs_renaming bound_var body subst_list =
     subst_list
 
 (* Type instantiation *)
-let inst tyin tm =
+let type_inst tyin tm =
   let rec go env term =
     match term with
     | Var (name, ty) ->
@@ -328,7 +328,7 @@ let inst tyin tm =
     let* substituted_body = vsubst [ (fresh_var, original_var) ] body in
     go env (Lam (fresh_var, substituted_body))
   in
-  if Hashtbl.length tyin = 0 then Ok tm else go [] tm
+  if List.length tyin = 0 then Ok tm else go [] tm
 
 let rator tm =
   match tm with App (l, _) -> Ok l | _ -> Error (`NotAnApplication tm)
@@ -472,7 +472,7 @@ let deduct_antisym_rule (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
   Ok (Sequent (term_union asl1' asl2', cc_eq))
 
 let inst_type theta (Sequent (asl, c)) =
-  let inst_fn = inst theta in
+  let inst_fn = type_inst theta in
   let* inst_asl =
     List.fold_left
       (fun acc a ->

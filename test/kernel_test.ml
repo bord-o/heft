@@ -160,14 +160,12 @@ let%expect_test "deduct_antisym_reflexive" =
     P = P
     |}]
 
-let s = List.to_seq
-
 let%expect_test "inst_type_simple" =
   let thm =
     let a = TyVar "a" in
     let x_poly = Var ("x", a) in
     let* thm1 = refl x_poly in
-    let env = Hashtbl.of_seq (s [ (a, bool_ty) ]) in
+    let env = [ (a, bool_ty) ] in
     inst_type env thm1
   in
   print_types := true;

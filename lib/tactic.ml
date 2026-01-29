@@ -186,7 +186,7 @@ let rewrite_exact_left_tac : tactic =
         (* instantiate types first, then terms *)
         let* thm =
           inst_type
-            (theta.type_sub |> List.to_seq |> Hashtbl.of_seq)
+            (theta.type_sub)
             chosen_rule
         in
         let* thm = inst (List.map (fun (l, r) -> (r, l)) theta.term_sub) thm in

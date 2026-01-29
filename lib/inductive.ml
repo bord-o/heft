@@ -435,7 +435,7 @@ let define_recursive_function func_name return_type inductive_type_name branches
   in
 
   let type_inst =
-    [ (make_vartype "r", return_type) ] |> List.to_seq |> Hashtbl.of_seq
+    [ (make_vartype "r", return_type) ] 
   in
   let* typed_recursion_thm = inst_type type_inst inductive_def.recursion in
   let* instantiated_thm = specs branches typed_recursion_thm in

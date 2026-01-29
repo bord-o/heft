@@ -277,6 +277,8 @@ let destruct_disj = function
 let is_conj t =
   match destruct_conj t with Error `NotAConj -> false | _ -> true
 
+let is_eq t = match destruct_eq t with Error `NotAnEq -> false | _ -> true
+
 let is_disj t =
   match destruct_disj t with Error `NotADisj -> false | _ -> true
 
@@ -557,7 +559,7 @@ let gen tm th =
   let* pred_lam = make_lam tm (concl th) in
   let* typed_forall =
     inst_type
-      ([ (make_vartype "a", var_typ) ] |> List.to_seq |> Hashtbl.of_seq)
+      ([ (make_vartype "a", var_typ) ])
       forall_def
   in
   let* eqt_th = eq_truth_intro th in
@@ -574,7 +576,7 @@ let spec tm th =
   let quant_typ = type_of_var quant_over in
   let* typed_forall =
     inst_type
-      ([ (make_vartype "a", quant_typ) ] |> List.to_seq |> Hashtbl.of_seq)
+      ([ (make_vartype "a", quant_typ) ])
       forall_def
   in
   let* _, pred_lam = destruct_app (concl th) in
@@ -689,7 +691,7 @@ let exists x tm th =
   let* tm_typ = type_of_term tm in
   let* typed_exists_def =
     inst_type
-      ([ (make_vartype "a", tm_typ) ] |> List.to_seq |> Hashtbl.of_seq)
+      ([ (make_vartype "a", tm_typ) ] )
       exists_def
   in
 
@@ -736,7 +738,7 @@ let choose x exists_th q_th =
   let* exists_def = exists_def in
   let* typed_exists_def =
     inst_type
-      ([ (make_vartype "a", x_ty) ] |> List.to_seq |> Hashtbl.of_seq)
+      ([ (make_vartype "a", x_ty) ] )
       exists_def
   in
   let* unfolded = unfold_definition typed_exists_def [ pred_lam ] in
