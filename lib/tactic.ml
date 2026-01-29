@@ -4,6 +4,7 @@ open Printing
 open Effect
 open Effect.Deep
 open Result.Syntax
+open Rewrite
 
 type goal = term list * term [@@deriving show]
 type level = Debug | Info | Warn | Error | Proof
@@ -19,6 +20,7 @@ type _ rankable =
 
 type _ choosable =
   | Term : term list -> term choosable
+  | Theorem : thm list -> thm choosable
   | Goal : goal list -> goal choosable
   | Tactic : tactic list -> tactic choosable
   | Unknown : 'a list -> 'a choosable
@@ -32,7 +34,7 @@ type _ Effect.t +=
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Burn : int -> unit Effect.t
-  | Rewrites : unit -> term list Effect.t
+  | Rewrites : unit -> thm list Effect.t
 
 let as_ranked_list : type a. a rankable -> a list = function
   | Term ts -> ts
@@ -42,6 +44,7 @@ let as_ranked_list : type a. a rankable -> a list = function
 
 let as_chosen_list : type a. a choosable -> a list = function
   | Term ts -> ts
+  | Theorem thms -> thms
   | Goal gs -> gs
   | Tactic tacs -> tacs
   | Unknown xs -> xs
@@ -63,6 +66,7 @@ let return_thm ?(from = "unknown") = function
 
 let choose_goals gs = perform (Choose (Goal gs))
 let choose_terms gs = perform (Choose (Term gs))
+let choose_theorems gs = perform (Choose (Theorem gs))
 let choose_tactics gs = perform (Choose (Tactic gs))
 let choose_unknowns gs = perform (Choose (Unknown gs))
 let rank_terms ts = perform (Rank (Term ts))
@@ -80,7 +84,7 @@ let rec choose_subgoals acc = function
       let rest = List.filter (( <> ) chosen) goals in
       choose_subgoals ((chosen, thm) :: acc) rest
 
-let wrap_all handler = List.map @@ fun t -> handler t
+let wrap_all = List.map
 
 let left_tac : tactic =
  fun (asms, concl) ->
@@ -161,6 +165,39 @@ let apply_neg_tac : tactic =
           prove_hyp sub_thm elim
       in
       return_thm ~from:"apply_neg_tac" thm
+
+let assume_tac : tactic =
+ fun (_asms, conc) -> return_thm ~from:"assume_tac" @@ assume conc
+
+(* tries to rewrite the lhs of goal using exact matches (no subterm matching) *)
+let rewrite_exact_left_tac : tactic =
+ fun (asms, conc) ->
+  let rules = perform (Rewrites ()) in
+  let chosen_rule = choose_theorems rules in
+
+  (* destruct the rule *)
+  let l_rule, _r_rule = destruct_eq (concl chosen_rule) |> Result.get_ok in
+  (* destruct the goal *)
+  let l_goal, r_goal = destruct_eq conc |> Result.get_ok in
+
+  match match_term l_rule l_goal with
+  | None ->
+      trace_dbg "failed to match";
+      fail ()
+  | Some theta ->
+      let thm =
+        let* thm =
+          inst (List.map (fun (l, r) -> (r, l)) theta.term_sub) chosen_rule
+        in
+        let _il_rule, ir_rule = destruct_eq (concl thm) |> Result.get_ok in
+        (* trace_dbg (Printf.sprintf "successful match: %s" (pretty_print_thm thm)); *)
+        let* sub = safe_make_eq ir_rule r_goal in
+        print_term sub;
+
+        let subthm = perform @@ Subgoal (asms, sub) in
+        trans thm subthm
+      in
+      return_thm ~from:"rewrite_exact_left_tac" thm
 
 let mp_asm_tac : tactic =
  fun (asms, concl) ->
@@ -682,3 +719,7 @@ let with_no_trace ?(show_proof = false) : tactic_combinator =
   | effect Trace (Warn, _), k -> continue k ()
   | effect Trace (Proof, _), k when not show_proof -> continue k ()
   | v -> v
+
+let with_rewrites (rewrites : thm list) : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Rewrites (), k -> continue k rewrites | v -> v

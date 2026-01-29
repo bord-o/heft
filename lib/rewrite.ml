@@ -100,3 +100,31 @@ let rec term_match (bound : term list) (env : match_result) (pattern : term)
 
 (* Convenience wrapper *)
 let match_term pattern target = term_match [] empty_match pattern target
+
+(*
+
+
+add 0 n = n
+add (Suc m) n = Suc (add m n)
+
+add 0 5
+
+rw add
+matches add 0 5 with the left side of add 0 n = n giving n->5
+How do I now get a theorem when replace n with 5 giving add 0 5 = 5
+What if add 0 n = n isn't explicitely quantified forall n?
+
+use inst!
+
+ok so moving forward:
+    1. rewrite_exact_tac 
+        handles when the goal exactly matches a rule
+        uses choice to pick a rule
+        need to handle theorem buliding
+    2. rewrite_tac 
+        uses choice among the possible rewrite locations
+        need to look for possible matching subterms and build theorems
+    3. simp_tac 
+        repeats rewriting until failure
+
+ *)

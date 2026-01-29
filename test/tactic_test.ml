@@ -1354,3 +1354,44 @@ let%expect_test "another tautology" =
     out of fuel
     With fuel usage: 900
     |}]
+
+let%expect_test "rewrite_basic" =
+  let () = reset () |> Result.get_ok in
+  let _ = new_type "nat" 0 in
+  let nat_ty = TyCon ("nat", []) in
+  let _ = new_constant "Zero" nat_ty in
+  let _ = new_constant "One" nat_ty in
+  let _ = new_constant "Two" nat_ty in
+  let _ = new_constant "add" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+
+  let zero = Const ("Zero", nat_ty) in
+  let one = Const ("One", nat_ty) in
+  let two = Const ("Two", nat_ty) in
+  let add = Const ("add", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let n = make_var "n" nat_ty in
+
+  (* Rewrite rule: add Zero n = n *)
+  let lhs = App (App (add, zero), n) in
+  let eq_thm =
+    new_axiom (Result.get_ok (safe_make_eq lhs n)) |> Result.get_ok
+  in
+
+  (* Goal: add Zero Zero = Zero *)
+  let goal =
+    Result.get_ok
+      (safe_make_eq (App (App (add, zero), two)) (App (App (add, one), one)))
+  in
+  let next_tactic =
+    next_tactic_of_list
+      [ rewrite_exact_left_tac |> with_rewrites [ eq_thm ]; assume_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Failed";
+      Printing.print_term g);
+
+  [%expect {|
+    |}]
