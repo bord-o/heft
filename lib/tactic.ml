@@ -394,10 +394,6 @@ let gen_tac : tactic =
   in
   return_thm ~from:"gen_tac" thm
 
-(* 
-   need to fetch the appropriate induction definition of the type we are 
-   inducting on (the general var)
- *)
 let induct_tac : tactic =
  fun (asms, concl) ->
   burn 5;
@@ -415,24 +411,32 @@ let induct_tac : tactic =
     in
 
     let binder = make_var "pred_binder" ty in
-    let* p = make_lam binder bod in
+    let* bod_with_binder = vsubst [ (binder, induction_var) ] bod in
+    let* p = make_lam binder bod_with_binder in
 
     let* inst_induction = spec p inductive_def.induction in
-    (* print_endline @@ pretty_print_thm ~with_type:true inductive_def.induction; *)
 
-    (*TODO this all needs to be a loop to account for multiple cases*)
-    let* base_case, rest = destruct_imp (Kernel.concl inst_induction) in
-    let* inductive_case, _ = destruct_imp rest in
-    let thms =
-      choose_subgoals [] [ (asms, base_case); (asms, inductive_case) ]
+    let rec collect_premises tm acc =
+      match destruct_imp tm with
+      | Ok (premise, rest) -> collect_premises rest (premise :: acc)
+      | Error _ -> (List.rev acc, tm)
     in
-    let base_thm = thms |> List.assoc (asms, base_case) in
-    let ind_thm = thms |> List.assoc (asms, inductive_case) in
+    let cases, _conclusion =
+      collect_premises (Kernel.concl inst_induction) []
+    in
 
-    let* base_sat = mp inst_induction base_thm in
-    let* thm = mp base_sat ind_thm in
+    let goals = List.map (fun case -> (asms, case)) cases in
+    let solved = choose_subgoals [] goals in
 
-    Ok thm
+    let* result =
+      List.fold_left
+        (fun acc_thm (_goal, case_thm) ->
+          let* acc = acc_thm in
+          mp acc case_thm)
+        (Ok inst_induction)
+        (List.map (fun g -> (g, List.assoc g solved)) goals)
+    in
+    Ok result
   in
   return_thm ~from:"induction_tac" thm
 
@@ -718,6 +722,17 @@ let with_no_trace ?(show_proof = false) : tactic_combinator =
   | effect Trace (Error, _), k -> continue k ()
   | effect Trace (Warn, _), k -> continue k ()
   | effect Trace (Proof, _), k when not show_proof -> continue k ()
+  | v -> v
+
+let with_assumption_rewrites : tactic_combinator =
+ fun tac (asms, concl) ->
+  let asm_thms =
+    List.filter_map
+      (fun asm -> match assume asm with Ok thm -> Some thm | Error _ -> None)
+      asms
+  in
+  match tac (asms, concl) with
+  | effect Rewrites (), k -> continue k asm_thms
   | v -> v
 
 let with_rewrites (rewrites : thm list) : tactic_combinator =

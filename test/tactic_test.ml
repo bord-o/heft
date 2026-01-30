@@ -1485,26 +1485,59 @@ let%expect_test "rewrite induction" =
   let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
   let x = make_var "x" nat_ty in
 
-  (* Goal: plus Zero x = x *)
+  (* Goal: plus x Zero = x *)
   let goal =
     make_forall x (Result.get_ok (safe_make_eq (App (App (plus, x), zero)) x))
   in
 
-  print_thm plus_def;
-
   let rules = Rewrite.rules_of_def plus_def |> Result.get_ok in
 
-  let next_tactic = next_tactic_of_list [ 
-      induct_tac;
-      rewrite_tac |> with_rewrites rules
-  ] in
+  let next_tactic =
+    next_tactic_of_list
+      [
+        induct_tac;
+        with_nth_choice 0 (rewrite_tac |> with_rewrites rules);
+        beta_tac;
+        refl_tac;
+        gen_tac;
+        intro_tac;
+        with_nth_choice 1 (rewrite_tac |> with_rewrites rules);
+        beta_tac;
+        rewrite_tac |> with_assumption_rewrites;
+        refl_tac;
+      ]
+  in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
-  | Incomplete (_asms, g) ->
+  | Incomplete (asms, g) ->
       print_endline "Proof Incomplete";
+      List.iter Printing.print_term asms;
       Printing.print_term g);
 
-  [%expect {|
-  |}]
+  [%expect
+    {|
+    0: plus Zero Zero = Zero
+    1: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
+    destruct success
+    refl success
+    refl_tac
+    beta_tac
+    rewrite_tac
+    0: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
+    destruct success
+    destruct success
+    refl success
+    refl_tac
+    rewrite_tac
+    beta_tac
+    rewrite_tac
+    disch success
+    intro_tac
+    gen_tac
+    induction_tac
+    Proof Complete!
+    ========================================
+    ∀x. plus x Zero = x
+    |}]
