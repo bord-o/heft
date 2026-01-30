@@ -449,6 +449,7 @@ let ctauto_tac : tactic =
         assumption_tac;
         intro_tac;
         neg_intro_tac;
+        gen_tac;
         conj_tac;
         elim_conj_asm_tac;
         elim_disj_asm_tac;
@@ -774,7 +775,9 @@ let with_dfs ?(tacs = []) : tactic_combinator =
 *)
 let simp_tac : tactic =
  fun goal ->
-  let definitions = the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd in
+  let definitions =
+    the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
+  in
   let rules =
     definitions
     |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
@@ -785,3 +788,7 @@ let simp_tac : tactic =
     (with_dfs ~tacs:[ beta_tac; refl_tac ]
        (with_rewrites_and_assumptions rules rewrite_tac))
     goal
+
+(*TODO*)
+let auto_tac : tactic =
+ fun goal -> (with_dfs ~tacs:[ simp_tac ] (with_repeat ctauto_tac)) goal

@@ -519,12 +519,14 @@ let%expect_test "complete_prop_automation" =
     assumption doesn't match the goal
     OperationDoesntMatch
     NotANegation
+    NotAForall
     NotAConj
     assumption doesn't match the goal
     assumption doesn't match the goal
     assumption doesn't match the goal
     OperationDoesntMatch
     NotANegation
+    NotAForall
     NotAConj
     assume chosen h success
     assumption doesn't match the goal
@@ -532,6 +534,7 @@ let%expect_test "complete_prop_automation" =
     assumption doesn't match the goal
     OperationDoesntMatch
     NotANegation
+    NotAForall
     NotAConj
     assume chosen h success
     assumption doesn't match the goal
@@ -1238,7 +1241,7 @@ let%expect_test "dfs demorgans" =
     left_tac
     assumption_tac
     Proof Complete!
-    With fuel usage: 260
+    With fuel usage: 270
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
     |}]
@@ -1279,7 +1282,7 @@ let%expect_test "bfs demorgans" =
     left_tac
     assumption_tac
     Proof Complete!
-    With fuel usage: 28728
+    With fuel usage: 29526
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
     |}]
@@ -1497,14 +1500,7 @@ let%expect_test "rewrite induction" =
   amb := true;
 
   let next_tactic =
-    next_tactic_of_list
-      [
-        induct_tac;
-        simp_tac;
-        gen_tac;
-        intro_tac;
-        simp_tac;
-      ]
+    next_tactic_of_list [ induct_tac; simp_tac; gen_tac; intro_tac; simp_tac ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1517,4 +1513,26 @@ let%expect_test "rewrite induction" =
 
   [%expect
     {|
+    0: plus Zero Zero = Zero
+    1: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
+    destruct success
+    refl success
+    0: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
+    destruct success
+    NoRewriteMatch
+    destruct success
+    refl failure: left and right not eq
+    destruct success
+    refl failure: left and right not eq
+    NoRewriteMatch
+    NoRewriteMatch
+    destruct success
+    refl success
+    disch success
+    intro_tac
+    gen_tac
+    induction_tac
+    Proof Complete!
+    ========================================
+    ∀x. plus x Zero = x
     |}]
