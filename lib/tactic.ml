@@ -761,22 +761,27 @@ let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
   | effect Rewrites (), k -> continue k (rewrites @ asm_thms)
   | v -> v
 
+let with_dfs ?(tacs = []) : tactic_combinator =
+ fun tac goal ->
+  let q = Queue.of_seq (List.to_seq (tac :: tacs)) in
+  match prove_dfs goal q with Incomplete _ -> fail () | Complete thm -> thm
+
 (*
   simp needs to pull in definition rewrite rules, assumptions rewrites,
   and try to keep applying them while performing beta reduction in between.
   To match lean, it should also try to use refl at the end and close the goal
   if possible
 *)
-let simp_tac : tactic = fun (_asms, _conc) -> fail ()
+let simp_tac : tactic =
+ fun goal ->
+  let definitions = the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd in
+  let rules =
+    definitions
+    |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
+    |> List.flatten
+  in
 
-let with_bfs : tactic_combinator =
- fun tac goal ->
-  let q = Queue.create () in
-  Queue.add tac q;
-  match prove_bfs goal q with Incomplete _ -> fail () | Complete thm -> thm
-
-let with_dfs : tactic_combinator =
- fun tac goal ->
-  let q = Queue.create () in
-  Queue.add tac q;
-  match prove_dfs goal q with Incomplete _ -> fail () | Complete thm -> thm
+  with_repeat
+    (with_dfs ~tacs:[ beta_tac; refl_tac ]
+       (with_rewrites_and_assumptions rules rewrite_tac))
+    goal

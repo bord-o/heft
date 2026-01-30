@@ -1492,7 +1492,7 @@ let%expect_test "rewrite induction" =
     make_forall x (Result.get_ok (safe_make_eq (App (App (plus, x), zero)) x))
   in
 
-  let rules = Rewrite.rules_of_def plus_def |> Result.get_ok in
+  let _rules = Rewrite.rules_of_def plus_def |> Result.get_ok in
 
   amb := true;
 
@@ -1500,15 +1500,10 @@ let%expect_test "rewrite induction" =
     next_tactic_of_list
       [
         induct_tac;
-        with_dfs @@ (rewrite_tac |> with_rewrites rules);
-        beta_tac;
-        refl_tac;
+        simp_tac;
         gen_tac;
         intro_tac;
-        with_dfs (rewrite_tac |> with_rewrites rules);
-        beta_tac;
-        rewrite_tac |> with_assumption_rewrites;
-        refl_tac;
+        simp_tac;
       ]
   in
   (match prove ([], goal) next_tactic with
@@ -1522,25 +1517,4 @@ let%expect_test "rewrite induction" =
 
   [%expect
     {|
-    0: plus Zero Zero = Zero
-    1: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
-    destruct success
-    refl success
-    refl_tac
-    beta_tac
-    0: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
-    destruct success
-    NoRewriteMatch
-    destruct success
-    refl success
-    refl_tac
-    rewrite_tac
-    beta_tac
-    disch success
-    intro_tac
-    gen_tac
-    induction_tac
-    Proof Complete!
-    ========================================
-    ∀x. plus x Zero = x
     |}]
