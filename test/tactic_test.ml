@@ -279,7 +279,7 @@ let%expect_test "basic9" =
 
 let%expect_test "basic10" =
   let a = make_var "A" bool_ty in
-  let nat_def = Theorems.nat_def in
+  let nat_def = Theorems.Nat.nat_def in
   let x = make_var "x" nat_def.ty in
 
   let goal = make_forall x (make_imp a a) in
@@ -1323,7 +1323,7 @@ let%expect_test "another tautology" =
     |}]
 
 let%expect_test "rewrite_basic" =
-  let nat_ty = Theorems.nat_def.ty in
+  let nat_ty = Theorems.Nat.nat_def.ty in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "One" nat_ty in
   let _ = new_constant "Two" nat_ty in
@@ -1368,16 +1368,13 @@ let%expect_test "rewrite_basic" =
     |}]
 
 let%expect_test "rewrite_basic" =
-  let nat_def = Theorems.nat_def in
-  let nat_ty = nat_def.ty in
-  let zero = nat_def.constructors |> List.assoc "Zero" in
-  let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let open Theorems.Nat in
   let x = make_var "x" nat_ty in
 
-  (* Goal: plus Zero x = x *)
-  let goal = Result.get_ok (safe_make_eq (App (App (plus, zero), x)) x) in
+  let zero_plus_x = make_plus zero x |> Result.get_ok in
+  let goal = make_forall x (Result.get_ok (safe_make_eq zero_plus_x x)) in
 
-  let next_tactic = next_tactic_of_list [ auto_tac ] in
+  let next_tactic = next_tactic_of_list [ with_no_trace auto_tac ] in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -1388,32 +1385,22 @@ let%expect_test "rewrite_basic" =
 
   [%expect
     {|
-    no choices available
-    OperationDoesntMatch
-    NotANegation
-    NotAForall
-    NotAConj
-    no choices available
-    destruct success
-    refl success
     Proof Complete!
     ========================================
-    plus Zero x = x
+    ∀x. plus Zero x = x
     |}]
 
 let%expect_test "rewrite induction" =
-  let nat_def = Theorems.nat_def in
-  let nat_ty = nat_def.ty in
-  let zero = nat_def.constructors |> List.assoc "Zero" in
-  let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let open Theorems.Nat in
   let x = make_var "x" nat_ty in
 
-  (* Goal: plus x Zero = x *)
-  let goal =
-    make_forall x (Result.get_ok (safe_make_eq (App (App (plus, x), zero)) x))
-  in
+  let x_plus_zero = make_plus x zero |> Result.get_ok in
+  let goal = make_forall x (Result.get_ok (safe_make_eq x_plus_zero x)) in
 
-  let next_tactic = next_tactic_of_list [ induct_tac; auto_tac; auto_tac ] in
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace [ induct_tac; auto_tac; auto_tac ]
+  in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -1425,43 +1412,36 @@ let%expect_test "rewrite induction" =
 
   [%expect
     {|
-    0: plus Zero Zero = Zero
-    1: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
-    no choices available
-    OperationDoesntMatch
-    NotANegation
-    NotAForall
-    NotAConj
-    no choices available
-    destruct success
-    refl success
-    0: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
-    no choices available
-    OperationDoesntMatch
-    NotANegation
-    no choices available
-    destruct success
-    assumption doesn't match the goal
-    no choices available
-    OperationDoesntMatch
-    NotANegation
-    NotAForall
-    NotAConj
-    no choices available
-    NoRewriteMatch
-    destruct success
-    refl failure: left and right not eq
-    destruct success
-    refl failure: left and right not eq
-    NoRewriteMatch
-    NoRewriteMatch
-    destruct success
-    refl success
-    disch success
-    intro_tac
-    gen_tac
-    induction_tac
     Proof Complete!
     ========================================
     ∀x. plus x Zero = x
     |}]
+
+(* let%expect_test "auto_nat proof" = *)
+(*   let open Theorems.Nat in *)
+(*   let x = make_var "x" nat_ty in *)
+(**)
+(*   (* Goal: plus x Zero = x *) *)
+(*   let x_plus_zero = make_plus x zero |> Result.get_ok in *)
+(**)
+(*   let goal = make_forall x (Result.get_ok (safe_make_eq x_plus_zero x)) in *)
+(**)
+(*   let next_tactic = *)
+(*     next_tactic_of_list *)
+(*     @@ wrap_all with_no_trace [ induct_tac; auto_tac; auto_tac ] *)
+(*   in *)
+(*   (match prove ([], goal) next_tactic with *)
+(*   | Complete thm -> *)
+(*       print_endline "Proof Complete!"; *)
+(*       Printing.print_thm thm *)
+(*   | Incomplete (asms, g) -> *)
+(*       print_endline "Proof Incomplete"; *)
+(*       List.iter Printing.print_term asms; *)
+(*       Printing.print_term g); *)
+(**)
+(*   [%expect *)
+(*     {| *)
+(*     Proof Complete! *)
+(*     ======================================== *)
+(*     ∀x. plus x Zero = x *)
+(*     |}] *)

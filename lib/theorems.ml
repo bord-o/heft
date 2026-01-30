@@ -59,33 +59,54 @@ let contrapositive =
   in
   make_exn thm
 
-let nat_def =
-  let nat_ty = TyCon ("nat", []) in
-  define_inductive "nat" []
-    [
-      { name = "Zero"; arg_types = [] };
-      { name = "Suc"; arg_types = [ nat_ty ] };
-    ]
-  |> Result.get_ok
+module Nat = struct
+  let nat_ty = TyCon ("nat", [])
 
-let plus_def =
-  let d =
-    let nat_ty = TyCon ("nat", []) in
-    let nat_def = nat_def in
-    let suc = nat_def.constructors |> List.assoc_opt "Suc" |> Option.get in
-    let n = make_var "n" nat_ty in
-    let m' = make_var "m'" nat_ty in
-    let r = make_var "r" (make_fun_ty nat_ty nat_ty) in
-    let* zero_case = make_lam n n in
-    (* λn. n *)
-    let* suc_case =
-      let* r_n = make_app r n in
-      let* suc_rn = make_app suc r_n in
-      let* lam_n_suc_rn = make_lam n suc_rn in
-      let* lam_r = make_lam r lam_n_suc_rn in
-      make_lam m' lam_r (* λm'. λr. λn. Suc (r n) *)
+  let nat_def =
+    define_inductive "nat" []
+      [
+        { name = "Zero"; arg_types = [] };
+        { name = "Suc"; arg_types = [ nat_ty ] };
+      ]
+    |> Result.get_ok
+
+  let zero = nat_def.constructors |> List.assoc "Zero"
+  let suc = nat_def.constructors |> List.assoc "Suc"
+  let rec nat_of_int n = if n <= 0 then zero else App (suc, nat_of_int (n - 1))
+  let n0 = zero
+  let n1 = nat_of_int 1
+  let n2 = nat_of_int 2
+  let n3 = nat_of_int 3
+  let n4 = nat_of_int 4
+  let n5 = nat_of_int 5
+  let n6 = nat_of_int 6
+  let n7 = nat_of_int 7
+  let n8 = nat_of_int 8
+  let n9 = nat_of_int 9
+  let n10 = nat_of_int 10
+
+  let plus_def =
+    let d =
+      let n = make_var "n" nat_ty in
+      let m' = make_var "m'" nat_ty in
+      let r = make_var "r" (make_fun_ty nat_ty nat_ty) in
+      let* zero_case = make_lam n n in
+      (* λn. n *)
+      let* suc_case =
+        let* r_n = make_app r n in
+        let* suc_rn = make_app suc r_n in
+        let* lam_n_suc_rn = make_lam n suc_rn in
+        let* lam_r = make_lam r lam_n_suc_rn in
+        make_lam m' lam_r (* λm'. λr. λn. Suc (r n) *)
+      in
+      let return_type = make_fun_ty nat_ty nat_ty in
+      define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ]
     in
-    let return_type = make_fun_ty nat_ty nat_ty in
-    define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ]
-  in
-  d |> Result.get_ok
+    d |> Result.get_ok
+
+  let plus = make_const "plus" [] |> Result.get_ok
+
+  let make_plus a b =
+    let* ab = make_app plus a in
+    make_app ab b
+end

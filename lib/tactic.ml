@@ -809,8 +809,9 @@ let simp_tac : tactic =
 
   let thm =
     with_repeat
-      (with_dfs ~amb:true ~tacs:[ beta_tac; refl_tac ]
-         (with_rewrites_and_assumptions rules rewrite_tac))
+      (with_dfs ~amb:true
+         ~tacs:(wrap_all with_no_trace [ beta_tac; refl_tac ])
+         (with_no_trace @@ with_rewrites_and_assumptions rules rewrite_tac))
       goal
   in
   thm
