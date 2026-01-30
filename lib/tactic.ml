@@ -175,7 +175,7 @@ let rewrite_tac : tactic =
   burn 2;
   let thm =
     let rules = perform (Rewrites ()) in
-    let chosen_rule = choose_theorems rules in
+    let* chosen_rule = strip_forall (choose_theorems rules) in
 
     let* l_goal, r_goal = destruct_eq conc in
     let* rw_thm = rewrite_once chosen_rule l_goal in
@@ -185,6 +185,19 @@ let rewrite_tac : tactic =
     trans rw_thm subthm
   in
   return_thm ~from:"rewrite_tac" thm
+
+let beta_tac : tactic =
+ fun (asms, conc) ->
+  burn 1;
+  let thm =
+    let* l_goal, r_goal = destruct_eq conc in
+    let* beta_thm = deep_beta l_goal in
+    let* _, l_reduced = destruct_eq (concl beta_thm) in
+    let* sub = safe_make_eq l_reduced r_goal in
+    let subthm = perform @@ Subgoal (asms, sub) in
+    trans beta_thm subthm
+  in
+  return_thm ~from:"beta_tac" thm
 
 let mp_asm_tac : tactic =
  fun (asms, concl) ->

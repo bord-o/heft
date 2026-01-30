@@ -586,8 +586,7 @@ let%expect_test
     term_sub:
       x -> P |}]
 
-let%expect_test
-    "matching subterms" =
+let%expect_test "matching subterms" =
   let () = reset () |> Result.get_ok in
   let alpha = TyVar "a" in
   let x = make_var "x" alpha in
@@ -615,7 +614,9 @@ let%expect_test "rewrite_once: rewrite at root" =
   let _ = new_type "nat" 0 in
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
@@ -631,7 +632,8 @@ let%expect_test "rewrite_once: rewrite at root" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     plus Zero Zero = Zero
     |}]
@@ -642,7 +644,9 @@ let%expect_test "rewrite_once: rewrite in argument position" =
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "Suc" (make_fun_ty nat_ty nat_ty) in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let suc = Const ("Suc", make_fun_ty nat_ty nat_ty) in
@@ -659,7 +663,8 @@ let%expect_test "rewrite_once: rewrite in argument position" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     Suc (plus Zero Zero) = Suc Zero
     |}]
@@ -669,7 +674,9 @@ let%expect_test "rewrite_once: rewrite in nested argument" =
   let _ = new_type "nat" 0 in
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
@@ -686,7 +693,8 @@ let%expect_test "rewrite_once: rewrite in nested argument" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     plus (plus Zero Zero) m = plus Zero m
     |}]
@@ -697,7 +705,9 @@ let%expect_test "rewrite_once: no match returns error" =
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "One" nat_ty in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let one = Const ("One", nat_ty) in
@@ -723,7 +733,9 @@ let%expect_test "rewrite_all: repeatedly rewrites" =
   let _ = new_type "nat" 0 in
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
@@ -741,7 +753,8 @@ let%expect_test "rewrite_all: repeatedly rewrites" =
 
   let result = rewrite_all rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     plus Zero (plus Zero (plus Zero Zero)) = Zero
     |}]
@@ -752,7 +765,9 @@ let%expect_test "rewrite_all: no rewrites returns reflexivity" =
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "One" nat_ty in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let one = Const ("One", nat_ty) in
@@ -794,7 +809,9 @@ let setup_list_env () =
   (* map : (a -> b) -> list a -> list b *)
   let beta = TyVar "b" in
   let list_beta = TyCon ("list", [ beta ]) in
-  let map_ty = make_fun_ty (make_fun_ty alpha beta) (make_fun_ty list_alpha list_beta) in
+  let map_ty =
+    make_fun_ty (make_fun_ty alpha beta) (make_fun_ty list_alpha list_beta)
+  in
   let _ = new_constant "map" map_ty in
   ()
 
@@ -803,7 +820,9 @@ let%expect_test "rewrite_once: polymorphic append Nil xs = xs" =
   let alpha = TyVar "a" in
   let list_alpha = TyCon ("list", [ alpha ]) in
   let nil = Const ("Nil", list_alpha) in
-  let append = Const ("append", make_fun_ty list_alpha (make_fun_ty list_alpha list_alpha)) in
+  let append =
+    Const ("append", make_fun_ty list_alpha (make_fun_ty list_alpha list_alpha))
+  in
   let xs = make_var "xs" list_alpha in
 
   (* Rule: append Nil xs = xs *)
@@ -816,7 +835,8 @@ let%expect_test "rewrite_once: polymorphic append Nil xs = xs" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     append Nil Nil = Nil
     |}]
@@ -833,7 +853,9 @@ let%expect_test "rewrite_once: polymorphic rule applied to concrete type" =
 
   (* Polymorphic rule constants *)
   let nil_poly = Const ("Nil", list_alpha) in
-  let append_poly = Const ("append", make_fun_ty list_alpha (make_fun_ty list_alpha list_alpha)) in
+  let append_poly =
+    Const ("append", make_fun_ty list_alpha (make_fun_ty list_alpha list_alpha))
+  in
   let xs = make_var "xs" list_alpha in
 
   (* Rule: append Nil xs = xs (polymorphic) *)
@@ -843,15 +865,20 @@ let%expect_test "rewrite_once: polymorphic rule applied to concrete type" =
 
   (* Target at concrete type: append Nil [Zero] where [Zero] = Cons Zero Nil *)
   let nil_nat = Const ("Nil", list_nat) in
-  let cons_nat = Const ("Cons", make_fun_ty nat_ty (make_fun_ty list_nat list_nat)) in
+  let cons_nat =
+    Const ("Cons", make_fun_ty nat_ty (make_fun_ty list_nat list_nat))
+  in
   let zero = Const ("Zero", nat_ty) in
-  let append_nat = Const ("append", make_fun_ty list_nat (make_fun_ty list_nat list_nat)) in
+  let append_nat =
+    Const ("append", make_fun_ty list_nat (make_fun_ty list_nat list_nat))
+  in
   let list_with_zero = App (App (cons_nat, zero), nil_nat) in
   let target = App (App (append_nat, nil_nat), list_with_zero) in
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     append Nil (Cons Zero Nil) = Cons Zero Nil
     |}]
@@ -861,7 +888,9 @@ let%expect_test "rewrite_once: nested list append" =
   let alpha = TyVar "a" in
   let list_alpha = TyCon ("list", [ alpha ]) in
   let nil = Const ("Nil", list_alpha) in
-  let append = Const ("append", make_fun_ty list_alpha (make_fun_ty list_alpha list_alpha)) in
+  let append =
+    Const ("append", make_fun_ty list_alpha (make_fun_ty list_alpha list_alpha))
+  in
   let xs = make_var "xs" list_alpha in
   let ys = make_var "ys" list_alpha in
 
@@ -876,7 +905,8 @@ let%expect_test "rewrite_once: nested list append" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     append (append Nil xs) ys = append xs ys
     |}]
@@ -886,7 +916,9 @@ let%expect_test "rewrite_all: multiple append Nil rewrites" =
   let alpha = TyVar "a" in
   let list_alpha = TyCon ("list", [ alpha ]) in
   let nil = Const ("Nil", list_alpha) in
-  let append = Const ("append", make_fun_ty list_alpha (make_fun_ty list_alpha list_alpha)) in
+  let append =
+    Const ("append", make_fun_ty list_alpha (make_fun_ty list_alpha list_alpha))
+  in
   let xs = make_var "xs" list_alpha in
 
   (* Rule: append Nil xs = xs *)
@@ -901,7 +933,8 @@ let%expect_test "rewrite_all: multiple append Nil rewrites" =
 
   let result = rewrite_all rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     append Nil (append Nil (append Nil Nil)) = Nil
     |}]
@@ -924,7 +957,8 @@ let%expect_test "rewrite_once: rev (rev xs) = xs" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     rev (rev ys) = ys
     |}]
@@ -933,7 +967,9 @@ let%expect_test "rewrite_once: map id xs = xs" =
   setup_list_env ();
   let alpha = TyVar "a" in
   let list_alpha = TyCon ("list", [ alpha ]) in
-  let map_ty = make_fun_ty (make_fun_ty alpha alpha) (make_fun_ty list_alpha list_alpha) in
+  let map_ty =
+    make_fun_ty (make_fun_ty alpha alpha) (make_fun_ty list_alpha list_alpha)
+  in
   let map = Const ("map", map_ty) in
   let xs = make_var "xs" list_alpha in
   let x = make_var "x" alpha in
@@ -952,7 +988,8 @@ let%expect_test "rewrite_once: map id xs = xs" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     map (λx. x) ys = ys
     |}]
@@ -964,7 +1001,9 @@ let%expect_test "rewrite_once: rewrite under lambda" =
   let _ = new_type "nat" 0 in
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
@@ -981,7 +1020,8 @@ let%expect_test "rewrite_once: rewrite under lambda" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     (λx. plus Zero x) = (λx. x)
     |}]
@@ -991,7 +1031,9 @@ let%expect_test "rewrite_once: rewrite deeply under nested lambdas" =
   let _ = new_type "nat" 0 in
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
@@ -1010,7 +1052,8 @@ let%expect_test "rewrite_once: rewrite deeply under nested lambdas" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     (λx. λy. plus Zero (plus x y)) = (λx. λy. plus x y)
     |}]
@@ -1023,7 +1066,9 @@ let%expect_test "rewrite_once_with_rules: tries rules in order" =
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "Suc" (make_fun_ty nat_ty nat_ty) in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let suc = Const ("Suc", make_fun_ty nat_ty nat_ty) in
@@ -1045,9 +1090,10 @@ let%expect_test "rewrite_once_with_rules: tries rules in order" =
   (* Target: plus (Suc Zero) Zero - should match rule 2 *)
   let target = App (App (plus, App (suc, zero)), zero) in
 
-  let result = rewrite_once_with_rules [rule1_thm; rule2_thm] target in
+  let result = rewrite_once_with_rules [ rule1_thm; rule2_thm ] target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     plus (Suc Zero) Zero = Suc (plus Zero Zero)
     |}]
@@ -1058,7 +1104,9 @@ let%expect_test "rewrite_all_with_rules: full nat addition" =
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "Suc" (make_fun_ty nat_ty nat_ty) in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let zero = Const ("Zero", nat_ty) in
   let suc = Const ("Suc", make_fun_ty nat_ty nat_ty) in
@@ -1082,10 +1130,11 @@ let%expect_test "rewrite_all_with_rules: full nat addition" =
   let two = App (suc, one) in
   let target = App (App (plus, two), one) in
 
-  let result = rewrite_all_with_rules [rule1_thm; rule2_thm] target in
+  let result = rewrite_all_with_rules [ rule1_thm; rule2_thm ] target in
   print_thm_result result;
   (* Should get: Suc (Suc (Suc Zero)) = 3 *)
-  [%expect {|
+  [%expect
+    {|
     ========================================
     plus (Suc (Suc Zero)) (Suc Zero) = Suc (Suc (Suc Zero))
     |}]
@@ -1129,7 +1178,8 @@ let%expect_test "rewrite_once: P \\/ F = P" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     Q ∧ Q ∨ F = Q ∧ Q
     |}]
@@ -1154,9 +1204,10 @@ let%expect_test "rewrite_all: simplify boolean expression" =
   (* Target: ((Q /\ T) \/ F) /\ T *)
   let target = make_conj (make_disj (make_conj q t) f) t in
 
-  let result = rewrite_all_with_rules [rule1_thm; rule2_thm] target in
+  let result = rewrite_all_with_rules [ rule1_thm; rule2_thm ] target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     Q ∧ T ∨ F ∧ T = Q
     |}]
@@ -1168,7 +1219,9 @@ let%expect_test "rewrite_once: same variable used multiple times in pattern" =
   let _ = new_type "nat" 0 in
   let nat_ty = TyCon ("nat", []) in
   let _ = new_constant "double" (make_fun_ty nat_ty nat_ty) in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let double = Const ("double", make_fun_ty nat_ty nat_ty) in
   let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
@@ -1186,7 +1239,8 @@ let%expect_test "rewrite_once: same variable used multiple times in pattern" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     plus m m = double m
     |}]
@@ -1198,7 +1252,9 @@ let%expect_test "rewrite_once: same variable different args doesn't match" =
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "One" nat_ty in
   let _ = new_constant "double" (make_fun_ty nat_ty nat_ty) in
-  let _ = new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let _ =
+    new_constant "plus" (make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty))
+  in
 
   let double = Const ("double", make_fun_ty nat_ty nat_ty) in
   let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
@@ -1243,7 +1299,8 @@ let%expect_test "rewrite_once: rewrite in function position of application" =
 
   let result = rewrite_once rule_thm target in
   print_thm_result result;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     f Zero = g Zero
     |}]

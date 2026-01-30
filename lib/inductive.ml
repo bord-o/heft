@@ -434,9 +434,7 @@ let define_recursive_function func_name return_type inductive_type_name branches
     | None -> failwith ("Unknown inductive type: " ^ inductive_type_name)
   in
 
-  let type_inst =
-    [ (make_vartype "r", return_type) ] 
-  in
+  let type_inst = [ (make_vartype "r", return_type) ] in
   let* typed_recursion_thm = inst_type type_inst inductive_def.recursion in
   let* instantiated_thm = specs branches typed_recursion_thm in
   new_specification func_name instantiated_thm

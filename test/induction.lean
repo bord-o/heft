@@ -30,7 +30,12 @@ theorem test_nest : ((p -> q) /\ (q -> r)) -> (p -> r) := by
     apply hl
     assumption
 
-    
+theorem add0n : (Nat.add n Nat.zero) = n := by
+  rewrite[Nat.add.eq_def]
+  simp only
+
+
+
   
   
 theorem test_demorgans : ¬(p ∧ q) -> ¬p ∨ ¬q := by grind

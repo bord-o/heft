@@ -2,38 +2,10 @@ open Heft
 open Derived
 open Inductive
 open Tactic
+open Result.Syntax
 
 (* open Effect *)
 open Printing
-
-(* let nat_def = *)
-(*   let nat_ty = TyCon ("nat", []) in *)
-(*   define_inductive "nat" [] *)
-(*     [ *)
-(*       { name = "Zero"; arg_types = [] }; *)
-(*       { name = "Suc"; arg_types = [ nat_ty ] }; *)
-(*     ] in *)
-(* let plus_def = *)
-(*   let _ = init_types () in *)
-(*   let nat_ty = TyCon ("nat", []) in *)
-(*   let* nat_def = nat_def in *)
-(*   let suc = nat_def.constructors |> List.assoc_opt "Suc" |> Option.get in *)
-(*   let z = nat_def.constructors |> List.assoc_opt "Zero" |> Option.get in *)
-(*   print_endline @@ show_term z; *)
-(*   let n = make_var "n" nat_ty in *)
-(*   let m' = make_var "m'" nat_ty in *)
-(*   let r = make_var "r" (make_fun_ty nat_ty nat_ty) in *)
-(*   let* zero_case = make_lam n n in *)
-(*   (* λn. n *) *)
-(*   let* suc_case = *)
-(*     let* r_n = make_app r n in *)
-(*     let* suc_rn = make_app suc r_n in *)
-(*     let* lam_n_suc_rn = make_lam n suc_rn in *)
-(*     let* lam_r = make_lam r lam_n_suc_rn in *)
-(*     make_lam m' lam_r (* λm'. λr. λn. Suc (r n) *) *)
-(*   in *)
-(*   let return_type = make_fun_ty nat_ty nat_ty in *)
-(*   define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ] in *)
 
 let%expect_test "basic" =
   let a = make_var "A" bool_ty in
@@ -1382,8 +1354,7 @@ let%expect_test "rewrite_basic" =
       (safe_make_eq (App (App (add, zero), two)) (App (App (add, one), one)))
   in
   let next_tactic =
-    next_tactic_of_list
-      [ rewrite_tac |> with_rewrites [ eq_thm ]; assume_tac ]
+    next_tactic_of_list [ rewrite_tac |> with_rewrites [ eq_thm ]; assume_tac ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1402,3 +1373,138 @@ let%expect_test "rewrite_basic" =
     ========================================
     add Zero Two = add One One
     |}]
+
+let%expect_test "rewrite_basic" =
+  let () = reset () |> Result.get_ok in
+  let nat_def =
+    let nat_ty = TyCon ("nat", []) in
+    define_inductive "nat" []
+      [
+        { name = "Zero"; arg_types = [] };
+        { name = "Suc"; arg_types = [ nat_ty ] };
+      ]
+  in
+  let plus_def =
+    let d =
+      let _ = init_types () in
+      let nat_ty = TyCon ("nat", []) in
+      let* nat_def = nat_def in
+      let suc = nat_def.constructors |> List.assoc_opt "Suc" |> Option.get in
+      (* let z = nat_def.constructors |> List.assoc_opt "Zero" |> Option.get in *)
+      let n = make_var "n" nat_ty in
+      let m' = make_var "m'" nat_ty in
+      let r = make_var "r" (make_fun_ty nat_ty nat_ty) in
+      let* zero_case = make_lam n n in
+      (* λn. n *)
+      let* suc_case =
+        let* r_n = make_app r n in
+        let* suc_rn = make_app suc r_n in
+        let* lam_n_suc_rn = make_lam n suc_rn in
+        let* lam_r = make_lam r lam_n_suc_rn in
+        make_lam m' lam_r (* λm'. λr. λn. Suc (r n) *)
+      in
+      let return_type = make_fun_ty nat_ty nat_ty in
+      define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ]
+    in
+    d |> Result.get_ok
+  in
+
+  let nat_ty = TyCon ("nat", []) in
+  let nat_def = nat_def |> Result.get_ok in
+  let zero = nat_def.constructors |> List.assoc "Zero" in
+  let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let x = make_var "x" nat_ty in
+
+  (* Goal: plus Zero x = x *)
+  let goal = Result.get_ok (safe_make_eq (App (App (plus, zero), x)) x) in
+
+  let rules = Rewrite.rules_of_def plus_def |> Result.get_ok in
+
+  let next_tactic =
+    next_tactic_of_list
+      [ rewrite_tac |> with_rewrites rules; beta_tac; refl_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Incomplete";
+      Printing.print_term g);
+
+  [%expect
+    {|
+    destruct success
+    refl success
+    refl_tac
+    beta_tac
+    rewrite_tac
+    Proof Complete!
+    ========================================
+    plus Zero x = x
+    |}]
+
+let%expect_test "rewrite induction" =
+  let () = reset () |> Result.get_ok in
+  let nat_def =
+    let nat_ty = TyCon ("nat", []) in
+    define_inductive "nat" []
+      [
+        { name = "Zero"; arg_types = [] };
+        { name = "Suc"; arg_types = [ nat_ty ] };
+      ]
+  in
+  let plus_def =
+    let d =
+      let _ = init_types () in
+      let nat_ty = TyCon ("nat", []) in
+      let* nat_def = nat_def in
+      let suc = nat_def.constructors |> List.assoc_opt "Suc" |> Option.get in
+      (* let z = nat_def.constructors |> List.assoc_opt "Zero" |> Option.get in *)
+      let n = make_var "n" nat_ty in
+      let m' = make_var "m'" nat_ty in
+      let r = make_var "r" (make_fun_ty nat_ty nat_ty) in
+      let* zero_case = make_lam n n in
+      (* λn. n *)
+      let* suc_case =
+        let* r_n = make_app r n in
+        let* suc_rn = make_app suc r_n in
+        let* lam_n_suc_rn = make_lam n suc_rn in
+        let* lam_r = make_lam r lam_n_suc_rn in
+        make_lam m' lam_r (* λm'. λr. λn. Suc (r n) *)
+      in
+      let return_type = make_fun_ty nat_ty nat_ty in
+      define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ]
+    in
+    d |> Result.get_ok
+  in
+
+  let nat_ty = TyCon ("nat", []) in
+  let nat_def = nat_def |> Result.get_ok in
+  let zero = nat_def.constructors |> List.assoc "Zero" in
+  let plus = Const ("plus", make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty)) in
+  let x = make_var "x" nat_ty in
+
+  (* Goal: plus Zero x = x *)
+  let goal =
+    make_forall x (Result.get_ok (safe_make_eq (App (App (plus, x), zero)) x))
+  in
+
+  print_thm plus_def;
+
+  let rules = Rewrite.rules_of_def plus_def |> Result.get_ok in
+
+  let next_tactic = next_tactic_of_list [ 
+      induct_tac;
+      rewrite_tac |> with_rewrites rules
+  ] in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (_asms, g) ->
+      print_endline "Proof Incomplete";
+      Printing.print_term g);
+
+  [%expect {|
+  |}]

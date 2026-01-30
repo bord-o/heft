@@ -557,11 +557,7 @@ let gen tm th =
   let* forall_def = forall_def in
   let var_typ = type_of_var tm in
   let* pred_lam = make_lam tm (concl th) in
-  let* typed_forall =
-    inst_type
-      ([ (make_vartype "a", var_typ) ])
-      forall_def
-  in
+  let* typed_forall = inst_type [ (make_vartype "a", var_typ) ] forall_def in
   let* eqt_th = eq_truth_intro th in
   let* eqt_lam = lam tm eqt_th in
   let* forall_applied = unfold_definition typed_forall [ pred_lam ] in
@@ -574,11 +570,7 @@ let spec tm th =
   let* forall_def = forall_def in
   let* quant_over = quantifier_of_forall (concl th) in
   let quant_typ = type_of_var quant_over in
-  let* typed_forall =
-    inst_type
-      ([ (make_vartype "a", quant_typ) ])
-      forall_def
-  in
+  let* typed_forall = inst_type [ (make_vartype "a", quant_typ) ] forall_def in
   let* _, pred_lam = destruct_app (concl th) in
   let* forall_applied = unfold_definition typed_forall [ pred_lam ] in
   let* rev_app = sym forall_applied in
@@ -689,11 +681,7 @@ let ccontr p th =
 let exists x tm th =
   let* exists_def = exists_def in
   let* tm_typ = type_of_term tm in
-  let* typed_exists_def =
-    inst_type
-      ([ (make_vartype "a", tm_typ) ] )
-      exists_def
-  in
+  let* typed_exists_def = inst_type [ (make_vartype "a", tm_typ) ] exists_def in
 
   let pred_body = term_subst tm x (concl th) in
   let* pred_lam = make_lam x pred_body in
@@ -736,11 +724,7 @@ let choose x exists_th q_th =
   let* forall_neg_px = gen x neg_px in
 
   let* exists_def = exists_def in
-  let* typed_exists_def =
-    inst_type
-      ([ (make_vartype "a", x_ty) ] )
-      exists_def
-  in
+  let* typed_exists_def = inst_type [ (make_vartype "a", x_ty) ] exists_def in
   let* unfolded = unfold_definition typed_exists_def [ pred_lam ] in
   let* unfolded_normal = conv_equality deep_beta unfolded in
   let* exists_as_neg = eq_mp (Result.get_ok (sym unfolded_normal)) exists_th in

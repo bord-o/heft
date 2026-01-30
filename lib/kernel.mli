@@ -131,7 +131,6 @@ val is_type : hol_type -> bool
 val is_vartype : hol_type -> bool
 val type_vars : hol_type -> hol_type list
 val type_substitution : (hol_type * hol_type) list -> hol_type -> hol_type
-
 val get_const_term_type : string -> hol_type option
 
 val new_constant :
@@ -155,7 +154,6 @@ val make_const :
   string ->
   (hol_type * hol_type) list ->
   (term, [> `NotAConstantName of string ]) result
-
 
 val make_lam : term -> term -> (term, [> `MakeLamNotAVariable of term ]) result
 
@@ -268,24 +266,22 @@ val deduct_antisym_rule :
 val type_inst :
   (hol_type * hol_type) list ->
   term ->
-  (term,
-   [> `BadSubstitutionList
+  ( term,
+    [> `BadSubstitutionList
     | `CantCreateVariantForNonVariable of term
     | `Clash of term
-    | `NotAVar ])
+    | `NotAVar ] )
   result
-
 
 val inst_type :
   (hol_type * hol_type) list ->
   thm ->
-  (thm,
-   [> `BadSubstitutionList
+  ( thm,
+    [> `BadSubstitutionList
     | `CantCreateVariantForNonVariable of term
     | `Clash of term
-    | `NotAVar ])
+    | `NotAVar ] )
   result
-
 
 val inst :
   (term * term) list ->

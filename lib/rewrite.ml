@@ -1,5 +1,6 @@
 open Kernel
 open Result.Syntax
+open Derived
 (* BEWARE, AI code ahead: *)
 
 let rec type_match (env : (hol_type * hol_type) list) ty_pat ty_target :
@@ -139,14 +140,14 @@ let rec subterms tm =
   | Lam (_, bod) -> subterms bod)
 
 (* does lhs of rule match any subterms of t? *)
-let rec matches (rule: term)  = function
-  | [] ->  []
-  | tm::tms ->
-    match match_term rule tm with
-      Some m -> m :: (matches rule tms)
-      | None -> matches rule tms
-    
-let subterm_matches (rule : thm) (tm: term) =
+let rec matches (rule : term) = function
+  | [] -> []
+  | tm :: tms -> (
+      match match_term rule tm with
+      | Some m -> m :: matches rule tms
+      | None -> matches rule tms)
+
+let subterm_matches (rule : thm) (tm : term) =
   let* rule_lhs, _ = destruct_eq (concl rule) in
   let subt = subterms tm in
   Ok (matches rule_lhs subt)
@@ -194,7 +195,7 @@ let rec rewrite_once (rule : thm) (tm : term) =
   let* root_result = rewrite_at_root rule tm in
   match root_result with
   | Some thm -> Ok thm
-  | None ->
+  | None -> (
       (* Try subterms *)
       match tm with
       | Var _ | Const _ -> Error `NoRewriteMatch
@@ -203,13 +204,13 @@ let rec rewrite_once (rule : thm) (tm : term) =
           match rewrite_once rule f with
           | Ok f_eq ->
               (* f_eq : |- f = f', need |- f x = f' x *)
-              Derived.ap_thm f_eq x
+              ap_thm f_eq x
           | Error `NoRewriteMatch -> (
               (* Try rewriting in argument position *)
               match rewrite_once rule x with
               | Ok x_eq ->
                   (* x_eq : |- x = x', need |- f x = f x' *)
-                  Derived.ap_term f x_eq
+                  ap_term f x_eq
               | Error `NoRewriteMatch -> Error `NoRewriteMatch
               | Error e -> Error e)
           | Error e -> Error e)
@@ -218,12 +219,13 @@ let rec rewrite_once (rule : thm) (tm : term) =
           | Ok body_eq ->
               (* body_eq : |- body = body', need |- λv.body = λv.body' *)
               lam v body_eq
-          | Error e -> Error e)
+          | Error e -> Error e))
 
 (* Rewrite repeatedly until no more rewrites apply *)
 let rec rewrite_all (rule : thm) (tm : term) =
   match rewrite_once rule tm with
-  | Error `NoRewriteMatch -> refl tm  (* No rewrite possible, return reflexivity *)
+  | Error `NoRewriteMatch ->
+      refl tm (* No rewrite possible, return reflexivity *)
   | Error e -> Error e
   | Ok step_thm ->
       (* step_thm : |- tm = tm' *)
@@ -251,3 +253,44 @@ let rec rewrite_all_with_rules (rules : thm list) (tm : term) =
       let* _, tm' = destruct_eq (concl step_thm) in
       let* rest_thm = rewrite_all_with_rules rules tm' in
       trans step_thm rest_thm
+
+(* Strip outer universal quantifiers from a theorem, leaving free variables
+   that will be matched/instantiated during rewriting *)
+let rec strip_forall thm =
+  match destruct_forall (concl thm) with
+  | Ok (var, _body) ->
+      let* thm' = spec var thm in
+      strip_forall thm'
+  | Error _ -> Ok thm
+
+(* Split a conjunction theorem into its components.
+   Only splits at the top level - does not recurse into conjuncts.
+
+   E.g., ⊢ A ∧ B ∧ C becomes [⊢ A; ⊢ B; ⊢ C]
+
+   This is safe for recursive function definitions where each conjunct
+   is a separate equation for one constructor case. *)
+let rec split_conj_thm thm =
+  match destruct_conj (concl thm) with
+  | Ok _ ->
+      (* It's a conjunction, split it *)
+      let* left_thm = conj_left thm in
+      let* right_thm = conj_right thm in
+      (* Recurse on right side to handle A ∧ B ∧ C = A ∧ (B ∧ C) *)
+      let* right_rules = split_conj_thm right_thm in
+      Ok (left_thm :: right_rules)
+  | Error _ ->
+      (* Not a conjunction, this is a single rule *)
+      Ok [ thm ]
+
+(* Convert a recursive function definition theorem into a list of rewrite rules.
+   Splits top-level conjunctions and strips foralls from each rule. *)
+let rules_of_def thm =
+  let* conjuncts = split_conj_thm thm in
+  let strip_each thm = strip_forall thm in
+  List.fold_right
+    (fun th acc ->
+      let* acc_list = acc in
+      let* stripped = strip_each th in
+      Ok (stripped :: acc_list))
+    conjuncts (Ok [])
