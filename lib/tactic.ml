@@ -583,6 +583,11 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
             match prove_dfs_traced g' (Queue.copy tactic_queue) trace_ref with
             | Complete thm -> continue k thm
             | Incomplete g ->
+                (*
+                TODO: can probably restructure some things such that
+                we keep track of ambient handlers. maybe search handlers
+                should always run under an ambient one.
+              *)
                 if !amb then
                   let c = perform @@ Subgoal g in
                   continue k c
