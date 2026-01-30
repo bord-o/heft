@@ -548,6 +548,8 @@ let rec prove_bfs_traced g tactic_queue trace_ref =
 
       handler (fun () -> Complete (tactic g))
 
+let amb = ref false
+
 let rec prove_dfs_traced g tactic_queue trace_ref =
   match Queue.take_opt tactic_queue with
   | None -> Incomplete g
@@ -580,7 +582,11 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
         | effect Subgoal g', k -> (
             match prove_dfs_traced g' (Queue.copy tactic_queue) trace_ref with
             | Complete thm -> continue k thm
-            | incomplete -> incomplete)
+            | Incomplete g ->
+                if !amb then
+                  let c = perform @@ Subgoal g in
+                  continue k c
+                else Incomplete g)
         | thm -> thm
       in
       handler (fun () -> Complete (tactic g))
@@ -738,3 +744,34 @@ let with_assumption_rewrites : tactic_combinator =
 let with_rewrites (rewrites : thm list) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rewrites (), k -> continue k rewrites | v -> v
+
+let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
+ fun tac (asms, concl) ->
+  let asm_thms =
+    List.filter_map
+      (fun asm -> match assume asm with Ok thm -> Some thm | Error _ -> None)
+      asms
+  in
+  match tac (asms, concl) with
+  | effect Rewrites (), k -> continue k (rewrites @ asm_thms)
+  | v -> v
+
+(*
+  simp needs to pull in definition rewrite rules, assumptions rewrites,
+  and try to keep applying them while performing beta reduction in between.
+  To match lean, it should also try to use refl at the end and close the goal
+  if possible
+*)
+let simp_tac : tactic = fun (_asms, _conc) -> fail ()
+
+let with_bfs : tactic_combinator =
+ fun tac goal ->
+  let q = Queue.create () in
+  Queue.add tac q;
+  match prove_bfs goal q with Incomplete _ -> fail () | Complete thm -> thm
+
+let with_dfs : tactic_combinator =
+ fun tac goal ->
+  let q = Queue.create () in
+  Queue.add tac q;
+  match prove_dfs goal q with Incomplete _ -> fail () | Complete thm -> thm

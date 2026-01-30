@@ -494,8 +494,10 @@ let%expect_test "complete_prop_automation" =
   let p_imp_r = make_imp p r in
   let goal = make_imp (make_conj p_imp_q q_imp_r) p_imp_r in
 
-  let next_tactic = next_tactic_of_list [ with_repeat ctauto_tac ] in
-  (match prove_dfs ([], goal) next_tactic with
+  let next_tactic =
+    next_tactic_of_list [ with_dfs @@ with_repeat ctauto_tac ]
+  in
+  (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
@@ -879,9 +881,9 @@ let%expect_test "de_morgan_or" =
     make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
   in
   let next_tactic =
-    next_tactic_of_list [ with_repeat @@ with_no_trace ctauto_tac ]
+    next_tactic_of_list [ with_dfs @@ with_repeat @@ with_no_trace ctauto_tac ]
   in
-  (match prove_dfs ([], goal) next_tactic with
+  (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
       Printing.print_thm thm
@@ -1492,16 +1494,18 @@ let%expect_test "rewrite induction" =
 
   let rules = Rewrite.rules_of_def plus_def |> Result.get_ok in
 
+  amb := true;
+
   let next_tactic =
     next_tactic_of_list
       [
         induct_tac;
-        with_nth_choice 0 (rewrite_tac |> with_rewrites rules);
+        with_dfs @@ (rewrite_tac |> with_rewrites rules);
         beta_tac;
         refl_tac;
         gen_tac;
         intro_tac;
-        with_nth_choice 1 (rewrite_tac |> with_rewrites rules);
+        with_dfs (rewrite_tac |> with_rewrites rules);
         beta_tac;
         rewrite_tac |> with_assumption_rewrites;
         refl_tac;
@@ -1524,15 +1528,14 @@ let%expect_test "rewrite induction" =
     refl success
     refl_tac
     beta_tac
-    rewrite_tac
     0: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
     destruct success
+    NoRewriteMatch
     destruct success
     refl success
     refl_tac
     rewrite_tac
     beta_tac
-    rewrite_tac
     disch success
     intro_tac
     gen_tac
