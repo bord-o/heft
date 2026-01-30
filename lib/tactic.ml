@@ -465,6 +465,24 @@ let ctauto_tac : tactic =
   in
   tac goal
 
+let safe_tacs : tactic =
+ fun goal ->
+  let tac =
+    choose_tactics
+      [
+        assumption_tac;
+        intro_tac;
+        neg_intro_tac;
+        gen_tac;
+        conj_tac;
+        elim_conj_asm_tac;
+        elim_disj_asm_tac;
+        false_elim_tac;
+        mp_asm_tac;
+      ]
+  in
+  tac goal
+
 (* 
    As a general rule, custom handlers should handle the least amount of 
    effects possible. The main handler captures all effects, but implements only basic
@@ -549,9 +567,7 @@ let rec prove_bfs_traced g tactic_queue trace_ref =
 
       handler (fun () -> Complete (tactic g))
 
-let amb = ref false
-
-let rec prove_dfs_traced g tactic_queue trace_ref =
+let rec prove_dfs_traced ?(amb = false) g tactic_queue trace_ref =
   match Queue.take_opt tactic_queue with
   | None -> Incomplete g
   | Some tactic ->
@@ -581,15 +597,20 @@ let rec prove_dfs_traced g tactic_queue trace_ref =
             in
             try_each (as_chosen_list choices)
         | effect Subgoal g', k -> (
-            match prove_dfs_traced g' (Queue.copy tactic_queue) trace_ref with
+            match
+              prove_dfs_traced ~amb g' (Queue.copy tactic_queue) trace_ref
+            with
             | Complete thm -> continue k thm
             | Incomplete g ->
                 (*
                 TODO: can probably restructure some things such that
                 we keep track of ambient handlers. maybe search handlers
                 should always run under an ambient one.
+
+                to run under an ambient handler and make partial progress we need some
+                way to know when to backtrack and when to stop
               *)
-                if !amb then
+                if amb then
                   let c = perform @@ Subgoal g in
                   continue k c
                 else Incomplete g)
@@ -606,9 +627,9 @@ let prove_bfs_with_trace g tactic_queue =
   let result = prove_bfs_traced g tactic_queue trace_ref in
   (!trace_ref, result)
 
-let prove_dfs g tactic_queue =
+let prove_dfs ?(amb = false) g tactic_queue =
   let trace_ref = ref [] in
-  prove_dfs_traced g tactic_queue trace_ref
+  prove_dfs_traced ~amb g tactic_queue trace_ref
 
 let prove_dfs_with_trace g tactic_queue =
   let trace_ref = ref [] in
@@ -762,10 +783,12 @@ let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
   | effect Rewrites (), k -> continue k (rewrites @ asm_thms)
   | v -> v
 
-let with_dfs ?(tacs = []) : tactic_combinator =
+let with_dfs ?(amb = false) ?(tacs = []) : tactic_combinator =
  fun tac goal ->
   let q = Queue.of_seq (List.to_seq (tac :: tacs)) in
-  match prove_dfs goal q with Incomplete _ -> fail () | Complete thm -> thm
+  match prove_dfs ~amb goal q with
+  | Incomplete _ -> fail ()
+  | Complete thm -> thm
 
 (*
   simp needs to pull in definition rewrite rules, assumptions rewrites,
@@ -784,11 +807,21 @@ let simp_tac : tactic =
     |> List.flatten
   in
 
-  with_repeat
-    (with_dfs ~tacs:[ beta_tac; refl_tac ]
-       (with_rewrites_and_assumptions rules rewrite_tac))
-    goal
+  let thm =
+    with_repeat
+      (with_dfs ~amb:true ~tacs:[ beta_tac; refl_tac ]
+         (with_rewrites_and_assumptions rules rewrite_tac))
+      goal
+  in
+  thm
 
-(*TODO*)
+(* auto tries safe tactics to make progress on structural goals and then
+    simplifies in between
+*)
+
+let with_fail ~(on_fail : tactic) : tactic_combinator =
+ fun tac goal -> match tac goal with effect Fail, _k -> on_fail goal | v -> v
+
 let auto_tac : tactic =
- fun goal -> (with_dfs ~tacs:[ simp_tac ] (with_repeat ctauto_tac)) goal
+  with_repeat (fun goal ->
+      with_fail ~on_fail:simp_tac (with_first_success safe_tacs) goal)

@@ -1389,7 +1389,7 @@ let%expect_test "rewrite_basic" =
         { name = "Suc"; arg_types = [ nat_ty ] };
       ]
   in
-  let plus_def =
+  let _plus_def =
     let d =
       let _ = init_types () in
       let nat_ty = TyCon ("nat", []) in
@@ -1423,12 +1423,7 @@ let%expect_test "rewrite_basic" =
   (* Goal: plus Zero x = x *)
   let goal = Result.get_ok (safe_make_eq (App (App (plus, zero), x)) x) in
 
-  let rules = Rewrite.rules_of_def plus_def |> Result.get_ok in
-
-  let next_tactic =
-    next_tactic_of_list
-      [ rewrite_tac |> with_rewrites rules; beta_tac; refl_tac ]
-  in
+  let next_tactic = next_tactic_of_list [ auto_tac ] in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -1439,11 +1434,14 @@ let%expect_test "rewrite_basic" =
 
   [%expect
     {|
+    no choices available
+    OperationDoesntMatch
+    NotANegation
+    NotAForall
+    NotAConj
+    no choices available
     destruct success
     refl success
-    refl_tac
-    beta_tac
-    rewrite_tac
     Proof Complete!
     ========================================
     plus Zero x = x
@@ -1459,7 +1457,7 @@ let%expect_test "rewrite induction" =
         { name = "Suc"; arg_types = [ nat_ty ] };
       ]
   in
-  let plus_def =
+  let _plus_def =
     let d =
       let _ = init_types () in
       let nat_ty = TyCon ("nat", []) in
@@ -1495,13 +1493,7 @@ let%expect_test "rewrite induction" =
     make_forall x (Result.get_ok (safe_make_eq (App (App (plus, x), zero)) x))
   in
 
-  let _rules = Rewrite.rules_of_def plus_def |> Result.get_ok in
-
-  amb := true;
-
-  let next_tactic =
-    next_tactic_of_list [ induct_tac; simp_tac; gen_tac; intro_tac; simp_tac ]
-  in
+  let next_tactic = next_tactic_of_list [ induct_tac; auto_tac; auto_tac ] in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -1515,10 +1507,27 @@ let%expect_test "rewrite induction" =
     {|
     0: plus Zero Zero = Zero
     1: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
+    no choices available
+    OperationDoesntMatch
+    NotANegation
+    NotAForall
+    NotAConj
+    no choices available
     destruct success
     refl success
     0: ∀n0. plus n0 Zero = n0 ==> plus (Suc n0) Zero = Suc n0
+    no choices available
+    OperationDoesntMatch
+    NotANegation
+    no choices available
     destruct success
+    assumption doesn't match the goal
+    no choices available
+    OperationDoesntMatch
+    NotANegation
+    NotAForall
+    NotAConj
+    no choices available
     NoRewriteMatch
     destruct success
     refl failure: left and right not eq
