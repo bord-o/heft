@@ -169,6 +169,17 @@ let apply_neg_tac : tactic =
 let assume_tac : tactic =
  fun (_asms, conc) -> return_thm ~from:"assume_tac" @@ assume conc
 
+let sym_tac : tactic =
+    fun (asms, conc) ->
+        burn 1;
+        let thm = 
+            let* l, r = destruct_eq conc in
+            let* flipped = safe_make_eq r l in
+            let flip_thm = perform @@ Subgoal (asms, flipped) in
+            sym flip_thm
+        in
+        return_thm ~from:"sym_tac" thm
+
 (* tries to rewrite the goal using subterm matching *)
 let rewrite_tac : tactic =
  fun (asms, conc) ->

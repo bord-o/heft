@@ -1467,6 +1467,15 @@ let%expect_test "plus assoc" =
     @@ wrap_all with_no_trace [ 
         with_term x induct_tac;
         with_repeat gen_tac;
+        simp_tac;
+        sym_tac;
+        simp_tac;
+        gen_tac;
+        intro_tac;
+        with_repeat gen_tac;
+        simp_tac;
+        sym_tac;
+        simp_tac;
   ]
   in
   (match prove ([], goal) next_tactic with
@@ -1480,7 +1489,7 @@ let%expect_test "plus assoc" =
 
   [%expect
     {|
-    Out of tactics
-    Proof Incomplete
-    plus Zero (plus y z) = plus (plus Zero y) z
+    Proof Complete!
+    ========================================
+    ∀x. ∀y. ∀z. plus x (plus y z) = plus (plus x y) z
     |}]
