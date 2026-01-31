@@ -1417,18 +1417,15 @@ let%expect_test "rewrite induction" =
     ∀x. plus x Zero = x
     |}]
 
-
 let%expect_test "basic nat" =
   let open Theorems.Nat in
-
   let make_plus' a b = make_plus a b |> Result.get_ok in
   let two_plus_3 = make_plus' n2 n3 in
 
-  let goal = (Result.get_ok (safe_make_eq two_plus_3 n5)) in
+  let goal = Result.get_ok (safe_make_eq two_plus_3 n5) in
 
   let next_tactic =
-    next_tactic_of_list
-    @@ wrap_all with_no_trace [ auto_tac  ]
+    next_tactic_of_list @@ wrap_all with_no_trace [ auto_tac ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1448,8 +1445,7 @@ let%expect_test "basic nat" =
 
 let%expect_test "plus assoc" =
   let open Theorems.Nat in
-
-  let x =  make_var "x" nat_ty in
+  let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let z = make_var "z" nat_ty in
 
@@ -1460,23 +1456,14 @@ let%expect_test "plus assoc" =
   let plus_xy_z = make_plus' plus_xy z in
   let plus_x_yz = make_plus' x plus_yz in
 
-  let goal = Derived.make_foralls [x; y; z] (Result.get_ok (safe_make_eq plus_x_yz plus_xy_z)) in
+  let goal =
+    Derived.make_foralls [ x; y; z ]
+      (Result.get_ok (safe_make_eq plus_x_yz plus_xy_z))
+  in
 
   let next_tactic =
     next_tactic_of_list
-    @@ wrap_all with_no_trace [ 
-        with_term x induct_tac;
-        with_repeat gen_tac;
-        simp_tac;
-        sym_tac;
-        simp_tac;
-        gen_tac;
-        intro_tac;
-        with_repeat gen_tac;
-        simp_tac;
-        sym_tac;
-        simp_tac;
-  ]
+    @@ wrap_all with_no_trace [ with_term x induct_tac; auto_tac; auto_tac ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->

@@ -170,17 +170,17 @@ let assume_tac : tactic =
  fun (_asms, conc) -> return_thm ~from:"assume_tac" @@ assume conc
 
 let sym_tac : tactic =
-    fun (asms, conc) ->
-        burn 1;
-        let thm = 
-            let* l, r = destruct_eq conc in
-            let* flipped = safe_make_eq r l in
-            let flip_thm = perform @@ Subgoal (asms, flipped) in
-            sym flip_thm
-        in
-        return_thm ~from:"sym_tac" thm
+ fun (asms, conc) ->
+  burn 1;
+  let thm =
+    let* l, r = destruct_eq conc in
+    let* flipped = safe_make_eq r l in
+    let flip_thm = perform @@ Subgoal (asms, flipped) in
+    sym flip_thm
+  in
+  return_thm ~from:"sym_tac" thm
 
-(* tries to rewrite the goal using subterm matching *)
+(* tries to rewrite anywhere in the goal using subterm matching *)
 let rewrite_tac : tactic =
  fun (asms, conc) ->
   burn 2;
@@ -188,12 +188,11 @@ let rewrite_tac : tactic =
     let rules = perform (Rewrites ()) in
     let* chosen_rule = strip_forall (choose_theorems rules) in
 
-    let* l_goal, r_goal = destruct_eq conc in
-    let* rw_thm = rewrite_once chosen_rule l_goal in
-    let* _, l_rewritten = destruct_eq (concl rw_thm) in
-    let* sub = safe_make_eq l_rewritten r_goal in
-    let subthm = perform @@ Subgoal (asms, sub) in
-    trans rw_thm subthm
+    let* rw_thm = rewrite_once chosen_rule conc in
+    let* _, conc_rewritten = destruct_eq (concl rw_thm) in
+    let subthm = perform @@ Subgoal (asms, conc_rewritten) in
+    let* rw_sym = sym rw_thm in
+    eq_mp rw_sym subthm
   in
   return_thm ~from:"rewrite_tac" thm
 
@@ -201,12 +200,11 @@ let beta_tac : tactic =
  fun (asms, conc) ->
   burn 1;
   let thm =
-    let* l_goal, r_goal = destruct_eq conc in
-    let* beta_thm = deep_beta l_goal in
-    let* _, l_reduced = destruct_eq (concl beta_thm) in
-    let* sub = safe_make_eq l_reduced r_goal in
-    let subthm = perform @@ Subgoal (asms, sub) in
-    trans beta_thm subthm
+    let* beta_thm = deep_beta conc in
+    let* _, conc_reduced = destruct_eq (concl beta_thm) in
+    let subthm = perform @@ Subgoal (asms, conc_reduced) in
+    let* beta_sym = sym beta_thm in
+    eq_mp beta_sym subthm
   in
   return_thm ~from:"beta_tac" thm
 
