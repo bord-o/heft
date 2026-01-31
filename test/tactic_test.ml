@@ -169,7 +169,7 @@ let%expect_test "basic6" =
 
   let next_tactic =
     next_tactic_of_list
-      [ apply_tac |> with_term imp_ab; with_first_success assumption_tac ]
+      [ apply_asm_tac |> with_term imp_ab; with_first_success assumption_tac ]
   in
   (match prove ([ imp_cab; imp_ab; a ], goal) next_tactic with
   | Complete thm ->
@@ -188,7 +188,7 @@ let%expect_test "basic6" =
     Assumption succeeded
     assumption_tac
     mp success
-    apply_tac
+    apply_asm_tac
     Proof Complete!
     A
     A ==> B
@@ -439,8 +439,8 @@ let%expect_test "dfs_conj_assumptions" =
         intro_tac;
         elim_conj_asm_tac;
         intro_tac;
-        apply_tac;
-        apply_tac;
+        apply_asm_tac;
+        apply_asm_tac;
         assumption_tac;
       ]
   in
@@ -555,9 +555,9 @@ let%expect_test "dfs_disj_assumptions" =
         intro_tac;
         intro_tac;
         elim_disj_asm_tac;
-        apply_tac;
+        apply_asm_tac;
         assumption_tac;
-        apply_tac;
+        apply_asm_tac;
         assumption_tac;
       ]
   in
@@ -1158,11 +1158,11 @@ let%expect_test "manual version " =
            intro_tac;
            conj_tac;
            neg_intro_tac;
-           apply_neg_tac;
+           apply_neg_asm_tac;
            left_tac;
            assumption_tac;
            neg_intro_tac;
-           apply_neg_tac;
+           apply_neg_asm_tac;
            right_tac;
            assumption_tac;
          ]
@@ -1179,11 +1179,11 @@ let%expect_test "manual version " =
     {|
     assumption_tac
     left_tac
-    apply_neg_tac
+    apply_neg_asm_tac
     neg_intro_tac
     assumption_tac
     right_tac
-    apply_neg_tac
+    apply_neg_asm_tac
     neg_intro_tac
     conj_tac
     intro_tac
@@ -1220,14 +1220,14 @@ let%expect_test "dfs demorgans" =
     intro_tac
     conj_tac
     neg_intro_tac
-    apply_neg_tac
+    apply_neg_asm_tac
     left_tac
     ccontr_tac
-    apply_neg_tac
+    apply_neg_asm_tac
     right_tac
     assumption_tac
     neg_intro_tac
-    apply_neg_tac
+    apply_neg_asm_tac
     left_tac
     assumption_tac
     Proof Complete!
@@ -1264,11 +1264,11 @@ let%expect_test "bfs demorgans" =
     intro_tac
     conj_tac
     neg_intro_tac
-    apply_neg_tac
+    apply_neg_asm_tac
     right_tac
     assumption_tac
     neg_intro_tac
-    apply_neg_tac
+    apply_neg_asm_tac
     left_tac
     assumption_tac
     Proof Complete!
@@ -1479,4 +1479,60 @@ let%expect_test "plus assoc" =
     Proof Complete!
     ========================================
     ∀x. ∀y. ∀z. plus x (plus y z) = plus (plus x y) z
+    |}]
+
+let%expect_test "suc injective" =
+  let open Theorems.Nat in
+  let x = make_var "x" nat_ty in
+  let y = make_var "y" nat_ty in
+
+  let suc_x = App (suc, x) in
+  let suc_y = App (suc, y) in
+
+  (* Suc x = Suc y -> x = y *)
+  let goal =
+    Derived.make_foralls [ x; y ]
+      (make_imp
+         (Result.get_ok (safe_make_eq suc_x suc_y))
+         (Result.get_ok (safe_make_eq x y)))
+  in
+
+  List.iter Printing.print_thm Theorems.Nat.nat_def.injective;
+
+  let next_tactic =
+    next_tactic_of_list
+      [
+        with_repeat gen_tac;
+        intro_tac;
+        apply_thm_tac |> with_lemmas nat_def.injective;
+        assumption_tac;
+      ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter Printing.print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    ========================================
+    ∀x0. ∀y0. Suc x0 = Suc y0 ==> x0 = y0
+
+    NotAForall
+    destruct success
+    Found matching assumption
+    Assumption succeeded
+    assumption_tac
+    apply_thm_tac
+    disch success
+    intro_tac
+    gen_tac
+    gen_tac
+    Proof Complete!
+    ========================================
+    ∀x. ∀y. Suc x = Suc y ==> x = y
     |}]

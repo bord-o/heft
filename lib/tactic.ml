@@ -35,6 +35,7 @@ type _ Effect.t +=
   | Trace : (level * string) -> unit Effect.t
   | Burn : int -> unit Effect.t
   | Rewrites : unit -> thm list Effect.t
+  | Lemmas : unit -> thm list Effect.t
 
 let as_ranked_list : type a. a rankable -> a list = function
   | Term ts -> ts
@@ -119,7 +120,7 @@ let or_tac : tactic =
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
-let apply_tac : tactic =
+let apply_asm_tac : tactic =
  fun (asms, concl) ->
   burn 3;
   (* Find implications in the asms that match the conclusion *)
@@ -143,9 +144,65 @@ let apply_tac : tactic =
     trace_dbg "mp success";
     thm
   in
-  return_thm ~from:"apply_tac" thm
+  return_thm ~from:"apply_asm_tac" thm
 
-let apply_neg_tac : tactic =
+(* Apply a theorem, strips foralls, matches conclusion against goal *)
+let apply_thm_tac : tactic =
+ fun (asms, conc) ->
+  burn 3;
+  let lemmas = perform (Lemmas ()) in
+  let chosen_thm = choose_theorems lemmas in
+
+  let rec strip_foralls_acc thm vars =
+    match destruct_forall (concl thm) with
+    | Ok (var, _body) -> (
+        let thm' = Derived.spec var thm in
+        match thm' with
+        | Ok thm' -> strip_foralls_acc thm' (var :: vars)
+        | Error _ -> (thm, List.rev vars))
+    | Error _ -> (thm, List.rev vars)
+  in
+  let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] in
+
+  let thm =
+    match destruct_imp (concl stripped_thm) with
+    | Ok (_prem, thm_conc) -> (
+        match Rewrite.match_term thm_conc conc with
+        | Some env ->
+            let all_vars_bound =
+              List.for_all
+                (fun v ->
+                  let v_typed = Rewrite.term_type_subst env.type_sub v in
+                  List.exists
+                    (fun (pat, _) -> alphaorder pat v_typed = 0)
+                    env.term_sub)
+                quant_vars
+            in
+            if not all_vars_bound then fail ();
+
+            let* type_inst = inst_type env.type_sub stripped_thm in
+            let term_sub_flipped =
+              List.map (fun (v, t) -> (t, v)) env.term_sub
+            in
+            let* fully_inst = inst term_sub_flipped type_inst in
+
+            let* inst_prem, _ = destruct_imp (concl fully_inst) in
+            let sub_thm = perform (Subgoal (asms, inst_prem)) in
+            mp fully_inst sub_thm
+        | None -> fail ())
+    | Error _ -> (
+        match Rewrite.match_term (concl stripped_thm) conc with
+        | Some env ->
+            let* type_inst = inst_type env.type_sub stripped_thm in
+            let term_sub_flipped =
+              List.map (fun (v, t) -> (t, v)) env.term_sub
+            in
+            inst term_sub_flipped type_inst
+        | None -> fail ())
+  in
+  return_thm ~from:"apply_thm_tac" thm
+
+let apply_neg_asm_tac : tactic =
  fun (asms, concl) ->
   burn 3;
   let false_tm = make_false () in
@@ -164,7 +221,7 @@ let apply_neg_tac : tactic =
           let sub_thm = perform (Subgoal (asms, p)) in
           prove_hyp sub_thm elim
       in
-      return_thm ~from:"apply_neg_tac" thm
+      return_thm ~from:"apply_neg_asm_tac" thm
 
 let assume_tac : tactic =
  fun (_asms, conc) -> return_thm ~from:"assume_tac" @@ assume conc
@@ -464,8 +521,8 @@ let ctauto_tac : tactic =
         elim_disj_asm_tac;
         false_elim_tac;
         neg_elim_tac;
-        apply_tac;
-        apply_neg_tac;
+        apply_asm_tac;
+        apply_neg_asm_tac;
         mp_asm_tac;
         left_tac;
         right_tac;
@@ -780,6 +837,10 @@ let with_assumption_rewrites : tactic_combinator =
 let with_rewrites (rewrites : thm list) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rewrites (), k -> continue k rewrites | v -> v
+
+let with_lemmas (lemmas : thm list) : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Lemmas (), k -> continue k lemmas | v -> v
 
 let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
  fun tac (asms, concl) ->
