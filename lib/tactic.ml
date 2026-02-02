@@ -534,8 +534,15 @@ let gen_tac : tactic =
   let thm =
     let* x, body = destruct_forall concl in
     let body_thm = perform (Subgoal (asms, body)) in
-    let* thm = gen x body_thm in
-    Ok thm
+    let hyps_with_x = List.filter (fun h -> var_free_in x h) (hyp body_thm) in
+    let* discharged =
+      List.fold_left
+        (fun acc h ->
+          let* thm = acc in
+          disch h thm)
+        (Ok body_thm) hyps_with_x
+    in
+    gen x discharged
   in
   return_thm ~from:"gen_tac" thm
 

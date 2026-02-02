@@ -1957,18 +1957,19 @@ let%expect_test "length_zero_implies_nil" =
 
   let next_tactic =
     next_tactic_of_list
-      [
-        induct_tac;
-        intro_tac;
-        refl_tac;
-        gen_tac;
-        gen_tac;
-        intro_tac;
-        intro_tac;
-        with_first_success @@ apply_thm_asm_tac
-        |> with_lemmas_and_assumptions [];
-        assumption_tac;
-      ]
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           intro_tac;
+           refl_tac;
+           gen_tac;
+           gen_tac;
+           intro_tac;
+           intro_tac;
+           with_first_success @@ apply_thm_asm_tac
+           |> with_lemmas_and_assumptions [];
+           assumption_tac;
+         ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1981,27 +1982,8 @@ let%expect_test "length_zero_implies_nil" =
 
   [%expect
     {|
-    0: length Nil = Zero ==> Nil = Nil
-    1: ∀n0. ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
-    destruct success
-    destruct success
-    refl success
-    refl_tac
-    disch success
-    intro_tac
-    0: ∀n0. ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
-    destruct success
-    destruct success
-    no choices available
-    Found matching assumption
-    Assumption succeeded
-    assumption_tac
-    apply_thm_asm_tac
-    disch success
-    intro_tac
-    disch success
-    intro_tac
-    LamRuleCantApply
-    Proof Incomplete
-    ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
+    Proof Complete!
+    ∀n0. ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
+    ========================================
+    ∀x. length x = Zero ==> x = Nil
     |}]
