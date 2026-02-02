@@ -202,6 +202,61 @@ let apply_thm_tac : tactic =
   in
   return_thm ~from:"apply_thm_tac" thm
 
+(* Apply a theorem to an assumption, producing a new assumption.
+   If theorem is P ==> Q and assumption is P, replaces with Q. *)
+let apply_thm_asm_tac : tactic =
+ fun (asms, conc) ->
+  burn 3;
+  let lemmas = perform (Lemmas ()) in
+  let chosen_thm = choose_theorems lemmas in
+  let chosen_asm = choose_terms asms in
+
+  let rec strip_foralls_acc thm vars =
+    match destruct_forall (concl thm) with
+    | Ok (var, _body) -> (
+        let thm' = Derived.spec var thm in
+        match thm' with
+        | Ok thm' -> strip_foralls_acc thm' (var :: vars)
+        | Error _ -> (thm, List.rev vars))
+    | Error _ -> (thm, List.rev vars)
+  in
+  let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] in
+
+  let thm =
+    match destruct_imp (concl stripped_thm) with
+    | Ok (prem, _thm_conc) -> (
+        match Rewrite.match_term prem chosen_asm with
+        | Some env ->
+            let all_vars_bound =
+              List.for_all
+                (fun v ->
+                  let v_typed = Rewrite.term_type_subst env.type_sub v in
+                  List.exists
+                    (fun (pat, _) -> alphaorder pat v_typed = 0)
+                    env.term_sub)
+                quant_vars
+            in
+            if not all_vars_bound then fail ();
+
+            let* type_inst = inst_type env.type_sub stripped_thm in
+            let term_sub_flipped =
+              List.map (fun (v, t) -> (t, v)) env.term_sub
+            in
+            let* fully_inst = inst term_sub_flipped type_inst in
+
+            let* _, new_asm = destruct_imp (concl fully_inst) in
+
+            let asms' = new_asm :: List.filter (( <> ) chosen_asm) asms in
+            let sub_thm = perform (Subgoal (asms', conc)) in
+
+            let* asm_thm = assume chosen_asm in
+            let* new_asm_thm = mp fully_inst asm_thm in
+            prove_hyp new_asm_thm sub_thm
+        | None -> fail ())
+    | Error _ -> fail ()
+  in
+  return_thm ~from:"apply_thm_asm_tac" thm
+
 let apply_neg_asm_tac : tactic =
  fun (asms, concl) ->
   burn 3;
@@ -254,6 +309,28 @@ let rewrite_tac : tactic =
     eq_mp rw_sym subthm
   in
   return_thm ~from:"rewrite_tac" thm
+
+(* rewrites in an assumption *)
+let rewrite_asm_tac : tactic =
+ fun (asms, conc) ->
+  burn 2;
+  let thm =
+    let rules = perform (Rewrites ()) in
+    let* chosen_rule = strip_forall (choose_theorems rules) in
+    let chosen_asm = choose_terms asms in
+
+    let* rw_thm = rewrite_once chosen_rule chosen_asm in
+    let* _, asm_rewritten = destruct_eq (concl rw_thm) in
+    if alphaorder chosen_asm asm_rewritten = 0 then fail ();
+
+    let asms' = asm_rewritten :: List.filter (( <> ) chosen_asm) asms in
+    let sub_thm = perform @@ Subgoal (asms', conc) in
+
+    let* asm_thm = assume chosen_asm in
+    let* new_asm_thm = eq_mp rw_thm asm_thm in
+    prove_hyp new_asm_thm sub_thm
+  in
+  return_thm ~from:"rewrite_asm_tac" thm
 
 let beta_tac : tactic =
  fun (asms, conc) ->
@@ -903,9 +980,29 @@ let simp_tac ?(with_asms = true) : tactic =
   in
   thm
 
-(* auto tries safe tactics to make progress on structural goals and then
-    simplifies in between
-*)
+(* simp for assumptions - simplifies an assumption using definition rules *)
+let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
+ fun goal ->
+  let definitions =
+    the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
+  in
+  let rules =
+    definitions
+    |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
+    |> List.flatten |> List.append add
+  in
+
+  let with_rw =
+    if with_asms then with_rewrites_and_assumptions else with_rewrites
+  in
+
+  let thm =
+    with_repeat
+      (with_dfs ~amb:true ~tacs:[]
+         (with_no_trace @@ with_rw rules rewrite_asm_tac))
+      goal
+  in
+  thm
 
 let with_fail ~(on_fail : tactic) : tactic_combinator =
  fun tac goal -> match tac goal with effect Fail, _k -> on_fail goal | v -> v
