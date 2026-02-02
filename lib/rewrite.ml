@@ -39,24 +39,31 @@ type match_result = {
 
 let empty_match = { term_sub = []; type_sub = [] }
 
-(* 
+(*
    Term matching: find substitutions such that pattern[subs] = target
-   
+
+   context_vars: variables that appear in theorem hypotheses (must match exactly)
    bound: variables bound by enclosing lambdas (must match exactly)
    env: current match result being built
    pattern: the pattern term
    target: the target term
-   
+
    Returns None if no match, Some result if match found.
-   
+
    Based on HOL Light's term_match.
 *)
-let rec term_match (bound : term list) (env : match_result) (pattern : term)
+let rec term_match (context_vars : term list) (bound : term list) (env : match_result) (pattern : term)
     (target : term) : match_result option =
   match (pattern, target) with
+  (* Bound variables (from lambdas) must match exactly *)
   | Var (_, _), _ when List.exists (fun b -> alphaorder pattern b = 0) bound ->
       let pattern' = term_type_subst env.type_sub pattern in
       if alphaorder pattern' target = 0 then Some env else None
+  (* Context variables (from hypotheses) must match exactly *)
+  | Var (_, _), _ when List.exists (fun cv -> alphaorder pattern cv = 0) context_vars ->
+      let pattern' = term_type_subst env.type_sub pattern in
+      if alphaorder pattern' target = 0 then Some env else None
+  (* Free variables (pattern variables) can match anything *)
   | Var (name, ty), _ -> (
       let target_ty =
         match type_of_term target with
@@ -85,9 +92,9 @@ let rec term_match (bound : term list) (env : match_result) (pattern : term)
         | None -> None
         | Some type_sub' -> Some { env with type_sub = type_sub' })
   | App (f1, x1), App (f2, x2) -> (
-      match term_match bound env f1 f2 with
+      match term_match context_vars bound env f1 f2 with
       | None -> None
-      | Some env' -> term_match bound env' x1 x2)
+      | Some env' -> term_match context_vars bound env' x1 x2)
   | Lam ((Var (_, ty1) as v1), body1), Lam ((Var (_, ty2) as v2), body2) -> (
       match type_match env.type_sub ty1 ty2 with
       | None -> None
@@ -97,11 +104,30 @@ let rec term_match (bound : term list) (env : match_result) (pattern : term)
           let v1_typed = term_type_subst type_sub' v1 in
           match vsubst [ (v2, v1_typed) ] body1_typed with
           | Error _ -> None
-          | Ok body1' -> term_match (v2 :: bound) env' body1' body2))
+          | Ok body1' -> term_match context_vars (v2 :: bound) env' body1' body2))
   | _, _ -> None
 
-(* Convenience wrapper *)
-let match_term pattern target = term_match [] empty_match pattern target
+(* Get all free variables from a list of terms (the hypotheses) *)
+let context_vars_of_hyps hyps =
+  let rec frees_acc bound acc tm =
+    match tm with
+    | Var _ ->
+        if List.exists (fun b -> alphaorder tm b = 0) bound then acc
+        else if List.exists (fun v -> alphaorder tm v = 0) acc then acc
+        else tm :: acc
+    | Const _ -> acc
+    | App (f, x) -> frees_acc bound (frees_acc bound acc f) x
+    | Lam (v, body) -> frees_acc (v :: bound) acc body
+  in
+  List.fold_left (fun acc hyp -> frees_acc [] acc hyp) [] hyps
+
+(* Convenience wrapper - no context variables *)
+let match_term pattern target = term_match [] [] empty_match pattern target
+
+(* Match with context from theorem hypotheses *)
+let match_term_with_hyps hyps pattern target =
+  let ctx_vars = context_vars_of_hyps hyps in
+  term_match ctx_vars [] empty_match pattern target
 
 (*
 
@@ -178,10 +204,12 @@ let instantiate_rule (rule : thm) (env : match_result) =
   inst term_sub_flipped type_inst_rule
 
 (* Try to rewrite tm at the root using rule.
-   Returns Some (|- tm = tm') if lhs of rule matches tm, None otherwise *)
+   Returns Some (|- tm = tm') if lhs of rule matches tm, None otherwise.
+   Variables that appear free in the rule's hypotheses must match exactly. *)
 let rewrite_at_root (rule : thm) (tm : term) =
   let* rule_lhs, _ = destruct_eq (concl rule) in
-  match match_term rule_lhs tm with
+  let hyps = hyp rule in
+  match match_term_with_hyps hyps rule_lhs tm with
   | Some env ->
       let* inst_rule = instantiate_rule rule env in
       Ok (Some inst_rule)
