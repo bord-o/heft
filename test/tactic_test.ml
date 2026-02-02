@@ -1519,12 +1519,13 @@ let%expect_test "suc injective" =
 
   let next_tactic =
     next_tactic_of_list
-      [
-        with_repeat gen_tac;
-        intro_tac;
-        apply_thm_tac |> with_lemmas nat_def.injective;
-        assumption_tac;
-      ]
+    @@ wrap_all with_no_trace
+         [
+           with_repeat gen_tac;
+           intro_tac;
+           apply_thm_tac |> with_lemmas nat_def.injective;
+           assumption_tac;
+         ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1541,16 +1542,6 @@ let%expect_test "suc injective" =
     ========================================
     ∀x0. ∀y0. Suc x0 = Suc y0 ==> x0 = y0
 
-    NotAForall
-    destruct success
-    Found matching assumption
-    Assumption succeeded
-    assumption_tac
-    apply_thm_tac
-    disch success
-    intro_tac
-    gen_tac
-    gen_tac
     Proof Complete!
     ========================================
     ∀x. ∀y. Suc x = Suc y ==> x = y
@@ -1575,16 +1566,17 @@ let%expect_test "plus suc lemma" =
 
   let next_tactic =
     next_tactic_of_list
-      [
-        induct_tac;
-        simp_tac;
-        gen_tac;
-        refl_tac;
-        gen_tac;
-        intro_tac;
-        gen_tac;
-        simp_tac;
-      ]
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           simp_tac;
+           gen_tac;
+           refl_tac;
+           gen_tac;
+           intro_tac;
+           gen_tac;
+           simp_tac;
+         ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1598,19 +1590,6 @@ let%expect_test "plus suc lemma" =
 
   [%expect
     {|
-    0: ∀y. plus Zero (Suc y) = Suc (plus Zero y)
-    1: ∀n0. (∀y. plus n0 (Suc y) = Suc (plus n0 y)) ==> ∀y. plus (Suc n0) (Suc y) = Suc (plus (Suc n0) y)
-    destruct success
-    refl success
-    refl_tac
-    gen_tac
-    0: ∀n0. (∀y. plus n0 (Suc y) = Suc (plus n0 y)) ==> ∀y. plus (Suc n0) (Suc y) = Suc (plus (Suc n0) y)
-    destruct success
-    gen_tac
-    disch success
-    intro_tac
-    gen_tac
-    induction_tac
     Proof Complete!
     ========================================
     ∀x. ∀y. plus x (Suc y) = Suc (plus x y)
@@ -1635,13 +1614,14 @@ let%expect_test "suc injective rev" =
   (* List.iter Printing.print_thm Theorems.Nat.nat_def.injective; *)
   let next_tactic =
     next_tactic_of_list
-      [
-        gen_tac;
-        gen_tac;
-        intro_tac;
-        rewrite_tac |> with_assumption_rewrites;
-        refl_tac;
-      ]
+    @@ wrap_all with_no_trace
+         [
+           gen_tac;
+           gen_tac;
+           intro_tac;
+           rewrite_tac |> with_assumption_rewrites;
+           refl_tac;
+         ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1654,15 +1634,6 @@ let%expect_test "suc injective rev" =
 
   [%expect
     {|
-    destruct success
-    destruct success
-    refl success
-    refl_tac
-    rewrite_tac
-    disch success
-    intro_tac
-    gen_tac
-    gen_tac
     Proof Complete!
     ========================================
     ∀x. ∀y. x = y ==> Suc x = Suc y
@@ -1687,19 +1658,21 @@ let%expect_test "plus comm" =
 
   let next_tactic =
     next_tactic_of_list
-      [
-        induct_tac;
-        gen_tac;
-        simp_tac;
-        with_first_success @@ rewrite_tac |> with_rewrites (lemma "plus_x_zero");
-        refl_tac;
-        gen_tac;
-        intro_tac;
-        gen_tac;
-        simp_tac;
-        sym_tac;
-        with_first_success @@ apply_thm_tac |> with_lemmas (lemma "plus_suc");
-      ]
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           gen_tac;
+           simp_tac;
+           with_first_success @@ rewrite_tac
+           |> with_rewrites (lemma "plus_x_zero");
+           refl_tac;
+           gen_tac;
+           intro_tac;
+           gen_tac;
+           simp_tac;
+           sym_tac;
+           with_first_success @@ apply_thm_tac |> with_lemmas (lemma "plus_suc");
+         ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1713,22 +1686,6 @@ let%expect_test "plus comm" =
 
   [%expect
     {|
-    0: ∀y. plus Zero y = plus y Zero
-    1: ∀n0. (∀y. plus n0 y = plus y n0) ==> ∀y. plus (Suc n0) y = plus y (Suc n0)
-    destruct success
-    refl success
-    refl_tac
-    rewrite_tac
-    gen_tac
-    0: ∀n0. (∀y. plus n0 y = plus y n0) ==> ∀y. plus (Suc n0) y = plus y (Suc n0)
-    destruct success
-    apply_thm_tac
-    sym_tac
-    gen_tac
-    disch success
-    intro_tac
-    gen_tac
-    induction_tac
     Proof Complete!
     ========================================
     ∀x. ∀y. plus x y = plus y x
@@ -1751,22 +1708,23 @@ let%expect_test "cancellation" =
 
   let next_tactic =
     next_tactic_of_list
-      [
-        induct_tac;
-        gen_tac;
-        simp_tac;
-        intro_tac;
-        assumption_tac;
-        gen_tac;
-        simp_tac;
-        intro_tac;
-        gen_tac;
-        intro_tac;
-        apply_thm_asm_tac |> with_lemmas nat_def.injective;
-        with_first_success @@ apply_thm_asm_tac
-        |> with_lemmas_and_assumptions [];
-        assumption_tac;
-      ]
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           gen_tac;
+           simp_tac;
+           intro_tac;
+           assumption_tac;
+           gen_tac;
+           simp_tac;
+           intro_tac;
+           gen_tac;
+           intro_tac;
+           apply_thm_asm_tac |> with_lemmas nat_def.injective;
+           with_first_success @@ apply_thm_asm_tac
+           |> with_lemmas_and_assumptions [];
+           assumption_tac;
+         ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1779,31 +1737,6 @@ let%expect_test "cancellation" =
 
   [%expect
     {|
-    0: ∀y. plus Zero y = plus Zero z ==> y = z
-    1: ∀n0. (∀y. plus n0 y = plus n0 z ==> y = z) ==> ∀y. plus (Suc n0) y = plus (Suc n0) z ==> y = z
-    destruct success
-    Found matching assumption
-    Assumption succeeded
-    assumption_tac
-    disch success
-    intro_tac
-    gen_tac
-    0: ∀n0. (∀y. plus n0 y = plus n0 z ==> y = z) ==> ∀y. plus (Suc n0) y = plus (Suc n0) z ==> y = z
-    destruct success
-    destruct success
-    no choices available
-    Found matching assumption
-    Assumption succeeded
-    assumption_tac
-    apply_thm_asm_tac
-    apply_thm_asm_tac
-    disch success
-    intro_tac
-    gen_tac
-    disch success
-    intro_tac
-    gen_tac
-    induction_tac
     Proof Complete!
     ========================================
     ∀x. ∀y. plus x y = plus x z ==> y = z
@@ -1826,24 +1759,25 @@ let%expect_test "cancellation rev" =
 
   let next_tactic =
     next_tactic_of_list
-      [
-        induct_tac;
-        gen_tac;
-        simp_tac;
-        intro_tac;
-        rewrite_asm_tac |> with_rewrites (lemma "plus_x_zero");
-        rewrite_asm_tac |> with_rewrites (lemma "plus_x_zero");
-        assumption_tac;
-        gen_tac;
-        intro_tac;
-        gen_tac;
-        intro_tac;
-        with_first_success @@ apply_thm_tac |> with_lemmas_and_assumptions [];
-        rewrite_asm_tac |> with_rewrites (lemma "plus_suc");
-        rewrite_asm_tac |> with_rewrites (lemma "plus_suc");
-        apply_thm_asm_tac |> with_lemmas (lemma "plus_inj");
-        assumption_tac;
-      ]
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           gen_tac;
+           simp_tac;
+           intro_tac;
+           rewrite_asm_tac |> with_rewrites (lemma "plus_x_zero");
+           rewrite_asm_tac |> with_rewrites (lemma "plus_x_zero");
+           assumption_tac;
+           gen_tac;
+           intro_tac;
+           gen_tac;
+           intro_tac;
+           with_first_success @@ apply_thm_tac |> with_lemmas_and_assumptions [];
+           rewrite_asm_tac |> with_rewrites (lemma "plus_suc");
+           rewrite_asm_tac |> with_rewrites (lemma "plus_suc");
+           apply_thm_asm_tac |> with_lemmas (lemma "plus_inj");
+           assumption_tac;
+         ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1856,34 +1790,6 @@ let%expect_test "cancellation rev" =
 
   [%expect
     {|
-    0: ∀y. plus y Zero = plus z Zero ==> y = z
-    1: ∀n0. (∀y. plus y n0 = plus z n0 ==> y = z) ==> ∀y. plus y (Suc n0) = plus z (Suc n0) ==> y = z
-    destruct success
-    Found matching assumption
-    Assumption succeeded
-    assumption_tac
-    rewrite_asm_tac
-    rewrite_asm_tac
-    disch success
-    intro_tac
-    gen_tac
-    0: ∀n0. (∀y. plus y n0 = plus z n0 ==> y = z) ==> ∀y. plus y (Suc n0) = plus z (Suc n0) ==> y = z
-    destruct success
-    destruct success
-    Found matching assumption
-    Assumption succeeded
-    assumption_tac
-    apply_thm_asm_tac
-    rewrite_asm_tac
-    rewrite_asm_tac
-    apply_thm_tac
-    disch success
-    intro_tac
-    gen_tac
-    disch success
-    intro_tac
-    gen_tac
-    induction_tac
     Proof Complete!
     ========================================
     ∀x. ∀y. plus y x = plus z x ==> y = z
