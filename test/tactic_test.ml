@@ -1824,8 +1824,6 @@ let%expect_test "length Nil = Zero" =
 let%expect_test "length (Cons Zero Nil) = Suc Zero" =
   let open Theorems.Nat in
   let open Theorems.ListTheory in
-  let _ = length_def |> Result.get_ok in
-
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
   let cons_nat = type_inst [ (a, nat_ty) ] cons |> Result.get_ok in
@@ -1857,8 +1855,6 @@ let%expect_test "length (Cons Zero Nil) = Suc Zero" =
 let%expect_test "length_cons" =
   let open Theorems.Nat in
   let open Theorems.ListTheory in
-  let _ = length_def |> Result.get_ok in
-
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let cons_nat = type_inst [ (a, nat_ty) ] cons |> Result.get_ok in
 
@@ -1902,8 +1898,6 @@ let%expect_test "length_cons" =
 let%expect_test "nil_implies_length_zero" =
   let open Theorems.Nat in
   let open Theorems.ListTheory in
-  let _ = length_def |> Result.get_ok in
-
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
 
@@ -1946,8 +1940,6 @@ let%expect_test "nil_implies_length_zero" =
 let%expect_test "length_zero_implies_nil" =
   let open Theorems.Nat in
   let open Theorems.ListTheory in
-  let _ = length_def |> Result.get_ok in
-
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
 
@@ -1963,7 +1955,21 @@ let%expect_test "length_zero_implies_nil" =
   (* ∀xs. length xs = Zero ==> xs = Nil *)
   let goal = make_forall xs (make_imp length_eq_zero xs_eq_nil) in
 
-  let next_tactic = next_tactic_of_list [ induct_tac ] in
+  let next_tactic =
+    next_tactic_of_list
+      [
+        induct_tac;
+        intro_tac;
+        refl_tac;
+        gen_tac;
+        gen_tac;
+        intro_tac;
+        intro_tac;
+        with_first_success @@ apply_thm_asm_tac
+        |> with_lemmas_and_assumptions [];
+        assumption_tac;
+      ]
+  in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -1973,11 +1979,29 @@ let%expect_test "length_zero_implies_nil" =
       List.iter print_term asms;
       Printing.print_term g);
 
-  [%expect {|
-    (TyCon ("fun", [(TyCon ("list", [(TyVar "a")])); (TyCon ("bool", []))]))
-    (TyCon ("fun",
-       [(TyCon ("list", [(TyCon ("nat", []))])); (TyCon ("bool", []))]))
-    TypesDontAgree
+  [%expect
+    {|
+    0: length Nil = Zero ==> Nil = Nil
+    1: ∀n0. ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
+    destruct success
+    destruct success
+    refl success
+    refl_tac
+    disch success
+    intro_tac
+    0: ∀n0. ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
+    destruct success
+    destruct success
+    no choices available
+    Found matching assumption
+    Assumption succeeded
+    assumption_tac
+    apply_thm_asm_tac
+    disch success
+    intro_tac
+    disch success
+    intro_tac
+    LamRuleCantApply
     Proof Incomplete
-    ∀xs. length xs = Zero ==> xs = Nil
+    ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
     |}]

@@ -545,7 +545,7 @@ let induct_tac : tactic =
   let thm =
     let* induction_var, bod = destruct_forall concl in
     let* ty = type_of_term induction_var in
-    let* ty_name, _ = destruct_type ty in
+    let* ty_name, ty_args = destruct_type ty in
 
     let inductive_def =
       match Hashtbl.find_opt the_inductives ty_name with
@@ -555,11 +555,17 @@ let induct_tac : tactic =
       | Some d -> d
     in
 
+    let* _, def_ty_params = destruct_type inductive_def.ty in
+
+    let type_sub = List.combine def_ty_params ty_args in
+
+    let* typed_induction = inst_type type_sub inductive_def.induction in
+
     let binder = make_var "pred_binder" ty in
     let* bod_with_binder = vsubst [ (binder, induction_var) ] bod in
     let* p = make_lam binder bod_with_binder in
 
-    let* inst_induction = spec p inductive_def.induction in
+    let* inst_induction = spec p typed_induction in
 
     let rec collect_premises tm acc =
       match destruct_imp tm with

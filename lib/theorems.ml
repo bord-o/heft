@@ -147,5 +147,5 @@ module ListTheory = struct
       define_recursive_function "length" return_type "list"
         [ nil_case; cons_case ]
     in
-    d
+    d |> Result.get_ok
 end
