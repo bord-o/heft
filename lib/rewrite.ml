@@ -52,15 +52,17 @@ let empty_match = { term_sub = []; type_sub = [] }
 
    Based on HOL Light's term_match.
 *)
-let rec term_match (context_vars : term list) (bound : term list) (env : match_result) (pattern : term)
-    (target : term) : match_result option =
+let rec term_match (context_vars : term list) (bound : term list)
+    (env : match_result) (pattern : term) (target : term) : match_result option
+    =
   match (pattern, target) with
   (* Bound variables (from lambdas) must match exactly *)
   | Var (_, _), _ when List.exists (fun b -> alphaorder pattern b = 0) bound ->
       let pattern' = term_type_subst env.type_sub pattern in
       if alphaorder pattern' target = 0 then Some env else None
   (* Context variables (from hypotheses) must match exactly *)
-  | Var (_, _), _ when List.exists (fun cv -> alphaorder pattern cv = 0) context_vars ->
+  | Var (_, _), _
+    when List.exists (fun cv -> alphaorder pattern cv = 0) context_vars ->
       let pattern' = term_type_subst env.type_sub pattern in
       if alphaorder pattern' target = 0 then Some env else None
   (* Free variables (pattern variables) can match anything *)
@@ -104,7 +106,8 @@ let rec term_match (context_vars : term list) (bound : term list) (env : match_r
           let v1_typed = term_type_subst type_sub' v1 in
           match vsubst [ (v2, v1_typed) ] body1_typed with
           | Error _ -> None
-          | Ok body1' -> term_match context_vars (v2 :: bound) env' body1' body2))
+          | Ok body1' -> term_match context_vars (v2 :: bound) env' body1' body2
+          ))
   | _, _ -> None
 
 (* Get all free variables from a list of terms (the hypotheses) *)
