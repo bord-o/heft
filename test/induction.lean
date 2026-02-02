@@ -40,3 +40,25 @@ theorem add0n : (Nat.add n Nat.zero) = n := by
   
 theorem test_demorgans : ¬(p ∧ q) -> ¬p ∨ ¬q := by grind
 theorem test_taut2: ((¬a -> b) ∧ (¬a -> ¬b)) -> a := by grind
+
+inductive mnat where
+  | msuc : mnat -> mnat
+  | mzero : mnat
+
+theorem msuc_injective (x y : mnat) : ((mnat.msuc x) = (mnat.msuc y)) -> x = y := by 
+  intro ha
+  apply mnat.msuc.inj
+  assumption
+
+theorem msuc_injective_rev (x y : mnat) : x = y -> ((mnat.msuc x) = (mnat.msuc y)) := by 
+  intro ha
+  rewrite [ha]
+  rfl
+
+
+
+
+
+
+
+

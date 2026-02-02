@@ -1367,6 +1367,8 @@ let%expect_test "rewrite_basic" =
     add Zero Two = add One One
     |}]
 
+let proven = ref []
+
 let%expect_test "rewrite_basic" =
   let open Theorems.Nat in
   let x = make_var "x" nat_ty in
@@ -1399,11 +1401,13 @@ let%expect_test "rewrite induction" =
 
   let next_tactic =
     next_tactic_of_list
-    @@ wrap_all with_no_trace [ induct_tac; auto_tac; auto_tac ]
+    @@ wrap_all with_no_trace
+         [ induct_tac; simp_tac; gen_tac; intro_tac; simp_tac ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
+      proven := thm :: !proven;
       Printing.print_thm thm
   | Incomplete (asms, g) ->
       print_endline "Proof Incomplete";
@@ -1425,7 +1429,7 @@ let%expect_test "basic nat" =
   let goal = Result.get_ok (safe_make_eq two_plus_3 n5) in
 
   let next_tactic =
-    next_tactic_of_list @@ wrap_all with_no_trace [ auto_tac ]
+    next_tactic_of_list @@ wrap_all with_no_trace [ simp_tac ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -1463,11 +1467,23 @@ let%expect_test "plus assoc" =
 
   let next_tactic =
     next_tactic_of_list
-    @@ wrap_all with_no_trace [ with_term x induct_tac; auto_tac; auto_tac ]
+    @@ wrap_all with_no_trace
+         [
+           with_term x induct_tac;
+           gen_tac;
+           gen_tac;
+           simp_tac;
+           gen_tac;
+           intro_tac;
+           gen_tac;
+           gen_tac;
+           simp_tac;
+         ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
+      proven := thm :: !proven;
       Printing.print_thm thm
   | Incomplete (asms, g) ->
       print_endline "Proof Incomplete";
@@ -1536,3 +1552,140 @@ let%expect_test "suc injective" =
     ========================================
     ∀x. ∀y. Suc x = Suc y ==> x = y
     |}]
+
+(* Lemma needed for commutativity: plus x (Suc y) = Suc (plus x y) *)
+let%expect_test "plus suc lemma" =
+  let open Theorems.Nat in
+  let x = make_var "x" nat_ty in
+  let y = make_var "y" nat_ty in
+
+  let suc_y = App (suc, y) in
+  let plus_x_suc_y = Result.get_ok (make_plus x suc_y) in
+  let plus_x_y = Result.get_ok (make_plus x y) in
+  let suc_plus_x_y = App (suc, plus_x_y) in
+
+  (* plus x (Suc y) = Suc (plus x y) *)
+  let goal =
+    Derived.make_foralls [ x; y ]
+      (Result.get_ok (safe_make_eq plus_x_suc_y suc_plus_x_y))
+  in
+
+  let next_tactic =
+    next_tactic_of_list
+      [
+        induct_tac;
+        simp_tac;
+        gen_tac;
+        refl_tac;
+        gen_tac;
+        intro_tac;
+        gen_tac;
+        simp_tac;
+      ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      proven := thm :: !proven;
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter Printing.print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    0: ∀y. plus Zero (Suc y) = Suc (plus Zero y)
+    1: ∀n0. (∀y. plus n0 (Suc y) = Suc (plus n0 y)) ==> ∀y. plus (Suc n0) (Suc y) = Suc (plus (Suc n0) y)
+    destruct success
+    refl success
+    refl_tac
+    gen_tac
+    0: ∀n0. (∀y. plus n0 (Suc y) = Suc (plus n0 y)) ==> ∀y. plus (Suc n0) (Suc y) = Suc (plus (Suc n0) y)
+    destruct success
+    gen_tac
+    disch success
+    intro_tac
+    gen_tac
+    induction_tac
+    Proof Complete!
+    ========================================
+    ∀x. ∀y. plus x (Suc y) = Suc (plus x y)
+    |}]
+
+let%expect_test "suc injective rev" =
+  let open Theorems.Nat in
+  let x = make_var "x" nat_ty in
+  let y = make_var "y" nat_ty in
+
+  let suc_x = App (suc, x) in
+  let suc_y = App (suc, y) in
+
+  (* x = y -> Suc x =  Suc y *)
+  let goal =
+    Derived.make_foralls [ x; y ]
+      (make_imp
+         (Result.get_ok (safe_make_eq x y))
+         (Result.get_ok (safe_make_eq suc_x suc_y)))
+  in
+
+  (* List.iter Printing.print_thm Theorems.Nat.nat_def.injective; *)
+  let next_tactic =
+    next_tactic_of_list
+      [ gen_tac; gen_tac; intro_tac; rewrite_tac |> with_assumption_rewrites ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter Printing.print_term asms;
+      Printing.print_term g);
+
+  [%expect {|
+    |}]
+
+(* (* Commutativity: plus x y = plus y x *) *)
+(* let%expect_test "plus comm" = *)
+(*   let open Theorems.Nat in *)
+(*   let x = make_var "x" nat_ty in *)
+(*   let y = make_var "y" nat_ty in *)
+(**)
+(*   let plus_x_y = Result.get_ok (make_plus x y) in *)
+(*   let plus_y_x = Result.get_ok (make_plus y x) in *)
+(**)
+(*   (* plus x y = plus y x *) *)
+(*   let goal = *)
+(*     Derived.make_foralls [ x; y ] *)
+(*       (Result.get_ok (safe_make_eq plus_x_y plus_y_x)) *)
+(*   in *)
+(*   List.iter Printing.print_thm !proven; *)
+(**)
+(*   let next_tactic = *)
+(*     next_tactic_of_list *)
+(*       [ *)
+(*         induct_tac; *)
+(*         gen_tac; *)
+(*         simp_tac; *)
+(*         with_first_success @@ rewrite_tac |> with_rewrites !proven; *)
+(*         refl_tac; *)
+(*         gen_tac; *)
+(*         intro_tac; *)
+(*         gen_tac; *)
+(*         simp_tac ~with_asms:false; *)
+(*         with_first_success @@ rewrite_tac |> with_rewrites !proven; *)
+(*         (* apply_thm_tac |> with_lemmas nat_def.injective; *) *)
+(*       ] *)
+(*   in *)
+(*   (match prove ([], goal) next_tactic with *)
+(*   | Complete thm -> *)
+(*       print_endline "Proof Complete!"; *)
+(*       Printing.print_thm thm *)
+(*   | Incomplete (asms, g) -> *)
+(*       print_endline "Proof Incomplete"; *)
+(*       List.iter Printing.print_term asms; *)
+(*       Printing.print_term g); *)
+(**)
+(*   [%expect {| *)
+(*     |}] *)

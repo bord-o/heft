@@ -247,6 +247,8 @@ let rewrite_tac : tactic =
 
     let* rw_thm = rewrite_once chosen_rule conc in
     let* _, conc_rewritten = destruct_eq (concl rw_thm) in
+    (* Fail if no progress was made *)
+    if alphaorder conc conc_rewritten = 0 then fail ();
     let subthm = perform @@ Subgoal (asms, conc_rewritten) in
     let* rw_sym = sym rw_thm in
     eq_mp rw_sym subthm
@@ -842,6 +844,17 @@ let with_lemmas (lemmas : thm list) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Lemmas (), k -> continue k lemmas | v -> v
 
+let with_lemmas_and_assumptions (lemmas : thm list) : tactic_combinator =
+ fun tac (asms, concl) ->
+  let asm_thms =
+    List.filter_map
+      (fun asm -> match assume asm with Ok thm -> Some thm | Error _ -> None)
+      asms
+  in
+  match tac (asms, concl) with
+  | effect Lemmas (), k -> continue k (lemmas @ asm_thms)
+  | v -> v
+
 let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
  fun tac (asms, concl) ->
   let asm_thms =
@@ -866,7 +879,7 @@ let with_dfs ?(amb = false) ?(tacs = []) : tactic_combinator =
   To match lean, it should also try to use refl at the end and close the goal
   if possible
 *)
-let simp_tac : tactic =
+let simp_tac ?(with_asms = true) : tactic =
  fun goal ->
   let definitions =
     the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
@@ -877,11 +890,15 @@ let simp_tac : tactic =
     |> List.flatten
   in
 
+  let with_rw =
+    if with_asms then with_rewrites_and_assumptions else with_rewrites
+  in
+
   let thm =
     with_repeat
       (with_dfs ~amb:true
          ~tacs:(wrap_all with_no_trace [ beta_tac; refl_tac ])
-         (with_no_trace @@ with_rewrites_and_assumptions rules rewrite_tac))
+         (with_no_trace @@ with_rw rules rewrite_tac))
       goal
   in
   thm
@@ -893,6 +910,7 @@ let simp_tac : tactic =
 let with_fail ~(on_fail : tactic) : tactic_combinator =
  fun tac goal -> match tac goal with effect Fail, _k -> on_fail goal | v -> v
 
+(* This is looping in some scenarios, need to look into this *)
 let auto_tac : tactic =
   with_repeat (fun goal ->
       with_fail ~on_fail:simp_tac (with_first_success safe_tacs) goal)
