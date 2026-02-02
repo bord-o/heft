@@ -1854,7 +1854,8 @@ let%expect_test "cancellation rev" =
       List.iter Printing.print_term asms;
       Printing.print_term g);
 
-  [%expect {|
+  [%expect
+    {|
     0: ∀y. plus y Zero = plus z Zero ==> y = z
     1: ∀n0. (∀y. plus y n0 = plus z n0 ==> y = z) ==> ∀y. plus y (Suc n0) = plus z (Suc n0) ==> y = z
     destruct success
