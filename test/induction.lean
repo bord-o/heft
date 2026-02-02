@@ -55,10 +55,32 @@ theorem msuc_injective_rev (x y : mnat) : x = y -> ((mnat.msuc x) = (mnat.msuc y
   rewrite [ha]
   rfl
 
+def mnat_plus (m n : mnat) :=
+  match m with
+  | mnat.mzero => n
+  | mnat.msuc m' => mnat.msuc (mnat_plus m' n)
 
 
+theorem mnat_n_zero (x : mnat) : mnat_plus mnat.mzero x = x := by 
+  simp [mnat_plus]
 
+theorem mnat_zero_n (x : mnat) : mnat_plus x mnat.mzero = x := by 
+  induction x 
+  simp [mnat_plus]
+  assumption
+  simp [mnat_plus]
+  
 
+  /- (* plus y x = plus z x -> y = z *) -/
+theorem mnat_cancel (x y z : Nat) : y + x = z + x -> y = z := by
+  induction hx: x with
+  | zero => 
+    intro ha
+    rewrite [Nat.add_zero] at ha
+    rewrite [Nat.add_zero] at ha
+    assumption
 
-
+  | succ m' ih => 
+    intro hp
+    grind
 

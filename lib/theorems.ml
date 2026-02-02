@@ -110,3 +110,42 @@ module Nat = struct
     let* ab = make_app plus a in
     make_app ab b
 end
+
+module ListTheory = struct
+  let rec length = fun l -> match l with [] -> 0 | _x :: xs -> 1 + length xs
+  let a = make_vartype "a"
+  let list_ty = TyCon ("list", [ a ])
+  let list_a = TyCon ("list", [ a ])
+
+  let list_def =
+    define_inductive "list" [ "a" ]
+      [
+        { name = "Nil"; arg_types = [] };
+        { name = "Cons"; arg_types = [ a; list_a ] };
+      ]
+    |> Result.get_ok
+
+  let nil = list_def.constructors |> List.assoc "Nil"
+  let cons = list_def.constructors |> List.assoc "Cons"
+
+  let length_def =
+    let d =
+      let x = make_var "x" a in
+      let xs = make_var "xs" list_a in
+      let r = make_var "r" Nat.nat_ty in
+
+      let nil_case = Nat.n0 in
+      (* Cons_case takes: x (head), xs (tail), r (recursive result on tail) *)
+      (* So it's λx. λxs. λr. Suc r *)
+      let* cons_case =
+        let body = App (Nat.suc, r) in
+        let* fn_r = make_lam r body in
+        let* fn_xs = make_lam xs fn_r in
+        make_lam x fn_xs
+      in
+      let return_type = Nat.nat_ty in
+      define_recursive_function "length" return_type "list"
+        [ nil_case; cons_case ]
+    in
+    d
+end
