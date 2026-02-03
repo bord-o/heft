@@ -148,4 +148,35 @@ module ListTheory = struct
         [ nil_case; cons_case ]
     in
     d |> Result.get_ok
+
+  (* Need to develop a mental model for making these definitions *)
+  (* let rec append = *)
+  (*  fun l -> *)
+  (*   match l with *)
+  (*   | [] -> fun l' -> l' *)
+  (*   | x :: xs -> *)
+  (*       fun l' -> *)
+  (*         let r = append xs in *)
+  (*         x :: r l' *)
+  let append_def =
+    let d =
+      let l' = make_var "l'" list_a in
+      let x = make_var "x" a in
+      let xs = make_var "xs" list_a in
+      let r = make_var "r" (make_fun_ty list_a list_a) in
+
+      let* nil_case = make_lam l' l' in
+      let* cons_case =
+        let r_applied = App (r, l') in
+        let body = App (App (cons, x), r_applied) in
+        let* fn_l' = make_lam l' body in
+        let* fn_r = make_lam r fn_l' in
+        let* fn_xs = make_lam xs fn_r in
+        make_lam x fn_xs
+      in
+      let return_type = make_fun_ty list_a list_a in
+      define_recursive_function "append" return_type "list"
+        [ nil_case; cons_case ]
+    in
+    d |> Result.get_ok
 end

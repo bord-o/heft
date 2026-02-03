@@ -1804,7 +1804,7 @@ let%expect_test "length Nil = Zero" =
   let length_nil = App (length_const, nil_nat) in
   let goal = Result.get_ok (safe_make_eq length_nil zero) in
 
-  let next_tactic = next_tactic_of_list [ simp_tac ~with_asms:false ] in
+  let next_tactic = next_tactic_of_list [ simp_tac ~with_asms:false ~add:[] ] in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
@@ -1898,13 +1898,12 @@ let%expect_test "length_cons" =
 let%expect_test "nil_implies_length_zero" =
   let open Theorems.Nat in
   let open Theorems.ListTheory in
-  let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
-  let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
+  let length_const = make_const "length" [] |> Result.get_ok in
 
-  let xs = make_var "xs" (TyCon ("list", [ nat_ty ])) in
+  let xs = make_var "xs" (TyCon ("list", [ a ])) in
 
   (* xs = Nil *)
-  let xs_eq_nil = Result.get_ok (safe_make_eq xs nil_nat) in
+  let xs_eq_nil = Result.get_ok (safe_make_eq xs nil) in
 
   (* length xs = Zero *)
   let length_xs = App (length_const, xs) in
@@ -1986,4 +1985,123 @@ let%expect_test "length_zero_implies_nil" =
     ∀n0. ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
     ========================================
     ∀x. length x = Zero ==> x = Nil
+    |}]
+
+let%expect_test "append nil xs = xs" =
+  let open Theorems.ListTheory in
+  let append_const = make_const "append" [] |> Result.get_ok in
+
+  (* append Nil Nil = Nil *)
+  let xs = make_var "xs" list_a in
+  let append_nil = App (append_const, nil) in
+  let append_nil_xs = App (append_nil, xs) in
+  let app_eq_zero =
+    make_forall xs @@ Result.get_ok (safe_make_eq append_nil_xs xs)
+  in
+
+  let goal = app_eq_zero in
+
+  let next_tactic =
+    next_tactic_of_list @@ wrap_all with_no_trace [ gen_tac; simp_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀xs. append Nil xs = xs
+    |}]
+
+let%expect_test "append (Cons x xs) ys = Cons x (append xs ys)" =
+  let open Theorems.ListTheory in
+  let append_const = make_const "append" [] |> Result.get_ok in
+
+  (* append (Cons x xs) ys = Cons x (append xs ys) *)
+  let x = make_var "x" a in
+  let xs = make_var "xs" list_a in
+  let ys = make_var "ys" list_a in
+
+  (* LHS: append (Cons x xs) ys *)
+  let cons_x_xs = App (App (cons, x), xs) in
+  let append_cons = App (append_const, cons_x_xs) in
+  let lhs = App (append_cons, ys) in
+
+  (* RHS: Cons x (append xs ys) *)
+  let append_xs = App (append_const, xs) in
+  let append_xs_ys = App (append_xs, ys) in
+  let rhs = App (App (cons, x), append_xs_ys) in
+
+  let goal =
+    make_foralls [ x; xs; ys ] @@ Result.get_ok (safe_make_eq lhs rhs)
+  in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace [ with_repeat gen_tac; simp_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      proven := ("append_cons", thm) :: !proven;
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. ∀xs. ∀ys. append (Cons x xs) ys = Cons x (append xs ys)
+    |}]
+
+let%expect_test "append xs nil = xs" =
+  let open Theorems.ListTheory in
+  let append_const = make_const "append" [] |> Result.get_ok in
+
+  (* need a lemma *)
+  let xs = make_var "xs" list_a in
+  let append_xs = App (append_const, xs) in
+  let append_nil_xs = App (append_xs, nil) in
+  let app_eq_zero =
+    make_forall xs @@ Result.get_ok (safe_make_eq append_nil_xs xs)
+  in
+
+  let goal = app_eq_zero in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           simp_tac;
+           with_repeat gen_tac;
+           intro_tac;
+           rewrite_tac |> with_rewrites (lemma "append_cons");
+           simp_tac ~add:(lemma "append_cons");
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. append x Nil = x
     |}]

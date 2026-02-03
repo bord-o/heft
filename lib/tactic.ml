@@ -969,7 +969,7 @@ let with_dfs ?(amb = false) ?(tacs = []) : tactic_combinator =
   To match lean, it should also try to use refl at the end and close the goal
   if possible
 *)
-let simp_tac ?(with_asms = true) : tactic =
+let simp_tac ?(with_asms = true) ?(add = []) : tactic =
  fun goal ->
   let definitions =
     the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
@@ -977,7 +977,7 @@ let simp_tac ?(with_asms = true) : tactic =
   let rules =
     definitions
     |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
-    |> List.flatten
+    |> List.flatten |> List.append add
   in
 
   let with_rw =
