@@ -2105,3 +2105,101 @@ let%expect_test "append xs nil = xs" =
     ========================================
     ∀x. append x Nil = x
     |}]
+
+let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
+  let open Theorems.ListTheory in
+  let append_const = make_const "append" [] |> Result.get_ok in
+
+  let xs = make_var "xs" list_a in
+  let ys = make_var "ys" list_a in
+  let zs = make_var "zs" list_a in
+
+  (* LHS: append (append xs ys) zs *)
+  let append_xs_ys = App (App (append_const, xs), ys) in
+  let lhs = App (App (append_const, append_xs_ys), zs) in
+
+  (* RHS: append xs (append ys zs) *)
+  let append_ys_zs = App (App (append_const, ys), zs) in
+  let rhs = App (App (append_const, xs), append_ys_zs) in
+
+  let goal =
+    make_foralls [ xs; ys; zs ] @@ Result.get_ok (safe_make_eq lhs rhs)
+  in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           with_repeat gen_tac;
+           simp_tac;
+           with_repeat gen_tac;
+           intro_tac;
+           with_repeat gen_tac;
+           simp_tac;
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. ∀ys. ∀zs. append (append x ys) zs = append x (append ys zs)
+    |}]
+
+let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
+  let open Theorems.Nat in
+  let open Theorems.ListTheory in
+  let append_const = make_const "append" [ (a, nat_ty) ] |> Result.get_ok in
+  let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
+
+  let xs = make_var "xs" (TyCon ("list", [ nat_ty ])) in
+  let ys = make_var "ys" (TyCon ("list", [ nat_ty ])) in
+
+  (* LHS: length (append xs ys) *)
+  let append_xs_ys = App (App (append_const, xs), ys) in
+  let lhs = App (length_const, append_xs_ys) in
+
+  (* RHS: plus (length xs) (length ys) *)
+  let length_xs = App (length_const, xs) in
+  let length_ys = App (length_const, ys) in
+  let rhs = Result.get_ok (make_plus length_xs length_ys) in
+
+  let goal = make_foralls [ xs; ys ] @@ Result.get_ok (safe_make_eq lhs rhs) in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           gen_tac;
+           simp_tac;
+           with_repeat gen_tac;
+           intro_tac;
+           gen_tac;
+           simp_tac;
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. ∀ys. length (append x ys) = plus (length x) (length ys)
+    |}]
