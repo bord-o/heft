@@ -59,7 +59,7 @@ let contrapositive =
   in
   make_exn thm
 
-module Nat = struct
+module NatTheory = struct
   let nat_ty = TyCon ("nat", [])
 
   let nat_def =
@@ -131,18 +131,18 @@ module ListTheory = struct
     let d =
       let x = make_var "x" a in
       let xs = make_var "xs" list_a in
-      let r = make_var "r" Nat.nat_ty in
+      let r = make_var "r" NatTheory.nat_ty in
 
-      let nil_case = Nat.n0 in
+      let nil_case = NatTheory.n0 in
       (* Cons_case takes: x (head), xs (tail), r (recursive result on tail) *)
       (* So it's λx. λxs. λr. Suc r *)
       let* cons_case =
-        let body = App (Nat.suc, r) in
+        let body = App (NatTheory.suc, r) in
         let* fn_r = make_lam r body in
         let* fn_xs = make_lam xs fn_r in
         make_lam x fn_xs
       in
-      let return_type = Nat.nat_ty in
+      let return_type = NatTheory.nat_ty in
       define_recursive_function "length" return_type "list"
         [ nil_case; cons_case ]
     in
