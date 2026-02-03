@@ -956,6 +956,15 @@ let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
   | effect Rewrites (), k -> continue k (rewrites @ asm_thms)
   | v -> v
 
+(* NOTE: 
+    if I had some way to evaluate the subgoal complexity, I could have the search handler
+    return early when it finds a subgoal within a threshold. This would let me use the handlers
+    in a situation where they aren't able to close a goal, but could still make a bunch of progress.
+
+    Maybe I could even get some functionality, like: "I couldn't find a complete proof, but I could solve
+    the goal if I had this lemma or rewrite"
+ *)
+
 let with_dfs ?(amb = false) ?(tacs = []) : tactic_combinator =
  fun tac goal ->
   let q = Queue.of_seq (List.to_seq (tac :: tacs)) in
@@ -969,6 +978,31 @@ let with_dfs ?(amb = false) ?(tacs = []) : tactic_combinator =
   To match lean, it should also try to use refl at the end and close the goal
   if possible
 *)
+let with_definition_rewrites : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Rewrites (), k ->
+      let ambient_rules = perform @@ Rewrites () in
+      let definitions =
+        the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
+      in
+      let rules =
+        definitions
+        |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
+        |> List.flatten |> List.append ambient_rules
+      in
+      continue k rules
+  | v -> v
+
+(* TODO: maybe make better sequencing combinators so I don't have to use with_dfs here, something like with_first_success, try, ... *)
+let core_simp : tactic =
+ fun goal ->
+  with_repeat
+    (with_dfs ~amb:true
+       ~tacs:(wrap_all with_no_trace [ beta_tac; refl_tac ])
+       (with_no_trace rewrite_tac))
+    goal
+
 let simp_tac ?(with_asms = true) ?(add = []) : tactic =
  fun goal ->
   let definitions =
