@@ -210,3 +210,5 @@ module ListTheory = struct
     in
     d |> Result.get_ok
 end
+
+module PairTheory = struct end

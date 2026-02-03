@@ -279,7 +279,7 @@ let%expect_test "basic9" =
 
 let%expect_test "basic10" =
   let a = make_var "A" bool_ty in
-  let nat_def = Theorems.Nat.nat_def in
+  let nat_def = Theorems.NatTheory.nat_def in
   let x = make_var "x" nat_def.ty in
 
   let goal = make_forall x (make_imp a a) in
@@ -1323,7 +1323,7 @@ let%expect_test "another tautology" =
     |}]
 
 let%expect_test "rewrite_basic" =
-  let nat_ty = Theorems.Nat.nat_def.ty in
+  let nat_ty = Theorems.NatTheory.nat_def.ty in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "One" nat_ty in
   let _ = new_constant "Two" nat_ty in
@@ -1371,7 +1371,7 @@ let proven = ref []
 let lemma s = [ List.assoc s !proven ]
 
 let%expect_test "rewrite_basic" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
 
   let zero_plus_x = make_plus zero x |> Result.get_ok in
@@ -1395,7 +1395,7 @@ let%expect_test "rewrite_basic" =
     |}]
 
 let%expect_test "rewrite induction" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
 
   let x_plus_zero = make_plus x zero |> Result.get_ok in
@@ -1424,7 +1424,7 @@ let%expect_test "rewrite induction" =
     |}]
 
 let%expect_test "basic nat" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let make_plus' a b = make_plus a b |> Result.get_ok in
   let two_plus_3 = make_plus' n2 n3 in
 
@@ -1450,7 +1450,7 @@ let%expect_test "basic nat" =
     |}]
 
 let%expect_test "plus assoc" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let z = make_var "z" nat_ty in
@@ -1500,7 +1500,7 @@ let%expect_test "plus assoc" =
     |}]
 
 let%expect_test "suc injective" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
 
@@ -1515,7 +1515,7 @@ let%expect_test "suc injective" =
          (Result.get_ok (safe_make_eq x y)))
   in
 
-  List.iter Printing.print_thm Theorems.Nat.nat_def.injective;
+  List.iter Printing.print_thm Theorems.NatTheory.nat_def.injective;
 
   let next_tactic =
     next_tactic_of_list
@@ -1549,7 +1549,7 @@ let%expect_test "suc injective" =
 
 (* Lemma needed for commutativity: plus x (Suc y) = Suc (plus x y) *)
 let%expect_test "plus suc lemma" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
 
@@ -1596,7 +1596,7 @@ let%expect_test "plus suc lemma" =
     |}]
 
 let%expect_test "suc injective rev" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
 
@@ -1641,7 +1641,7 @@ let%expect_test "suc injective rev" =
 
 (* Commutativity: plus x y = plus y x *)
 let%expect_test "plus comm" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
 
@@ -1692,7 +1692,7 @@ let%expect_test "plus comm" =
     |}]
 
 let%expect_test "cancellation" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let z = make_var "z" nat_ty in
@@ -1743,7 +1743,7 @@ let%expect_test "cancellation" =
     |}]
 
 let%expect_test "cancellation rev" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let z = make_var "z" nat_ty in
@@ -1796,7 +1796,7 @@ let%expect_test "cancellation rev" =
     |}]
 
 let%expect_test "length Nil = Zero" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
@@ -1822,7 +1822,7 @@ let%expect_test "length Nil = Zero" =
     |}]
 
 let%expect_test "length (Cons Zero Nil) = Suc Zero" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
@@ -1853,7 +1853,7 @@ let%expect_test "length (Cons Zero Nil) = Suc Zero" =
     |}]
 
 let%expect_test "length_cons" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let cons_nat = type_inst [ (a, nat_ty) ] cons |> Result.get_ok in
@@ -1896,7 +1896,7 @@ let%expect_test "length_cons" =
 
 (* xs = Nil ==> length xs = Zero *)
 let%expect_test "nil_implies_length_zero" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let length_const = make_const "length" [] |> Result.get_ok in
 
@@ -1937,7 +1937,7 @@ let%expect_test "nil_implies_length_zero" =
 
 (* length xs = Zero ==> xs = Nil *)
 let%expect_test "length_zero_implies_nil" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
@@ -2158,7 +2158,7 @@ let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
     |}]
 
 let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let append_const = make_const "append" [ (a, nat_ty) ] |> Result.get_ok in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
@@ -2208,7 +2208,7 @@ let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
     |}]
 
 let%expect_test "length (reverse xs) = length xs" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
@@ -2255,7 +2255,7 @@ let%expect_test "length (reverse xs) = length xs" =
     |}]
 
 let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let append_const = make_const "append" [ (a, nat_ty) ] |> Result.get_ok in
   let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
@@ -2307,7 +2307,7 @@ let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
     |}]
 
 let%expect_test "reverse (reverse xs) = xs" =
-  let open Theorems.Nat in
+  let open Theorems.NatTheory in
   let open Theorems.ListTheory in
   let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
 

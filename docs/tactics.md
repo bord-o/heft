@@ -25,37 +25,7 @@ todo
 ## Searching with Tactic Handlers
 
 todo
+
 ## Rewriting
-  need to match the lhs of the chosen rule with our goal and get theta
 
-  say we have
-    add 0 n = n
-  as a rule
-
-  and our goal is 
-    add 0 2 = add 1 1
-
-  we should be able to use this tactic to rewrite to
-    2 = add 1 1
-  by
-    term match lhs goal with rule to get n->2
-    inst the rule to get add 0 2 = 2
-    now we have
-      add 0 2 = 2 : thm
-      add 0 2 = add 1 1 : term
-    so we can just use the rhs of the instantiated rule instead of our
-    goal's original lhs, giving
-      2 = add 1 1
-
-    when we solve this subgoal we will get it as a thm
-      2 = add 1 1 : thm
-    with which we can use sym and trans of equality to build our original thm.
-    again we need to get from
-      2 = add 1 1 : thm
-    to
-      goal := add 0 2 = add 1 1 :thm
-    with
-      add 0 2 = 2 : thm
-    using
-      trans irule subthm
-
+todo
