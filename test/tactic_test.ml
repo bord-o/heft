@@ -2093,6 +2093,7 @@ let%expect_test "append xs nil = xs" =
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
+      proven := ("append_xs_nil", thm) :: !proven;
       Printing.print_thm thm
   | Incomplete (asms, g) ->
       print_endline "Proof Incomplete";
@@ -2142,6 +2143,7 @@ let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
+      proven := ("append_assoc", thm) :: !proven;
       Printing.print_thm thm
   | Incomplete (asms, g) ->
       print_endline "Proof Incomplete";
@@ -2191,6 +2193,7 @@ let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
   (match prove ([], goal) next_tactic with
   | Complete thm ->
       print_endline "Proof Complete!";
+      proven := ("append_length", thm) :: !proven;
       Printing.print_thm thm
   | Incomplete (asms, g) ->
       print_endline "Proof Incomplete";
@@ -2202,4 +2205,146 @@ let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
     Proof Complete!
     ========================================
     ∀x. ∀ys. length (append x ys) = plus (length x) (length ys)
+    |}]
+
+let%expect_test "length (reverse xs) = length xs" =
+  let open Theorems.Nat in
+  let open Theorems.ListTheory in
+  let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
+  let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
+
+  let xs = make_var "xs" (TyCon ("list", [ nat_ty ])) in
+
+  (* LHS: length (reverse xs) *)
+  let reverse_xs = App (reverse_const, xs) in
+  let lhs = App (length_const, reverse_xs) in
+
+  (* RHS: length xs *)
+  let rhs = App (length_const, xs) in
+
+  let goal = make_forall xs @@ Result.get_ok (safe_make_eq lhs rhs) in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           simp_tac;
+           with_repeat gen_tac;
+           intro_tac;
+           simp_tac ~add:(lemma "append_length");
+           with_first_success @@ rewrite_tac
+           |> with_rewrites (lemma "plus_comm");
+           simp_tac;
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. length (reverse x) = length x
+    |}]
+
+let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
+  let open Theorems.Nat in
+  let open Theorems.ListTheory in
+  let append_const = make_const "append" [ (a, nat_ty) ] |> Result.get_ok in
+  let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
+
+  let xs = make_var "xs" (TyCon ("list", [ nat_ty ])) in
+  let ys = make_var "ys" (TyCon ("list", [ nat_ty ])) in
+
+  (* LHS: reverse (append xs ys) *)
+  let append_xs_ys = App (App (append_const, xs), ys) in
+  let lhs = App (reverse_const, append_xs_ys) in
+
+  (* RHS: append (reverse ys) (reverse xs) *)
+  let reverse_xs = App (reverse_const, xs) in
+  let reverse_ys = App (reverse_const, ys) in
+  let rhs = App (App (append_const, reverse_ys), reverse_xs) in
+
+  let goal = make_foralls [ xs; ys ] @@ Result.get_ok (safe_make_eq lhs rhs) in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           gen_tac;
+           simp_tac ~add:(lemma "append_xs_nil");
+           with_repeat gen_tac;
+           intro_tac;
+           gen_tac;
+           simp_tac;
+           with_first_success @@ apply_thm_tac
+           |> with_lemmas (lemma "append_assoc");
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      proven := ("append_reverse", thm) :: !proven;
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. ∀ys. reverse (append x ys) = append (reverse ys) (reverse x)
+    |}]
+
+let%expect_test "reverse (reverse xs) = xs" =
+  let open Theorems.Nat in
+  let open Theorems.ListTheory in
+  let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
+
+  let xs = make_var "xs" (TyCon ("list", [ nat_ty ])) in
+
+  (* LHS: reverse (reverse xs) *)
+  let reverse_xs = App (reverse_const, xs) in
+  let lhs = App (reverse_const, reverse_xs) in
+
+  (* RHS: xs *)
+  let rhs = xs in
+
+  let goal = make_forall xs @@ Result.get_ok (safe_make_eq lhs rhs) in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           simp_tac;
+           with_repeat gen_tac;
+           intro_tac;
+           simp_tac ~add:(lemma "append_reverse");
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. reverse (reverse x) = x
     |}]

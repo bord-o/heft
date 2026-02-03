@@ -112,7 +112,6 @@ module Nat = struct
 end
 
 module ListTheory = struct
-  let rec length = fun l -> match l with [] -> 0 | _x :: xs -> 1 + length xs
   let a = make_vartype "a"
   let list_ty = TyCon ("list", [ a ])
   let list_a = TyCon ("list", [ a ])
@@ -149,6 +148,8 @@ module ListTheory = struct
     in
     d |> Result.get_ok
 
+  let length = make_const "length" [] |> Result.get_ok
+
   (* Need to develop a mental model for making these definitions *)
   (* let rec append = *)
   (*  fun l -> *)
@@ -176,6 +177,35 @@ module ListTheory = struct
       in
       let return_type = make_fun_ty list_a list_a in
       define_recursive_function "append" return_type "list"
+        [ nil_case; cons_case ]
+    in
+    d |> Result.get_ok
+
+  let append = make_const "append" [] |> Result.get_ok
+
+  (* let rec reverse = fun l -> *)
+  (*     match l with *)
+  (*     [] -> [] *)
+  (*     | x::xs ->  *)
+  (*       let r = reverse xs in *)
+  (*       append r [x] *)
+
+  let reverse_def =
+    let d =
+      let x = make_var "x" a in
+      let xs = make_var "xs" list_a in
+      let r = make_var "r" list_a in
+
+      let nil_case = nil in
+      let* cons_case =
+        let singleton_x = App (App (cons, x), nil) in
+        let body = App (App (append, r), singleton_x) in
+        let* fn_r = make_lam r body in
+        let* fn_xs = make_lam xs fn_r in
+        make_lam x fn_xs
+      in
+      let return_type = list_a in
+      define_recursive_function "reverse" return_type "list"
         [ nil_case; cons_case ]
     in
     d |> Result.get_ok
