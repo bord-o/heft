@@ -6,3 +6,6 @@ module Parse = Parse
 module Tactic = Tactic
 module Rewrite = Rewrite
 module Theorems = Theorems
+module Lexer = Lexer
+module Parser = Parser
+module Elaborator = Elaborator

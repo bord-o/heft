@@ -2348,3 +2348,46 @@ let%expect_test "reverse (reverse xs) = xs" =
     ========================================
     ∀x. reverse (reverse x) = x
     |}]
+
+let%expect_test "test defining with elab" =
+  let prg =
+    {|
+    vartype a b
+    inductive pair := 
+        | pair : a -> b -> pair a b
+
+    variable l : a
+    variable r : b
+    variable p : pair a b
+
+    def fst over p : pair a b -> a
+        | pair l r => l
+
+    def snd over p : pair a b -> b
+        | pair l r => r
+
+    theorem snd_test : eq (snd p) (snd p)
+
+  |}
+  in
+
+  let goals = Elaborator.goals_from_string prg in
+
+  List.iter print_term goals;
+
+  let goal = List.hd goals in
+
+  let next_tactic =
+    next_tactic_of_list @@ wrap_all with_no_trace [ refl_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect {|
+    |}]

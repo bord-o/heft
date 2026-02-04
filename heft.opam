@@ -20,6 +20,7 @@ depends: [
   "utop"
   "multicont"
   "ocamlformat"
+  "sedlex"
   "odoc" {with-doc}
 ]
 build: [
