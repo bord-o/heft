@@ -1,6 +1,8 @@
 open Kernel
+open Derived
 open Inductive
 open Parser
+open Rewrite
 module K = Kernel
 module P = Parser
 
@@ -12,6 +14,28 @@ type env = {
 }
 
 let empty_env = { tyvars = []; vars = []; inductives = []; defs = [] }
+
+(* Application with type instantiation - if types don't match exactly,
+   try to instantiate type variables in f to make it work *)
+let make_app_inst f x =
+  match make_app f x with
+  | Ok app -> Ok app
+  | Error _ -> (
+      (* Types didn't match - try to instantiate *)
+      let fty =
+        match type_of_term f with Ok t -> t | Error _ -> K.TyVar "?"
+      in
+      let xty =
+        match type_of_term x with Ok t -> t | Error _ -> K.TyVar "?"
+      in
+      match fty with
+      | K.TyCon ("fun", [ arg_ty; _ ]) -> (
+          match type_match [] arg_ty xty with
+          | Some tysub ->
+              let f' = term_type_subst tysub f in
+              make_app f' x
+          | None -> Error (`MakeAppTypesDontAgree (fty, xty)))
+      | _ -> Error (`MakeAppTypesDontAgree (fty, xty)))
 
 let rec get_hol_arg_types hty =
   match hty with
@@ -33,6 +57,26 @@ let find_constructor env name =
       List.assoc_opt name def.constructors
       |> Option.map (fun term -> (def, term)))
 
+(* Helper for elaborating binary operations *)
+let elab_binop env elab l r make_op =
+  match elab env l with
+  | Error e -> Error e
+  | Ok l' -> (
+      match elab env r with Error e -> Error e | Ok r' -> Ok (make_op l' r'))
+
+(* Helper for elaborating quantifiers: forall x. body or exists x. body *)
+let elab_quantifier env elab x body make_quant =
+  match List.assoc_opt x env.vars with
+  | Some ty -> (
+      let var = K.Var (x, ty) in
+      match elab env body with
+      | Error e -> Error e
+      | Ok body' -> Ok (make_quant var body'))
+  | None ->
+      Error
+        (`InvariantViolation
+           (Printf.sprintf "Quantifier variable %s not in scope" x))
+
 (* Expression elaboration *)
 let rec elab_expr env (e : P.expr) =
   match e with
@@ -44,6 +88,23 @@ let rec elab_expr env (e : P.expr) =
           match elab_expr env r with
           | Error e -> Error e
           | Ok r' -> safe_make_eq l' r'))
+  (* imp p q => make_imp p q *)
+  | P.App (P.App (P.Var "imp", l), r) -> elab_binop env elab_expr l r make_imp
+  (* conj p q => make_conj p q *)
+  | P.App (P.App (P.Var "conj", l), r) -> elab_binop env elab_expr l r make_conj
+  (* disj p q => make_disj p q *)
+  | P.App (P.App (P.Var "disj", l), r) -> elab_binop env elab_expr l r make_disj
+  (* forall (λx. body) => make_forall x body *)
+  | P.App (P.Var "forall", P.Lam (x, body)) ->
+      elab_quantifier env elab_expr x body make_forall
+  (* exists (λx. body) => make_exists x body *)
+  | P.App (P.Var "exists", P.Lam (x, body)) ->
+      elab_quantifier env elab_expr x body make_exists
+  (* neg p => make_neg p *)
+  | P.App (P.Var "neg", p) -> (
+      match elab_expr env p with
+      | Error e -> Error e
+      | Ok p' -> Ok (make_neg p'))
   | P.Var "eq" -> make_const "=" []
   | P.Var name -> (
       match List.assoc_opt name env.vars with
@@ -58,7 +119,7 @@ let rec elab_expr env (e : P.expr) =
       | Ok f' -> (
           match elab_expr env x with
           | Error e -> Error e
-          | Ok x' -> make_app f' x'))
+          | Ok x' -> make_app_inst f' x'))
   | P.Lam (x, body) -> (
       match List.assoc_opt x env.vars with
       | Some ty -> (
@@ -150,7 +211,7 @@ let rec elab_expr_with_rec env rec_call_info (e : P.expr) =
       | Ok f' -> (
           match elab_expr_with_rec env rec_call_info x with
           | Error e -> Error e
-          | Ok x' -> make_app f' x'))
+          | Ok x' -> make_app_inst f' x'))
   | P.Lam (x, body) -> (
       match List.assoc_opt x env.vars with
       | Some ty -> (

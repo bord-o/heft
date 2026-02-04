@@ -2366,7 +2366,8 @@ let%expect_test "test defining with elab" =
     def snd over p : pair a b -> b
         | pair l r => r
 
-    theorem snd_test : eq (snd p) (snd p)
+    variable x y : a
+    theorem fst_snd_eq: imp (eq x y) (eq (fst (pair x y)) (snd (pair x y)))
 
   |}
   in
@@ -2378,7 +2379,7 @@ let%expect_test "test defining with elab" =
   let goal = List.hd goals in
 
   let next_tactic =
-    next_tactic_of_list @@ wrap_all with_no_trace [ refl_tac ]
+    next_tactic_of_list @@ wrap_all with_no_trace [ intro_tac; simp_tac ]
   in
   (match prove ([], goal) next_tactic with
   | Complete thm ->
@@ -2389,5 +2390,11 @@ let%expect_test "test defining with elab" =
       List.iter print_term asms;
       Printing.print_term g);
 
-  [%expect {|
+  [%expect
+    {|
+    x = y ==> fst (pair x y) = snd (pair x y)
+
+    Proof Complete!
+    ========================================
+    x = y ==> fst (pair x y) = snd (pair x y)
     |}]
