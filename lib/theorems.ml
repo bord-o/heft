@@ -72,6 +72,11 @@ module NatTheory = struct
     def plus over o : nat -> nat -> nat 
         | zero => λn. n
         | suc m => λn. suc (plus m n)
+
+    def minusOne over o : nat ->  nat
+        | zero => zero
+        | suc m => m
+
   |}
 
   let _ =

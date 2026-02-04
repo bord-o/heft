@@ -2376,3 +2376,35 @@ let%expect_test "test defining with elab" =
     ========================================
     x = y ==> fst (pair x y) = snd (pair x y)
     |}]
+
+let%expect_test "test minus" =
+  let prg =
+    {|
+    theorem three_minus_one_is_two : eq 
+        (minusOne (suc (suc (suc zero))) )
+        (suc (suc zero)) 
+  |}
+  in
+
+  let goals = Elaborator.goals_from_string prg in
+
+  let goal = List.hd goals in
+
+  let next_tactic =
+    next_tactic_of_list @@ wrap_all with_no_trace [ simp_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    minusOne (suc (suc (suc zero))) = suc (suc zero)
+    |}]
