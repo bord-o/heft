@@ -116,99 +116,61 @@ module ListTheory = struct
   let list_ty = TyCon ("list", [ a ])
   let list_a = TyCon ("list", [ a ])
 
-  let list_def =
-    define_inductive "list" [ "a" ]
-      [
-        { name = "Nil"; arg_types = [] };
-        { name = "Cons"; arg_types = [ a; list_a ] };
-      ]
-    |> Result.get_ok
+  let prg =
+    {|
+    vartype a
 
-  let nil = list_def.constructors |> List.assoc "Nil"
-  let cons = list_def.constructors |> List.assoc "Cons"
+    inductive list :=
+        | nil : list a
+        | cons : a -> list a -> list a
 
-  let length_def =
-    let d =
-      let x = make_var "x" a in
-      let xs = make_var "xs" list_a in
-      let r = make_var "r" NatTheory.nat_ty in
+    variable l l' xs : list a
+    variable x : a
 
-      let nil_case = NatTheory.n0 in
-      (* Cons_case takes: x (head), xs (tail), r (recursive result on tail) *)
-      (* So it's λx. λxs. λr. Suc r *)
-      let* cons_case =
-        let body = App (NatTheory.suc, r) in
-        let* fn_r = make_lam r body in
-        let* fn_xs = make_lam xs fn_r in
-        make_lam x fn_xs
-      in
-      let return_type = NatTheory.nat_ty in
-      define_recursive_function "length" return_type "list"
-        [ nil_case; cons_case ]
-    in
-    d |> Result.get_ok
+    def length over l : list a -> nat 
+        | nil => Zero
+        | cons x xs =>
+            Suc (length xs)
 
+    def append over l : list a -> list a -> list a
+        | nil => λxs. xs
+        | cons x xs =>
+            λl'. cons x (append xs l')
+
+    def reverse over l : list a -> list a
+        | nil => nil
+        | cons x xs => append (reverse xs) (cons x nil)
+  |}
+
+  let _ = Elaborator.goals_from_string prg
+  let nil = make_const "nil" [] |> Result.get_ok
+  let cons = make_const "cons" [] |> Result.get_ok
   let length = make_const "length" [] |> Result.get_ok
-
-  (* Need to develop a mental model for making these definitions *)
-  (* let rec append = *)
-  (*  fun l -> *)
-  (*   match l with *)
-  (*   | [] -> fun l' -> l' *)
-  (*   | x :: xs -> *)
-  (*       fun l' -> *)
-  (*         let r = append xs in *)
-  (*         x :: r l' *)
-  let append_def =
-    let d =
-      let l' = make_var "l'" list_a in
-      let x = make_var "x" a in
-      let xs = make_var "xs" list_a in
-      let r = make_var "r" (make_fun_ty list_a list_a) in
-
-      let* nil_case = make_lam l' l' in
-      let* cons_case =
-        let r_applied = App (r, l') in
-        let body = App (App (cons, x), r_applied) in
-        let* fn_l' = make_lam l' body in
-        let* fn_r = make_lam r fn_l' in
-        let* fn_xs = make_lam xs fn_r in
-        make_lam x fn_xs
-      in
-      let return_type = make_fun_ty list_a list_a in
-      define_recursive_function "append" return_type "list"
-        [ nil_case; cons_case ]
-    in
-    d |> Result.get_ok
-
   let append = make_const "append" [] |> Result.get_ok
-
-  (* let rec reverse = fun l -> *)
-  (*     match l with *)
-  (*     [] -> [] *)
-  (*     | x::xs ->  *)
-  (*       let r = reverse xs in *)
-  (*       append r [x] *)
-
-  let reverse_def =
-    let d =
-      let x = make_var "x" a in
-      let xs = make_var "xs" list_a in
-      let r = make_var "r" list_a in
-
-      let nil_case = nil in
-      let* cons_case =
-        let singleton_x = App (App (cons, x), nil) in
-        let body = App (App (append, r), singleton_x) in
-        let* fn_r = make_lam r body in
-        let* fn_xs = make_lam xs fn_r in
-        make_lam x fn_xs
-      in
-      let return_type = list_a in
-      define_recursive_function "reverse" return_type "list"
-        [ nil_case; cons_case ]
-    in
-    d |> Result.get_ok
+  let reverse = make_const "append" [] |> Result.get_ok
 end
 
-module PairTheory = struct end
+module PairTheory = struct
+  let prg =
+    {|
+    vartype a b
+    inductive pair := 
+        | pair : a -> b -> pair a b
+
+    variable l : a
+    variable r : b
+    variable p : pair a b
+
+    def fst over p : pair a b -> a
+        | pair l r => l
+
+    def snd over p : pair a b -> b
+        | pair l r => r
+
+    variable x y : a
+    theorem fst_snd_eq: imp (eq x y) (eq (fst (pair x y)) (snd (pair x y)))
+
+  |}
+
+  let _ = Elaborator.goals_from_string prg
+end

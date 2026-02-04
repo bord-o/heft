@@ -1818,7 +1818,7 @@ let%expect_test "length Nil = Zero" =
     {|
     Proof Complete!
     ========================================
-    length Nil = Zero
+    length nil = Zero
     |}]
 
 let%expect_test "length (Cons Zero Nil) = Suc Zero" =
@@ -1849,7 +1849,7 @@ let%expect_test "length (Cons Zero Nil) = Suc Zero" =
     {|
     Proof Complete!
     ========================================
-    length (Cons Zero Nil) = Suc Zero
+    length (cons Zero nil) = Suc Zero
     |}]
 
 let%expect_test "length_cons" =
@@ -1891,7 +1891,7 @@ let%expect_test "length_cons" =
     {|
     Proof Complete!
     ========================================
-    ∀x. ∀xs. length (Cons x xs) = Suc (length xs)
+    ∀x. ∀xs. length (cons x xs) = Suc (length xs)
     |}]
 
 (* xs = Nil ==> length xs = Zero *)
@@ -1932,7 +1932,7 @@ let%expect_test "nil_implies_length_zero" =
     {|
     Proof Complete!
     ========================================
-    ∀xs. xs = Nil ==> length xs = Zero
+    ∀xs. xs = nil ==> length xs = Zero
     |}]
 
 (* length xs = Zero ==> xs = Nil *)
@@ -1982,9 +1982,9 @@ let%expect_test "length_zero_implies_nil" =
   [%expect
     {|
     Proof Complete!
-    ∀n0. ∀n1. (length n1 = Zero ==> n1 = Nil) ==> length (Cons n0 n1) = Zero ==> Cons n0 n1 = Nil
+    ∀n0. ∀n1. (length n1 = Zero ==> n1 = nil) ==> length (cons n0 n1) = Zero ==> cons n0 n1 = nil
     ========================================
-    ∀x. length x = Zero ==> x = Nil
+    ∀x. length x = Zero ==> x = nil
     |}]
 
 let%expect_test "append nil xs = xs" =
@@ -2017,7 +2017,7 @@ let%expect_test "append nil xs = xs" =
     {|
     Proof Complete!
     ========================================
-    ∀xs. append Nil xs = xs
+    ∀xs. append nil xs = xs
     |}]
 
 let%expect_test "append (Cons x xs) ys = Cons x (append xs ys)" =
@@ -2061,7 +2061,7 @@ let%expect_test "append (Cons x xs) ys = Cons x (append xs ys)" =
     {|
     Proof Complete!
     ========================================
-    ∀x. ∀xs. ∀ys. append (Cons x xs) ys = Cons x (append xs ys)
+    ∀x. ∀xs. ∀ys. append (cons x xs) ys = cons x (append xs ys)
     |}]
 
 let%expect_test "append xs nil = xs" =
@@ -2104,7 +2104,7 @@ let%expect_test "append xs nil = xs" =
     {|
     Proof Complete!
     ========================================
-    ∀x. append x Nil = x
+    ∀x. append x nil = x
     |}]
 
 let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
@@ -2352,20 +2352,7 @@ let%expect_test "reverse (reverse xs) = xs" =
 let%expect_test "test defining with elab" =
   let prg =
     {|
-    vartype a b
-    inductive pair := 
-        | pair : a -> b -> pair a b
-
-    variable l : a
-    variable r : b
-    variable p : pair a b
-
-    def fst over p : pair a b -> a
-        | pair l r => l
-
-    def snd over p : pair a b -> b
-        | pair l r => r
-
+    vartype a
     variable x y : a
     theorem fst_snd_eq: imp (eq x y) (eq (fst (pair x y)) (snd (pair x y)))
 
@@ -2373,8 +2360,6 @@ let%expect_test "test defining with elab" =
   in
 
   let goals = Elaborator.goals_from_string prg in
-
-  List.iter print_term goals;
 
   let goal = List.hd goals in
 
@@ -2392,8 +2377,6 @@ let%expect_test "test defining with elab" =
 
   [%expect
     {|
-    x = y ==> fst (pair x y) = snd (pair x y)
-
     Proof Complete!
     ========================================
     x = y ==> fst (pair x y) = snd (pair x y)
