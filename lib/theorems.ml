@@ -1,7 +1,6 @@
 open Kernel
 open Derived
 open Result.Syntax
-open Inductive
 
 let p = Var ("P", bool_ty)
 let q = Var ("Q", bool_ty)
@@ -60,18 +59,30 @@ let contrapositive =
   make_exn thm
 
 module NatTheory = struct
-  let nat_ty = TyCon ("nat", [])
+  let prg =
+    {|
+    vartype a
 
-  let nat_def =
-    define_inductive "nat" []
-      [
-        { name = "Zero"; arg_types = [] };
-        { name = "Suc"; arg_types = [ nat_ty ] };
-      ]
-    |> Result.get_ok
+    inductive nat :=
+        | zero : nat
+        | suc : nat -> nat
 
-  let zero = nat_def.constructors |> List.assoc "Zero"
-  let suc = nat_def.constructors |> List.assoc "Suc"
+    variable o m n : nat
+
+    def plus over o : nat -> nat -> nat 
+        | zero => λn. n
+        | suc m => λn. suc (plus m n)
+  |}
+
+  let _ =
+    match Elaborator.elaborate_string prg with
+    | Ok v -> v
+    | Error e -> failwith @@ Printing.print_error e
+
+  let nat_ty = make_type "nat" [] |> Result.get_ok
+  let nat_def = Hashtbl.find the_inductives "nat"
+  let zero = make_const "zero" [] |> Result.get_ok
+  let suc = make_const "suc" [] |> Result.get_ok
   let rec nat_of_int n = if n <= 0 then zero else App (suc, nat_of_int (n - 1))
   let n0 = zero
   let n1 = nat_of_int 1
@@ -85,26 +96,9 @@ module NatTheory = struct
   let n9 = nat_of_int 9
   let n10 = nat_of_int 10
 
-  let plus_def =
-    let d =
-      let n = make_var "n" nat_ty in
-      let m' = make_var "m'" nat_ty in
-      let r = make_var "r" (make_fun_ty nat_ty nat_ty) in
-      let* zero_case = make_lam n n in
-      (* λn. n *)
-      let* suc_case =
-        let* r_n = make_app r n in
-        let* suc_rn = make_app suc r_n in
-        let* lam_n_suc_rn = make_lam n suc_rn in
-        let* lam_r = make_lam r lam_n_suc_rn in
-        make_lam m' lam_r (* λm'. λr. λn. Suc (r n) *)
-      in
-      let return_type = make_fun_ty nat_ty nat_ty in
-      define_recursive_function "plus" return_type "nat" [ zero_case; suc_case ]
-    in
-    d |> Result.get_ok
-
-  let plus = make_const "plus" [] |> Result.get_ok
+  let plus =
+    let v = make_const "plus" [] in
+    match v with Ok t -> t | Error e -> failwith @@ Printing.print_error e
 
   let make_plus a b =
     let* ab = make_app plus a in
@@ -128,9 +122,9 @@ module ListTheory = struct
     variable x : a
 
     def length over l : list a -> nat 
-        | nil => Zero
+        | nil => zero
         | cons x xs =>
-            Suc (length xs)
+            suc (length xs)
 
     def append over l : list a -> list a -> list a
         | nil => λxs. xs
@@ -142,12 +136,17 @@ module ListTheory = struct
         | cons x xs => append (reverse xs) (cons x nil)
   |}
 
-  let _ = Elaborator.goals_from_string prg
+  let _ =
+    match Elaborator.elaborate_string prg with
+    | Ok v -> v
+    | Error e -> failwith @@ Printing.print_error e
+
+  let list_def = Hashtbl.find the_inductives "list"
   let nil = make_const "nil" [] |> Result.get_ok
   let cons = make_const "cons" [] |> Result.get_ok
   let length = make_const "length" [] |> Result.get_ok
   let append = make_const "append" [] |> Result.get_ok
-  let reverse = make_const "append" [] |> Result.get_ok
+  let reverse = make_const "reverse" [] |> Result.get_ok
 end
 
 module PairTheory = struct
@@ -173,4 +172,7 @@ module PairTheory = struct
   |}
 
   let _ = Elaborator.goals_from_string prg
+  let list_def = Hashtbl.find the_inductives "list"
+  let fst = make_const "fst" [] |> Result.get_ok
+  let snd = make_const "snd" [] |> Result.get_ok
 end

@@ -278,9 +278,9 @@ let%expect_test "basic9" =
     |}]
 
 let%expect_test "basic10" =
+  let open Theorems.NatTheory in
   let a = make_var "A" bool_ty in
-  let nat_def = Theorems.NatTheory.nat_def in
-  let x = make_var "x" nat_def.ty in
+  let x = make_var "x" nat_ty in
 
   let goal = make_forall x (make_imp a a) in
 
@@ -1323,7 +1323,7 @@ let%expect_test "another tautology" =
     |}]
 
 let%expect_test "rewrite_basic" =
-  let nat_ty = Theorems.NatTheory.nat_def.ty in
+  let nat_ty = Theorems.NatTheory.nat_ty in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "One" nat_ty in
   let _ = new_constant "Two" nat_ty in
@@ -1391,7 +1391,7 @@ let%expect_test "rewrite_basic" =
     gen_tac
     Proof Complete!
     ========================================
-    ∀x. plus Zero x = x
+    ∀x. plus zero x = x
     |}]
 
 let%expect_test "rewrite induction" =
@@ -1420,7 +1420,7 @@ let%expect_test "rewrite induction" =
     {|
     Proof Complete!
     ========================================
-    ∀x. plus x Zero = x
+    ∀x. plus x zero = x
     |}]
 
 let%expect_test "basic nat" =
@@ -1446,7 +1446,7 @@ let%expect_test "basic nat" =
     {|
     Proof Complete!
     ========================================
-    plus (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc Zero))))
+    plus (suc (suc zero)) (suc (suc (suc zero))) = suc (suc (suc (suc (suc zero))))
     |}]
 
 let%expect_test "plus assoc" =
@@ -1515,8 +1515,6 @@ let%expect_test "suc injective" =
          (Result.get_ok (safe_make_eq x y)))
   in
 
-  List.iter Printing.print_thm Theorems.NatTheory.nat_def.injective;
-
   let next_tactic =
     next_tactic_of_list
     @@ wrap_all with_no_trace
@@ -1539,12 +1537,9 @@ let%expect_test "suc injective" =
 
   [%expect
     {|
-    ========================================
-    ∀x0. ∀y0. Suc x0 = Suc y0 ==> x0 = y0
-
     Proof Complete!
     ========================================
-    ∀x. ∀y. Suc x = Suc y ==> x = y
+    ∀x. ∀y. suc x = suc y ==> x = y
     |}]
 
 (* Lemma needed for commutativity: plus x (Suc y) = Suc (plus x y) *)
@@ -1592,7 +1587,7 @@ let%expect_test "plus suc lemma" =
     {|
     Proof Complete!
     ========================================
-    ∀x. ∀y. plus x (Suc y) = Suc (plus x y)
+    ∀x. ∀y. plus x (suc y) = suc (plus x y)
     |}]
 
 let%expect_test "suc injective rev" =
@@ -1636,7 +1631,7 @@ let%expect_test "suc injective rev" =
     {|
     Proof Complete!
     ========================================
-    ∀x. ∀y. x = y ==> Suc x = Suc y
+    ∀x. ∀y. x = y ==> suc x = suc y
     |}]
 
 (* Commutativity: plus x y = plus y x *)
@@ -1818,7 +1813,7 @@ let%expect_test "length Nil = Zero" =
     {|
     Proof Complete!
     ========================================
-    length nil = Zero
+    length nil = zero
     |}]
 
 let%expect_test "length (Cons Zero Nil) = Suc Zero" =
@@ -1849,7 +1844,7 @@ let%expect_test "length (Cons Zero Nil) = Suc Zero" =
     {|
     Proof Complete!
     ========================================
-    length (cons Zero nil) = Suc Zero
+    length (cons zero nil) = suc zero
     |}]
 
 let%expect_test "length_cons" =
@@ -1891,7 +1886,7 @@ let%expect_test "length_cons" =
     {|
     Proof Complete!
     ========================================
-    ∀x. ∀xs. length (cons x xs) = Suc (length xs)
+    ∀x. ∀xs. length (cons x xs) = suc (length xs)
     |}]
 
 (* xs = Nil ==> length xs = Zero *)
@@ -1932,7 +1927,7 @@ let%expect_test "nil_implies_length_zero" =
     {|
     Proof Complete!
     ========================================
-    ∀xs. xs = nil ==> length xs = Zero
+    ∀xs. xs = nil ==> length xs = zero
     |}]
 
 (* length xs = Zero ==> xs = Nil *)
@@ -1982,9 +1977,9 @@ let%expect_test "length_zero_implies_nil" =
   [%expect
     {|
     Proof Complete!
-    ∀n0. ∀n1. (length n1 = Zero ==> n1 = nil) ==> length (cons n0 n1) = Zero ==> cons n0 n1 = nil
+    ∀n0. ∀n1. (length n1 = zero ==> n1 = nil) ==> length (cons n0 n1) = zero ==> cons n0 n1 = nil
     ========================================
-    ∀x. length x = Zero ==> x = nil
+    ∀x. length x = zero ==> x = nil
     |}]
 
 let%expect_test "append nil xs = xs" =
