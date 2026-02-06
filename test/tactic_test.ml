@@ -2408,3 +2408,274 @@ let%expect_test "test minus" =
     ========================================
     minusOne (suc (suc (suc zero))) = suc (suc zero)
     |}]
+
+let%expect_test "test minus 2" =
+  let prg =
+    {|
+    theorem sub_add_elim: eq 
+        (minus 
+            (suc (suc (suc (suc zero)))) 
+            (suc (suc (suc zero))))
+        (suc zero) 
+  |}
+  in
+
+  let goals = Elaborator.goals_from_string prg in
+
+  let goal = List.hd goals in
+
+  let next_tactic =
+    next_tactic_of_list @@ wrap_all with_no_trace [ simp_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    minus (suc (suc (suc (suc zero)))) (suc (suc (suc zero))) = suc zero
+    |}]
+
+let%expect_test "n - 0 = n" =
+  let prg =
+    {|
+    variable n : nat
+    theorem minus_zero: 
+            (forall λn.
+                (eq 
+                    (minus n zero)
+                    (n)
+                ))
+
+  |}
+  in
+
+  let goals = Elaborator.goals_from_string prg in
+
+  let goal = List.hd goals in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [ induct_tac; simp_tac; gen_tac; intro_tac; simp_tac ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      proven := ("minus_zero", thm) :: !proven;
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. minus x zero = x
+    |}]
+
+(* n - (suc m) = (n - m) - 1 *)
+let%expect_test "minus suc right" =
+  let prg =
+    {|
+    variable n m : nat
+    theorem minus_suc_right:
+            (forall λn.
+                (forall λm.
+                    (eq
+                        (minus n (suc m))
+                        (minusOne (minus n m))
+                    )))
+
+  |}
+  in
+
+  let goals = Elaborator.goals_from_string prg in
+
+  let goal = List.hd goals in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           gen_tac;
+           simp_tac ~add:(lemma "minus_zero");
+           gen_tac;
+           intro_tac;
+           gen_tac;
+           simp_tac;
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      proven := ("minus_suc_right", thm) :: !proven;
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. ∀m. minus x (suc m) = minusOne (minus x m)
+    |}]
+
+(* (suc n) - (suc m) = n - m *)
+let%expect_test "minus suc suc" =
+  let prg =
+    {|
+    variable n m : nat
+    theorem minus_suc_suc:
+            (forall λn.
+                (forall λm.
+                    (eq
+                        (minus (suc n) (suc m))
+                        (minus n m)
+                    )))
+
+  |}
+  in
+
+  let goals = Elaborator.goals_from_string prg in
+
+  let goal = List.hd goals in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           gen_tac;
+           induct_tac;
+           simp_tac ~add:(lemma "minus_zero");
+           gen_tac;
+           intro_tac;
+           rewrite_tac |> with_rewrites (lemma "minus_suc_right");
+           rewrite_tac |> with_assumption_rewrites;
+           rewrite_tac |> with_rewrites (lemma "minus_suc_right");
+           refl_tac;
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      proven := ("minus_suc_suc", thm) :: !proven;
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀n. ∀x. minus (suc n) (suc x) = minus n x
+    |}]
+
+let%expect_test "n - n = z" =
+  let prg =
+    {|
+    variable n : nat
+    theorem minus_zero: 
+            (forall λn.
+                (eq 
+                    (minus n n)
+                    (zero)
+                ))
+
+  |}
+  in
+
+  let goals = Elaborator.goals_from_string prg in
+
+  let goal = List.hd goals in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           induct_tac;
+           simp_tac;
+           gen_tac;
+           intro_tac;
+           simp_tac ~add:(lemma "minus_suc_suc");
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      proven := ("minus_self", thm) :: !proven;
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. minus x x = zero
+    |}]
+
+let%expect_test "x - n + n = x" =
+  let prg =
+    {|
+    variable x n : nat
+    theorem four_min_three_is_one: 
+        forall (λx.
+            (forall λn.
+                (eq 
+                    (minus (plus x n) n)
+                    (x)
+                )))
+
+  |}
+  in
+
+  let goals = Elaborator.goals_from_string prg in
+
+  let goal = List.hd goals in
+
+  let next_tactic =
+    next_tactic_of_list
+    @@ wrap_all with_no_trace
+         [
+           gen_tac;
+           induct_tac;
+           simp_tac ~add:(lemma "plus_x_zero" @ lemma "minus_zero");
+           gen_tac;
+           intro_tac;
+           rewrite_tac |> with_rewrites (lemma "plus_suc");
+           rewrite_tac |> with_rewrites (lemma "minus_suc_suc");
+           assumption_tac;
+         ]
+  in
+  (match prove ([], goal) next_tactic with
+  | Complete thm ->
+      print_endline "Proof Complete!";
+      Printing.print_thm thm
+  | Incomplete (asms, g) ->
+      print_endline "Proof Incomplete";
+      List.iter print_term asms;
+      Printing.print_term g);
+
+  [%expect
+    {|
+    Proof Complete!
+    ========================================
+    ∀x. ∀x'. minus (plus x x') x' = x
+    |}]

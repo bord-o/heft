@@ -77,6 +77,14 @@ module NatTheory = struct
         | zero => zero
         | suc m => m
 
+    def minusBackwards over o : nat -> nat -> nat
+        | zero    => λm. m
+        | suc n => λm. minusOne (minusBackwards n m)
+
+    def minus over o : nat -> nat -> nat
+        | zero  => λn. minusBackwards n zero
+        | suc m => λn. minusBackwards n (suc m)
+
   |}
 
   let _ =
