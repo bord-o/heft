@@ -2,10 +2,13 @@
 
 ## Now
 
+- [] Upgrade language to not need "over ?x" in definitions
+- [] Move proven theorems into theorems.ml if they aren't actually testing edge cases or features (debloat test file)
+- [] Refactor tactic tests
 - [] Write a small subsystem for automatically adding proven statements to some sort of state for use in rewrites/applications (this is done manually right now)
 - [] Refactor tactics to use handlers rather than arguments where it makes sense
 - [] Test existing handlers more thoroughly
-- [] Set up core theorems and definitions in theories of Nat, List, Pair
+- [ x] Set up core theorems and definitions in theories of Nat, List, Pair
 - [] Refactor handlers to always assume they are running under ambient handler [../lib/tactic.ml]
     - [] New modules for foundational tactics system (effect definitions, core tactics, ambient handle), tactic combinators, and search handlers?
 - [] Write more tests for rewriting [../test/rewrite_test.ml]
@@ -19,9 +22,10 @@
 - [] Write auto tactic inspired by aesop [../lib/tactic.ml]
     - [] Create best-first handler
 
-## Stretch Goals
+## Eventually 
+- [] Let language recurse on arbitrary argument
 - [] Decide if there should be a separate user facing module for tactics and combinators that are pre configured for most use cases.
 - [] Create a cli interface around the with_interactive choice handler
     - [] Built on top of an ocaml toplevel, proof of concept that this architecture can match HOL-light
-- [] Write a simple parser for hol terms
-- [] Write a simple parser for hol definitions
+- [ x ] Write a simple parser for hol terms
+- [ x ] Write a simple parser for hol definitions
