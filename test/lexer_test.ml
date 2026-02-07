@@ -3,7 +3,7 @@ open Lexer
 
 (* Tests *)
 let%expect_test "keywords" =
-  let tokens = tokenize_string "vartype inductive variable def over theorem" in
+  let tokens = tokenize_string "vartype inductive variable def theorem" in
   List.iter (fun t -> print_endline (show_token t)) tokens;
   [%expect
     {|
@@ -11,7 +11,6 @@ let%expect_test "keywords" =
     Lexer.INDUCTIVE
     Lexer.VARIABLE
     Lexer.DEF
-    Lexer.OVER
     Lexer.THEOREM
     Lexer.EOF
     |}]
@@ -108,7 +107,7 @@ let%expect_test "def_with_lambda" =
   let tokens =
     tokenize_string
       {|
-    def plus over n : nat -> nat -> nat
+    def plus : nat -> nat -> nat
     | zero => λm. m
     | suc n => λm. suc (plus n m)
   |}
@@ -118,8 +117,6 @@ let%expect_test "def_with_lambda" =
     {|
     Lexer.DEF
     (Lexer.IDENT "plus")
-    Lexer.OVER
-    (Lexer.IDENT "n")
     Lexer.COLON
     (Lexer.IDENT "nat")
     Lexer.ARROW
@@ -189,11 +186,11 @@ let%expect_test "full_example" =
     variable x y : a
     variable xs ys : list a
 
-    def plus over n : nat -> nat -> nat
+    def plus : nat -> nat -> nat
     | zero => λm. m
     | suc n => λm. suc (plus n m)
 
-    def map over xs : list a -> (a -> b) -> list b
+    def map : list a -> (a -> b) -> list b
     | nil => λf. nil
     | cons x xs => λf. cons (f x) (map xs f)
 
@@ -201,4 +198,4 @@ let%expect_test "full_example" =
   |}
   in
   Printf.printf "Token count: %d\n" (List.length tokens);
-  [%expect {| Token count: 136 |}]
+  [%expect {| Token count: 132 |}]

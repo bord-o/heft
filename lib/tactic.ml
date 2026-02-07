@@ -344,6 +344,24 @@ let beta_tac : tactic =
   in
   return_thm ~from:"beta_tac" thm
 
+let beta_asm_tac : tactic =
+ fun (asms, conc) ->
+  burn 1;
+  let thm =
+    let chosen_asm = choose_terms asms in
+    let* beta_thm = deep_beta chosen_asm in
+    let* _, asm_reduced = destruct_eq (concl beta_thm) in
+    if alphaorder chosen_asm asm_reduced = 0 then fail ();
+
+    let asms' = asm_reduced :: List.filter (( <> ) chosen_asm) asms in
+    let sub_thm = perform @@ Subgoal (asms', conc) in
+
+    let* asm_thm = assume chosen_asm in
+    let* new_asm_thm = eq_mp beta_thm asm_thm in
+    prove_hyp new_asm_thm sub_thm
+  in
+  return_thm ~from:"beta_asm_tac" thm
+
 let mp_asm_tac : tactic =
  fun (asms, concl) ->
   burn 3;
@@ -1028,6 +1046,7 @@ let simp_tac ?(with_asms = true) ?(add = []) : tactic =
   thm
 
 (* simp for assumptions - simplifies an assumption using definition rules *)
+(* todo; remove the assumption we are currently simplifying from assumptions *)
 let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
  fun goal ->
   let definitions =
@@ -1045,7 +1064,8 @@ let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
 
   let thm =
     with_repeat
-      (with_dfs ~amb:true ~tacs:[]
+      (with_dfs ~amb:true
+         ~tacs:(wrap_all with_no_trace [ beta_asm_tac; assumption_tac ])
          (with_no_trace @@ with_rw rules rewrite_asm_tac))
       goal
   in

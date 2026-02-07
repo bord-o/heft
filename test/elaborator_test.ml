@@ -35,7 +35,7 @@ let%expect_test "elaborate_nat_and_plus" =
 
     variable n m : nat
 
-    def plus over n : nat -> nat -> nat
+    def plus : nat -> nat -> nat
     | Zero => λm. m
     | Suc n => λm. Suc (plus n m)
   |}
@@ -69,7 +69,7 @@ let%expect_test "elaborate_theorem" =
 
     variable n m : nat
 
-    def plus over n : nat -> nat -> nat
+    def plus : nat -> nat -> nat
     | Zero => λm. m
     | Suc n => λm. Suc (plus n m)
 

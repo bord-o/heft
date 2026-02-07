@@ -224,93 +224,142 @@ let rec elab_expr_with_rec env rec_call_info (e : P.expr) =
             (`InvariantViolation
                (Printf.sprintf "Lambda variable %s not in scope" x)))
 
-(* Elaborate a function definition clause *)
+(* Elaborate a function definition clause for a recursive definition *)
 let elab_def_clause env func_name ind_def ret_ty (pat, body) =
-  match pat with
-  | P.PVar _ -> elab_expr env body
-  | P.PCon (con_name, args) -> (
-      let con_term_opt = List.assoc_opt con_name ind_def.constructors in
-      let arg_tys =
-        match con_term_opt with
-        | Some (K.Const (_, ty)) -> get_hol_arg_types ty
-        | _ -> []
+  (* Normalize pattern: PVar that matches a constructor becomes PCon with no args *)
+  let con_name, args =
+    match pat with
+    | P.PCon (name, args) -> (name, args)
+    | P.PVar name -> (name, [])
+    (* Either a nullary constructor or variable *)
+  in
+  let con_term_opt = List.assoc_opt con_name ind_def.constructors in
+  let arg_tys =
+    match con_term_opt with
+    | Some (K.Const (_, ty)) -> get_hol_arg_types ty
+    | _ -> []
+  in
+  let arg_bindings =
+    List.map2
+      (fun p ty ->
+        match p with P.PVar n -> K.Var (n, ty) | P.PCon _ -> K.Var ("_", ty))
+      args arg_tys
+  in
+  let var_bindings =
+    List.map2
+      (fun p ty ->
+        match p with P.PVar n -> (n, ty) | P.PCon (n, _) -> (n, ty))
+      args arg_tys
+  in
+  (* For each recursive arg, create r_i variable and mapping *)
+  let rec_info =
+    List.filter_map
+      (fun (i, (p, ty)) ->
+        if ty = ind_def.ty then
+          let arg_name = match p with P.PVar n -> n | P.PCon (n, _) -> n in
+          let r_name = "r" ^ string_of_int i in
+          Some (arg_name, r_name, ty)
+        else None)
+      (List.mapi (fun i (p, ty) -> (i, (p, ty))) (List.combine args arg_tys))
+  in
+  let rec_bindings = List.map (fun (_, r, _) -> (r, ret_ty)) rec_info in
+  let rec_arg_map =
+    List.map (fun (arg, r, _) -> (arg, K.Var (r, ret_ty))) rec_info
+  in
+  let env' = { env with vars = var_bindings @ rec_bindings @ env.vars } in
+  match elab_expr_with_rec env' (func_name, rec_arg_map) body with
+  | Error e -> Error e
+  | Ok body' ->
+      let rec_vars = List.map (fun (_, r, _) -> K.Var (r, ret_ty)) rec_info in
+      let all_vars = arg_bindings @ rec_vars in
+      let case_term =
+        List.fold_right
+          (fun v acc -> match make_lam v acc with Ok l -> l | Error _ -> acc)
+          all_vars body'
       in
-      let arg_bindings =
-        List.map2
-          (fun p ty ->
-            match p with
-            | P.PVar n -> K.Var (n, ty)
-            | P.PCon _ -> K.Var ("_", ty))
-          args arg_tys
-      in
-      let var_bindings =
-        List.map2
-          (fun p ty ->
-            match p with P.PVar n -> (n, ty) | P.PCon (n, _) -> (n, ty))
-          args arg_tys
-      in
-      (* For each recursive arg, create r_i variable and mapping *)
-      let rec_info =
-        List.filter_map
-          (fun (i, (p, ty)) ->
-            if ty = ind_def.ty then
-              let arg_name =
-                match p with P.PVar n -> n | P.PCon (n, _) -> n
-              in
-              let r_name = "r" ^ string_of_int i in
-              Some (arg_name, r_name, ty)
-            else None)
-          (List.mapi
-             (fun i (p, ty) -> (i, (p, ty)))
-             (List.combine args arg_tys))
-      in
-      let rec_bindings = List.map (fun (_, r, _) -> (r, ret_ty)) rec_info in
-      let rec_arg_map =
-        List.map (fun (arg, r, _) -> (arg, K.Var (r, ret_ty))) rec_info
-      in
-      let env' = { env with vars = var_bindings @ rec_bindings @ env.vars } in
-      match elab_expr_with_rec env' (func_name, rec_arg_map) body with
-      | Error e -> Error e
-      | Ok body' ->
-          let rec_vars =
-            List.map (fun (_, r, _) -> K.Var (r, ret_ty)) rec_info
-          in
-          let all_vars = arg_bindings @ rec_vars in
-          let case_term =
-            List.fold_right
-              (fun v acc ->
-                match make_lam v acc with Ok l -> l | Error _ -> acc)
-              all_vars body'
-          in
-          Ok case_term)
+      Ok case_term
 
-let elab_definition env name _over ty clauses =
+(* Elaborate a non-recursive definition with a single clause binding the first arg *)
+let elab_simple_definition env name hol_ty (pat, body) =
+  let arg_ty =
+    match hol_ty with K.TyCon ("fun", [ arg; _ ]) -> arg | _ -> hol_ty
+  in
+  let var_name = match pat with P.PVar n -> n | P.PCon (n, _) -> n in
+  let env' = { env with vars = (var_name, arg_ty) :: env.vars } in
+  match elab_expr env' body with
+  | Error e -> Error e
+  | Ok body_term -> (
+      let var = K.Var (var_name, arg_ty) in
+      match make_lam var body_term with
+      | Error e -> Error e
+      | Ok lam_term -> (
+          (* Create a simple definition: name = λvar. body
+             Create constant, then axiom, then add to the_specifications *)
+          match new_constant name hol_ty with
+          | Error e -> Error e
+          | Ok () -> (
+              let def_const = K.Const (name, hol_ty) in
+              let eq = Result.get_ok (safe_make_eq def_const lam_term) in
+              match new_axiom eq with
+              | Error e -> Error e
+              | Ok thm ->
+                  Hashtbl.add the_specifications name thm;
+                  Ok thm)))
+
+let elab_definition env name ty clauses =
   let hol_ty = elab_ty env ty in
   let rec_ty, ret_ty =
     match hol_ty with
     | K.TyCon ("fun", [ arg; rest ]) -> (arg, rest)
     | _ -> (hol_ty, hol_ty)
   in
+  (* Find if there's an inductive type matching the first argument *)
   let ind_def_opt =
     env.inductives
     |> List.find_map (fun (_, def) ->
         if def.ty = rec_ty then Some def else None)
   in
-  match ind_def_opt with
-  | None -> Error (`InvariantViolation "No inductive type found for recursion")
-  | Some ind_def -> (
-      let rec build_cases acc = function
-        | [] -> Ok (List.rev acc)
-        | clause :: rest -> (
-            match elab_def_clause env name ind_def ret_ty clause with
-            | Error e -> Error e
-            | Ok term -> build_cases (term :: acc) rest)
-      in
-      match build_cases [] clauses with
-      | Error e -> Error e
-      | Ok case_terms ->
-          let ind_name = match rec_ty with K.TyCon (n, _) -> n | _ -> "" in
-          define_recursive_function name ret_ty ind_name case_terms)
+  (* Check if clauses use constructor patterns (recursive) or variable patterns (simple)
+     A PVar is a constructor if it matches a known constructor name *)
+  let is_constructor_pattern pat ind_def =
+    match pat with
+    | P.PCon _ -> true
+    | P.PVar name -> List.mem_assoc name ind_def.constructors
+  in
+  let is_recursive =
+    match (clauses, ind_def_opt) with
+    | [], _ -> false
+    | (pat, _) :: _, Some ind_def -> is_constructor_pattern pat ind_def
+    | (P.PCon _, _) :: _, None ->
+        true (* PCon without inductive - will error later *)
+    | (P.PVar _, _) :: _, None -> false
+  in
+  if not is_recursive then
+    (* Non-recursive: single clause with variable pattern *)
+    match clauses with
+    | [ clause ] -> elab_simple_definition env name hol_ty clause
+    | _ ->
+        Error
+          (`InvariantViolation
+             "Non-recursive definition must have exactly one clause")
+  else
+    (* Recursive definition over an inductive type *)
+    match ind_def_opt with
+    | None ->
+        Error (`InvariantViolation "No inductive type found for recursion")
+    | Some ind_def -> (
+        let rec build_cases acc = function
+          | [] -> Ok (List.rev acc)
+          | clause :: rest -> (
+              match elab_def_clause env name ind_def ret_ty clause with
+              | Error e -> Error e
+              | Ok term -> build_cases (term :: acc) rest)
+        in
+        match build_cases [] clauses with
+        | Error e -> Error e
+        | Ok case_terms ->
+            let ind_name = match rec_ty with K.TyCon (n, _) -> n | _ -> "" in
+            define_recursive_function name ret_ty ind_name case_terms)
 
 (* Elaborate a top-level definition and update environment *)
 let elab_toplevel env (d : P.def) =
@@ -355,8 +404,8 @@ let elab_toplevel env (d : P.def) =
             { env with inductives = (name, ind_def) :: env.inductives }
           in
           Ok (env', None))
-  | P.Def (name, over, ty, clauses) -> (
-      match elab_definition env name over ty clauses with
+  | P.Def (name, ty, clauses) -> (
+      match elab_definition env name ty clauses with
       | Error e -> Error e
       | Ok def_thm ->
           let env' = { env with defs = (name, def_thm) :: env.defs } in

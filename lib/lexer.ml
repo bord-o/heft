@@ -6,7 +6,6 @@ type token =
   | INDUCTIVE
   | VARIABLE
   | DEF
-  | OVER
   | THEOREM
   (* Symbols *)
   | COLONEQ (* := *)
@@ -42,7 +41,6 @@ let keyword_table =
     ("inductive", INDUCTIVE);
     ("variable", VARIABLE);
     ("def", DEF);
-    ("over", OVER);
     ("theorem", THEOREM);
   ]
 

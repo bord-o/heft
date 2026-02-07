@@ -127,7 +127,7 @@ let print_error = function
   | `ConstructorsAlreadyExist -> "ConstructorsAlreadyExist"
   | `DefinitionError _ -> "DefinitionError"
   | `Eq_MP _ -> "Eq_MP"
-  | `InvariantViolation _ -> "InvariantViolation"
+  | `InvariantViolation s -> "InvariantViolation: " ^ s
   | `LamRuleCantApply -> "LamRuleCantApply"
   | `MakeAppTypesDontAgree _ -> "MakeAppTypesDontAgree"
   | `MakeLamNotAVariable _ -> "MakeLamNotAVariable"

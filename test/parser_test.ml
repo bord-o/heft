@@ -57,7 +57,7 @@ let%expect_test "parse_def_plus" =
   let ds =
     parse_string
       {|
-    def plus over n : nat -> nat -> nat
+    def plus : nat -> nat -> nat
     | zero => λm. m
     | suc n => λm. suc (plus n m)
   |}
@@ -65,7 +65,7 @@ let%expect_test "parse_def_plus" =
   List.iter (fun d -> print_endline (show_def d)) ds;
   [%expect
     {|
-    (Parser.Def ("plus", "n",
+    (Parser.Def ("plus",
        (Parser.TyFun ((Parser.TyVar "nat"),
           (Parser.TyFun ((Parser.TyVar "nat"), (Parser.TyVar "nat"))))),
        [((Parser.PVar "zero"), (Parser.Lam ("m", (Parser.Var "m"))));
@@ -115,11 +115,11 @@ let%expect_test "parse_full" =
     variable n m : nat
     variable xs : list a
 
-    def plus over n : nat -> nat -> nat
+    def plus : nat -> nat -> nat
     | zero => λm. m
     | suc n => λm. suc (plus n m)
 
-    def map over xs : list a -> (a -> b) -> list b
+    def map : list a -> (a -> b) -> list b
     | nil => λf. nil
     | cons x xs => λf. cons (f x) (map xs f)
 

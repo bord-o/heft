@@ -12,7 +12,7 @@ type def =
   | Vartype of string list
   | Variable of string list * ty
   | Inductive of string * (string * ty) list
-  | Def of string * string * ty * (pat * expr) list
+  | Def of string * ty * (pat * expr) list
   | Theorem of string * expr
 [@@deriving show]
 
@@ -203,11 +203,9 @@ let def s =
   | DEF ->
       advance s;
       let name = ident s in
-      expect s OVER;
-      let over = ident s in
       expect s COLON;
       let t = ty s in
-      Def (name, over, t, clauses s)
+      Def (name, t, clauses s)
   | THEOREM ->
       advance s;
       let name = ident s in

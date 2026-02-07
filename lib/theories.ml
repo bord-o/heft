@@ -69,21 +69,20 @@ module NatTheory = struct
 
     variable o m n : nat
 
-    def plus over o : nat -> nat -> nat 
+    def plus : nat -> nat -> nat 
         | zero => λn. n
         | suc m => λn. suc (plus m n)
 
-    def minusOne over o : nat ->  nat
+    def pred : nat ->  nat
         | zero => zero
         | suc m => m
 
-    def minusBackwards over o : nat -> nat -> nat
+    def minusFlip : nat -> nat -> nat
         | zero    => λm. m
-        | suc n => λm. minusOne (minusBackwards n m)
+        | suc n => λm. pred (minusFlip n m)
 
-    def minus over o : nat -> nat -> nat
-        | zero  => λn. minusBackwards n zero
-        | suc m => λn. minusBackwards n (suc m)
+    def minus : nat -> nat -> nat
+        | m => λn. minusFlip n m
 
   |}
 
@@ -134,17 +133,17 @@ module ListTheory = struct
     variable l l' xs : list a
     variable x : a
 
-    def length over l : list a -> nat 
+    def length : list a -> nat 
         | nil => zero
         | cons x xs =>
             suc (length xs)
 
-    def append over l : list a -> list a -> list a
+    def append : list a -> list a -> list a
         | nil => λxs. xs
         | cons x xs =>
             λl'. cons x (append xs l')
 
-    def reverse over l : list a -> list a
+    def reverse  : list a -> list a
         | nil => nil
         | cons x xs => append (reverse xs) (cons x nil)
   |}
@@ -173,10 +172,10 @@ module PairTheory = struct
     variable r : b
     variable p : pair a b
 
-    def fst over p : pair a b -> a
+    def fst : pair a b -> a
         | pair l r => l
 
-    def snd over p : pair a b -> b
+    def snd : pair a b -> b
         | pair l r => r
 
     variable x y : a

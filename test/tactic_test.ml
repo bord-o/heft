@@ -1729,7 +1729,7 @@ let%expect_test "test minus" =
   let prg =
     {|
     theorem three_minus_one_is_two : eq
-        (minusOne (suc (suc (suc zero))) )
+        (pred (suc (suc (suc zero))) )
         (suc (suc zero))
   |}
   in
@@ -1740,7 +1740,7 @@ let%expect_test "test minus" =
     {|
     Proof Complete!
     ========================================
-    minusOne (suc (suc (suc zero))) = suc (suc zero)
+    pred (suc (suc (suc zero))) = suc (suc zero)
     |}]
 
 let%expect_test "test minus 2" =
@@ -1798,7 +1798,7 @@ let%expect_test "minus suc right" =
                 (forall λm.
                     (eq
                         (minus n (suc m))
-                        (minusOne (minus n m))
+                        (pred (minus n m))
                     )))
 
   |}
@@ -1820,7 +1820,7 @@ let%expect_test "minus suc right" =
     {|
     Proof Complete!
     ========================================
-    ∀x. ∀m. minus x (suc m) = minusOne (minus x m)
+    ∀x. ∀m. minus x (suc m) = pred (minus x m)
     |}]
 
 (* (suc n) - (suc m) = n - m *)
@@ -1882,6 +1882,7 @@ let%expect_test "n - n = z" =
          gen_tac;
          intro_tac;
          simp_tac ~add:(lemma "minus_suc_suc");
+         simp_asm_tac ~with_asms:false;
        ]);
 
   [%expect
