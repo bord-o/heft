@@ -4,7 +4,7 @@
 
 - [] Upgrade language to not need "over ?x" in definitions
 - [] Move proven theorems into theorems.ml if they aren't actually testing edge cases or features (debloat test file)
-- [] Refactor tactic tests
+- [ x ] Refactor tactic tests
 - [] Write a small subsystem for automatically adding proven statements to some sort of state for use in rewrites/applications (this is done manually right now)
 - [] Refactor tactics to use handlers rather than arguments where it makes sense
 - [] Test existing handlers more thoroughly
