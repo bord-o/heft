@@ -58,6 +58,31 @@ let contrapositive =
   in
   make_exn thm
 
+module FunctionTheory = struct
+  let prg =
+    {|
+
+    vartype a
+    vartype b
+    vartype c
+    variable x a : a
+    variable b : b
+
+
+    def twice : (a -> a) -> a -> a
+        | f => λx. f (f x)
+
+    def flip : (a -> b -> c) -> b -> a -> c
+        | f => λb. λa. f a b
+
+  |}
+
+  let _ =
+    match Elaborator.elaborate_string prg with
+    | Ok v -> v
+    | Error e -> failwith @@ Printing.print_error e
+end
+
 module NatTheory = struct
   let prg =
     {|
@@ -82,7 +107,7 @@ module NatTheory = struct
         | suc n => λm. pred (minusFlip n m)
 
     def minus : nat -> nat -> nat
-        | m => λn. minusFlip n m
+        | m => (flip minusFlip) m
 
   |}
 

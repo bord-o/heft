@@ -1754,7 +1754,7 @@ let%expect_test "test minus 2" =
   |}
   in
   let goal = List.hd (Elaborator.goals_from_string prg) in
-  run_proof goal (wrap_all with_no_trace [ simp_tac ]);
+  run_proof goal ( [ simp_tac ]);
 
   [%expect
     {|
@@ -1925,4 +1925,22 @@ let%expect_test "x - n + n = x" =
     Proof Complete!
     ========================================
     ∀x. ∀x'. minus (plus x x') x' = x
+    |}]
+
+let%expect_test "pred twice" =
+  let prg =
+    {|
+    theorem four_min_three_is_one:
+        eq 
+            (twice pred (suc (suc zero)))
+            (zero)
+  |}
+  in
+  let goal = List.hd (Elaborator.goals_from_string prg) in
+  run_proof goal (wrap_all with_no_trace [ simp_tac ]);
+
+  [%expect {|
+    Proof Complete!
+    ========================================
+    twice pred (suc (suc zero)) = zero
     |}]

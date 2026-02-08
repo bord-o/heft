@@ -129,7 +129,10 @@ let print_error = function
   | `Eq_MP _ -> "Eq_MP"
   | `InvariantViolation s -> "InvariantViolation: " ^ s
   | `LamRuleCantApply -> "LamRuleCantApply"
-  | `MakeAppTypesDontAgree _ -> "MakeAppTypesDontAgree"
+  | `MakeAppTypesDontAgree (ty1, ty2) ->
+      Printf.sprintf "MakeAppTypesDontAgree %s != %s\n"
+        (pretty_print_hol_type ty1)
+        (pretty_print_hol_type ty2)
   | `MakeLamNotAVariable _ -> "MakeLamNotAVariable"
   | `NameMappingError _ -> "NameMappingError"
   | `NewAxiomNotAProp -> "NewAxiomNotAProp"
