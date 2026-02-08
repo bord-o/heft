@@ -1754,7 +1754,7 @@ let%expect_test "test minus 2" =
   |}
   in
   let goal = List.hd (Elaborator.goals_from_string prg) in
-  run_proof goal ( [ simp_tac ]);
+  run_proof goal [ simp_tac ];
 
   [%expect
     {|
@@ -1939,7 +1939,8 @@ let%expect_test "pred twice" =
   let goal = List.hd (Elaborator.goals_from_string prg) in
   run_proof goal (wrap_all with_no_trace [ simp_tac ]);
 
-  [%expect {|
+  [%expect
+    {|
     Proof Complete!
     ========================================
     twice pred (suc (suc zero)) = zero

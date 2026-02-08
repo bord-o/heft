@@ -102,12 +102,12 @@ module NatTheory = struct
         | zero => zero
         | suc m => m
 
-    def minusFlip : nat -> nat -> nat
+    def minus' : nat -> nat -> nat
         | zero    => λm. m
-        | suc n => λm. pred (minusFlip n m)
+        | suc n => λm. pred (minus' n m)
 
     def minus : nat -> nat -> nat
-        | m => (flip minusFlip) m
+        | m => (flip minus') m
 
   |}
 
