@@ -67,13 +67,19 @@ module FunctionTheory = struct
     vartype c
     variable x a : a
     variable b : b
-
+    variable g : (c -> a)
 
     def twice : (a -> a) -> a -> a
         | f => λx. f (f x)
 
     def flip : (a -> b -> c) -> b -> a -> c
         | f => λb. λa. f a b
+
+    def const : a -> b -> a
+        | x => λb. x
+
+    def compose : (a -> b) -> (c -> a) -> c -> b 
+        | f => λg. λx. f (g x)
 
   |}
 
