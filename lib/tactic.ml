@@ -11,8 +11,10 @@ type level = Debug | Info | Warn | Error | Proof
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 type tactic = goal -> thm
 type tactic_combinator = tactic -> tactic
+type priority = Safe | Unsafe of int
 
 type _ rankable =
+  | Priority : (tactic * priority * goal) list -> (tactic * goal) rankable
   | Term : term list -> term rankable
   | Goal : goal list -> goal rankable
   | Tactic : tactic list -> tactic rankable
@@ -34,10 +36,10 @@ type _ Effect.t +=
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Burn : int -> unit Effect.t
-  | Rewrites : unit -> thm list Effect.t
-  | Lemmas : unit -> thm list Effect.t
+  | Rules : unit -> thm list Effect.t
 
 let as_ranked_list : type a. a rankable -> a list = function
+  | Priority l -> List.map (fun (tac, _pri, g) -> (tac, g)) l
   | Term ts -> ts
   | Goal gs -> gs
   | Tactic tacs -> tacs
@@ -150,7 +152,7 @@ let apply_asm_tac : tactic =
 let apply_thm_tac : tactic =
  fun (asms, conc) ->
   burn 3;
-  let lemmas = perform (Lemmas ()) in
+  let lemmas = perform (Rules ()) in
   let chosen_thm = choose_theorems lemmas in
 
   let rec strip_foralls_acc thm vars =
@@ -207,7 +209,7 @@ let apply_thm_tac : tactic =
 let apply_thm_asm_tac : tactic =
  fun (asms, conc) ->
   burn 3;
-  let lemmas = perform (Lemmas ()) in
+  let lemmas = perform (Rules ()) in
   let chosen_thm = choose_theorems lemmas in
   let chosen_asm = choose_terms asms in
 
@@ -297,7 +299,7 @@ let rewrite_tac : tactic =
  fun (asms, conc) ->
   burn 2;
   let thm =
-    let rules = perform (Rewrites ()) in
+    let rules = perform (Rules ()) in
     let* chosen_rule = strip_forall (choose_theorems rules) in
 
     let* rw_thm = rewrite_once chosen_rule conc in
@@ -315,7 +317,7 @@ let rewrite_asm_tac : tactic =
  fun (asms, conc) ->
   burn 2;
   let thm =
-    let rules = perform (Rewrites ()) in
+    let rules = perform (Rules ()) in
     let* chosen_rule = strip_forall (choose_theorems rules) in
     let chosen_asm = choose_terms asms in
 
@@ -641,24 +643,6 @@ let ctauto_tac : tactic =
   in
   tac goal
 
-let safe_tacs : tactic =
- fun goal ->
-  let tac =
-    choose_tactics
-      [
-        assumption_tac;
-        intro_tac;
-        neg_intro_tac;
-        gen_tac;
-        conj_tac;
-        elim_conj_asm_tac;
-        elim_disj_asm_tac;
-        false_elim_tac;
-        mp_asm_tac;
-      ]
-  in
-  tac goal
-
 (* 
    As a general rule, custom handlers should handle the least amount of 
    effects possible. The main handler captures all effects, but implements only basic
@@ -941,16 +925,16 @@ let with_assumption_rewrites : tactic_combinator =
       asms
   in
   match tac (asms, concl) with
-  | effect Rewrites (), k -> continue k asm_thms
+  | effect Rules (), k -> continue k asm_thms
   | v -> v
 
 let with_rewrites (rewrites : thm list) : tactic_combinator =
  fun tac goal ->
-  match tac goal with effect Rewrites (), k -> continue k rewrites | v -> v
+  match tac goal with effect Rules (), k -> continue k rewrites | v -> v
 
 let with_lemmas (lemmas : thm list) : tactic_combinator =
  fun tac goal ->
-  match tac goal with effect Lemmas (), k -> continue k lemmas | v -> v
+  match tac goal with effect Rules (), k -> continue k lemmas | v -> v
 
 let with_lemmas_and_assumptions (lemmas : thm list) : tactic_combinator =
  fun tac (asms, concl) ->
@@ -960,7 +944,7 @@ let with_lemmas_and_assumptions (lemmas : thm list) : tactic_combinator =
       asms
   in
   match tac (asms, concl) with
-  | effect Lemmas (), k -> continue k (lemmas @ asm_thms)
+  | effect Rules (), k -> continue k (lemmas @ asm_thms)
   | v -> v
 
 let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
@@ -971,7 +955,7 @@ let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
       asms
   in
   match tac (asms, concl) with
-  | effect Rewrites (), k -> continue k (rewrites @ asm_thms)
+  | effect Rules (), k -> continue k (rewrites @ asm_thms)
   | v -> v
 
 (* NOTE: 
@@ -990,6 +974,11 @@ let with_dfs ?(amb = false) ?(tacs = []) : tactic_combinator =
   | Incomplete _ -> fail ()
   | Complete thm -> thm
 
+let with_bfs ?(tacs = []) : tactic_combinator =
+ fun tac goal ->
+  let q = Queue.of_seq (List.to_seq (tac :: tacs)) in
+  match prove_bfs goal q with Incomplete _ -> fail () | Complete thm -> thm
+
 (*
   simp needs to pull in definition rewrite rules, assumptions rewrites,
   and try to keep applying them while performing beta reduction in between.
@@ -999,8 +988,8 @@ let with_dfs ?(amb = false) ?(tacs = []) : tactic_combinator =
 let with_definition_rewrites : tactic_combinator =
  fun tac goal ->
   match tac goal with
-  | effect Rewrites (), k ->
-      let ambient_rules = perform @@ Rewrites () in
+  | effect Rules (), k ->
+      let ambient_rules = perform @@ Rules () in
       let definitions =
         the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
       in
@@ -1023,6 +1012,7 @@ let core_simp : tactic =
 
 let simp_tac ?(with_asms = true) ?(add = []) : tactic =
  fun goal ->
+  (* TODO: get the base simp set here. The effect for rules should return proper rules not just unprocessed thms *)
   let definitions =
     the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
   in
@@ -1074,7 +1064,102 @@ let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
 let with_fail ~(on_fail : tactic) : tactic_combinator =
  fun tac goal -> match tac goal with effect Fail, _k -> on_fail goal | v -> v
 
-(* This is looping in some scenarios, need to look into this *)
-let auto_tac : tactic =
-  with_repeat (fun goal ->
-      with_fail ~on_fail:simp_tac (with_first_success safe_tacs) goal)
+let safe_tacs : tactic =
+ fun goal ->
+  let tac =
+    choose_tactics
+    @@ wrap_all with_first_success
+         [
+           assumption_tac;
+           intro_tac;
+           neg_intro_tac;
+           gen_tac;
+           conj_tac;
+           elim_conj_asm_tac;
+           false_elim_tac;
+           mp_asm_tac;
+         ]
+  in
+  tac goal
+
+let test_list =
+  [
+    assumption_tac;
+    intro_tac;
+    neg_intro_tac;
+    gen_tac;
+    conj_tac;
+    elim_conj_asm_tac;
+    elim_disj_asm_tac;
+    false_elim_tac;
+    neg_elim_tac;
+    apply_asm_tac;
+    apply_neg_asm_tac;
+    mp_asm_tac;
+    left_tac;
+    right_tac;
+    ccontr_tac;
+  ]
+
+let with_search_dfs : tactic_combinator =
+ fun tac goal ->
+  let rec handler f =
+    match f () with
+    | effect Choose choices, k ->
+        let r = Multicont.Deep.promote k in
+        let rec try_each = function
+          | [] -> fail ()
+          | c :: cs -> (
+              match handler (fun () -> Multicont.Deep.resume r c) with
+              | effect Fail, _ -> try_each cs
+              | thm -> thm)
+        in
+        try_each (as_chosen_list choices)
+    | effect Fail, _ -> fail ()
+    | thm -> thm
+  in
+  handler (fun () -> tac goal)
+
+let rec auto_tac ?(add = []) goal : thm =
+  let tacs =
+    [
+      simp_tac ~with_asms:true ~add;
+      gen_tac;
+      intro_tac;
+      assumption_tac;
+      neg_intro_tac;
+      conj_tac;
+      elim_conj_asm_tac;
+      false_elim_tac;
+      mp_asm_tac;
+    ]
+  in
+
+  let handler (f : unit -> thm) : thm =
+    match f () with
+    | effect Subgoal g, k ->
+        if g = goal then fail ()
+        else
+          let r = Multicont.Deep.promote k in
+          let thm = auto_tac g in
+          Multicont.Deep.resume r thm
+    | thm -> thm
+  in
+  handler (fun () ->
+      let tac = choose_tactics tacs in
+      tac goal)
+
+let auto_dfs_tac ?(add = []) = with_search_dfs (auto_tac ~add)
+
+let rec ctauto_tac' goal : thm =
+  let handler (f : unit -> thm) : thm =
+    match f () with
+    | effect Subgoal g, k ->
+        let r = Multicont.Deep.promote k in
+        let thm = ctauto_tac' g in
+        Multicont.Deep.resume r thm
+    | thm -> thm
+  in
+  handler (fun () ->
+      let tac = choose_tactics test_list in
+      tac goal)

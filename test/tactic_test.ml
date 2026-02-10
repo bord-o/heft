@@ -1543,16 +1543,7 @@ let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
     make_foralls [ xs; ys; zs ] @@ Result.get_ok (safe_make_eq lhs rhs)
   in
   run_proof ~store:"append_assoc" goal
-    (wrap_all with_no_trace
-       [
-         induct_tac;
-         with_repeat gen_tac;
-         simp_tac;
-         with_repeat gen_tac;
-         intro_tac;
-         with_repeat gen_tac;
-         simp_tac;
-       ]);
+    (wrap_all with_no_trace [ induct_tac; auto_dfs_tac; auto_dfs_tac ]);
 
   [%expect
     {|
@@ -1581,16 +1572,7 @@ let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
 
   let goal = make_foralls [ xs; ys ] @@ Result.get_ok (safe_make_eq lhs rhs) in
   run_proof ~store:"append_length" goal
-    (wrap_all with_no_trace
-       [
-         induct_tac;
-         gen_tac;
-         simp_tac;
-         with_repeat gen_tac;
-         intro_tac;
-         gen_tac;
-         simp_tac;
-       ]);
+    (wrap_all with_no_trace [ induct_tac; auto_dfs_tac; auto_dfs_tac ]);
 
   [%expect
     {|
@@ -1778,8 +1760,7 @@ let%expect_test "n - 0 = n" =
   in
   let goal = List.hd (Elaborator.goals_from_string prg) in
   run_proof ~store:"minus_zero" goal
-    (wrap_all with_no_trace
-       [ induct_tac; simp_tac; gen_tac; intro_tac; simp_tac ]);
+    (wrap_all with_no_trace [ induct_tac; auto_dfs_tac; auto_dfs_tac ]);
 
   [%expect
     {|
@@ -1806,15 +1787,7 @@ let%expect_test "minus suc right" =
   let goal = List.hd (Elaborator.goals_from_string prg) in
   run_proof ~store:"minus_suc_right" goal
     (wrap_all with_no_trace
-       [
-         induct_tac;
-         gen_tac;
-         simp_tac ~add:(lemma "minus_zero");
-         gen_tac;
-         intro_tac;
-         gen_tac;
-         simp_tac;
-       ]);
+       [ induct_tac; auto_dfs_tac ~add:(lemma "minus_zero"); auto_dfs_tac ]);
 
   [%expect
     {|

@@ -2,10 +2,12 @@
 
 ## Now
 
-- [] Upgrade language to not need "over ?x" in definitions
+- [] Write a small subsystem for automatically adding proven statements to some sort of state for use in rewrites/applications (this is done manually right now)
+- [] Add handlers for with_proven; with_safe; with_definitions; with_only
+- [] Add forward reasoning tactic
+- [ x ] Upgrade language to not need "over ?x" in definitions
 - [] Move proven theorems into theorems.ml if they aren't actually testing edge cases or features (debloat test file)
 - [ x ] Refactor tactic tests
-- [] Write a small subsystem for automatically adding proven statements to some sort of state for use in rewrites/applications (this is done manually right now)
 - [] Refactor tactics to use handlers rather than arguments where it makes sense
 - [] Test existing handlers more thoroughly
 - [ x] Set up core theorems and definitions in theories of Nat, List, Pair
@@ -17,6 +19,8 @@
 - [] Refactor error variants to carry useful information [../lib/kernel.ml]
 
 ## Soon
+- [] Write aesop pseudocode
+- [] Translate aesop pseudocode to our architecture
 - [] Set up core theorems and definitions of Set
 - [] Cleanly separate and document safe vs unsafe tactics [../lib/tactic.ml]
 - [] Write auto tactic inspired by aesop [../lib/tactic.ml]
