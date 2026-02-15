@@ -11,7 +11,9 @@ let lemma s = [ List.assoc s !proven ]
 
 (* Helper function to reduce boilerplate in tests *)
 let run_proof ?(dfs = false) ?(asms = []) ?store goal tactics =
-  let next_tactic = next_tactic_of_list tactics in
+  let fuel = ref 0 in
+  let tactics_with_fuel = List.map (with_fuel_counter fuel) tactics in
+  let next_tactic = next_tactic_of_list tactics_with_fuel in
   let result =
     if dfs then prove_dfs (asms, goal) next_tactic
     else prove (asms, goal) next_tactic
@@ -22,9 +24,11 @@ let run_proof ?(dfs = false) ?(asms = []) ?store goal tactics =
       (match store with
       | Some name -> proven := (name, thm) :: !proven
       | None -> ());
+      Printf.printf "Fuel: %d\n" !fuel;
       Printing.print_thm thm
   | Incomplete (asms, g) ->
       print_endline "Proof Incomplete";
+      Printf.printf "Fuel: %d\n" !fuel;
       List.iter Printing.print_term asms;
       Printing.print_term g
 
@@ -54,6 +58,7 @@ let%expect_test "basic" =
     conj success
     conj_tac
     Proof Complete!
+    Fuel: 3
     A
     B
     ========================================
@@ -70,6 +75,7 @@ let%expect_test "basic2" =
     refl success
     refl_tac
     Proof Complete!
+    Fuel: 0
     ========================================
     A = A
     |}]
@@ -88,6 +94,7 @@ let%expect_test "basic3" =
     disch success
     intro_tac
     Proof Complete!
+    Fuel: 2
     ========================================
     A ==> A
     |}]
@@ -105,6 +112,7 @@ let%expect_test "basic4" =
     disj_left success
     left_tac
     Proof Complete!
+    Fuel: 4
     A
     ========================================
     A ∨ B
@@ -126,6 +134,7 @@ let%expect_test "basic5" =
     disj_right success
     right_tac
     Proof Complete!
+    Fuel: 4
     B
     ========================================
     A ∨ B
@@ -152,6 +161,7 @@ let%expect_test "basic6" =
     mp success
     apply_asm_tac
     Proof Complete!
+    Fuel: 4
     A
     A ==> B
     ========================================
@@ -172,6 +182,7 @@ let%expect_test "basic7" =
     Found matching assumption
     Assumption succeeded
     Proof Complete!
+    Fuel: 9
     F
     ========================================
     A
@@ -186,6 +197,7 @@ let%expect_test "basic8" =
     {|
     false_elim_tac
     Proof Complete!
+    Fuel: 1
     F
     ========================================
     A
@@ -209,6 +221,7 @@ let%expect_test "basic9" =
     intro_tac
     gen_tac
     Proof Complete!
+    Fuel: 3
     ========================================
     ∀x. A ==> A
     |}]
@@ -243,6 +256,7 @@ let%expect_test "basic10" =
     gen_tac
     induction_tac
     Proof Complete!
+    Fuel: 10
     ========================================
     ∀x. A ==> A
     |}]
@@ -289,6 +303,7 @@ let%expect_test "dfs_backtrack" =
     Assumption succeeded
     disj_right success
     Proof Complete!
+    Fuel: 107
     F
     ========================================
     E ∨ C ∨ D ∨ A ∨ B ∨ F
@@ -321,6 +336,7 @@ let%expect_test "dfs_conj_backtrack" =
     Assumption succeeded
     conj success
     Proof Complete!
+    Fuel: 19
     B
     C
     ========================================
@@ -358,6 +374,7 @@ let%expect_test "dfs_conj_assumptions" =
     disch success
     disch success
     Proof Complete!
+    Fuel: 10
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
     |}]
@@ -408,6 +425,7 @@ let%expect_test "complete_prop_automation" =
     disch success
     disch success
     Proof Complete!
+    Fuel: 46
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
     |}]
@@ -455,6 +473,7 @@ let%expect_test "dfs_disj_assumptions" =
     disch success
     disch success
     Proof Complete!
+    Fuel: 16
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
     |}]
@@ -471,6 +490,7 @@ let%expect_test "pauto_disj_elimination" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 386
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
     |}]
@@ -486,6 +506,7 @@ let%expect_test "false_elim_tac_test" =
     destruct success
     disch success
     Proof Complete!
+    Fuel: 2
     ========================================
     F ==> P
     |}]
@@ -503,6 +524,7 @@ let%expect_test "neg_elim_tac_test" =
     disch success
     disch success
     Proof Complete!
+    Fuel: 4
     ========================================
     P ==> ¬P ==> Q
     |}]
@@ -518,6 +540,7 @@ let%expect_test "neg_intro_tac_test" =
     destruct success
     disch success
     Proof Complete!
+    Fuel: 5
     ========================================
     P ==> ¬¬P
     |}]
@@ -533,6 +556,7 @@ let%expect_test "ccontr_tac_test" =
     destruct success
     disch success
     Proof Complete!
+    Fuel: 11
     ========================================
     ¬¬P ==> P
     |}]
@@ -556,6 +580,7 @@ let%expect_test "modus_tollens" =
     disch success
     intro_tac
     Proof Complete!
+    Fuel: 9
     ========================================
     (P ==> Q) ==> ¬Q ==> ¬P
     |}]
@@ -568,6 +593,7 @@ let%expect_test "excluded_middle_pauto" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 577
     ========================================
     P ∨ ¬P
     |}]
@@ -581,6 +607,7 @@ let%expect_test "contraposition" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 46
     ========================================
     (P ==> Q) ==> ¬Q ==> ¬P
     |}]
@@ -599,6 +626,7 @@ let%expect_test "distribution_and_over_or" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 31356
     ========================================
     P ∧ Q ∨ R ==> P ∧ Q ∨ P ∧ R
     |}]
@@ -617,6 +645,7 @@ let%expect_test "distribution_or_over_and" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 380
     ========================================
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
     |}]
@@ -632,6 +661,7 @@ let%expect_test "de_morgan_and" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 480340
     ========================================
     ¬P ∧ Q ==> ¬P ∨ ¬Q
     |}]
@@ -647,6 +677,7 @@ let%expect_test "de_morgan_or" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 270
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
     |}]
@@ -662,6 +693,7 @@ let%expect_test "de_morgan_or_converse" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 52
     ========================================
     ¬P ∧ ¬Q ==> ¬P ∨ Q
     |}]
@@ -675,6 +707,7 @@ let%expect_test "implication_as_disjunction" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 1096
     ========================================
     (P ==> Q) ==> ¬P ∨ Q
     |}]
@@ -688,6 +721,7 @@ let%expect_test "disjunction_as_implication" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 30
     ========================================
     ¬P ∨ Q ==> P ==> Q
     |}]
@@ -700,6 +734,7 @@ let%expect_test "triple_negation" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 44
     ========================================
     ¬¬¬P ==> ¬P
     |}]
@@ -713,6 +748,7 @@ let%expect_test "explosion" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 18
     ========================================
     P ==> ¬P ==> Q
     |}]
@@ -726,6 +762,7 @@ let%expect_test "complex_nested" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 499
     ========================================
     ((P ==> Q) ==> P) ==> P
     |}]
@@ -746,6 +783,7 @@ let%expect_test "four_variable_distribution" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 127828
     ========================================
     A ∨ B ∧ C ∨ D ==> A ∧ C ∨ A ∧ D ∨ B ∧ C ∨ B ∧ D
     |}]
@@ -764,6 +802,7 @@ let%expect_test "implication_chain" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 60
     ========================================
     (A ==> B) ==> (B ==> C) ==> (C ==> D) ==> A ==> D
     |}]
@@ -781,6 +820,7 @@ let%expect_test "contraposition_chain" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 65
     ========================================
     (A ==> B) ==> (B ==> C) ==> ¬C ==> ¬A
     |}]
@@ -794,6 +834,7 @@ let%expect_test "absorption_law" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 10
     ========================================
     P ∧ P ∨ Q ==> P
     |}]
@@ -807,6 +848,7 @@ let%expect_test "absorption_law_converse" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 36
     ========================================
     P ==> P ∧ P ∨ Q
     |}]
@@ -818,6 +860,7 @@ let%expect_test "not_false_is_true" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 5
     ========================================
     ¬F
     |}]
@@ -857,6 +900,7 @@ let%expect_test "manual version " =
     conj_tac
     intro_tac
     Proof Complete!
+    Fuel: 20
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
     |}]
@@ -1019,6 +1063,7 @@ let%expect_test "rewrite_basic" =
     assume_tac
     rewrite_tac
     Proof Complete!
+    Fuel: 2
     Two = add One One
     ========================================
     add Zero Two = add One One
@@ -1035,6 +1080,7 @@ let%expect_test "rewrite_basic" =
     {|
     gen_tac
     Proof Complete!
+    Fuel: 4
     ========================================
     ∀x. plus zero x = x
     |}]
@@ -1051,6 +1097,7 @@ let%expect_test "rewrite induction" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 17
     ========================================
     ∀x. plus x zero = x
     |}]
@@ -1065,6 +1112,7 @@ let%expect_test "basic nat" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 11
     ========================================
     plus (suc (suc zero)) (suc (suc (suc zero))) = suc (suc (suc (suc (suc zero))))
     |}]
@@ -1100,6 +1148,7 @@ let%expect_test "plus assoc" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 33
     ========================================
     ∀x. ∀y. ∀z. plus x (plus y z) = plus (plus x y) z
     |}]
@@ -1129,6 +1178,7 @@ let%expect_test "suc injective" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 8
     ========================================
     ∀x. ∀y. suc x = suc y ==> x = y
     |}]
@@ -1163,6 +1213,7 @@ let%expect_test "plus suc lemma" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 30
     ========================================
     ∀x. ∀y. plus x (suc y) = suc (plus x y)
     |}]
@@ -1193,6 +1244,7 @@ let%expect_test "suc injective rev" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 5
     ========================================
     ∀x. ∀y. x = y ==> suc x = suc y
     |}]
@@ -1229,6 +1281,7 @@ let%expect_test "plus comm" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 31
     ========================================
     ∀x. ∀y. plus x y = plus y x
     |}]
@@ -1266,6 +1319,7 @@ let%expect_test "cancellation" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 39
     ========================================
     ∀x. ∀y. plus x y = plus x z ==> y = z
     |}]
@@ -1305,6 +1359,7 @@ let%expect_test "cancellation rev" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 29
     ========================================
     ∀x. ∀y. plus y x = plus z x ==> y = z
     |}]
@@ -1322,6 +1377,7 @@ let%expect_test "length Nil = Zero" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 3
     ========================================
     length nil = zero
     |}]
@@ -1342,6 +1398,7 @@ let%expect_test "length (Cons Zero Nil) = Suc Zero" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 7
     ========================================
     length (cons zero nil) = suc zero
     |}]
@@ -1373,6 +1430,7 @@ let%expect_test "length_cons" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 5
     ========================================
     ∀x. ∀xs. length (cons x xs) = suc (length xs)
     |}]
@@ -1401,6 +1459,7 @@ let%expect_test "nil_implies_length_zero" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 7
     ========================================
     ∀xs. xs = nil ==> length xs = zero
     |}]
@@ -1441,6 +1500,7 @@ let%expect_test "length_zero_implies_nil" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 14
     ∀n0. ∀n1. (length n1 = zero ==> n1 = nil) ==> length (cons n0 n1) = zero ==> cons n0 n1 = nil
     ========================================
     ∀x. length x = zero ==> x = nil
@@ -1460,6 +1520,7 @@ let%expect_test "append nil xs = xs" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 4
     ========================================
     ∀xs. append nil xs = xs
     |}]
@@ -1492,6 +1553,7 @@ let%expect_test "append (Cons x xs) ys = Cons x (append xs ys)" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 7
     ========================================
     ∀x. ∀xs. ∀ys. append (cons x xs) ys = cons x (append xs ys)
     |}]
@@ -1519,6 +1581,7 @@ let%expect_test "append xs nil = xs" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 17
     ========================================
     ∀x. append x nil = x
     |}]
@@ -1548,6 +1611,7 @@ let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 205
     ========================================
     ∀x. ∀ys. ∀zs. append (append x ys) zs = append x (append ys zs)
     |}]
@@ -1577,6 +1641,7 @@ let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 121
     ========================================
     ∀x. ∀ys. length (append x ys) = plus (length x) (length ys)
     |}]
@@ -1612,6 +1677,7 @@ let%expect_test "length (reverse xs) = length xs" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 47
     ========================================
     ∀x. length (reverse x) = length x
     |}]
@@ -1652,6 +1718,7 @@ let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 43
     ========================================
     ∀x. ∀ys. reverse (append x ys) = append (reverse ys) (reverse x)
     |}]
@@ -1684,6 +1751,7 @@ let%expect_test "reverse (reverse xs) = xs" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 47
     ========================================
     ∀x. reverse (reverse x) = x
     |}]
@@ -1703,6 +1771,7 @@ let%expect_test "test defining with elab" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 12
     ========================================
     x = y ==> fst (pair x y) = snd (pair x y)
     |}]
@@ -1721,6 +1790,7 @@ let%expect_test "test minus" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 3
     ========================================
     pred (suc (suc (suc zero))) = suc (suc zero)
     |}]
@@ -1741,6 +1811,7 @@ let%expect_test "test minus 2" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 35
     ========================================
     minus (suc (suc (suc (suc zero)))) (suc (suc (suc zero))) = suc zero
     |}]
@@ -1765,6 +1836,7 @@ let%expect_test "n - 0 = n" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 147
     ========================================
     ∀x. minus x zero = x
     |}]
@@ -1792,6 +1864,7 @@ let%expect_test "minus suc right" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 319
     ========================================
     ∀x. ∀m. minus x (suc m) = pred (minus x m)
     |}]
@@ -1829,6 +1902,7 @@ let%expect_test "minus suc suc" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 37
     ========================================
     ∀n. ∀x. minus (suc n) (suc x) = minus n x
     |}]
@@ -1861,6 +1935,7 @@ let%expect_test "n - n = z" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 43
     ========================================
     ∀x. minus x x = zero
     |}]
@@ -1896,6 +1971,7 @@ let%expect_test "x - n + n = x" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 20
     ========================================
     ∀x. ∀x'. minus (plus x x') x' = x
     |}]
@@ -1915,6 +1991,7 @@ let%expect_test "pred twice" =
   [%expect
     {|
     Proof Complete!
+    Fuel: 11
     ========================================
     twice pred (suc (suc zero)) = zero
     |}]

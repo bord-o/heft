@@ -691,7 +691,6 @@ let rec prove_bfs_traced g tactic_queue trace_ref =
 
       let rec handler (f : unit -> proof_state) =
         match f () with
-        | effect Burn _, k -> continue k ()
         | effect Trace (Proof, v), k ->
             trace_ref := v :: !trace_ref;
             continue k ()
@@ -733,7 +732,6 @@ let rec prove_dfs_traced ?(amb = false) g tactic_queue trace_ref =
   | Some tactic ->
       let rec handler (f : unit -> proof_state) =
         match f () with
-        | effect Burn _, k -> continue k ()
         | effect Trace (Proof, v), k ->
             trace_ref := v :: !trace_ref;
             continue k ()
