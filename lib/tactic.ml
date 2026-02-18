@@ -657,17 +657,35 @@ let prove ?(name = "") (goal : goal) (tactic : tactic) =
       Complete thm
 
 (* Handle first subgoal, bubble the rest *)
-let ( >> ) (tac1 : tactic) (tac2 : tactic) (goal : goal) =
+
+let then_one (tac1 : tactic) : tactic_combinator =
+ fun tac goal ->
   let handled_first = ref false in
   let rec handler f =
     match f () with
     | effect Subgoal g, k when not !handled_first ->
         handled_first := true;
-        let thm : thm = tac2 g in
+        let thm : thm = tac g in
         handler (fun () -> continue k thm)
     | v -> v
   in
   handler (fun () -> tac1 goal)
+
+let ( >> ) = then_one
+
+let then_each (tacs : tactic list) : tactic_combinator =
+  let tacs = ref tacs in
+  fun tac goal ->
+    match tac goal with
+    | effect Subgoal g, k -> (
+        match !tacs with
+        | [] ->
+            trace_proof "more subgoals than provided tactics";
+            fail ()
+        | next :: rest ->
+            tacs := rest;
+            continue k @@ next g)
+    | v -> v
 
 (* this only trys choices at one level, for actual dfs we need a full handler *)
 let with_first_success : tactic_combinator =

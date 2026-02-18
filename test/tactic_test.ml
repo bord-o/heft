@@ -1879,12 +1879,11 @@ let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
   let append_ys_zs = App (App (append_const, ys), zs) in
   let rhs = App (App (append_const, xs), append_ys_zs) in
 
-  let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in
+  let proof = induct_tac |> then_each [ auto_dfs_tac; auto_dfs_tac ] in
   let goal =
     ([], make_foralls [ xs; ys; zs ] @@ Result.get_ok (safe_make_eq lhs rhs))
   in
   run_proof ~name:"append_assoc" goal proof;
-  (* (wrap_all with_no_trace [ induct_tac; auto_dfs_tac; auto_dfs_tac ]); *)
   [%expect
     {|
     refl_tac
