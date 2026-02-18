@@ -385,6 +385,7 @@ let new_specification name ex_thm =
   let* defining_property = vsubst [ (new_const, exists_var) ] body in
   let* thm = new_axiom defining_property in
   Hashtbl.add the_specifications name thm;
+  Rules.add_def name thm;
   Ok thm
 
 (* Extract the inductive type being recursed on from branch terms *)

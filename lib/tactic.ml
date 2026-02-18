@@ -36,7 +36,7 @@ type _ Effect.t +=
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Burn : int -> unit Effect.t
-  | Rules : unit -> thm list Effect.t
+  | Rules : thm list Effect.t
 
 let as_ranked_list : type a. a rankable -> a list = function
   | Priority l -> List.map (fun (tac, _pri, g) -> (tac, g)) l
@@ -152,7 +152,7 @@ let apply_asm_tac : tactic =
 let apply_thm_tac : tactic =
  fun (asms, conc) ->
   burn 3;
-  let lemmas = perform (Rules ()) in
+  let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
 
   let rec strip_foralls_acc thm vars =
@@ -209,7 +209,7 @@ let apply_thm_tac : tactic =
 let apply_thm_asm_tac : tactic =
  fun (asms, conc) ->
   burn 3;
-  let lemmas = perform (Rules ()) in
+  let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
   let chosen_asm = choose_terms asms in
 
@@ -299,8 +299,9 @@ let rewrite_tac : tactic =
  fun (asms, conc) ->
   burn 2;
   let thm =
-    let rules = perform (Rules ()) in
+    let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
+    (* print_thm chosen_rule; *)
 
     let* rw_thm = rewrite_once chosen_rule conc in
     let* _, conc_rewritten = destruct_eq (concl rw_thm) in
@@ -317,7 +318,7 @@ let rewrite_asm_tac : tactic =
  fun (asms, conc) ->
   burn 2;
   let thm =
-    let rules = perform (Rules ()) in
+    let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
     let chosen_asm = choose_terms asms in
 
@@ -618,203 +619,55 @@ let induct_tac : tactic =
   in
   return_thm ~from:"induction_tac" thm
 
-(* Complete automation for propositional logic goals *)
-let ctauto_tac : tactic =
- fun goal ->
-  let tac =
-    choose_tactics
-      [
-        assumption_tac;
-        intro_tac;
-        neg_intro_tac;
-        gen_tac;
-        conj_tac;
-        elim_conj_asm_tac;
-        elim_disj_asm_tac;
-        false_elim_tac;
-        neg_elim_tac;
-        apply_asm_tac;
-        apply_neg_asm_tac;
-        mp_asm_tac;
-        left_tac;
-        right_tac;
-        ccontr_tac;
-      ]
-  in
-  tac goal
-
 (* 
    As a general rule, custom handlers should handle the least amount of 
    effects possible. The main handler captures all effects, but implements only basic
    interpretations of them.
 *)
-let rec prove g tactic_queue =
-  match Queue.take_opt tactic_queue with
-  | None ->
-      print_endline "Out of tactics";
-      Incomplete g
-  | Some tactic -> (
-      match tactic g with
-      (* TacticQueue gives the current tactics waiting to be applied *)
-      | effect Burn _, k -> continue k ()
-      (* Trace is a unified interface for logs and errors *)
-      | effect Trace (_, v), k ->
-          print_endline v;
-          continue k ()
-      (* Rank is used to sort terms by an undetermined heuristic *)
-      | effect Rank (Term terms), k -> continue k terms
-      (* This represents failure for any reason *)
-      | effect Fail, _k -> Incomplete g
-      (* Choose is used to decide how to explore options *)
-      | effect Choose choices, k -> (
-          match as_chosen_list choices with
-          | [] ->
-              print_endline "no choices available";
-              Incomplete g
-          | c :: _ -> continue k c)
-      (* Subgoal is used for branching the proof state *)
-      | effect Subgoal g', k -> (
-          match prove g' tactic_queue with
-          | Complete thm -> continue k thm
-          | incomplete -> incomplete)
-      (* When a proof is complete we extract the theorem *)
-      | thm -> Complete thm)
+let prove ?(name = "") (goal : goal) (tactic : tactic) =
+  match tactic goal with
+  (* Burn is used for resource tracking/limiting *)
+  | effect Burn _, k -> continue k ()
+  (* Rules is used for passing rewrites and lemmas to different tactics *)
+  | effect Rules, k -> continue k []
+  (* Trace is a unified interface for logs and errors *)
+  | effect Trace (_, v), k ->
+      print_endline v;
+      continue k ()
+  (* Rank is used to sort terms by an undetermined heuristic *)
+  | effect Rank (Term terms), k -> continue k terms
+  (* This represents failure for any reason *)
+  | effect Fail, _k -> Incomplete goal
+  (* Choose is used to decide how to explore options *)
+  | effect Choose choices, k -> (
+      match as_chosen_list choices with
+      | [] ->
+          print_endline "no choices available";
+          Incomplete goal
+      | c :: _ -> continue k c)
+  (* Subgoal is used for branching the proof state, 
+         but prove should solve the goal completely *)
+  | effect Subgoal g', _k -> Incomplete g'
+  (* When a proof is complete we extract the theorem *)
+  | exception Out_of_fuel ->
+      print_endline "Out of fuel";
+      Incomplete goal
+  | thm ->
+      Rules.add_proven name thm;
+      Complete thm
 
-type pending_proof =
-  | PendingProof : (unit -> proof_state) * string list -> pending_proof
-
-let rec prove_bfs_traced g tactic_queue trace_ref =
-  match Queue.take_opt tactic_queue with
-  | None -> Incomplete g
-  | Some tactic ->
-      let q : pending_proof Queue.t = Queue.create () in
-
-      let rec handler (f : unit -> proof_state) =
-        match f () with
-        | effect Trace (Proof, v), k ->
-            trace_ref := v :: !trace_ref;
-            continue k ()
-        | effect Trace (_, v), k ->
-            print_endline v;
-            continue k ()
-        | effect Rank (Term terms), k -> continue k terms
-        | effect Fail, _k -> Incomplete g
-        | effect Choose choices, k ->
-            let r = Multicont.Deep.promote k in
-            let snapshot = !trace_ref in
-            List.iter
-              (fun x ->
-                Queue.add
-                  (PendingProof ((fun () -> Multicont.Deep.resume r x), snapshot))
-                  q)
-              (as_chosen_list choices);
-            next ()
-        | effect Subgoal g', k -> (
-            match prove_bfs_traced g' (Queue.copy tactic_queue) trace_ref with
-            | Complete thm -> continue k thm
-            | incomplete -> incomplete)
-        | thm -> thm
-      and next () =
-        match Queue.take_opt q with
-        | None -> Incomplete g
-        | Some (PendingProof (thunk, snapshot)) -> (
-            trace_ref := snapshot;
-            match handler thunk with
-            | Complete thm -> Complete thm
-            | Incomplete _ -> next ())
-      in
-
-      handler (fun () -> Complete (tactic g))
-
-let rec prove_dfs_traced ?(amb = false) g tactic_queue trace_ref =
-  match Queue.take_opt tactic_queue with
-  | None -> Incomplete g
-  | Some tactic ->
-      let rec handler (f : unit -> proof_state) =
-        match f () with
-        | effect Trace (Proof, v), k ->
-            trace_ref := v :: !trace_ref;
-            continue k ()
-        | effect Trace (_, v), k ->
-            print_endline v;
-            continue k ()
-        | effect Rank (Term terms), k -> continue k terms
-        | effect Fail, _k -> Incomplete g
-        | effect Choose choices, k ->
-            let r = Multicont.Deep.promote k in
-            let rec try_each = function
-              | [] -> Incomplete g
-              | c :: cs -> (
-                  let snapshot = !trace_ref in
-                  let result = handler (fun () -> Multicont.Deep.resume r c) in
-                  match result with
-                  | Complete thm -> Complete thm
-                  | Incomplete _ ->
-                      trace_ref := snapshot;
-                      try_each cs)
-            in
-            try_each (as_chosen_list choices)
-        | effect Subgoal g', k -> (
-            match
-              prove_dfs_traced ~amb g' (Queue.copy tactic_queue) trace_ref
-            with
-            | Complete thm -> continue k thm
-            | Incomplete g ->
-                (*
-                TODO: can probably restructure some things such that
-                we keep track of ambient handlers. maybe search handlers
-                should always run under an ambient one.
-
-                to run under an ambient handler and make partial progress we need some
-                way to know when to backtrack and when to stop
-              *)
-                if amb then
-                  let c = perform @@ Subgoal g in
-                  continue k c
-                else Incomplete g)
-        | thm -> thm
-      in
-      handler (fun () -> Complete (tactic g))
-
-let prove_bfs g tactic_queue =
-  let trace_ref = ref [] in
-  prove_bfs_traced g tactic_queue trace_ref
-
-let prove_bfs_with_trace g tactic_queue =
-  let trace_ref = ref [] in
-  let result = prove_bfs_traced g tactic_queue trace_ref in
-  (!trace_ref, result)
-
-let prove_dfs ?(amb = false) g tactic_queue =
-  let trace_ref = ref [] in
-  prove_dfs_traced ~amb g tactic_queue trace_ref
-
-let prove_dfs_with_trace g tactic_queue =
-  let trace_ref = ref [] in
-  let result = prove_dfs_traced g tactic_queue trace_ref in
-  (!trace_ref, result)
-
-let next_tactic_of_list l =
-  let q = Queue.of_seq (List.to_seq l) in
-  q
-
-let with_skip_fail : tactic_combinator =
- fun tac goal ->
-  match tac goal with effect Fail, _ -> perform (Subgoal goal) | thm -> thm
-
-let with_repeat : tactic_combinator =
- fun tac ->
-  let rec aux (asms, concl) =
-    match tac (asms, concl) with
-    | effect Fail, _ -> perform (Subgoal (asms, concl))
-    | effect Subgoal g, k ->
-        let r = Multicont.Deep.promote k in
-        let thm = aux g in
-        (* idk man *)
-        Multicont.Deep.resume r thm
-    | thm -> thm
+(* Handle first subgoal, bubble the rest *)
+let ( >> ) (tac1 : tactic) (tac2 : tactic) (goal : goal) =
+  let handled_first = ref false in
+  let rec handler f =
+    match f () with
+    | effect Subgoal g, k when not !handled_first ->
+        handled_first := true;
+        let thm : thm = tac2 g in
+        handler (fun () -> continue k thm)
+    | v -> v
   in
-  aux
+  handler (fun () -> tac1 goal)
 
 (* this only trys choices at one level, for actual dfs we need a full handler *)
 let with_first_success : tactic_combinator =
@@ -833,6 +686,87 @@ let with_first_success : tactic_combinator =
       in
       try_each (as_chosen_list choices)
   | v -> v
+
+let with_term (t : term) : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Choose (Term terms), k ->
+      if List.mem t terms then continue k t else fail ()
+  | x -> x
+
+let try_ : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Fail, _ -> perform (Subgoal goal) | v -> v
+
+let pick_tac (tacs : tactic list) : tactic =
+ fun goal ->
+  let tac = choose_tactics tacs in
+  tac goal
+
+let solve : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Subgoal _g', _k -> fail () | v -> v
+
+let with_dfs : tactic_combinator =
+ fun tac goal ->
+  let rec handler f =
+    match f () with
+    | effect Choose choices, k ->
+        let r = Multicont.Deep.promote k in
+        let rec try_each = function
+          | [] -> fail ()
+          | c :: cs -> (
+              match handler (fun () -> Multicont.Deep.resume r c) with
+              | effect Fail, _ -> try_each cs
+              | thm -> thm)
+        in
+        try_each (as_chosen_list choices)
+    | effect Subgoal g, k ->
+        let thm : thm = handler (fun () -> tac g) in
+        handler (fun () -> continue k thm)
+    | effect Fail, _ -> fail ()
+    | v -> v
+  in
+  handler (fun () -> tac goal)
+
+let with_repeat : tactic_combinator =
+ fun tac goal ->
+  let made_progress = ref false in
+  let rec aux goal =
+    match tac goal with
+    | effect Fail, _ ->
+        if !made_progress then perform (Subgoal goal) else fail ()
+    | effect Subgoal g, _k when g = goal ->
+        if !made_progress then perform (Subgoal goal) else fail ()
+    | effect Subgoal g, k ->
+        made_progress := true;
+        continue k (aux g)
+    | v -> v
+  in
+  aux goal
+
+(* (* Complete automation for propositional logic goals *) *)
+let ctauto_tac : tactic =
+  pick_tac
+    [
+      assumption_tac;
+      intro_tac;
+      neg_intro_tac;
+      gen_tac;
+      conj_tac;
+      elim_conj_asm_tac;
+      elim_disj_asm_tac;
+      false_elim_tac;
+      neg_elim_tac;
+      apply_asm_tac;
+      apply_neg_asm_tac;
+      mp_asm_tac;
+      left_tac;
+      right_tac;
+      ccontr_tac;
+    ]
+
+let ctauto_dfs_tac : tactic = with_dfs ctauto_tac
 
 let with_interactive_choice : tactic_combinator =
  fun tac goal ->
@@ -863,13 +797,6 @@ let with_nth_choice n : tactic_combinator =
       | Some c -> continue k c)
   | v -> v
 
-let with_term (t : term) : tactic_combinator =
- fun tac goal ->
-  match tac goal with
-  | effect Choose (Term terms), k ->
-      if List.mem t terms then continue k t else fail ()
-  | x -> x
-
 let with_term_size_ranking : tactic_combinator =
   let rec term_size (t : term) =
     match t with
@@ -894,7 +821,10 @@ let with_fuel_limit limit : tactic_combinator =
   match tac goal with
   | effect Burn n, k ->
       limit := !limit - n;
-      if !limit <= 0 then discontinue k Out_of_fuel else continue k ()
+      if !limit <= 0 then discontinue k Out_of_fuel
+      else (
+        burn n;
+        continue k ())
   | v -> v
 
 let with_fuel_counter r : tactic_combinator =
@@ -902,6 +832,7 @@ let with_fuel_counter r : tactic_combinator =
   match tac goal with
   | effect Burn n, k ->
       r := !r + n;
+      burn n;
       continue k ()
   | v -> v
 
@@ -915,7 +846,37 @@ let with_no_trace ?(show_proof = false) : tactic_combinator =
   | effect Trace (Proof, _), k when not show_proof -> continue k ()
   | v -> v
 
-let with_assumption_rewrites : tactic_combinator =
+let with_assumptions : tactic_combinator =
+ fun tac (asms, concl) ->
+  let asm_thms =
+    List.filter_map
+      (fun asm -> match assume asm with Ok thm -> Some thm | Error _ -> None)
+      asms
+  in
+  match tac (asms, concl) with effect Rules, k -> continue k asm_thms | v -> v
+
+let with_rules (rules : thm list) : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Rules, k -> continue k rules | v -> v
+
+let with_rule (rule : thm) : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Rules, k -> continue k [ rule ] | v -> v
+
+let with_proven (names : string list) : tactic_combinator =
+  let rules =
+    names
+    |> List.map @@ fun n ->
+       match Rules.get_proven n with
+       | None ->
+           trace_error (Printf.sprintf "Couldn't find rule with name %s\n" n);
+           fail ()
+       | Some rule -> rule
+  in
+  fun tac goal ->
+    match tac goal with effect Rules, k -> continue k rules | v -> v
+
+let with_rules_and_assumptions (rules : thm list) : tactic_combinator =
  fun tac (asms, concl) ->
   let asm_thms =
     List.filter_map
@@ -923,115 +884,51 @@ let with_assumption_rewrites : tactic_combinator =
       asms
   in
   match tac (asms, concl) with
-  | effect Rules (), k -> continue k asm_thms
+  | effect Rules, k -> continue k (rules @ asm_thms)
   | v -> v
 
-let with_rewrites (rewrites : thm list) : tactic_combinator =
- fun tac goal ->
-  match tac goal with effect Rules (), k -> continue k rewrites | v -> v
-
-let with_lemmas (lemmas : thm list) : tactic_combinator =
- fun tac goal ->
-  match tac goal with effect Rules (), k -> continue k lemmas | v -> v
-
-let with_lemmas_and_assumptions (lemmas : thm list) : tactic_combinator =
- fun tac (asms, concl) ->
-  let asm_thms =
-    List.filter_map
-      (fun asm -> match assume asm with Ok thm -> Some thm | Error _ -> None)
-      asms
-  in
-  match tac (asms, concl) with
-  | effect Rules (), k -> continue k (lemmas @ asm_thms)
-  | v -> v
-
-let with_rewrites_and_assumptions (rewrites : thm list) : tactic_combinator =
- fun tac (asms, concl) ->
-  let asm_thms =
-    List.filter_map
-      (fun asm -> match assume asm with Ok thm -> Some thm | Error _ -> None)
-      asms
-  in
-  match tac (asms, concl) with
-  | effect Rules (), k -> continue k (rewrites @ asm_thms)
-  | v -> v
-
-(* NOTE: 
-    if I had some way to evaluate the subgoal complexity, I could have the search handler
-    return early when it finds a subgoal within a threshold. This would let me use the handlers
-    in a situation where they aren't able to close a goal, but could still make a bunch of progress.
-
-    Maybe I could even get some functionality, like: "I couldn't find a complete proof, but I could solve
-    the goal if I had this lemma or rewrite"
- *)
-
-let with_dfs ?(amb = false) ?(tacs = []) : tactic_combinator =
- fun tac goal ->
-  let q = Queue.of_seq (List.to_seq (tac :: tacs)) in
-  match prove_dfs ~amb goal q with
-  | Incomplete _ -> fail ()
-  | Complete thm -> thm
-
-let with_bfs ?(tacs = []) : tactic_combinator =
- fun tac goal ->
-  let q = Queue.of_seq (List.to_seq (tac :: tacs)) in
-  match prove_bfs goal q with Incomplete _ -> fail () | Complete thm -> thm
-
-(*
-  simp needs to pull in definition rewrite rules, assumptions rewrites,
-  and try to keep applying them while performing beta reduction in between.
-  To match lean, it should also try to use refl at the end and close the goal
-  if possible
-*)
-let with_definition_rewrites : tactic_combinator =
- fun tac goal ->
-  match tac goal with
-  | effect Rules (), k ->
-      let ambient_rules = perform @@ Rules () in
-      let definitions =
-        the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
-      in
-      let rules =
-        definitions
-        |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
-        |> List.flatten |> List.append ambient_rules
-      in
-      continue k rules
-  | v -> v
-
-(* TODO: maybe make better sequencing combinators so I don't have to use with_dfs here, something like with_first_success, try, ... *)
-let core_simp : tactic =
+let intros_tac : tactic =
  fun goal ->
-  with_repeat
-    (with_dfs ~amb:true
-       ~tacs:(wrap_all with_no_trace [ beta_tac; refl_tac ])
-       (with_no_trace rewrite_tac))
-    goal
+  with_repeat (with_first_success (pick_tac [ intro_tac; gen_tac ])) goal
 
-let simp_tac ?(with_asms = true) ?(add = []) : tactic =
+let simp_tac ?(with_asms = true) : tactic =
  fun goal ->
   (* TODO: get the base simp set here. The effect for rules should return proper rules not just unprocessed thms *)
-  let definitions =
-    the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
-  in
+  let add = perform Rules in
+  let definitions = !Rules.definitions |> List.map snd in
+  let simps = !Rules.simps |> List.map snd in
   let rules =
-    definitions
+    definitions |> List.append add |> List.append simps
     |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
-    |> List.flatten |> List.append add
+    |> List.flatten
   in
 
-  let with_rw =
-    if with_asms then with_rewrites_and_assumptions else with_rewrites
-  in
+  let with_rw = if with_asms then with_rules_and_assumptions else with_rules in
 
   let thm =
     with_repeat
-      (with_dfs ~amb:true
-         ~tacs:(wrap_all with_no_trace [ beta_tac; refl_tac ])
-         (with_no_trace @@ with_rw rules rewrite_tac))
+      (with_first_success
+      @@ pick_tac [ with_rw rules rewrite_tac; with_repeat beta_tac; refl_tac ]
+      )
       goal
   in
   thm
+
+let auto_tac : tactic =
+  pick_tac
+    [
+      simp_tac ~with_asms:true;
+      gen_tac;
+      intro_tac;
+      assumption_tac;
+      neg_intro_tac;
+      conj_tac;
+      elim_conj_asm_tac;
+      false_elim_tac;
+      mp_asm_tac;
+    ]
+
+let auto_dfs_tac : tactic = with_dfs @@ auto_tac
 
 (* simp for assumptions - simplifies an assumption using definition rules *)
 (* todo; remove the assumption we are currently simplifying from assumptions *)
@@ -1046,118 +943,17 @@ let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
     |> List.flatten |> List.append add
   in
 
-  let with_rw =
-    if with_asms then with_rewrites_and_assumptions else with_rewrites
-  in
+  let with_rw = if with_asms then with_rules_and_assumptions else with_rules in
 
   let thm =
     with_repeat
-      (with_dfs ~amb:true
-         ~tacs:(wrap_all with_no_trace [ beta_asm_tac; assumption_tac ])
-         (with_no_trace @@ with_rw rules rewrite_asm_tac))
+      (with_first_success
+      @@ pick_tac
+           [
+             with_rw rules rewrite_asm_tac;
+             with_repeat beta_asm_tac;
+             assumption_tac;
+           ])
       goal
   in
   thm
-
-let with_fail ~(on_fail : tactic) : tactic_combinator =
- fun tac goal -> match tac goal with effect Fail, _k -> on_fail goal | v -> v
-
-let safe_tacs : tactic =
- fun goal ->
-  let tac =
-    choose_tactics
-    @@ wrap_all with_first_success
-         [
-           assumption_tac;
-           intro_tac;
-           neg_intro_tac;
-           gen_tac;
-           conj_tac;
-           elim_conj_asm_tac;
-           false_elim_tac;
-           mp_asm_tac;
-         ]
-  in
-  tac goal
-
-let test_list =
-  [
-    assumption_tac;
-    intro_tac;
-    neg_intro_tac;
-    gen_tac;
-    conj_tac;
-    elim_conj_asm_tac;
-    elim_disj_asm_tac;
-    false_elim_tac;
-    neg_elim_tac;
-    apply_asm_tac;
-    apply_neg_asm_tac;
-    mp_asm_tac;
-    left_tac;
-    right_tac;
-    ccontr_tac;
-  ]
-
-let with_search_dfs : tactic_combinator =
- fun tac goal ->
-  let rec handler f =
-    match f () with
-    | effect Choose choices, k ->
-        let r = Multicont.Deep.promote k in
-        let rec try_each = function
-          | [] -> fail ()
-          | c :: cs -> (
-              match handler (fun () -> Multicont.Deep.resume r c) with
-              | effect Fail, _ -> try_each cs
-              | thm -> thm)
-        in
-        try_each (as_chosen_list choices)
-    | effect Fail, _ -> fail ()
-    | thm -> thm
-  in
-  handler (fun () -> tac goal)
-
-let rec auto_tac ?(add = []) goal : thm =
-  let tacs =
-    [
-      simp_tac ~with_asms:true ~add;
-      gen_tac;
-      intro_tac;
-      assumption_tac;
-      neg_intro_tac;
-      conj_tac;
-      elim_conj_asm_tac;
-      false_elim_tac;
-      mp_asm_tac;
-    ]
-  in
-
-  let handler (f : unit -> thm) : thm =
-    match f () with
-    | effect Subgoal g, k ->
-        if g = goal then fail ()
-        else
-          let r = Multicont.Deep.promote k in
-          let thm = auto_tac g in
-          Multicont.Deep.resume r thm
-    | thm -> thm
-  in
-  handler (fun () ->
-      let tac = choose_tactics tacs in
-      tac goal)
-
-let auto_dfs_tac ?(add = []) = with_search_dfs (auto_tac ~add)
-
-let rec ctauto_tac' goal : thm =
-  let handler (f : unit -> thm) : thm =
-    match f () with
-    | effect Subgoal g, k ->
-        let r = Multicont.Deep.promote k in
-        let thm = ctauto_tac' g in
-        Multicont.Deep.resume r thm
-    | thm -> thm
-  in
-  handler (fun () ->
-      let tac = choose_tactics test_list in
-      tac goal)

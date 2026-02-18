@@ -304,6 +304,7 @@ let elab_simple_definition env name hol_ty (pat, body) =
               | Error e -> Error e
               | Ok thm ->
                   Hashtbl.add the_specifications name thm;
+                  Rules.add_def name thm;
                   Ok thm)))
 
 let elab_definition env name ty clauses =

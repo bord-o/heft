@@ -9,3 +9,4 @@ module Theories = Theories
 module Lexer = Lexer
 module Parser = Parser
 module Elaborator = Elaborator
+module Rules = Rules
