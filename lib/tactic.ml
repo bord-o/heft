@@ -742,6 +742,28 @@ let solve : tactic_combinator =
 
 let with_dfs : tactic_combinator =
  fun tac goal ->
+  let rec handler s f =
+    match f () with
+    | effect Choose choices, k ->
+        let r = Multicont.Deep.promote k in
+        (choices |> as_chosen_list |> List.rev
+        |> List.iter @@ fun c ->
+           Stack.push (fun () -> Multicont.Deep.resume r c) s);
+        next s
+    | effect Subgoal g, k -> (
+        let s' = Stack.create () in
+        match handler s' (fun () -> tac g) with
+        | effect Fail, _ -> next s
+        | (thm : thm) -> handler s (fun () -> continue k thm))
+    | effect Fail, _ -> next s
+    | v -> v
+  and next s =
+    match Stack.pop_opt s with None -> fail () | Some thunk -> handler s thunk
+  in
+  handler (Stack.create ()) (fun () -> tac goal)
+
+let with_dfs' : tactic_combinator =
+ fun tac goal ->
   let rec handler f =
     match f () with
     | effect Choose choices, k ->

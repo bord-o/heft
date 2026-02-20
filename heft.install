@@ -1,0 +1,8 @@
+lib: [
+  "_build/install/default/lib/heft/META"
+  "_build/install/default/lib/heft/dune-package"
+  "_build/install/default/lib/heft/opam"
+]
+bin: [
+  "_build/install/default/bin/heft"
+]
