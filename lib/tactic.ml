@@ -673,6 +673,19 @@ let then_one (tac1 : tactic) : tactic_combinator =
 
 let ( >> ) = then_one
 
+let then_all (tac1 : tactic) : tactic_combinator =
+ fun tac goal ->
+  let rec handler f =
+    match f () with
+    | effect Subgoal g, k ->
+        let thm : thm = tac g in
+        handler (fun () -> continue k thm)
+    | v -> v
+  in
+  handler (fun () -> tac1 goal)
+
+let ( >>> ) = then_all
+
 let then_each (tacs : tactic list) : tactic_combinator =
   let tacs = ref tacs in
   fun tac goal ->
@@ -686,6 +699,8 @@ let then_each (tacs : tactic list) : tactic_combinator =
             tacs := rest;
             continue k @@ next g)
     | v -> v
+
+let ( >>= ) = Fun.flip then_each
 
 (* this only trys choices at one level, for actual dfs we need a full handler *)
 let with_first_success : tactic_combinator =
