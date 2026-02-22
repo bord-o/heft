@@ -134,3 +134,30 @@ prove goal (
 3. **repeat checks progress** - safe under search handlers
 4. **One prove, many strategies** - composition via combinators
 5. **Providers are largely orthogonal** - wrap at any level
+
+
+# Another design?
+
+What if search just handled the ordering of possible continuations at one goal application?
+
+so we would end up with a list which is all the reachable nodes from a given
+start goal/tac
+
+something like 
+[
+    assumption
+    beta
+    refl
+]
+would give
+[
+    choose asm1, resumption, copy of stack/queue
+    choose asm2, resumption, copy of stack/queue
+    subgoal simplified by beta, resumption, copy of stack/queue
+]
+then dfs/bfs is the order we explore this.
+
+
+The issue is that dfs is naturally recursive but bfs is not as much
+what about iterative deepening?
+

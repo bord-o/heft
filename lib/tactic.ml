@@ -740,39 +740,30 @@ let solve : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Subgoal _g', _k -> fail () | v -> v
 
-let with_bfs : tactic_combinator =
- fun tac goal ->
-  let rec handler s f =
-    match f () with
-    | effect Choose choices, k ->
-        let r = Multicont.Deep.promote k in
-        (choices |> as_chosen_list
-        |> List.iter @@ fun c ->
-           Queue.push (fun () -> Multicont.Deep.resume r c) s);
-        next s
-    | effect Subgoal g, k -> (
-        let s' = Queue.create () in
-        match handler s' (fun () -> tac g) with
-        | effect Fail, _ -> next s
-        | (thm : thm) -> handler s (fun () -> continue k thm))
-    | effect Fail, _ -> next s
-    | v -> v
-  and next s =
-    match Queue.take_opt s with
-    | None -> fail ()
-    | Some thunk -> handler s thunk
-  in
-  handler (Queue.create ()) (fun () -> tac goal)
+(* let print_choices : type a. a choosable -> unit = function *)
+(*   | Term ts -> ts |> List.iter print_term *)
+(*   | Theorem thms -> thms |> List.iter print_thm *)
+(*   | Goal gs -> gs |> List.iter @@ fun (_, g) -> print_term g *)
+(*   | Tactic tacs -> tacs |> List.iter @@ fun _ -> print_endline "<tactic>" *)
+(*   | Unknown xs -> xs |> List.iter @@ fun _ -> print_endline "<unknown>" *)
 
-let with_dfs'' : tactic_combinator =
+let string_choices : type a. a choosable -> (a * string) list = function
+  | Term ts -> ts |> List.map @@ fun c -> (c, pretty_print_hol_term c)
+  | Theorem thms -> thms |> List.map @@ fun c -> (c, pretty_print_thm c)
+  | Goal gs -> gs |> List.map @@ fun c -> (c, pretty_print_hol_term (snd c))
+  | Tactic tacs -> tacs |> List.map @@ fun c -> (c, "<tactic>")
+  | Unknown xs -> xs |> List.map @@ fun c -> (c, "<unknown>")
+
+let with_dfs : tactic_combinator =
  fun tac goal ->
   let rec handler s f =
     match f () with
     | effect Choose choices, k ->
+        let names = string_choices choices in
         let r = Multicont.Deep.promote k in
-        (choices |> as_chosen_list |> List.rev
-        |> List.iter @@ fun c ->
-           Stack.push (fun () -> Multicont.Deep.resume r c) s);
+        (names |> List.rev
+        |> List.iter @@ fun (c, name) ->
+           Stack.push (name, fun () -> Multicont.Deep.resume r c) s);
         next s
     | effect Subgoal g, k -> (
         let s' = Stack.create () in
@@ -782,9 +773,37 @@ let with_dfs'' : tactic_combinator =
     | effect Fail, _ -> next s
     | v -> v
   and next s =
-    match Stack.pop_opt s with None -> fail () | Some thunk -> handler s thunk
+    let opts = Stack.to_seq s |> List.of_seq in
+    print_endline "choices: ";
+    opts |> List.map fst |> List.iter print_endline;
+    print_endline "--------";
+    match Stack.pop_opt s with
+    | None -> fail ()
+    | Some (name, thunk) ->
+        Printf.printf "Trying choice: %s\n" name;
+        handler s thunk
   in
   handler (Stack.create ()) (fun () -> tac goal)
+(* let rec with_dfs : tactic_combinator = *)
+(*  fun tac goal -> *)
+(*   let rec handler f = *)
+(*     match f () with *)
+(*     | effect Choose choices, k -> *)
+(*         let r = Multicont.Deep.promote k in *)
+(*         (choices |> as_chosen_list |> List.rev *)
+(*         |> List.iter @@ fun c -> *)
+(*            Stack.push (fun () -> Multicont.Deep.resume r c) s); *)
+(*         next () *)
+(*     | effect Subgoal g, k -> ( *)
+(*         match with_dfs tac g with *)
+(*         | effect Fail, _ -> next () *)
+(*         | v -> continue k v) *)
+(*     | effect Fail, _ -> next () *)
+(*     | v -> v *)
+(*   and next () = *)
+(*     match Stack.pop_opt s with None -> fail () | Some thunk -> handler thunk *)
+(*   in *)
+(*   handler (fun () -> tac goal) *)
 
 let with_dfs' : tactic_combinator =
  fun tac goal ->
