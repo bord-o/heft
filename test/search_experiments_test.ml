@@ -2,76 +2,48 @@ open Effect
 open Effect.Deep
 
 type _ Effect.t +=
-  | Choose : string * (string * 'a) list -> 'a Effect.t
+  | Choose : 'a list -> 'a Effect.t
   | Subgoal : int -> int Effect.t
   | Fail : 'a Effect.t
 
+(* A "tactic" takes a problem (int) and returns a solution (int) *)
 type tactic = int -> int
 
+(* Reduce n toward 0 by subtracting 1, 2, or 3 *)
 let subtract : tactic =
  fun n ->
-  let k = perform (Choose ("amount", [ ("1", 1); ("2", 2); ("3", 3) ])) in
+  let k = perform (Choose [ 1; 2; 3 ]) in
   if n - k >= 0 then perform (Subgoal (n - k)) else perform Fail
 
 let done_ : tactic = fun n -> if n = 0 then 0 else perform Fail
 
 let solve : tactic =
  fun n ->
-  let tac =
-    perform (Choose ("tactic", [ ("done", done_); ("subtract", subtract) ]))
-  in
+  let tac = perform (Choose [ done_; subtract ]) in
   tac n
 
 let with_dfs =
  fun tac goal ->
-  let depth = ref 0 in
-  let indent () = String.make (!depth * 2) ' ' in
   let rec handler f =
     match f () with
-    | effect Choose (name, choices), k ->
+    | effect Choose choices, k ->
         let r = Multicont.Deep.promote k in
-        let n = List.length choices in
         let rec try_each = function
-          | [] ->
-              Printf.printf "%s%s: all %d failed ← backtrack\n" (indent ()) name
-                n;
-              perform Fail
-          | (label, c) :: cs -> (
-              Printf.printf "%s%s: try %s\n" (indent ()) name label;
+          | [] -> perform Fail
+          | c :: cs -> (
               match handler (fun () -> Multicont.Deep.resume r c) with
-              | effect Fail, _ ->
-                  Printf.printf "%s%s: %s failed\n" (indent ()) name label;
-                  try_each cs
-              | (v : int) ->
-                  Printf.printf "%s%s: %s succeeded → %d\n" (indent ()) name
-                    label v;
-                  v)
+              | effect Fail, _ -> try_each cs
+              | thm -> thm)
         in
         try_each choices
     | effect Subgoal g, k ->
-        Printf.printf "%s→ subgoal: solve %d\n" (indent ()) g;
-        incr depth;
-        let (v : int) = handler (fun () -> tac g) in
-        decr depth;
-        Printf.printf "%s← subgoal %d solved → %d\n" (indent ()) g v;
-        handler (fun () -> continue k v)
+        let thm : int = handler (fun () -> tac g) in
+        handler (fun () -> continue k thm)
     | effect Fail, _ -> perform Fail
-    | (v : int) -> v
+    | v -> v
   in
-  Printf.printf "GOAL: solve %d\n" goal;
   handler (fun () -> tac goal)
 
-(*
-    The goal is now to create a step function. For choose it will return all the choices, for subgoal it will return the subgoal, all suspended 
-    computations.
-*)
-
-let step cont tac goal =
-  match tac goal with
-  | effect Fail, _ -> []
-  | effect Choose (name, cs), k -> cs |> List.map @@ fun c -> (cont, c, k)
-  | _ -> []
-
 let%expect_test "redesign" =
-  print_int @@ with_dfs solve 3;
+  print_int @@ with_dfs solve 7;
   [%expect {|test|}]
