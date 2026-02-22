@@ -740,31 +740,7 @@ let solve : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Subgoal _g', _k -> fail () | v -> v
 
-let with_bfs : tactic_combinator =
- fun tac goal ->
-  let rec handler s f =
-    match f () with
-    | effect Choose choices, k ->
-        let r = Multicont.Deep.promote k in
-        (choices |> as_chosen_list
-        |> List.iter @@ fun c ->
-           Queue.push (fun () -> Multicont.Deep.resume r c) s);
-        next s
-    | effect Subgoal g, k -> (
-        let s' = Queue.create () in
-        match handler s' (fun () -> tac g) with
-        | effect Fail, _ -> next s
-        | (thm : thm) -> handler s (fun () -> continue k thm))
-    | effect Fail, _ -> next s
-    | v -> v
-  and next s =
-    match Queue.take_opt s with
-    | None -> fail ()
-    | Some thunk -> handler s thunk
-  in
-  handler (Queue.create ()) (fun () -> tac goal)
-
-let with_dfs'' : tactic_combinator =
+let with_dfs : tactic_combinator =
  fun tac goal ->
   let rec handler s f =
     match f () with
