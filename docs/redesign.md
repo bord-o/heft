@@ -134,3 +134,71 @@ prove goal (
 3. **repeat checks progress** - safe under search handlers
 4. **One prove, many strategies** - composition via combinators
 5. **Providers are largely orthogonal** - wrap at any level
+
+
+# New design for bfs
+
+What if I could construct a lazy sequence of proofs in their entirety by saving
+the continuations at each step. This would give me total control of the exploration
+and make the most use of my architecture. 
+
+I could design it with an interactive element to begin, sort of like
+best first search, but the user is in the loop to decide what is best.
+
+I would need some way to say:
+
+starting with a tactic and a goal, what are all the reachable states from this?
+I would need to run the tactic, and collect all of the continuations for either
+choice or subgoal.
+
+I could then pick which one to continue.
+
+I should be able to jump from anywhere on the tree to any other point and
+continue from there.
+
+If any node solves the goal completely I should be able to fold up the continuations
+leading up to that node in order to solve the original goal.
+
+Right now this is all implicit in the DFS implementation, where the 
+"tree" i'm talking about is just the call stack. 
+
+I need to identify what the call stack looks like during dfs, and find a way to model
+it by saving its parent continuations
+
+If I pull this off it will be a totally search strategy agnostic system,
+I shouldn't even need separate implementations for bfs/dfs, just a way to choose between
+the different continuations
+
+## Questions
+
+- How do I know what the parent continuation is?
+    - What if step() took in a tac goal and an optional parent continuation?
+      That way something that recursively calls it can pass the chain through
+- How do I jump between pieces of the tree?
+    - Pick a place in the list, 
+        - if its a choice, we can just run the continuation under step and
+            aggregate any new continuations
+        - if its a subgoal, we run a tactic against it under step and
+            aggregate any new continuations
+- 
+
+## TODO
+- Whiteboard a step function 
+- Something like this.
+- Make a continuation map through some proofs that produce subgoals
+
+
+```ocaml
+
+type step = 
+    Done thm
+    | Choice of continuation * (choosable * idx)
+    | Sub of continuation * goal
+    
+    
+let step continuation tac goal : step list = 
+    ...
+```
+
+if continuation is None and we get a value we are done, return thm
+if continuation is Some k and we get a value, we continue k thm 
