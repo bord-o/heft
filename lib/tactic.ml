@@ -13,6 +13,12 @@ type tactic = goal -> thm
 type tactic_combinator = tactic -> tactic
 type priority = Safe | Unsafe of int
 
+type 'a step_result =
+  | Cont of (unit -> 'a step_result) list
+  | Need of goal * ('a -> 'a step_result)
+  | Done of 'a
+  | Dead
+
 type _ rankable =
   | Priority : (tactic * priority * goal) list -> (tactic * goal) rankable
   | Term : term list -> term rankable
@@ -52,6 +58,18 @@ let as_chosen_list : type a. a choosable -> a list = function
   | Tactic tacs -> tacs
   | Unknown xs -> xs
 
+let step (tac : tactic) (goal : goal) : 'a step_result =
+  match tac goal with
+  | effect Choose cs, k ->
+      let r = Multicont.Deep.promote k in
+      Cont
+        (as_chosen_list cs |> List.map (fun c () -> Multicont.Deep.resume r c))
+  | effect Subgoal g, k ->
+      let r = Multicont.Deep.promote k in
+      Need (g, fun (v : thm) -> Multicont.Deep.resume r v)
+  | effect Fail, _ -> Dead
+  | v -> Done v
+
 let fail () = perform Fail
 let burn n = perform (Burn n)
 let trace_dbg a = perform (Trace (Debug, a))
@@ -73,20 +91,6 @@ let choose_theorems gs = perform (Choose (Theorem gs))
 let choose_tactics gs = perform (Choose (Tactic gs))
 let choose_unknowns gs = perform (Choose (Unknown gs))
 let rank_terms ts = perform (Rank (Term ts))
-
-let rec choose_subgoals acc = function
-  | [] -> List.rev acc
-  | goals ->
-      (goals
-      |> List.iteri @@ fun idx g ->
-         trace_info (string_of_int idx ^ ": " ^ pretty_print_hol_term (snd g));
-         ());
-      let chosen = perform @@ Choose (Goal goals) in
-
-      let thm = perform (Subgoal chosen) in
-      let rest = List.filter (( <> ) chosen) goals in
-      choose_subgoals ((chosen, thm) :: acc) rest
-
 let wrap_all = List.map
 
 let left_tac : tactic =
@@ -435,10 +439,8 @@ let conj_tac : tactic =
     let* l, r = destruct_conj concl in
     trace_dbg "Destruct succeeded";
 
-    let goals = [ (asms, l); (asms, r) ] in
-    let solved = choose_subgoals [] goals in
-    let lthm = solved |> List.assoc (asms, l) in
-    let rthm = solved |> List.assoc (asms, r) in
+    let lthm = perform (Subgoal (asms, l)) in
+    let rthm = perform (Subgoal (asms, r)) in
 
     let* thm = conj lthm rthm in
 
@@ -460,14 +462,12 @@ let elim_disj_asm_tac : tactic =
 
       let left_goal = (l :: asms', concl) in
       let right_goal = (r :: asms', concl) in
-      let goals = [ left_goal; right_goal ] in
 
-      let solved = choose_subgoals [] goals in
-      let left_thm = solved |> List.assoc left_goal in
-      let right_thm = solved |> List.assoc right_goal in
+      let lthm = perform (Subgoal left_goal) in
+      let rthm = perform (Subgoal right_goal) in
 
       let* disj_asm = assume chosen in
-      disj_cases disj_asm left_thm right_thm
+      disj_cases disj_asm lthm rthm
     in
     return_thm ~from:"elim_disj_asm_tac" thm
 
@@ -604,16 +604,17 @@ let induct_tac : tactic =
       collect_premises (Kernel.concl inst_induction) []
     in
 
-    let goals = List.map (fun case -> (asms, case)) cases in
-    let solved = choose_subgoals [] goals in
+    let solved =
+      cases
+      |> List.map (fun case -> ((asms, case), perform (Subgoal (asms, case))))
+    in
 
     let* result =
       List.fold_left
         (fun acc_thm (_goal, case_thm) ->
           let* acc = acc_thm in
           mp acc case_thm)
-        (Ok inst_induction)
-        (List.map (fun g -> (g, List.assoc g solved)) goals)
+        (Ok inst_induction) solved
     in
     Ok result
   in
@@ -664,9 +665,10 @@ let then_one (tac1 : tactic) : tactic_combinator =
   let rec handler f =
     match f () with
     | effect Subgoal g, k when not !handled_first ->
+        let r = Multicont.Deep.promote k in
         handled_first := true;
         let thm : thm = tac g in
-        handler (fun () -> continue k thm)
+        handler (fun () -> Multicont.Deep.resume r thm)
     | v -> v
   in
   handler (fun () -> tac1 goal)
@@ -678,8 +680,9 @@ let then_all (tac1 : tactic) : tactic_combinator =
   let rec handler f =
     match f () with
     | effect Subgoal g, k ->
+        let r = Multicont.Deep.promote k in
         let thm : thm = tac g in
-        handler (fun () -> continue k thm)
+        handler (fun () -> Multicont.Deep.resume r thm)
     | v -> v
   in
   handler (fun () -> tac1 goal)
@@ -691,13 +694,14 @@ let then_each (tacs : tactic list) : tactic_combinator =
   fun tac goal ->
     match tac goal with
     | effect Subgoal g, k -> (
+        let r = Multicont.Deep.promote k in
         match !tacs with
         | [] ->
             trace_proof "more subgoals than provided tactics";
             fail ()
         | next :: rest ->
             tacs := rest;
-            continue k @@ next g)
+            Multicont.Deep.resume r @@ next g)
     | v -> v
 
 let ( >>= ) = Fun.flip then_each
@@ -741,6 +745,76 @@ let solve : tactic_combinator =
   match tac goal with effect Subgoal _g', _k -> fail () | v -> v
 
 let with_dfs : tactic_combinator =
+ fun tac goal ->
+  let s = Stack.create () in
+  Stack.push ((fun () -> step tac goal), []) s;
+  let rec aux () =
+    match Stack.pop_opt s with
+    | None -> fail ()
+    | Some (thunk, parents) -> (
+        match thunk () with
+        | Done v -> (
+            match parents with
+            | [] -> v
+            | resume :: rest ->
+                Stack.push ((fun () -> resume v), rest) s;
+                aux ())
+        | Need (g, resume) ->
+            Stack.push ((fun () -> step tac g), resume :: parents) s;
+            aux ()
+        | Dead -> aux ()
+        | Cont thunks ->
+            thunks |> List.rev |> List.iter (fun t -> Stack.push (t, parents) s);
+            aux ())
+  in
+  aux ()
+
+module Step = struct
+  type 'a t =
+    | Cont of (unit -> 'a t) list
+    | Need of goal * ('a -> 'a t)
+    | Done of 'a
+    | Dead
+
+  let compare (_a : 'a t) (_b : 'b t) = 0
+end
+
+(* 
+   For priority queue we are going to need to change the structure
+   to include the cost at the time of building the thunk I think.
+   That way the PQ can be over the polymorphic type of cost * (unit -> step_result)
+ *)
+
+(* module PQ = Pqueue.MakeMaxPoly(Step) *)
+(* let q = Pqueue.MakeMax .create () in *)
+
+let with_bfs : tactic_combinator =
+ fun tac goal ->
+  let q = Queue.create () in
+
+  Queue.push ((fun () -> step tac goal), []) q;
+  let rec aux () =
+    match Queue.take_opt q with
+    | None -> fail ()
+    | Some (thunk, parents) -> (
+        match thunk () with
+        | Done v -> (
+            match parents with
+            | [] -> v
+            | resume :: rest ->
+                Queue.push ((fun () -> resume v), rest) q;
+                aux ())
+        | Need (g, resume) ->
+            Queue.push ((fun () -> step tac g), resume :: parents) q;
+            aux ()
+        | Dead -> aux ()
+        | Cont thunks ->
+            thunks |> List.iter (fun t -> Queue.push (t, parents) q);
+            aux ())
+  in
+  aux ()
+
+let with_dfs'' : tactic_combinator =
  fun tac goal ->
   let rec handler s f =
     match f () with

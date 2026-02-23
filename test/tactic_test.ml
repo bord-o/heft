@@ -11,9 +11,9 @@ open Printing
 
 let run_proof ?(notrace = true) ?(name = "") goal tac =
   let fuel_count = ref 0 in
-  let limit = ref 10_000 in
+  let limit = ref 10_000_000 in
   let wrapped =
-    (if notrace then with_no_trace ~show_proof:true else Fun.id)
+    (if notrace then with_no_trace ~show_proof:false else Fun.id)
     @@ (with_fuel_limit limit) (with_fuel_counter fuel_count tac)
   in
   match prove ~name goal wrapped with
@@ -35,9 +35,6 @@ let%expect_test "basic" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    assumption_tac
-    conj_tac
     A
     B
     ========================================
@@ -53,7 +50,6 @@ let%expect_test "basic2" =
   run_proof goal refl_tac;
   [%expect
     {|
-    refl_tac
     ========================================
     A = A
 
@@ -69,8 +65,6 @@ let%expect_test "basic3" =
 
   [%expect
     {|
-    assumption_tac
-    intro_tac
     ========================================
     A ==> A
 
@@ -86,8 +80,6 @@ let%expect_test "basic4" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    left_tac
     A
     ========================================
     A ∨ B
@@ -104,8 +96,6 @@ let%expect_test "basic5" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    right_tac
     B
     ========================================
     A ∨ B
@@ -128,8 +118,6 @@ let%expect_test "basic6" =
 
   [%expect
     {|
-    assumption_tac
-    apply_asm_tac
     A
     A ==> B
     ========================================
@@ -152,11 +140,6 @@ let%expect_test "deep sequencing with conj" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    assumption_tac
-    conj_tac
-    assumption_tac
-    conj_tac
     A
     B
     C
@@ -175,8 +158,6 @@ let%expect_test "basic7" =
 
   [%expect
     {|
-    assumption_tac
-    ccontr_tac
     F
     ========================================
     A
@@ -193,7 +174,6 @@ let%expect_test "basic8" =
 
   [%expect
     {|
-    false_elim_tac
     F
     ========================================
     A
@@ -213,9 +193,6 @@ let%expect_test "basic9" =
 
   [%expect
     {|
-    assumption_tac
-    intro_tac
-    gen_tac
     ========================================
     ∀x. A ==> A
 
@@ -236,12 +213,6 @@ let%expect_test "basic10" =
 
   [%expect
     {|
-    assumption_tac
-    intro_tac
-    assumption_tac
-    intro_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. A ==> A
 
@@ -292,11 +263,6 @@ let%expect_test "dfs_conj_backtrack" =
 
   [%expect
     {|
-    assumption_tac
-    right_tac
-    or_tac
-    assumption_tac
-    conj_tac
     B
     C
     ========================================
@@ -322,12 +288,6 @@ let%expect_test "dfs_conj_assumptions" =
 
   [%expect
     {|
-    assumption_tac
-    apply_asm_tac
-    apply_asm_tac
-    elim_conj_asm_tac
-    intro_tac
-    intro_tac
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
 
@@ -348,12 +308,6 @@ let%expect_test "complete_prop_automation" =
 
   [%expect
     {|
-    assumption_tac
-    apply_asm_tac
-    apply_asm_tac
-    elim_conj_asm_tac
-    intro_tac
-    intro_tac
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
 
@@ -376,14 +330,6 @@ let%expect_test "dfs_disj_assumptions" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    apply_asm_tac
-    assumption_tac
-    apply_asm_tac
-    elim_disj_asm_tac
-    intro_tac
-    intro_tac
-    intro_tac
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
 
@@ -403,14 +349,6 @@ let%expect_test "pauto_disj_elimination" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    apply_asm_tac
-    assumption_tac
-    apply_asm_tac
-    elim_disj_asm_tac
-    intro_tac
-    intro_tac
-    intro_tac
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
 
@@ -427,8 +365,6 @@ let%expect_test "false_elim_tac_test" =
   run_proof goal proof;
   [%expect
     {|
-    false_elim_tac
-    intro_tac
     ========================================
     F ==> P
 
@@ -445,9 +381,6 @@ let%expect_test "neg_elim_tac_test" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    intro_tac
-    intro_tac
     ========================================
     P ==> ¬P ==> Q
 
@@ -464,9 +397,6 @@ let%expect_test "neg_intro_tac_test" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    neg_intro_tac
-    intro_tac
     ========================================
     P ==> ¬¬P
 
@@ -483,9 +413,6 @@ let%expect_test "ccontr_tac_test" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    ccontr_tac
-    intro_tac
     ========================================
     ¬¬P ==> P
 
@@ -506,11 +433,6 @@ let%expect_test "modus_tollens" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    mp_asm_tac
-    neg_intro_tac
-    intro_tac
-    intro_tac
     ========================================
     (P ==> Q) ==> ¬Q ==> ¬P
 
@@ -526,13 +448,6 @@ let%expect_test "excluded_middle_pauto" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    right_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    left_tac
-    apply_neg_asm_tac
-    ccontr_tac
     ========================================
     P ∨ ¬P
 
@@ -551,12 +466,6 @@ let%expect_test "contraposition" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    apply_asm_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    intro_tac
-    intro_tac
     ========================================
     (P ==> Q) ==> ¬Q ==> ¬P
 
@@ -579,26 +488,11 @@ let%expect_test "distribution_and_over_or" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    assumption_tac
-    conj_tac
-    left_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    conj_tac
-    right_tac
-    elim_disj_asm_tac
-    elim_conj_asm_tac
-    intro_tac
     ========================================
     P ∧ Q ∨ R ==> P ∧ Q ∨ P ∧ R
 
     Proof Complete!
-    with fuel: 872
+    with fuel: 10599
     |}]
 
 let%expect_test "distribution_or_over_and" =
@@ -616,20 +510,6 @@ let%expect_test "distribution_or_over_and" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    left_tac
-    assumption_tac
-    right_tac
-    elim_conj_asm_tac
-    elim_disj_asm_tac
-    assumption_tac
-    left_tac
-    assumption_tac
-    right_tac
-    elim_conj_asm_tac
-    elim_disj_asm_tac
-    conj_tac
-    intro_tac
     ========================================
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
@@ -650,57 +530,11 @@ let%expect_test "de_morgan_and" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    neg_elim_tac
-    ccontr_tac
-    assumption_tac
-    neg_elim_tac
-    ccontr_tac
-    assumption_tac
-    neg_elim_tac
-    ccontr_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    neg_elim_tac
-    ccontr_tac
-    neg_elim_tac
-    ccontr_tac
-    assumption_tac
-    neg_elim_tac
-    ccontr_tac
-    assumption_tac
-    assumption_tac
-    conj_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    right_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    right_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    left_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    left_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    intro_tac
     ========================================
     ¬P ∧ Q ==> ¬P ∨ ¬Q
 
     Proof Complete!
-    with fuel: 5508
+    with fuel: 72933
     |}]
 
 let%expect_test "de_morgan_or" =
@@ -716,19 +550,6 @@ let%expect_test "de_morgan_or" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    left_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    assumption_tac
-    right_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    left_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    conj_tac
-    intro_tac
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
@@ -749,12 +570,6 @@ let%expect_test "de_morgan_or_converse" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    neg_elim_tac
-    elim_disj_asm_tac
-    elim_conj_asm_tac
-    neg_intro_tac
-    intro_tac
     ========================================
     ¬P ∧ ¬Q ==> ¬P ∨ Q
 
@@ -771,18 +586,6 @@ let%expect_test "implication_as_disjunction" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    right_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    left_tac
-    mp_asm_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    left_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    intro_tac
     ========================================
     (P ==> Q) ==> ¬P ∨ Q
 
@@ -799,11 +602,6 @@ let%expect_test "disjunction_as_implication" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    assumption_tac
-    elim_disj_asm_tac
-    intro_tac
-    intro_tac
     ========================================
     ¬P ∨ Q ==> P ==> Q
 
@@ -819,11 +617,6 @@ let%expect_test "triple_negation" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    neg_intro_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    intro_tac
     ========================================
     ¬¬¬P ==> ¬P
 
@@ -840,9 +633,6 @@ let%expect_test "explosion" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    intro_tac
-    intro_tac
     ========================================
     P ==> ¬P ==> Q
 
@@ -859,12 +649,6 @@ let%expect_test "complex_nested" =
   run_proof goal proof;
   [%expect
     {|
-    neg_elim_tac
-    intro_tac
-    apply_asm_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    intro_tac
     ========================================
     ((P ==> Q) ==> P) ==> P
 
@@ -890,53 +674,11 @@ let%expect_test "four_variable_distribution" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    assumption_tac
-    conj_tac
-    left_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    conj_tac
-    left_tac
-    right_tac
-    elim_disj_asm_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    conj_tac
-    left_tac
-    right_tac
-    right_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    assumption_tac
-    conj_tac
-    right_tac
-    right_tac
-    right_tac
-    elim_disj_asm_tac
-    elim_disj_asm_tac
-    elim_conj_asm_tac
-    intro_tac
     ========================================
     A ∨ B ∧ C ∨ D ==> A ∧ C ∨ A ∧ D ∨ B ∧ C ∨ B ∧ D
 
     Proof Complete!
-    with fuel: 5892
+    with fuel: 22970
     |}]
 
 let%expect_test "implication_chain" =
@@ -954,14 +696,6 @@ let%expect_test "implication_chain" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    apply_asm_tac
-    apply_asm_tac
-    apply_asm_tac
-    intro_tac
-    intro_tac
-    intro_tac
-    intro_tac
     ========================================
     (A ==> B) ==> (B ==> C) ==> (C ==> D) ==> A ==> D
 
@@ -983,14 +717,6 @@ let%expect_test "contraposition_chain" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    apply_asm_tac
-    apply_asm_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    intro_tac
-    intro_tac
-    intro_tac
     ========================================
     (A ==> B) ==> (B ==> C) ==> ¬C ==> ¬A
 
@@ -1007,9 +733,6 @@ let%expect_test "absorption_law" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    elim_conj_asm_tac
-    intro_tac
     ========================================
     P ∧ P ∨ Q ==> P
 
@@ -1026,11 +749,6 @@ let%expect_test "absorption_law_converse" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    assumption_tac
-    left_tac
-    conj_tac
-    intro_tac
     ========================================
     P ==> P ∧ P ∨ Q
 
@@ -1045,8 +763,6 @@ let%expect_test "not_false_is_true" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    neg_intro_tac
     ========================================
     ¬F
 
@@ -1072,16 +788,6 @@ let%expect_test "manual version " =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    left_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    assumption_tac
-    right_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    conj_tac
-    intro_tac
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
@@ -1102,111 +808,12 @@ let%expect_test "dfs demorgans" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    left_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    assumption_tac
-    right_tac
-    apply_neg_asm_tac
-    ccontr_tac
-    left_tac
-    apply_neg_asm_tac
-    neg_intro_tac
-    conj_tac
-    intro_tac
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
     Proof Complete!
     with fuel: 270
     |}]
-
-(* let%expect_test "bfs demorgans" = *)
-(*   (* ¬(P ∨ Q) ⟹ ¬P ∧ ¬Q - intuitionistic *) *)
-(*   let p = make_var "P" bool_ty in *)
-(*   let q = make_var "Q" bool_ty in *)
-(*   let goal = *)
-(*     make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q)) *)
-(*   in *)
-(*   let fuel = ref 0 in *)
-(*   let next_tactic = *)
-(*     next_tactic_of_list *)
-(*       [ *)
-(*         with_repeat *)
-(*         @@ with_no_trace ~show_proof:true *)
-(*         @@ (with_fuel_counter fuel) ctauto_tac; *)
-(*       ] *)
-(*   in *)
-(*   (match prove_bfs_with_trace ([], goal) next_tactic with *)
-(*   | t, Complete thm -> *)
-(*       List.iter print_endline t; *)
-(*       print_endline "Proof Complete!"; *)
-(*       Printf.printf "With fuel usage: %d\n" !fuel; *)
-(*       Printing.print_thm thm *)
-(*   | _t, Incomplete _ -> print_endline "Proof Failed"); *)
-(*   [%expect *)
-(*     {| *)
-(*     intro_tac *)
-(*     conj_tac *)
-(*     neg_intro_tac *)
-(*     apply_neg_asm_tac *)
-(*     right_tac *)
-(*     assumption_tac *)
-(*     neg_intro_tac *)
-(*     apply_neg_asm_tac *)
-(*     left_tac *)
-(*     assumption_tac *)
-(*     Proof Complete! *)
-(*     With fuel usage: 29526 *)
-(*     ======================================== *)
-(*     ¬P ∨ Q ==> ¬P ∧ ¬Q *)
-(*     |}] *)
-
-(* let%expect_test "another tautology" = *)
-(*   let mkvar s = make_var s bool_ty in *)
-
-(*   let a = mkvar "a" in *)
-(*   let b = mkvar "b" in *)
-(*   (* let c = mkvar "c" in *) *)
-
-(*   let na = make_neg a in *)
-(*   let nb = make_neg b in *)
-
-(*   let na_imp_nb = make_imp na nb in *)
-(*   let na_imp_b = make_imp na b in *)
-
-(*   let conjd = make_conj na_imp_b na_imp_nb in *)
-
-(*   let goal = make_imp conjd a in *)
-
-(*   let initial_fuel = 900 in *)
-(*   let fuel = ref initial_fuel in *)
-
-(*   let next_tactic = *)
-(*     next_tactic_of_list *)
-(*       [ *)
-(*         with_repeat *)
-(*         @@ with_no_trace ~show_proof:true *)
-(*         @@ (with_fuel_limit fuel) ctauto_tac; *)
-(*       ] *)
-(*   in *)
-(*   (match prove_bfs_with_trace ([], goal) next_tactic with *)
-(*   | exception Out_of_fuel -> *)
-(*       print_endline "out of fuel"; *)
-(*       Printf.printf "With fuel usage: %d\n" (initial_fuel - !fuel) *)
-(*   | t, Complete thm -> *)
-(*       List.iter print_endline t; *)
-(*       print_endline "Proof Complete!"; *)
-(*       Printf.printf "With fuel usage: %d\n" !fuel; *)
-(*       Printing.print_thm thm *)
-(*   | _t, Incomplete _ -> *)
-(*       Printf.printf "With fuel usage: %d\n" !fuel; *)
-(*       print_endline "Proof Failed"); *)
-(*   [%expect {| *)
-(*     out of fuel *)
-(*     With fuel usage: 900 *)
-(*     |}] *)
 
 let%expect_test "rewrite_basic" =
   let nat_ty = Theories.NatTheory.nat_ty in
@@ -1236,8 +843,6 @@ let%expect_test "rewrite_basic" =
 
   [%expect
     {|
-    assume_tac
-    rewrite_tac
     Two = add One One
     ========================================
     add Zero Two = add One One
@@ -1255,10 +860,6 @@ let%expect_test "rewrite_basic" =
   run_proof goal proof;
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    gen_tac
     ========================================
     ∀x. plus zero x = x
 
@@ -1276,16 +877,6 @@ let%expect_test "rewrite induction" =
 
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    refl_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. plus x zero = x
 
@@ -1302,11 +893,6 @@ let%expect_test "basic nat" =
 
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
     ========================================
     plus (suc (suc zero)) (suc (suc (suc zero))) = suc (suc (suc (suc (suc zero))))
 
@@ -1335,24 +921,6 @@ let%expect_test "plus assoc" =
   run_proof ~name:"plus_assoc" goal proof;
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    gen_tac
-    gen_tac
-    refl_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    gen_tac
-    gen_tac
-    intro_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. ∀y. ∀z. plus x (plus y z) = plus (plus x y) z
 
@@ -1383,11 +951,6 @@ let%expect_test "suc injective" =
 
   [%expect
     {|
-    assumption_tac
-    apply_thm_tac
-    intro_tac
-    gen_tac
-    gen_tac
     ========================================
     ∀x. ∀y. suc x = suc y ==> x = y
 
@@ -1414,20 +977,6 @@ let%expect_test "plus suc lemma" =
   run_proof ~name:"plus_suc" goal proof;
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    gen_tac
-    refl_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    gen_tac
-    intro_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. ∀y. plus x (suc y) = suc (plus x y)
 
@@ -1453,11 +1002,6 @@ let%expect_test "suc injective rev" =
   run_proof ~name:"plus_inj_rev" goal proof;
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    gen_tac
     ========================================
     ∀x. ∀y. x = y ==> suc x = suc y
 
@@ -1488,20 +1032,6 @@ let%expect_test "plus comm" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    gen_tac
-    apply_thm_tac
-    sym_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    gen_tac
-    intro_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. ∀y. plus x y = plus y x
 
@@ -1528,19 +1058,6 @@ let%expect_test "cancellation" =
   run_proof goal proof;
   [%expect
     {|
-    assumption_tac
-    intro_tac
-    gen_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    assumption_tac
-    apply_thm_asm_tac
-    intro_tac
-    gen_tac
-    intro_tac
-    gen_tac
-    induction_tac
     ∀n0. (∀y. plus n0 y = plus n0 z ==> y = z) ==> ∀y. plus (suc n0) y = plus (suc n0) z ==> y = z
     ========================================
     ∀x. ∀y. plus x y = plus x z ==> y = z
@@ -1573,21 +1090,6 @@ let%expect_test "cancellation rev" =
 
   [%expect
     {|
-    assumption_tac
-    intro_tac
-    rewrite_tac
-    rewrite_tac
-    gen_tac
-    assumption_tac
-    apply_thm_tac
-    apply_thm_asm_tac
-    rewrite_asm_tac
-    rewrite_asm_tac
-    intro_tac
-    gen_tac
-    intro_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. ∀y. plus y x = plus z x ==> y = z
 
@@ -1608,8 +1110,6 @@ let%expect_test "length Nil = Zero" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
     ========================================
     length nil = zero
 
@@ -1633,9 +1133,6 @@ let%expect_test "length (Cons Zero Nil) = Suc Zero" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    rewrite_tac
     ========================================
     length (cons zero nil) = suc zero
 
@@ -1671,10 +1168,6 @@ let%expect_test "length_cons" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    gen_tac
-    gen_tac
     ========================================
     ∀x. ∀xs. length (cons x xs) = suc (length xs)
 
@@ -1704,11 +1197,6 @@ let%expect_test "nil_implies_length_zero" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
     ========================================
     ∀xs. xs = nil ==> length xs = zero
 
@@ -1742,15 +1230,6 @@ let%expect_test "length_zero_implies_nil" =
   run_proof goal proof;
   [%expect
     {|
-    refl_tac
-    intro_tac
-    assumption_tac
-    apply_thm_asm_tac
-    intro_tac
-    intro_tac
-    gen_tac
-    gen_tac
-    induction_tac
     ∀n0. ∀n1. (length n1 = zero ==> n1 = nil) ==> length (cons n0 n1) = zero ==> cons n0 n1 = nil
     ========================================
     ∀x. length x = zero ==> x = nil
@@ -1775,10 +1254,6 @@ let%expect_test "append nil xs = xs" =
 
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    gen_tac
     ========================================
     ∀xs. append nil xs = xs
 
@@ -1813,12 +1288,6 @@ let%expect_test "append (Cons x xs) ys = Cons x (append xs ys)" =
 
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    gen_tac
-    gen_tac
-    gen_tac
     ========================================
     ∀x. ∀xs. ∀ys. append (cons x xs) ys = cons x (append xs ys)
 
@@ -1846,16 +1315,6 @@ let%expect_test "append xs nil = xs" =
 
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. append x nil = x
 
@@ -1886,25 +1345,6 @@ let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
   run_proof ~name:"append_assoc" goal proof;
   [%expect
     {|
-    refl_tac
-    gen_tac
-    gen_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    refl_tac
-    gen_tac
-    gen_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    gen_tac
-    beta_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    induction_tac
     ========================================
     ∀x. ∀ys. ∀zs. append (append x ys) zs = append x (append ys zs)
 
@@ -1938,24 +1378,6 @@ let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
 
   [%expect
     {|
-    refl_tac
-    gen_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    refl_tac
-    gen_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    gen_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    induction_tac
     ========================================
     ∀x. ∀ys. length (append x ys) = plus (length x) (length ys)
 
@@ -1989,25 +1411,6 @@ let%expect_test "length (reverse xs) = length xs" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    refl_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. length (reverse x) = length x
 
@@ -2046,23 +1449,6 @@ let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
 
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    gen_tac
-    apply_thm_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    gen_tac
-    intro_tac
-    gen_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. ∀ys. reverse (append x ys) = append (reverse ys) (reverse x)
 
@@ -2092,24 +1478,6 @@ let%expect_test "reverse (reverse xs) = xs" =
   run_proof goal proof;
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    refl_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. reverse (reverse x) = x
 
@@ -2132,11 +1500,6 @@ let%expect_test "test defining with elab" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    intro_tac
     ========================================
     x = y ==> fst (pair x y) = snd (pair x y)
 
@@ -2158,8 +1521,6 @@ let%expect_test "test minus" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
     ========================================
     pred (suc (suc (suc zero))) = suc (suc zero)
 
@@ -2182,18 +1543,6 @@ let%expect_test "test minus 2" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
     ========================================
     minus (suc (suc (suc (suc zero)))) (suc (suc (suc zero))) = suc zero
 
@@ -2220,24 +1569,6 @@ let%expect_test "n - 0 = n" =
 
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    refl_tac
-    intro_tac
-    gen_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    induction_tac
     ========================================
     ∀x. minus x zero = x
 
@@ -2267,32 +1598,6 @@ let%expect_test "minus suc right" =
   run_proof ~name:"minus_suc_right" goal proof;
   [%expect
     {|
-    refl_tac
-    gen_tac
-    beta_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    refl_tac
-    gen_tac
-    intro_tac
-    gen_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    induction_tac
     ========================================
     ∀x. ∀m. minus x (suc m) = pred (minus x m)
 
@@ -2329,23 +1634,6 @@ let%expect_test "minus suc suc" =
   run_proof ~name:"minus_suc_suc" goal proof;
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    induction_tac
-    gen_tac
     ========================================
     ∀n. ∀x. minus (suc n) (suc x) = minus n x
 
@@ -2376,23 +1664,6 @@ let%expect_test "n - n = z" =
 
   [%expect
     {|
-    refl_tac
-    beta_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    assumption_tac
-    beta_asm_tac
-    rewrite_asm_tac
-    rewrite_asm_tac
-    beta_tac
-    rewrite_tac
-    rewrite_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    induction_tac
     ========================================
     ∀x. minus x x = zero
 
@@ -2428,16 +1699,6 @@ let%expect_test "x - n + n = x" =
   run_proof goal proof;
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    assumption_tac
-    rewrite_tac
-    rewrite_tac
-    intro_tac
-    gen_tac
-    induction_tac
-    gen_tac
     ========================================
     ∀x. ∀x'. minus (plus x x') x' = x
 
@@ -2459,11 +1720,6 @@ let%expect_test "pred twice" =
 
   [%expect
     {|
-    refl_tac
-    rewrite_tac
-    rewrite_tac
-    beta_tac
-    rewrite_tac
     ========================================
     twice pred (suc (suc zero)) = zero
 
