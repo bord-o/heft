@@ -348,7 +348,7 @@ let ap_thm th tm =
   let* term_rfl = refl tm in
   mk_comb th term_rfl
 
-(* [|- x = y] should derive [|- y = x] *)
+(** [|- x = y] should derive [|- y = x] *)
 let sym th =
   let tm = concl th in
   let* l, _ = destruct_eq tm in

@@ -7,13 +7,31 @@ open Result.Syntax
 open Rewrite
 
 type goal = term list * term [@@deriving show]
+(** a list of assumptions and a term to prove under them *)
+
+(** [level] is used to distinguish between different types of traces *)
 type level = Debug | Info | Warn | Error | Proof | Search
+
+(** [proof_state] is used by the ambient handler [prove] to represent the result
+    of applying a tactic *)
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
+
 type tactic = goal -> thm
+(** a [tactic] is a function that works on a goal, possibly performing effects
+*)
+
 type tactic_combinator = tactic -> tactic
-type priority = Safe | Unsafe of int
+(** a [tactic_combinator] is a function between tactics. It has many uses like
+    sequencing tactics ([then_one], [then_all]), handling specific effects
+    ([with_no_trace], [with_fuel_limit]), or managing search over a tactics
+    choices ([with_dfs], [with_best_first]. *)
+
+(** [search_metadata] is used by [with_best_first] to sort a priority queue,
+    deciding which path of a proof space to explore next *)
 type search_metadata = MSubgoal | MChoice | MResume
 
+(** in search [tactic_combinator]s, [step_result] is used to represent possible
+    continuations of a search *)
 type step_result =
   | Cont of (unit -> step_result) list
   | Need of goal * (thm -> step_result)
@@ -37,13 +55,18 @@ module Priority = struct
     | _ -> -1
 end
 
+(** the [rankable] GADT is used to allow both agnostic treatment of the [Rank]
+    effect as well as deeper introspection into the underlying data when needed
+*)
 type _ rankable =
-  | Priority : (tactic * priority * goal) list -> (tactic * goal) rankable
   | Term : term list -> term rankable
   | Goal : goal list -> goal rankable
   | Tactic : tactic list -> tactic rankable
   | Unknown : 'a list -> 'a rankable
 
+(** the [choosable] GADT is used to allow both agnostic treatment of the
+    [Choose] effect as well as deeper introspection into the underlying data
+    when needed *)
 type _ choosable =
   | Term : term list -> term choosable
   | Theorem : thm list -> thm choosable
@@ -52,6 +75,8 @@ type _ choosable =
   | Unknown : 'a list -> 'a choosable
 
 exception Out_of_fuel
+(** [Out_of_fuel] is performed by the [with_fuel_limit] [tactic_combinator] to
+    indicate that a tactic has gone over its limit *)
 
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
@@ -62,13 +87,14 @@ type _ Effect.t +=
   | Burn : int -> unit Effect.t
   | Rules : thm list Effect.t
 
+(** [as_ranked_list] extracts the underlying type from the [rankable] GADT *)
 let as_ranked_list : type a. a rankable -> a list = function
-  | Priority l -> List.map (fun (tac, _pri, g) -> (tac, g)) l
   | Term ts -> ts
   | Goal gs -> gs
   | Tactic tacs -> tacs
   | Unknown xs -> xs
 
+(** [as_chosen_list] extracts the underlying type from the [choosable] GADT *)
 let as_chosen_list : type a. a choosable -> a list = function
   | Term ts -> ts
   | Theorem thms -> thms
@@ -76,6 +102,8 @@ let as_chosen_list : type a. a choosable -> a list = function
   | Tactic tacs -> tacs
   | Unknown xs -> xs
 
+(** [step] performs one expansion of the proof tree and aggregates the results
+    along with their continuations *)
 let step (tac : tactic) (goal : goal) : step_result =
   match tac goal with
   | effect Choose cs, k ->
@@ -88,13 +116,67 @@ let step (tac : tactic) (goal : goal) : step_result =
   | effect Fail, _ -> Dead
   | v -> Done v
 
+(** [fail] performs the [Fail] effect. This is used to signal when a tactic
+    doesn't apply or doesn't make progress *)
 let fail () = perform Fail
+
+(** [burn] performs the [Burn] effect. This is used to signal the 'cost' of a
+    tactic relative to other tactics *)
 let burn n = perform (Burn n)
+
+(** [trace_dbg] emits a debug-level trace message
+
+    Effects: Trace *)
 let trace_dbg a = perform (Trace (Debug, a))
+
+(** [trace_info] emits an info-level trace message
+
+    Effects: Trace *)
 let trace_info a = perform (Trace (Info, a))
+
+(** [trace_error] emits an error-level trace message
+
+    Effects: Trace *)
 let trace_error a = perform (Trace (Error, a))
+
+(** [trace_proof] emits a proof-level trace message, used by tactics to record
+    their name in the proof path
+
+    Effects: Trace *)
 let trace_proof a = perform (Trace (Proof, a))
 
+(** [choose_goals] requests a choice among a list of goals
+
+    Effects: Choose *)
+let choose_goals gs = perform (Choose (Goal gs))
+
+(** [choose_terms] requests a choice among a list of terms
+
+    Effects: Choose *)
+let choose_terms gs = perform (Choose (Term gs))
+
+(** [choose_theorems] requests a choice among a list of theorems
+
+    Effects: Choose *)
+let choose_theorems gs = perform (Choose (Theorem gs))
+
+(** [choose_tactics] requests a choice among a list of tactics
+
+    Effects: Choose *)
+let choose_tactics gs = perform (Choose (Tactic gs))
+
+(** [choose_unknowns] requests a choice among a list of unknown type
+
+    Effects: Choose *)
+let choose_unknowns gs = perform (Choose (Unknown gs))
+
+(** [rank_terms] requests a ranking/sorting of terms by some heuristic
+
+    Effects: Rank *)
+let rank_terms ts = perform (Rank (Term ts))
+
+(** [return_thm] is used by tactics to handle failure and trace information
+    about which tactic was run *)
 let return_thm ?(from = "unknown") = function
   | Ok thm ->
       perform (Trace (Proof, from));
@@ -103,20 +185,20 @@ let return_thm ?(from = "unknown") = function
       trace_error @@ print_error e;
       fail ()
 
-let choose_goals gs = perform (Choose (Goal gs))
-let choose_terms gs = perform (Choose (Term gs))
-let choose_theorems gs = perform (Choose (Theorem gs))
-let choose_tactics gs = perform (Choose (Tactic gs))
-let choose_unknowns gs = perform (Choose (Unknown gs))
-let rank_terms ts = perform (Rank (Term ts))
-let wrap_all = List.map
+(** [left_tac] takes goals like [P \/ Q] and creates the subgoal [P]. It fails
+    if the goals conclusion is not a conjunction. This tactic is [not safe], as
+    it is not true that [P] is always provable when [P \/ Q] is
 
+    Effects
+    + Fail
+    + Subgoal
+    + Burn
+    + Trace *)
 let left_tac : tactic =
  fun (asms, concl) ->
   burn 3;
   let thm =
-    let* l = side_of_op "\\/" Left concl in
-    let* r = side_of_op "\\/" Right concl in
+    let* l, r = destruct_disj concl in
     let l_thm = perform (Subgoal (asms, l)) in
     let t = disj_left r l_thm in
     trace_dbg "disj_left success";
@@ -124,12 +206,20 @@ let left_tac : tactic =
   in
   return_thm ~from:"left_tac" thm
 
+(** [right_tac] takes goals like [P \/ Q] and creates the subgoal [Q]. It fails
+    if the goals conclusion is not a conjunction. This tactic is [not safe], as
+    it is not true that [Q] is always provable when [P \/ Q] is
+
+    Effects
+    + Subgoal
+    + Burn
+    + Fail
+    + Trace *)
 let right_tac : tactic =
  fun (asms, concl) ->
   burn 3;
   let thm =
-    let* l = side_of_op "\\/" Left concl in
-    let* r = side_of_op "\\/" Right concl in
+    let* l, r = destruct_disj concl in
     let r_thm = perform (Subgoal (asms, r)) in
     let t = disj_right r_thm l in
     trace_dbg "disj_right success";
@@ -137,6 +227,10 @@ let right_tac : tactic =
   in
   return_thm ~from:"right_tac" thm
 
+(** [or_tac] chooses between [left_tac] and [right_tac], ensuring both sides are
+    attempted if used under a search combinator
+
+    Effects: Choose, Fail, Burn, Trace *)
 let or_tac : tactic =
  fun (asms, concl) ->
   burn 3;
@@ -144,10 +238,13 @@ let or_tac : tactic =
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
+(** [apply_asm_tac] finds assumptions of the form [P -> Q] for the goal [Q] and
+    creates a subgoal [P]
+
+    Effects: Rank, Choose, Burn, Fail, Subgoal *)
 let apply_asm_tac : tactic =
  fun (asms, concl) ->
   burn 3;
-  (* Find implications in the asms that match the conclusion *)
   let matching =
     asms
     |> List.filter_map (fun asm ->
@@ -155,11 +252,9 @@ let apply_asm_tac : tactic =
         | Ok (prem, conc) when conc = concl -> Some (asm, prem)
         | _ -> None)
   in
-
   let choices = rank_terms (List.map fst matching) in
   let chosen = choose_terms choices in
   let h = matching |> List.assoc chosen in
-
   let thm =
     let* assumed = assume chosen in
     trace_dbg "assume chosen h success";
@@ -170,7 +265,10 @@ let apply_asm_tac : tactic =
   in
   return_thm ~from:"apply_asm_tac" thm
 
-(* Apply a theorem, strips foralls, matches conclusion against goal *)
+(** [apply_thm_tac] applies a chosen theorem from [Rules] by stripping foralls
+    and matching the conclusion against the goal
+
+    Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let apply_thm_tac : tactic =
  fun (asms, conc) ->
   burn 3;
@@ -226,8 +324,11 @@ let apply_thm_tac : tactic =
   in
   return_thm ~from:"apply_thm_tac" thm
 
-(* Apply a theorem to an assumption, producing a new assumption.
-   If theorem is P ==> Q and assumption is P, replaces with Q. *)
+(** [apply_thm_asm_tac] applies a chosen theorem from [Rules] to a chosen
+    assumption. If theorem is [P ==> Q] and assumption is [P], replaces the
+    assumption with [Q] and creates a subgoal with the updated assumptions
+
+    Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let apply_thm_asm_tac : tactic =
  fun (asms, conc) ->
   burn 3;
@@ -281,6 +382,11 @@ let apply_thm_asm_tac : tactic =
   in
   return_thm ~from:"apply_thm_asm_tac" thm
 
+(** [apply_neg_asm_tac] proves [F] by finding a negation [~P] in assumptions and
+    creating a subgoal to prove [P]. Fails if the goal is not [F] or no suitable
+    negation exists
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let apply_neg_asm_tac : tactic =
  fun (asms, concl) ->
   burn 3;
@@ -302,9 +408,16 @@ let apply_neg_asm_tac : tactic =
       in
       return_thm ~from:"apply_neg_asm_tac" thm
 
+(** [assume_tac] proves any goal by assuming it. This creates a theorem with the
+    goal as a hypothesis
+
+    Effects: Trace *)
 let assume_tac : tactic =
  fun (_asms, conc) -> return_thm ~from:"assume_tac" @@ assume conc
 
+(** [sym_tac] transforms a goal [l = r] into [r = l]
+
+    Effects: Burn, Trace, Subgoal, Fail *)
 let sym_tac : tactic =
  fun (asms, conc) ->
   burn 1;
@@ -316,7 +429,10 @@ let sym_tac : tactic =
   in
   return_thm ~from:"sym_tac" thm
 
-(* tries to rewrite anywhere in the goal using subterm matching *)
+(** [rewrite_tac] rewrites the goal using a chosen theorem from [Rules].
+    Performs subterm matching and fails if no progress is made
+
+    Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let rewrite_tac : tactic =
  fun (asms, conc) ->
   burn 2;
@@ -335,7 +451,10 @@ let rewrite_tac : tactic =
   in
   return_thm ~from:"rewrite_tac" thm
 
-(* rewrites in an assumption *)
+(** [rewrite_asm_tac] rewrites a chosen assumption using a theorem from [Rules].
+    Fails if no progress is made
+
+    Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let rewrite_asm_tac : tactic =
  fun (asms, conc) ->
   burn 2;
@@ -357,6 +476,10 @@ let rewrite_asm_tac : tactic =
   in
   return_thm ~from:"rewrite_asm_tac" thm
 
+(** [beta_tac] performs deep beta reduction on the goal and creates a subgoal
+    with the reduced term
+
+    Effects: Burn, Trace, Subgoal, Fail *)
 let beta_tac : tactic =
  fun (asms, conc) ->
   burn 1;
@@ -369,6 +492,10 @@ let beta_tac : tactic =
   in
   return_thm ~from:"beta_tac" thm
 
+(** [beta_asm_tac] performs deep beta reduction on a chosen assumption. Fails if
+    no progress is made
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let beta_asm_tac : tactic =
  fun (asms, conc) ->
   burn 1;
@@ -387,6 +514,11 @@ let beta_asm_tac : tactic =
   in
   return_thm ~from:"beta_asm_tac" thm
 
+(** [mp_asm_tac] finds an implication [P ==> Q] in assumptions where [P] is also
+    an assumption, and adds [Q] to the assumptions. Fails if no such implication
+    exists or [Q] is already present
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let mp_asm_tac : tactic =
  fun (asms, concl) ->
   burn 3;
@@ -407,6 +539,10 @@ let mp_asm_tac : tactic =
     in
     return_thm ~from:"mp_asm_tac" thm
 
+(** [intro_tac] transforms a goal [P ==> Q] into a subgoal [Q] with [P] added to
+    the assumptions. Fails if goal is not an implication
+
+    Effects: Burn, Trace, Subgoal, Fail *)
 let intro_tac : tactic =
  fun (asms, concl) ->
   burn 1;
@@ -422,6 +558,10 @@ let intro_tac : tactic =
   in
   return_thm ~from:"intro_tac" thm
 
+(** [refl_tac] proves goals of the form [t = t] by reflexivity. Fails if the
+    goal is not an equality or the sides are not identical
+
+    Effects: Trace, Fail *)
 let refl_tac : tactic =
  fun (_asms, concl) ->
   let thm =
@@ -437,6 +577,10 @@ let refl_tac : tactic =
   in
   return_thm ~from:"refl_tac" thm
 
+(** [assumption_tac] proves the goal if it matches one of the assumptions. Fails
+    if no matching assumption is found
+
+    Effects: Choose, Burn, Trace, Fail *)
 let assumption_tac : tactic =
  fun (asms, concl) ->
   burn 1;
@@ -450,6 +594,10 @@ let assumption_tac : tactic =
     trace_dbg "Assumption succeeded";
     return_thm ~from:"assumption_tac" t)
 
+(** [conj_tac] transforms a goal [P /\ Q] into two subgoals [P] and [Q]. Fails
+    if the goal is not a conjunction
+
+    Effects: Burn, Trace, Subgoal, Fail *)
 let conj_tac : tactic =
  fun (asms, concl) ->
   burn 1;
@@ -467,6 +615,10 @@ let conj_tac : tactic =
   in
   return_thm ~from:"conj_tac" thm
 
+(** [elim_disj_asm_tac] eliminates a disjunction [P \/ Q] in the assumptions by
+    case splitting, creating two subgoals: one with [P] and one with [Q]
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let elim_disj_asm_tac : tactic =
  fun (asms, concl) ->
   burn 4;
@@ -489,6 +641,10 @@ let elim_disj_asm_tac : tactic =
     in
     return_thm ~from:"elim_disj_asm_tac" thm
 
+(** [elim_conj_asm_tac] eliminates a conjunction [P /\ Q] in the assumptions by
+    replacing it with both [P] and [Q] as separate assumptions
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let elim_conj_asm_tac : tactic =
  fun (asms, concl) ->
   burn 1;
@@ -508,6 +664,10 @@ let elim_conj_asm_tac : tactic =
     in
     return_thm ~from:"elim_conj_asm_tac" thm
 
+(** [neg_elim_tac] proves any goal when both [P] and [~P] are in assumptions,
+    deriving a contradiction. Fails if no such pair exists
+
+    Effects: Choose, Burn, Trace, Fail *)
 let neg_elim_tac : tactic =
  fun (asms, concl) ->
   burn 2;
@@ -527,6 +687,11 @@ let neg_elim_tac : tactic =
     in
     return_thm ~from:"neg_elim_tac" thm
 
+(** [neg_intro_tac] transforms a goal [~P] into a subgoal [F] with [P] added to
+    the assumptions. Fails if goal is not a negation or [P] is already an
+    assumption
+
+    Effects: Burn, Trace, Subgoal, Fail *)
 let neg_intro_tac : tactic =
  fun (asms, concl) ->
   burn 2;
@@ -541,6 +706,10 @@ let neg_intro_tac : tactic =
   in
   return_thm ~from:"neg_intro_tac" thm
 
+(** [ccontr_tac] proves [P] by classical contradiction: assumes [~P] and derives
+    [F]. This is a classical (non-intuitionistic) tactic
+
+    Effects: Burn, Trace, Subgoal, Fail *)
 let ccontr_tac : tactic =
  fun (asms, concl) ->
   burn 8;
@@ -555,6 +724,10 @@ let ccontr_tac : tactic =
     in
     return_thm ~from:"ccontr_tac" thm
 
+(** [false_elim_tac] proves any goal when [F] (false) is in the assumptions.
+    Fails if [F] is not present
+
+    Effects: Burn, Trace, Fail *)
 let false_elim_tac : tactic =
  fun (asms, concl) ->
   burn 1;
@@ -567,6 +740,10 @@ let false_elim_tac : tactic =
     return_thm ~from:"false_elim_tac" thm
   else fail ()
 
+(** [gen_tac] transforms a goal [forall x. P] into a subgoal [P]. Fails if the
+    goal is not a universal quantification
+
+    Effects: Burn, Trace, Subgoal, Fail *)
 let gen_tac : tactic =
  fun (asms, concl) ->
   burn 1;
@@ -585,6 +762,12 @@ let gen_tac : tactic =
   in
   return_thm ~from:"gen_tac" thm
 
+(** [induct_tac] applies structural induction on the quantified variable of a
+    goal [forall x. P]. Creates subgoals for each constructor case of the
+    inductive type. Fails if the goal is not universally quantified or the type
+    is not inductive
+
+    Effects: Burn, Trace, Subgoal, Fail *)
 let induct_tac : tactic =
  fun (asms, concl) ->
   burn 5;
@@ -638,11 +821,10 @@ let induct_tac : tactic =
   in
   return_thm ~from:"induction_tac" thm
 
-(* 
-   As a general rule, custom handlers should handle the least amount of 
-   effects possible. The main handler captures all effects, but implements only basic
-   interpretations of them.
-*)
+(** [prove] is the main effect handler that runs a tactic on a goal. It provides
+    default interpretations for all effects: printing traces, taking first
+    choices, ignoring fuel costs, etc. Returns [Complete thm] on success or
+    [Incomplete goal] on failure *)
 let prove ?(name = "") (goal : goal) (tactic : tactic) =
   match tactic goal with
   (* Burn is used for resource tracking/limiting *)
@@ -664,7 +846,7 @@ let prove ?(name = "") (goal : goal) (tactic : tactic) =
           print_endline "no choices available";
           Incomplete goal
       | c :: _ -> continue k c)
-  (* Subgoal is used for branching the proof state, 
+  (* Subgoal is used for branching the proof state,
          but prove should solve the goal completely *)
   | effect Subgoal g', _k -> Incomplete g'
   (* When a proof is complete we extract the theorem *)
@@ -675,8 +857,8 @@ let prove ?(name = "") (goal : goal) (tactic : tactic) =
       Rules.add_proven name thm;
       Complete thm
 
-(* Handle first subgoal, bubble the rest *)
-
+(** [then_one] sequences two tactics: applies [tac1] then applies [tac] to only
+    the first subgoal. Remaining subgoals bubble up. Infix: [>>] *)
 let then_one (tac1 : tactic) : tactic_combinator =
  fun tac goal ->
   let handled_first = ref false in
@@ -693,6 +875,8 @@ let then_one (tac1 : tactic) : tactic_combinator =
 
 let ( >> ) = then_one
 
+(** [then_all] sequences two tactics: applies [tac1] then applies [tac] to all
+    subgoals. Infix: [>>>] *)
 let then_all (tac1 : tactic) : tactic_combinator =
  fun tac goal ->
   let rec handler f =
@@ -707,6 +891,8 @@ let then_all (tac1 : tactic) : tactic_combinator =
 
 let ( >>> ) = then_all
 
+(** [then_each] applies a list of tactics to subgoals in order. Fails if there
+    are more subgoals than tactics provided. Infix: [>>=] *)
 let then_each (tacs : tactic list) : tactic_combinator =
   let tacs = ref tacs in
   fun tac goal ->
@@ -724,7 +910,9 @@ let then_each (tacs : tactic list) : tactic_combinator =
 
 let ( >>= ) = Fun.flip then_each
 
-(* this only trys choices at one level, for actual dfs we need a full handler *)
+(** [with_first_success] handles [Choose] by trying each choice in order until
+    one succeeds. Only handles choices at one level; for recursive search use
+    [with_dfs] or [with_best_first] *)
 let with_first_success : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -742,6 +930,8 @@ let with_first_success : tactic_combinator =
       try_each (as_chosen_list choices)
   | v -> v
 
+(** [with_term] forces a specific term to be chosen when a [Choose (Term _)]
+    effect is performed. Fails if the term is not among the choices *)
 let with_term (t : term) : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -749,19 +939,30 @@ let with_term (t : term) : tactic_combinator =
       if List.mem t terms then continue k t else fail ()
   | x -> x
 
+(** [try_] converts failure into a subgoal request, a tactics sequence to be
+    used in situations where one or more intermediate tactics could fail *)
 let try_ : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Fail, _ -> perform (Subgoal goal) | v -> v
 
+(** [pick_tac] creates a tactic that chooses among the given tactics. Used with
+    search combinators to explore different proof strategies
+
+    Effects: Choose *)
 let pick_tac (tacs : tactic list) : tactic =
  fun goal ->
   let tac = choose_tactics tacs in
   tac goal
 
+(** [solve] requires a tactic to completely solve the goal without leaving
+    subgoals. Fails if any subgoals remain *)
 let solve : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Subgoal _g', _k -> fail () | v -> v
 
+(** [run_thunk_with_path] executes a thunk while capturing [Trace (Proof, _)]
+    effects into the provided path reference. Used by search combinators to
+    track the winning proof sequence *)
 let run_thunk_with_path (path : string list ref) (thunk : unit -> 'a) : 'a =
   let rec loop f =
     match f () with
@@ -772,6 +973,10 @@ let run_thunk_with_path (path : string list ref) (thunk : unit -> 'a) : 'a =
   in
   loop thunk
 
+(** [emit_proof_path] formats a proof path as a tactic script and emits it as a
+    [Trace (Search, _)] effect
+
+    Effects: Trace *)
 let emit_proof_path (path : string list) : unit =
   let rec format_path = function
     | [] -> ""
@@ -781,6 +986,11 @@ let emit_proof_path (path : string list) : unit =
   let proof_str = "Proof:\n" ^ format_path path in
   perform (Trace (Search, proof_str))
 
+(** [with_dfs] performs depth-first search over choices and subgoals. Explores
+    the proof space using a stack, backtracking on failure. Emits the winning
+    proof path on success
+
+    Effects: Trace (Search) on success, Fail if no proof found *)
 let with_dfs : tactic_combinator =
  fun tac goal ->
   let s = Stack.create () in
@@ -820,6 +1030,12 @@ let with_dfs : tactic_combinator =
 
 module PriorityQueue = Pqueue.MakeMax (Priority)
 
+(** [with_best_first] performs best-first search over choices and subgoals. Uses
+    a priority queue ordered by [search_metadata] to explore promising paths
+    first (resumes before choices, choices before subgoals). Emits the winning
+    proof path on success
+
+    Effects: Trace (Search) on success, Fail if no proof found *)
 let with_best_first : tactic_combinator =
  fun tac goal ->
   let q = PriorityQueue.create () in
@@ -855,6 +1071,11 @@ let with_best_first : tactic_combinator =
   in
   aux ()
 
+(** [with_bfs] performs breadth-first search over choices and subgoals. Uses a
+    queue to explore paths level by level. Emits the winning proof path on
+    success
+
+    Effects: Trace (Search) on success, Fail if no proof found *)
 let with_bfs : tactic_combinator =
  fun tac goal ->
   let q = Queue.create () in
@@ -892,6 +1113,8 @@ let with_bfs : tactic_combinator =
   in
   aux ()
 
+(** [with_dfs''] is an alternative DFS implementation using an explicit stack
+    for choice points. Does not track proof paths *)
 let with_dfs'' : tactic_combinator =
  fun tac goal ->
   let rec handler s f =
@@ -914,6 +1137,9 @@ let with_dfs'' : tactic_combinator =
   in
   handler (Stack.create ()) (fun () -> tac goal)
 
+(** [with_dfs'] is a recursive DFS implementation that uses the call stack for
+    backtracking. Simpler but may overflow on deep searches. Does not track
+    proof paths *)
 let with_dfs' : tactic_combinator =
  fun tac goal ->
   let rec handler f =
@@ -936,6 +1162,9 @@ let with_dfs' : tactic_combinator =
   in
   handler (fun () -> tac goal)
 
+(** [with_repeat] repeatedly applies a tactic until it fails or makes no
+    progress. On failure after progress, emits a subgoal for the current state
+*)
 let with_repeat : tactic_combinator =
  fun tac goal ->
   let made_progress = ref false in
@@ -952,7 +1181,11 @@ let with_repeat : tactic_combinator =
   in
   aux goal
 
-(* (* Complete automation for propositional logic goals *) *)
+(** [ctauto_tac] is a complete automation tactic for classical propositional
+    logic. Chooses among various introduction and elimination tactics. Use with
+    a search combinator like [with_dfs] or [with_best_first]
+
+    Effects: Choose *)
 let ctauto_tac : tactic =
   pick_tac
     [
@@ -973,8 +1206,12 @@ let ctauto_tac : tactic =
       ccontr_tac;
     ]
 
+(** [ctauto_dfs_tac] is [ctauto_tac] wrapped with [with_dfs] for automatic
+    depth-first proof search *)
 let ctauto_dfs_tac : tactic = with_dfs ctauto_tac
 
+(** [with_interactive_choice] handles [Choose] effects by prompting the user to
+    select from the available options via stdin *)
 let with_interactive_choice : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -995,6 +1232,8 @@ let with_interactive_choice : tactic_combinator =
         continue k (get_choice (as_chosen_list choices))
   | v -> v
 
+(** [with_nth_choice n] always selects the [n]th option from any [Choose]
+    effect. Fails if [n] is out of bounds *)
 let with_nth_choice n : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -1004,6 +1243,8 @@ let with_nth_choice n : tactic_combinator =
       | Some c -> continue k c)
   | v -> v
 
+(** [with_term_size_ranking] handles [Rank (Term _)] effects by sorting terms
+    from smallest to largest based on AST size *)
 let with_term_size_ranking : tactic_combinator =
   let rec term_size (t : term) =
     match t with
@@ -1023,6 +1264,9 @@ let with_term_size_ranking : tactic_combinator =
         continue k sorted
     | v -> v
 
+(** [with_fuel_limit] tracks fuel consumption and raises [Out_of_fuel] when the
+    limit is exceeded. The limit is a mutable reference that decreases with each
+    [Burn] effect *)
 let with_fuel_limit limit : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -1034,6 +1278,8 @@ let with_fuel_limit limit : tactic_combinator =
         continue k ())
   | v -> v
 
+(** [with_fuel_counter] tracks total fuel consumed by incrementing a mutable
+    reference for each [Burn] effect *)
 let with_fuel_counter r : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -1043,6 +1289,8 @@ let with_fuel_counter r : tactic_combinator =
       continue k ()
   | v -> v
 
+(** [with_no_trace] suppresses trace messages. By default suppresses all except
+    [Search]. Set [show_proof:true] to also show [Proof] traces *)
 let with_no_trace ?(show_proof = false) : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -1053,6 +1301,8 @@ let with_no_trace ?(show_proof = false) : tactic_combinator =
   | effect Trace (Proof, _), k when not show_proof -> continue k ()
   | v -> v
 
+(** [with_assumptions] provides the goal's assumptions as theorems when a
+    [Rules] effect is performed *)
 let with_assumptions : tactic_combinator =
  fun tac (asms, concl) ->
   let asm_thms =
@@ -1062,14 +1312,19 @@ let with_assumptions : tactic_combinator =
   in
   match tac (asms, concl) with effect Rules, k -> continue k asm_thms | v -> v
 
+(** [with_rules] provides a fixed list of theorems when a [Rules] effect is
+    performed *)
 let with_rules (rules : thm list) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rules, k -> continue k rules | v -> v
 
+(** [with_rule] provides a single theorem when a [Rules] effect is performed *)
 let with_rule (rule : thm) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rules, k -> continue k [ rule ] | v -> v
 
+(** [with_proven] looks up previously proven theorems by name and provides them
+    when a [Rules] effect is performed. Fails if any name is not found *)
 let with_proven (names : string list) : tactic_combinator =
   let rules =
     names
@@ -1083,6 +1338,8 @@ let with_proven (names : string list) : tactic_combinator =
   fun tac goal ->
     match tac goal with effect Rules, k -> continue k rules | v -> v
 
+(** [with_rules_and_assumptions] provides both the given rules and the goal's
+    assumptions as theorems when a [Rules] effect is performed *)
 let with_rules_and_assumptions (rules : thm list) : tactic_combinator =
  fun tac (asms, concl) ->
   let asm_thms =
@@ -1094,10 +1351,16 @@ let with_rules_and_assumptions (rules : thm list) : tactic_combinator =
   | effect Rules, k -> continue k (rules @ asm_thms)
   | v -> v
 
+(** [intros_tac] repeatedly applies [intro_tac] and [gen_tac] until neither
+    makes progress. Useful for introducing all hypotheses at once *)
 let intros_tac : tactic =
  fun goal ->
   with_repeat (with_first_success (pick_tac [ intro_tac; gen_tac ])) goal
 
+(** [simp_tac] simplifies the goal using rewrite rules from definitions and
+    registered simp lemmas. Set [with_asms:false] to exclude assumptions
+
+    Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let simp_tac ?(with_asms = true) : tactic =
  fun goal ->
   (* TODO: get the base simp set here. The effect for rules should return proper rules not just unprocessed thms *)
@@ -1121,6 +1384,10 @@ let simp_tac ?(with_asms = true) : tactic =
   in
   thm
 
+(** [auto_tac] is an automation tactic combining simplification with basic
+    logical tactics. Use with a search combinator for full automation
+
+    Effects: Choose *)
 let auto_tac : tactic =
   pick_tac
     [
@@ -1135,10 +1402,15 @@ let auto_tac : tactic =
       mp_asm_tac;
     ]
 
+(** [auto_dfs_tac] is [auto_tac] wrapped with [with_dfs] for automatic
+    depth-first proof search *)
 let auto_dfs_tac : tactic = with_dfs @@ auto_tac
 
-(* simp for assumptions - simplifies an assumption using definition rules *)
-(* todo; remove the assumption we are currently simplifying from assumptions *)
+(** [simp_asm_tac] simplifies assumptions using rewrite rules from definitions.
+    Use [add] to provide additional rules. Set [with_asms:false] to exclude
+    other assumptions as rewrite rules
+
+    Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
  fun goal ->
   let definitions =
