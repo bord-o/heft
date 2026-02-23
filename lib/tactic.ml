@@ -7,22 +7,35 @@ open Result.Syntax
 open Rewrite
 
 type goal = term list * term [@@deriving show]
-type level = Debug | Info | Warn | Error | Proof
+type level = Debug | Info | Warn | Error | Proof | Search
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 type tactic = goal -> thm
 type tactic_combinator = tactic -> tactic
 type priority = Safe | Unsafe of int
+type search_metadata = MSubgoal | MChoice | MResume
 
-(* To build a powerful prio queue, we need lots of metadata for these so
-   we can make intelligent choices
-   What about flattening Cont?
-   I guess it already gets flattened before going in the Queue.
-*)
 type step_result =
   | Cont of (unit -> step_result) list
   | Need of goal * (thm -> step_result)
   | Done of thm
   | Dead
+
+module Priority = struct
+  type t =
+    search_metadata
+    * (unit -> step_result)
+    * (thm -> step_result) list
+    * string list
+
+  let compare : t -> t -> int =
+   fun (a, _, _, _) (b, _, _, _) ->
+    match (a, b) with
+    | MResume, MSubgoal -> 1
+    | MResume, MChoice -> 1
+    | MChoice, MSubgoal -> 1
+    | m1, m2 when m1 = m2 -> 0
+    | _ -> -1
+end
 
 type _ rankable =
   | Priority : (tactic * priority * goal) list -> (tactic * goal) rankable
@@ -749,78 +762,95 @@ let solve : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Subgoal _g', _k -> fail () | v -> v
 
-type search_metadata = MSubgoal | MChoice | MResume
+let run_thunk_with_path (path : string list ref) (thunk : unit -> 'a) : 'a =
+  let rec loop f =
+    match f () with
+    | effect Trace (Proof, name), k ->
+        path := name :: !path;
+        loop (fun () -> continue k ())
+    | v -> v
+  in
+  loop thunk
+
+let emit_proof_path (path : string list) : unit =
+  let rec format_path = function
+    | [] -> ""
+    | [ last ] -> "  " ^ last
+    | t :: rest -> "  " ^ t ^ " >>\n" ^ format_path rest
+  in
+  let proof_str = "Proof:\n" ^ format_path path in
+  perform (Trace (Search, proof_str))
 
 let with_dfs : tactic_combinator =
  fun tac goal ->
   let s = Stack.create () in
-  Stack.push (MSubgoal, (fun () -> step tac goal), []) s;
+  Stack.push (MSubgoal, (fun () -> step tac goal), [], []) s;
   let rec aux () =
     match Stack.pop_opt s with
     | None -> fail ()
-    | Some (_, thunk, parents) -> (
-        match thunk () with
+    | Some (_, thunk, parents, path) -> (
+        let current_path = ref path in
+        match run_thunk_with_path current_path thunk with
         | Done v -> (
             match parents with
-            | [] -> v
+            | [] ->
+                emit_proof_path !current_path;
+                v
             | resume :: rest ->
-                Stack.push (MResume, (fun () -> resume v), rest) s;
+                Stack.push
+                  (MResume, (fun () -> resume v), rest, !current_path)
+                  s;
                 aux ())
         | Need (g, resume) ->
-            Stack.push (MSubgoal, (fun () -> step tac g), resume :: parents) s;
+            Stack.push
+              ( MSubgoal,
+                (fun () -> step tac g),
+                resume :: parents,
+                !current_path )
+              s;
             aux ()
         | Dead -> aux ()
         | Cont thunks ->
             thunks |> List.rev
-            |> List.iter (fun t -> Stack.push (MChoice, t, parents) s);
+            |> List.iter (fun t ->
+                Stack.push (MChoice, t, parents, !current_path) s);
             aux ())
   in
   aux ()
 
-module Priority = struct
-  type t = search_metadata * (unit -> step_result) * (thm -> step_result) list
-
-  let compare : t -> t -> int =
-   fun (a, _, _) (b, _, _) ->
-    match (a, b) with
-    | MResume, MSubgoal -> 1
-    | MResume, MChoice -> 1
-    | MChoice, MSubgoal -> 1
-    | m1, m2 when m1 = m2 -> 0
-    | _ -> -1
-end
-
-(* 
-   For priority queue we are going to need to change the structure
-   to include the cost at the time of building the thunk I think.
-   That way the PQ can be over the polymorphic type of cost * (unit -> step_result)
- *)
 module PriorityQueue = Pqueue.MakeMax (Priority)
 
 let with_best_first : tactic_combinator =
  fun tac goal ->
   let q = PriorityQueue.create () in
-
-  PriorityQueue.add q (MSubgoal, (fun () -> step tac goal), []);
+  PriorityQueue.add q (MSubgoal, (fun () -> step tac goal), [], []);
   let rec aux () =
     match PriorityQueue.pop_max q with
     | None -> fail ()
-    | Some (_, thunk, parents) -> (
-        match thunk () with
+    | Some (_, thunk, parents, path) -> (
+        let current_path = ref path in
+        match run_thunk_with_path current_path thunk with
         | Done v -> (
             match parents with
-            | [] -> v
+            | [] ->
+                emit_proof_path !current_path;
+                v
             | resume :: rest ->
-                PriorityQueue.add q (MResume, (fun () -> resume v), rest);
+                PriorityQueue.add q
+                  (MResume, (fun () -> resume v), rest, !current_path);
                 aux ())
         | Need (g, resume) ->
             PriorityQueue.add q
-              (MSubgoal, (fun () -> step tac g), resume :: parents);
+              ( MSubgoal,
+                (fun () -> step tac g),
+                resume :: parents,
+                !current_path );
             aux ()
         | Dead -> aux ()
         | Cont thunks ->
             thunks
-            |> List.iter (fun t -> PriorityQueue.add q (MChoice, t, parents));
+            |> List.iter (fun t ->
+                PriorityQueue.add q (MChoice, t, parents, !current_path));
             aux ())
   in
   aux ()
@@ -828,25 +858,36 @@ let with_best_first : tactic_combinator =
 let with_bfs : tactic_combinator =
  fun tac goal ->
   let q = Queue.create () in
-
-  Queue.push (MSubgoal, (fun () -> step tac goal), []) q;
+  Queue.push (MSubgoal, (fun () -> step tac goal), [], []) q;
   let rec aux () =
     match Queue.take_opt q with
     | None -> fail ()
-    | Some (_, thunk, parents) -> (
-        match thunk () with
+    | Some (_, thunk, parents, path) -> (
+        let current_path = ref path in
+        match run_thunk_with_path current_path thunk with
         | Done v -> (
             match parents with
-            | [] -> v
+            | [] ->
+                emit_proof_path !current_path;
+                v
             | resume :: rest ->
-                Queue.push (MResume, (fun () -> resume v), rest) q;
+                Queue.push
+                  (MResume, (fun () -> resume v), rest, !current_path)
+                  q;
                 aux ())
         | Need (g, resume) ->
-            Queue.push (MSubgoal, (fun () -> step tac g), resume :: parents) q;
+            Queue.push
+              ( MSubgoal,
+                (fun () -> step tac g),
+                resume :: parents,
+                !current_path )
+              q;
             aux ()
         | Dead -> aux ()
         | Cont thunks ->
-            thunks |> List.iter (fun t -> Queue.push (MChoice, t, parents) q);
+            thunks
+            |> List.iter (fun t ->
+                Queue.push (MChoice, t, parents, !current_path) q);
             aux ())
   in
   aux ()
