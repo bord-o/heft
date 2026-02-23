@@ -13,10 +13,15 @@ type tactic = goal -> thm
 type tactic_combinator = tactic -> tactic
 type priority = Safe | Unsafe of int
 
-type 'a step_result =
-  | Cont of (unit -> 'a step_result) list
-  | Need of goal * ('a -> 'a step_result)
-  | Done of 'a
+(* To build a powerful prio queue, we need lots of metadata for these so
+   we can make intelligent choices
+   What about flattening Cont?
+   I guess it already gets flattened before going in the Queue.
+*)
+type step_result =
+  | Cont of (unit -> step_result) list
+  | Need of goal * (thm -> step_result)
+  | Done of thm
   | Dead
 
 type _ rankable =
@@ -58,7 +63,7 @@ let as_chosen_list : type a. a choosable -> a list = function
   | Tactic tacs -> tacs
   | Unknown xs -> xs
 
-let step (tac : tactic) (goal : goal) : 'a step_result =
+let step (tac : tactic) (goal : goal) : step_result =
   match tac goal with
   | effect Choose cs, k ->
       let r = Multicont.Deep.promote k in
@@ -744,39 +749,45 @@ let solve : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Subgoal _g', _k -> fail () | v -> v
 
+type search_metadata = MSubgoal | MChoice | MResume
+
 let with_dfs : tactic_combinator =
  fun tac goal ->
   let s = Stack.create () in
-  Stack.push ((fun () -> step tac goal), []) s;
+  Stack.push (MSubgoal, (fun () -> step tac goal), []) s;
   let rec aux () =
     match Stack.pop_opt s with
     | None -> fail ()
-    | Some (thunk, parents) -> (
+    | Some (_, thunk, parents) -> (
         match thunk () with
         | Done v -> (
             match parents with
             | [] -> v
             | resume :: rest ->
-                Stack.push ((fun () -> resume v), rest) s;
+                Stack.push (MResume, (fun () -> resume v), rest) s;
                 aux ())
         | Need (g, resume) ->
-            Stack.push ((fun () -> step tac g), resume :: parents) s;
+            Stack.push (MSubgoal, (fun () -> step tac g), resume :: parents) s;
             aux ()
         | Dead -> aux ()
         | Cont thunks ->
-            thunks |> List.rev |> List.iter (fun t -> Stack.push (t, parents) s);
+            thunks |> List.rev
+            |> List.iter (fun t -> Stack.push (MChoice, t, parents) s);
             aux ())
   in
   aux ()
 
-module Step = struct
-  type 'a t =
-    | Cont of (unit -> 'a t) list
-    | Need of goal * ('a -> 'a t)
-    | Done of 'a
-    | Dead
+module Priority = struct
+  type t = search_metadata * (unit -> step_result) * (thm -> step_result) list
 
-  let compare (_a : 'a t) (_b : 'b t) = 0
+  let compare : t -> t -> int =
+   fun (a, _, _) (b, _, _) ->
+    match (a, b) with
+    | MResume, MSubgoal -> 1
+    | MResume, MChoice -> 1
+    | MChoice, MSubgoal -> 1
+    | m1, m2 when m1 = m2 -> 0
+    | _ -> -1
 end
 
 (* 
@@ -784,32 +795,58 @@ end
    to include the cost at the time of building the thunk I think.
    That way the PQ can be over the polymorphic type of cost * (unit -> step_result)
  *)
+module PriorityQueue = Pqueue.MakeMax (Priority)
 
-(* module PQ = Pqueue.MakeMaxPoly(Step) *)
-(* let q = Pqueue.MakeMax .create () in *)
-
-let with_bfs : tactic_combinator =
+let with_best_first : tactic_combinator =
  fun tac goal ->
-  let q = Queue.create () in
+  let q = PriorityQueue.create () in
 
-  Queue.push ((fun () -> step tac goal), []) q;
+  PriorityQueue.add q (MSubgoal, (fun () -> step tac goal), []);
   let rec aux () =
-    match Queue.take_opt q with
+    match PriorityQueue.pop_max q with
     | None -> fail ()
-    | Some (thunk, parents) -> (
+    | Some (_, thunk, parents) -> (
         match thunk () with
         | Done v -> (
             match parents with
             | [] -> v
             | resume :: rest ->
-                Queue.push ((fun () -> resume v), rest) q;
+                PriorityQueue.add q (MResume, (fun () -> resume v), rest);
                 aux ())
         | Need (g, resume) ->
-            Queue.push ((fun () -> step tac g), resume :: parents) q;
+            PriorityQueue.add q
+              (MSubgoal, (fun () -> step tac g), resume :: parents);
             aux ()
         | Dead -> aux ()
         | Cont thunks ->
-            thunks |> List.iter (fun t -> Queue.push (t, parents) q);
+            thunks
+            |> List.iter (fun t -> PriorityQueue.add q (MChoice, t, parents));
+            aux ())
+  in
+  aux ()
+
+let with_bfs : tactic_combinator =
+ fun tac goal ->
+  let q = Queue.create () in
+
+  Queue.push (MSubgoal, (fun () -> step tac goal), []) q;
+  let rec aux () =
+    match Queue.take_opt q with
+    | None -> fail ()
+    | Some (_, thunk, parents) -> (
+        match thunk () with
+        | Done v -> (
+            match parents with
+            | [] -> v
+            | resume :: rest ->
+                Queue.push (MResume, (fun () -> resume v), rest) q;
+                aux ())
+        | Need (g, resume) ->
+            Queue.push (MSubgoal, (fun () -> step tac g), resume :: parents) q;
+            aux ()
+        | Dead -> aux ()
+        | Cont thunks ->
+            thunks |> List.iter (fun t -> Queue.push (MChoice, t, parents) q);
             aux ())
   in
   aux ()
