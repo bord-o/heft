@@ -48,11 +48,21 @@ module Priority = struct
   let compare : t -> t -> int =
    fun (a, _, _, _) (b, _, _, _) ->
     match (a, b) with
-    | MResume, MSubgoal -> 1
+    | MSubgoal, MChoice -> 1
     | MResume, MChoice -> 1
-    | MChoice, MSubgoal -> 1
+    | MSubgoal, MResume -> 1
     | m1, m2 when m1 = m2 -> 0
     | _ -> -1
+end
+
+module PriorityQueue = Pqueue.MakeMax (Priority)
+
+module type Frontier = sig
+  type t
+
+  val create : unit -> t
+  val pop : t -> Priority.t option
+  val add : t -> Priority.t -> unit
 end
 
 (** the [rankable] GADT is used to allow both agnostic treatment of the [Rank]
@@ -986,17 +996,20 @@ let emit_proof_path (path : string list) : unit =
   let proof_str = "Proof:\n" ^ format_path path in
   perform (Trace (Search, proof_str))
 
-(** [with_dfs] performs depth-first search over choices and subgoals. Explores
-    the proof space using a stack, backtracking on failure. Emits the winning
-    proof path on success
+module StackFrontier : Frontier = struct
+  type t = Priority.t Stack.t
 
-    Effects: Trace (Search) on success, Fail if no proof found *)
-let with_dfs : tactic_combinator =
+  let create () = Stack.create ()
+  let pop = Stack.pop_opt
+  let add s x = Stack.push x s
+end
+
+let make_search (module F : Frontier) : tactic_combinator =
  fun tac goal ->
-  let s = Stack.create () in
-  Stack.push (MSubgoal, (fun () -> step tac goal), [], []) s;
+  let s = F.create () in
+  F.add s (MSubgoal, (fun () -> step tac goal), [], []);
   let rec aux () =
-    match Stack.pop_opt s with
+    match F.pop s with
     | None -> fail ()
     | Some (_, thunk, parents, path) -> (
         let current_path = ref path in
@@ -1007,56 +1020,10 @@ let with_dfs : tactic_combinator =
                 emit_proof_path !current_path;
                 v
             | resume :: rest ->
-                Stack.push
-                  (MResume, (fun () -> resume v), rest, !current_path)
-                  s;
+                F.add s (MResume, (fun () -> resume v), rest, !current_path);
                 aux ())
         | Need (g, resume) ->
-            Stack.push
-              ( MSubgoal,
-                (fun () -> step tac g),
-                resume :: parents,
-                !current_path )
-              s;
-            aux ()
-        | Dead -> aux ()
-        | Cont thunks ->
-            thunks |> List.rev
-            |> List.iter (fun t ->
-                Stack.push (MChoice, t, parents, !current_path) s);
-            aux ())
-  in
-  aux ()
-
-module PriorityQueue = Pqueue.MakeMax (Priority)
-
-(** [with_best_first] performs best-first search over choices and subgoals. Uses
-    a priority queue ordered by [search_metadata] to explore promising paths
-    first (resumes before choices, choices before subgoals). Emits the winning
-    proof path on success
-
-    Effects: Trace (Search) on success, Fail if no proof found *)
-let with_best_first : tactic_combinator =
- fun tac goal ->
-  let q = PriorityQueue.create () in
-  PriorityQueue.add q (MSubgoal, (fun () -> step tac goal), [], []);
-  let rec aux () =
-    match PriorityQueue.pop_max q with
-    | None -> fail ()
-    | Some (_, thunk, parents, path) -> (
-        let current_path = ref path in
-        match run_thunk_with_path current_path thunk with
-        | Done v -> (
-            match parents with
-            | [] ->
-                emit_proof_path !current_path;
-                v
-            | resume :: rest ->
-                PriorityQueue.add q
-                  (MResume, (fun () -> resume v), rest, !current_path);
-                aux ())
-        | Need (g, resume) ->
-            PriorityQueue.add q
+            F.add s
               ( MSubgoal,
                 (fun () -> step tac g),
                 resume :: parents,
@@ -1064,54 +1031,49 @@ let with_best_first : tactic_combinator =
             aux ()
         | Dead -> aux ()
         | Cont thunks ->
-            thunks
-            |> List.iter (fun t ->
-                PriorityQueue.add q (MChoice, t, parents, !current_path));
+            thunks |> List.rev
+            |> List.iter (fun t -> F.add s (MChoice, t, parents, !current_path));
             aux ())
   in
   aux ()
+
+(** [with_dfs] performs depth-first search over choices and subgoals. Explores
+    the proof space using a stack, backtracking on failure. Emits the winning
+    proof path on success
+
+    Effects: Trace (Search) on success, Fail if no proof found *)
+let with_dfs : tactic_combinator = make_search (module StackFrontier)
+
+module PQueueFrontier : Frontier = struct
+  type t = PriorityQueue.t
+
+  let create = PriorityQueue.create
+  let pop = PriorityQueue.pop_max
+  let add q x = PriorityQueue.add q x
+end
+
+(** [with_best_first] performs best-first search over choices and subgoals. Uses
+    a priority queue ordered by [search_metadata] to explore promising paths
+    first (resumes before choices, choices before subgoals). Emits the winning
+    proof path on success
+
+    Effects: Trace (Search) on success, Fail if no proof found *)
+let with_best_first : tactic_combinator = make_search (module PQueueFrontier)
+
+module QueueFrontier : Frontier = struct
+  type t = Priority.t Queue.t
+
+  let create () = Queue.create ()
+  let pop = Queue.take_opt
+  let add q x = Queue.add x q
+end
 
 (** [with_bfs] performs breadth-first search over choices and subgoals. Uses a
     queue to explore paths level by level. Emits the winning proof path on
     success
 
     Effects: Trace (Search) on success, Fail if no proof found *)
-let with_bfs : tactic_combinator =
- fun tac goal ->
-  let q = Queue.create () in
-  Queue.push (MSubgoal, (fun () -> step tac goal), [], []) q;
-  let rec aux () =
-    match Queue.take_opt q with
-    | None -> fail ()
-    | Some (_, thunk, parents, path) -> (
-        let current_path = ref path in
-        match run_thunk_with_path current_path thunk with
-        | Done v -> (
-            match parents with
-            | [] ->
-                emit_proof_path !current_path;
-                v
-            | resume :: rest ->
-                Queue.push
-                  (MResume, (fun () -> resume v), rest, !current_path)
-                  q;
-                aux ())
-        | Need (g, resume) ->
-            Queue.push
-              ( MSubgoal,
-                (fun () -> step tac g),
-                resume :: parents,
-                !current_path )
-              q;
-            aux ()
-        | Dead -> aux ()
-        | Cont thunks ->
-            thunks
-            |> List.iter (fun t ->
-                Queue.push (MChoice, t, parents, !current_path) q);
-            aux ())
-  in
-  aux ()
+let with_bfs : tactic_combinator = make_search (module QueueFrontier)
 
 (** [with_dfs''] is an alternative DFS implementation using an explicit stack
     for choice points. Does not track proof paths *)

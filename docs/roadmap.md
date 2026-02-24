@@ -2,20 +2,20 @@
 
 ## Now
 
-- [] Write a small subsystem for automatically adding proven statements to some sort of state for use in rewrites/applications (this is done manually right now)
+- [ x ] Write a small subsystem for automatically adding proven statements to some sort of state for use in rewrites/applications (this is done manually right now)
 - [] Add handlers for with_proven; with_safe; with_definitions; with_only
 - [] Add forward reasoning tactic
 - [ x ] Upgrade language to not need "over ?x" in definitions
 - [] Move proven theorems into theorems.ml if they aren't actually testing edge cases or features (debloat test file)
 - [ x ] Refactor tactic tests
-- [] Refactor tactics to use handlers rather than arguments where it makes sense
+- [ x ] Refactor tactics to use handlers rather than arguments where it makes sense
 - [] Test existing handlers more thoroughly
 - [ x] Set up core theorems and definitions in theories of Nat, List, Pair
-- [] Refactor handlers to always assume they are running under ambient handler [../lib/tactic.ml]
-    - [] New modules for foundational tactics system (effect definitions, core tactics, ambient handle), tactic combinators, and search handlers?
+- [ x ] Refactor handlers to always assume they are running under ambient handler [../lib/tactic.ml]
+    - [ x ] New modules for foundational tactics system (effect definitions, core tactics, ambient handle), tactic combinators, and search handlers?
 - [] Write more tests for rewriting [../test/rewrite_test.ml]
-- [] Write more combinators for specific choices of terms, theorems, etc to facilitate targeted rewriting [../lib/tactic.ml]
-- [] Refactor tracing in search handlers (maybe just keep the whole trace and throw out all but the final successful proof) [../lib/tactic.ml]
+- [ x ] Write more combinators for specific choices of terms, theorems, etc to facilitate targeted rewriting [../lib/tactic.ml]
+- [ x ] Refactor tracing in search handlers (maybe just keep the whole trace and throw out all but the final successful proof) [../lib/tactic.ml]
 - [] Refactor error variants to carry useful information [../lib/kernel.ml]
 
 ## Soon
@@ -24,7 +24,7 @@
 - [] Set up core theorems and definitions of Set
 - [] Cleanly separate and document safe vs unsafe tactics [../lib/tactic.ml]
 - [] Write auto tactic inspired by aesop [../lib/tactic.ml]
-    - [] Create best-first handler
+    - [ x ] Create best-first handler
 
 ## Eventually 
 - [] Let language recurse on arbitrary argument
