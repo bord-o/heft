@@ -1,3 +1,5 @@
+(** Example definitions used in some test proofs *)
+
 open Kernel
 open Derived
 open Result.Syntax

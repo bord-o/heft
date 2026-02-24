@@ -1,4 +1,6 @@
 open Kernel
+(** Derived rules and some basic definitions for use in tactics *)
+
 open Result.Syntax
 open Util
 
@@ -14,7 +16,6 @@ let rec term_subst old_tm new_tm tm =
 let make_exn thm =
   thm |> Result.map_error (fun _e -> "Todo") |> Result.error_to_failure
 
-(**)
 (* initialization *)
 
 let init_types () =

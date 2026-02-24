@@ -169,36 +169,4 @@ If I pull this off it will be a totally search strategy agnostic system,
 I shouldn't even need separate implementations for bfs/dfs, just a way to choose between
 the different continuations
 
-## Questions
-
-- How do I know what the parent continuation is?
-    - What if step() took in a tac goal and an optional parent continuation?
-      That way something that recursively calls it can pass the chain through
-- How do I jump between pieces of the tree?
-    - Pick a place in the list, 
-        - if its a choice, we can just run the continuation under step and
-            aggregate any new continuations
-        - if its a subgoal, we run a tactic against it under step and
-            aggregate any new continuations
-- 
-
-## TODO
-- Whiteboard a step function 
-- Something like this.
-- Make a continuation map through some proofs that produce subgoals
-
-
-```ocaml
-
-type step = 
-    Done thm
-    | Choice of continuation * (choosable * idx)
-    | Sub of continuation * goal
-    
-    
-let step continuation tac goal : step list = 
-    ...
-```
-
-if continuation is None and we get a value we are done, return thm
-if continuation is Some k and we get a value, we continue k thm 
+I think i did this ^

@@ -1,9 +1,9 @@
-(*
+(** A HOL kernel largely ported from Harrison's HOL-light [fusion.ml]
 
-Where possible the code will follow a more modern OCaml approach.
+    Where possible the code will follow a more modern OCaml approach.
 
-Explicit inductive definitions are the only kernel extension, in order to avoid lots of manual derivation
-*)
+    Explicit inductive definitions are the only kernel extension, in order to
+    avoid lots of manual derivation *)
 
 type hol_type = TyVar of string | TyCon of string * hol_type list
 [@@deriving show { with_path = false }]
