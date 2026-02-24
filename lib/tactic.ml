@@ -48,9 +48,9 @@ module Priority = struct
   let compare : t -> t -> int =
    fun (a, _, _, _) (b, _, _, _) ->
     match (a, b) with
-    | MSubgoal, MChoice -> 1
+    | MResume, MSubgoal -> 1
     | MResume, MChoice -> 1
-    | MSubgoal, MResume -> 1
+    | MChoice, MSubgoal -> 1
     | m1, m2 when m1 = m2 -> 0
     | _ -> -1
 end
