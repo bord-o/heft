@@ -1,4 +1,5 @@
 (executable
  (public_name heft)
  (name main)
+ (ocamlopt_flags (:standard -g))
  (libraries heft sexplib))
