@@ -26,14 +26,23 @@ type tactic_combinator = tactic -> tactic
     ([with_no_trace], [with_fuel_limit]), or managing search over a tactics
     choices ([with_dfs], [with_best_first]. *)
 
+type choice_kind =
+  | CTerm of term
+  | CTheorem of thm
+  | CGoal of goal
+  | CTactic of tactic
+  | CUnknown
+
+type cost = Safe of int | Unsafe of int
+
 (** [search_metadata] is used by [with_best_first] to sort a priority queue,
     deciding which path of a proof space to explore next *)
-type search_metadata = MSubgoal | MChoice | MResume
+type search_metadata = MSubgoal of goal | MChoice of choice_kind | MResume
 
 (** in search [tactic_combinator]s, [step_result] is used to represent possible
     continuations of a search *)
 type step_result =
-  | Cont of (unit -> step_result) list
+  | Cont of (choice_kind * (unit -> step_result)) list
   | Need of goal * (thm -> step_result)
   | Done of thm
   | Dead
@@ -48,9 +57,9 @@ module Priority = struct
   let compare : t -> t -> int =
    fun (a, _, _, _) (b, _, _, _) ->
     match (a, b) with
-    | MResume, MSubgoal -> 1
-    | MResume, MChoice -> 1
-    | MChoice, MSubgoal -> 1
+    | MResume, MSubgoal _ -> 1
+    | MResume, MChoice _ -> 1
+    | MSubgoal _, MChoice _ -> 1
     | m1, m2 when m1 = m2 -> 0
     | _ -> -1
 end
@@ -63,6 +72,7 @@ module type Frontier = sig
   val create : unit -> t
   val pop : t -> Priority.t option
   val add : t -> Priority.t -> unit
+  val stats : t -> string
 end
 
 (** the [rankable] GADT is used to allow both agnostic treatment of the [Rank]
@@ -94,7 +104,7 @@ type _ Effect.t +=
   | Rank : 'a rankable -> 'a list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
-  | Burn : int -> unit Effect.t
+  | Burn : (string * cost) -> unit Effect.t
   | Rules : thm list Effect.t
 
 (** [as_ranked_list] extracts the underlying type from the [rankable] GADT *)
@@ -111,15 +121,30 @@ let as_chosen_list : type a. a choosable -> a list = function
   | Goal gs -> gs
   | Tactic tacs -> tacs
   | Unknown xs -> xs
-
 (** [step] performs one expansion of the proof tree and aggregates the results
     along with their continuations *)
+
 let step (tac : tactic) (goal : goal) : step_result =
   match tac goal with
   | effect Choose cs, k ->
       let r = Multicont.Deep.promote k in
-      Cont
-        (as_chosen_list cs |> List.map (fun c () -> Multicont.Deep.resume r c))
+      let choosable =
+        as_chosen_list cs |> List.map (fun c () -> Multicont.Deep.resume r c)
+      in
+      let real_choices =
+        match cs with
+        | Term ts -> List.combine (ts |> List.map @@ fun t -> CTerm t) choosable
+        | Theorem ts ->
+            List.combine (ts |> List.map @@ fun t -> CTheorem t) choosable
+        | Goal gs -> List.combine (gs |> List.map @@ fun g -> CGoal g) choosable
+        | Tactic ts ->
+            List.combine (ts |> List.map @@ fun t -> CTactic t) choosable
+        | Unknown _ ->
+            List.combine
+              (List.init (List.length choosable) (fun _ -> CUnknown))
+              choosable
+      in
+      Cont real_choices
   | effect Subgoal g, k ->
       let r = Multicont.Deep.promote k in
       Need (g, fun (v : thm) -> Multicont.Deep.resume r v)
@@ -132,7 +157,7 @@ let fail () = perform Fail
 
 (** [burn] performs the [Burn] effect. This is used to signal the 'cost' of a
     tactic relative to other tactics *)
-let burn n = perform (Burn n)
+let burn name cost = perform (Burn (name, cost))
 
 (** [trace_dbg] emits a debug-level trace message
 
@@ -206,7 +231,7 @@ let return_thm ?(from = "unknown") = function
     + Trace *)
 let left_tac : tactic =
  fun (asms, concl) ->
-  burn 3;
+  burn "left_tac" (Unsafe 6);
   let thm =
     let* l, r = destruct_disj concl in
     let l_thm = perform (Subgoal (asms, l)) in
@@ -227,7 +252,7 @@ let left_tac : tactic =
     + Trace *)
 let right_tac : tactic =
  fun (asms, concl) ->
-  burn 3;
+  burn "right_tac" (Unsafe 6);
   let thm =
     let* l, r = destruct_disj concl in
     let r_thm = perform (Subgoal (asms, r)) in
@@ -243,7 +268,7 @@ let right_tac : tactic =
     Effects: Choose, Fail, Burn, Trace *)
 let or_tac : tactic =
  fun (asms, concl) ->
-  burn 3;
+  burn "or_tac" (Unsafe 6);
   let tac = choose_tactics [ left_tac; right_tac ] in
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
@@ -254,7 +279,7 @@ let or_tac : tactic =
     Effects: Rank, Choose, Burn, Fail, Subgoal *)
 let apply_asm_tac : tactic =
  fun (asms, concl) ->
-  burn 3;
+  burn "apply_asm_tac" (Unsafe 4);
   let matching =
     asms
     |> List.filter_map (fun asm ->
@@ -281,7 +306,7 @@ let apply_asm_tac : tactic =
     Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let apply_thm_tac : tactic =
  fun (asms, conc) ->
-  burn 3;
+  burn "apply_thm_tac" (Unsafe 5);
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
 
@@ -341,7 +366,7 @@ let apply_thm_tac : tactic =
     Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let apply_thm_asm_tac : tactic =
  fun (asms, conc) ->
-  burn 3;
+  burn "apply_thm_asm_tac" (Unsafe 6);
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
   let chosen_asm = choose_terms asms in
@@ -399,7 +424,7 @@ let apply_thm_asm_tac : tactic =
     Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let apply_neg_asm_tac : tactic =
  fun (asms, concl) ->
-  burn 3;
+  burn "apply_neg_asm_tac" (Unsafe 5);
   let false_tm = make_false () in
   if concl <> false_tm then fail ()
   else
@@ -421,16 +446,18 @@ let apply_neg_asm_tac : tactic =
 (** [assume_tac] proves any goal by assuming it. This creates a theorem with the
     goal as a hypothesis
 
-    Effects: Trace *)
+    Effects: Burn, Trace *)
 let assume_tac : tactic =
- fun (_asms, conc) -> return_thm ~from:"assume_tac" @@ assume conc
+ fun (_asms, conc) ->
+  burn "assume_tac" (Unsafe 2);
+  return_thm ~from:"assume_tac" @@ assume conc
 
 (** [sym_tac] transforms a goal [l = r] into [r = l]
 
     Effects: Burn, Trace, Subgoal, Fail *)
 let sym_tac : tactic =
  fun (asms, conc) ->
-  burn 1;
+  burn "sym_tac" (Safe 1);
   let thm =
     let* l, r = destruct_eq conc in
     let* flipped = safe_make_eq r l in
@@ -445,7 +472,7 @@ let sym_tac : tactic =
     Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let rewrite_tac : tactic =
  fun (asms, conc) ->
-  burn 2;
+  burn "rewrite_tac" (Unsafe 5);
   let thm =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
@@ -467,7 +494,7 @@ let rewrite_tac : tactic =
     Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let rewrite_asm_tac : tactic =
  fun (asms, conc) ->
-  burn 2;
+  burn "rewrite_asm_tac" (Unsafe 5);
   let thm =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
@@ -492,7 +519,7 @@ let rewrite_asm_tac : tactic =
     Effects: Burn, Trace, Subgoal, Fail *)
 let beta_tac : tactic =
  fun (asms, conc) ->
-  burn 1;
+  burn "beta_tac" (Safe 1);
   let thm =
     let* beta_thm = deep_beta conc in
     let* _, conc_reduced = destruct_eq (concl beta_thm) in
@@ -508,7 +535,7 @@ let beta_tac : tactic =
     Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let beta_asm_tac : tactic =
  fun (asms, conc) ->
-  burn 1;
+  burn "beta_asm_tac" (Safe 1);
   let thm =
     let chosen_asm = choose_terms asms in
     let* beta_thm = deep_beta chosen_asm in
@@ -531,7 +558,7 @@ let beta_asm_tac : tactic =
     Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let mp_asm_tac : tactic =
  fun (asms, concl) ->
-  burn 3;
+  burn "mp_asm_tac" (Unsafe 3);
   let imps = List.filter is_imp asms in
   if List.is_empty imps then fail ()
   else
@@ -555,7 +582,7 @@ let mp_asm_tac : tactic =
     Effects: Burn, Trace, Subgoal, Fail *)
 let intro_tac : tactic =
  fun (asms, concl) ->
-  burn 1;
+  burn "intro_tac" (Safe 1);
   let thm =
     let* hyp = side_of_op "==>" Left concl in
     let* conc = side_of_op "==>" Right concl in
@@ -571,9 +598,10 @@ let intro_tac : tactic =
 (** [refl_tac] proves goals of the form [t = t] by reflexivity. Fails if the
     goal is not an equality or the sides are not identical
 
-    Effects: Trace, Fail *)
+    Effects: Burn, Trace, Fail *)
 let refl_tac : tactic =
  fun (_asms, concl) ->
+  burn "refl_tac" (Safe 1);
   let thm =
     let* l, r = destruct_eq concl in
     trace_dbg "destruct success";
@@ -593,7 +621,7 @@ let refl_tac : tactic =
     Effects: Choose, Burn, Trace, Fail *)
 let assumption_tac : tactic =
  fun (asms, concl) ->
-  burn 1;
+  burn "assumption_tac" (Safe 1);
   let asm = choose_terms asms in
   if concl <> asm then (
     trace_error "assumption doesn't match the goal";
@@ -610,7 +638,7 @@ let assumption_tac : tactic =
     Effects: Burn, Trace, Subgoal, Fail *)
 let conj_tac : tactic =
  fun (asms, concl) ->
-  burn 1;
+  burn "conj_tac" (Safe 1);
   let thm =
     let* l, r = destruct_conj concl in
     trace_dbg "Destruct succeeded";
@@ -631,7 +659,7 @@ let conj_tac : tactic =
     Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let elim_disj_asm_tac : tactic =
  fun (asms, concl) ->
-  burn 4;
+  burn "elim_disj_asm_tac" (Unsafe 5);
   let disjs = List.filter is_disj asms in
   if List.is_empty disjs then fail ()
   else
@@ -657,7 +685,7 @@ let elim_disj_asm_tac : tactic =
     Effects: Choose, Burn, Trace, Subgoal, Fail *)
 let elim_conj_asm_tac : tactic =
  fun (asms, concl) ->
-  burn 1;
+  burn "elim_conj_asm_tac" (Safe 1);
   let conjs = List.filter is_conj asms in
   if List.is_empty conjs then fail ()
   else
@@ -680,7 +708,7 @@ let elim_conj_asm_tac : tactic =
     Effects: Choose, Burn, Trace, Fail *)
 let neg_elim_tac : tactic =
  fun (asms, concl) ->
-  burn 2;
+  burn "neg_elim_tac" (Unsafe 3);
   let negs = List.filter is_neg asms in
   if List.is_empty negs then fail ()
   else
@@ -704,7 +732,7 @@ let neg_elim_tac : tactic =
     Effects: Burn, Trace, Subgoal, Fail *)
 let neg_intro_tac : tactic =
  fun (asms, concl) ->
-  burn 2;
+  burn "neg_intro_tac" (Unsafe 4);
   let thm =
     let* p = term_of_negation concl in
     if List.mem p asms then fail ()
@@ -722,7 +750,7 @@ let neg_intro_tac : tactic =
     Effects: Burn, Trace, Subgoal, Fail *)
 let ccontr_tac : tactic =
  fun (asms, concl) ->
-  burn 8;
+  burn "ccontr_tac" (Unsafe 10);
   let false_tm = make_false () in
   let neg_concl = make_neg concl in
   if concl = false_tm || List.mem neg_concl asms then fail ()
@@ -740,7 +768,7 @@ let ccontr_tac : tactic =
     Effects: Burn, Trace, Fail *)
 let false_elim_tac : tactic =
  fun (asms, concl) ->
-  burn 1;
+  burn "false_elim_tac" (Safe 1);
   let false_tm = make_false () in
   if List.mem false_tm asms then
     let thm =
@@ -756,7 +784,7 @@ let false_elim_tac : tactic =
     Effects: Burn, Trace, Subgoal, Fail *)
 let gen_tac : tactic =
  fun (asms, concl) ->
-  burn 1;
+  burn "gen_tac" (Safe 1);
   let thm =
     let* x, body = destruct_forall concl in
     let body_thm = perform (Subgoal (asms, body)) in
@@ -780,7 +808,7 @@ let gen_tac : tactic =
     Effects: Burn, Trace, Subgoal, Fail *)
 let induct_tac : tactic =
  fun (asms, concl) ->
-  burn 5;
+  burn "induct_tac" (Unsafe 8);
   let thm =
     let* induction_var, bod = destruct_forall concl in
     let* ty = type_of_term induction_var in
@@ -996,19 +1024,32 @@ let emit_proof_path (path : string list) : unit =
   let proof_str = "Proof:\n" ^ format_path path in
   perform (Trace (Search, proof_str))
 
+let stats_of_list l =
+  List.fold_left
+    (fun (sub, choice, res) (e, _, _, _) ->
+      match e with
+      | MResume -> (sub, choice, res + 1)
+      | MSubgoal _ -> (sub + 1, choice, res)
+      | MChoice _ -> (sub, choice + 1, res))
+    (0, 0, 0) l
+  |> fun (s, c, r) ->
+  Printf.sprintf "Subgoals: %d | Choices: %d | Resumptions: %d\n" s c r
+
 module StackFrontier : Frontier = struct
   type t = Priority.t Stack.t
 
   let create () = Stack.create ()
   let pop = Stack.pop_opt
   let add s x = Stack.push x s
+  let stats (s : t) = s |> Stack.to_seq |> List.of_seq |> stats_of_list
 end
 
 let make_search (module F : Frontier) : tactic_combinator =
  fun tac goal ->
   let s = F.create () in
-  F.add s (MSubgoal, (fun () -> step tac goal), [], []);
+  F.add s (MSubgoal goal, (fun () -> step tac goal), [], []);
   let rec aux () =
+    (* print_endline (F.stats s); *)
     match F.pop s with
     | None -> fail ()
     | Some (_, thunk, parents, path) -> (
@@ -1024,7 +1065,7 @@ let make_search (module F : Frontier) : tactic_combinator =
                 aux ())
         | Need (g, resume) ->
             F.add s
-              ( MSubgoal,
+              ( MSubgoal g,
                 (fun () -> step tac g),
                 resume :: parents,
                 !current_path );
@@ -1032,7 +1073,8 @@ let make_search (module F : Frontier) : tactic_combinator =
         | Dead -> aux ()
         | Cont thunks ->
             thunks |> List.rev
-            |> List.iter (fun t -> F.add s (MChoice, t, parents, !current_path));
+            |> List.iter (fun (m, t) ->
+                F.add s (MChoice m, t, parents, !current_path));
             aux ())
   in
   aux ()
@@ -1050,6 +1092,11 @@ module PQueueFrontier : Frontier = struct
   let create = PriorityQueue.create
   let pop = PriorityQueue.pop_max
   let add q x = PriorityQueue.add q x
+
+  let stats (s : t) =
+    s
+    |> PriorityQueue.fold_unordered (fun acc a -> a :: acc) []
+    |> stats_of_list
 end
 
 (** [with_best_first] performs best-first search over choices and subgoals. Uses
@@ -1066,6 +1113,7 @@ module QueueFrontier : Frontier = struct
   let create () = Queue.create ()
   let pop = Queue.take_opt
   let add q x = Queue.add x q
+  let stats (s : t) = s |> Queue.to_seq |> List.of_seq |> stats_of_list
 end
 
 (** [with_bfs] performs breadth-first search over choices and subgoals. Uses a
@@ -1142,6 +1190,30 @@ let with_repeat : tactic_combinator =
     | v -> v
   in
   aux goal
+
+(** [itauto_tac] is a complete automation tactic for intuitionistic
+    propositional logic. Chooses among various introduction and elimination
+    tactics. Use with a search combinator like [with_dfs] or [with_best_first]
+
+    Effects: Choose *)
+let itauto_tac : tactic =
+  pick_tac
+    [
+      assumption_tac;
+      intro_tac;
+      neg_intro_tac;
+      gen_tac;
+      conj_tac;
+      elim_conj_asm_tac;
+      elim_disj_asm_tac;
+      false_elim_tac;
+      neg_elim_tac;
+      apply_asm_tac;
+      apply_neg_asm_tac;
+      mp_asm_tac;
+      left_tac;
+      right_tac;
+    ]
 
 (** [ctauto_tac] is a complete automation tactic for classical propositional
     logic. Chooses among various introduction and elimination tactics. Use with
@@ -1226,17 +1298,33 @@ let with_term_size_ranking : tactic_combinator =
         continue k sorted
     | v -> v
 
+let cost_value = function Safe n | Unsafe n -> n
+
+let with_added_fuel extra : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Burn (name, cost), k ->
+      let new_cost =
+        match cost with
+        | Safe n -> Safe (n + extra)
+        | Unsafe n -> Unsafe (n + extra)
+      in
+      burn name new_cost;
+      continue k ()
+  | v -> v
+
 (** [with_fuel_limit] tracks fuel consumption and raises [Out_of_fuel] when the
     limit is exceeded. The limit is a mutable reference that decreases with each
     [Burn] effect *)
 let with_fuel_limit limit : tactic_combinator =
  fun tac goal ->
   match tac goal with
-  | effect Burn n, k ->
+  | effect Burn (name, cost), k ->
+      let n = cost_value cost in
       limit := !limit - n;
       if !limit <= 0 then discontinue k Out_of_fuel
       else (
-        burn n;
+        burn name cost;
         continue k ())
   | v -> v
 
@@ -1245,9 +1333,9 @@ let with_fuel_limit limit : tactic_combinator =
 let with_fuel_counter r : tactic_combinator =
  fun tac goal ->
   match tac goal with
-  | effect Burn n, k ->
-      r := !r + n;
-      burn n;
+  | effect Burn (name, cost), k ->
+      r := !r + cost_value cost;
+      burn name cost;
       continue k ()
   | v -> v
 
@@ -1398,3 +1486,21 @@ let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
       goal
   in
   thm
+
+let run_proof ?(notrace = true) ?(name = "") goal tac =
+  let fuel_count = ref 0 in
+  let limit = ref 10_000_000 in
+  let wrapped =
+    (if notrace then with_no_trace ~show_proof:false else Fun.id)
+    @@ (with_fuel_limit limit) (with_fuel_counter fuel_count tac)
+  in
+  match prove ~name goal wrapped with
+  | Complete thm ->
+      print_thm thm;
+      print_endline "Proof Complete!";
+      Printf.printf "with fuel: %d\n" !fuel_count
+  | Incomplete (asms, c) ->
+      List.iter print_term asms;
+      print_term c;
+      print_endline "Proof Incomplete";
+      Printf.printf "with fuel: %d\n" !fuel_count

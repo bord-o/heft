@@ -37,23 +37,24 @@ let () =
         (make_conj p (make_disj q r))
         (make_disj (make_conj p q) (make_conj p r)) )
   in
-  let proof = with_bfs (
-  pick_tac
-    [
-      assumption_tac;
-      intro_tac;
-      neg_intro_tac;
-      gen_tac;
-      conj_tac;
-      elim_conj_asm_tac;
-      elim_disj_asm_tac;
-      false_elim_tac;
-      neg_elim_tac;
-      apply_asm_tac;
-      apply_neg_asm_tac;
-      mp_asm_tac;
-      left_tac;
-      right_tac;
-    ]
-    ) in
-  run_proof goal proof;
+  let proof =
+    with_best_first
+      (pick_tac
+         [
+           assumption_tac;
+           intro_tac;
+           neg_intro_tac;
+           gen_tac;
+           conj_tac;
+           elim_conj_asm_tac;
+           elim_disj_asm_tac;
+           false_elim_tac;
+           neg_elim_tac;
+           apply_asm_tac;
+           apply_neg_asm_tac;
+           mp_asm_tac;
+           left_tac;
+           right_tac;
+         ])
+  in
+  run_proof goal proof
