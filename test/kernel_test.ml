@@ -1,5 +1,6 @@
 open Result.Syntax
 open Heft
+open Kernel
 open Printing
 
 let p = Var ("P", bool_ty)

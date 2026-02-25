@@ -1,4 +1,5 @@
 open Heft
+open Kernel
 open Derived
 open Printing
 open Result.Syntax

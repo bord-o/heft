@@ -1,4 +1,5 @@
 open Heft
+open Kernel
 open Derived
 open Rewrite
 open Printing
@@ -606,7 +607,7 @@ let%expect_test "matching subterms" =
 
 let print_thm_result r =
   match r with
-  | Error e -> print_endline ("Error: " ^ Heft.show_kernel_error e)
+  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
   | Ok th -> print_endline (pretty_print_thm th)
 
 let%expect_test "rewrite_once: rewrite at root" =
@@ -1275,7 +1276,7 @@ let%expect_test "rewrite_once: same variable different args doesn't match" =
   (match result with
   | Error `NoRewriteMatch -> print_endline "NoRewriteMatch (correct)"
   | Ok _ -> print_endline "unexpected match"
-  | Error e -> print_endline ("unexpected error: " ^ Heft.show_kernel_error e));
+  | Error e -> print_endline ("unexpected error: " ^ show_kernel_error e));
   [%expect {| NoRewriteMatch (correct) |}]
 
 let%expect_test "rewrite_once: rewrite in function position of application" =

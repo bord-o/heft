@@ -1,4 +1,5 @@
 open Heft
+open Kernel
 open Elaborator
 open Derived
 

@@ -26,14 +26,13 @@ type tactic_combinator = tactic -> tactic
     ([with_no_trace], [with_fuel_limit]), or managing search over a tactics
     choices ([with_dfs], [with_best_first]. *)
 
-type choice_kind =
-  | CTerm of term
-  | CTheorem of thm
-  | CGoal of goal
-  | CTactic of tactic
-  | CUnknown
-
 type cost = Safe of int | Unsafe of int
+
+type choice_kind =
+  | CTerm of (goal * term)
+  | CTheorem of goal * thm
+  | CTactic of goal * cost * tactic
+  | CUnknown of goal
 
 (** [search_metadata] is used by [with_best_first] to sort a priority queue,
     deciding which path of a proof space to explore next *)
@@ -57,9 +56,18 @@ module Priority = struct
   let compare : t -> t -> int =
    fun (a, _, _, _) (b, _, _, _) ->
     match (a, b) with
-    | MResume, MSubgoal _ -> 1
-    | MResume, MChoice _ -> 1
+    | MSubgoal _, MResume -> 1
     | MSubgoal _, MChoice _ -> 1
+    | MResume, MChoice _ -> 1
+    | MChoice m1, MChoice m2 -> (
+        match (m1, m2) with
+        | CTactic (_, c1, _), CTactic (_, c2, _) -> (
+            match (c1, c2) with
+            | Safe _, Unsafe _ -> 1
+            | Unsafe _, Safe _ -> -1
+            | Safe n, Safe m -> compare m n
+            | Unsafe n, Unsafe m -> compare m n)
+        | _ -> 0)
     | m1, m2 when m1 = m2 -> 0
     | _ -> -1
 end
@@ -90,7 +98,6 @@ type _ rankable =
 type _ choosable =
   | Term : term list -> term choosable
   | Theorem : thm list -> thm choosable
-  | Goal : goal list -> goal choosable
   | Tactic : tactic list -> tactic choosable
   | Unknown : 'a list -> 'a choosable
 
@@ -118,11 +125,15 @@ let as_ranked_list : type a. a rankable -> a list = function
 let as_chosen_list : type a. a choosable -> a list = function
   | Term ts -> ts
   | Theorem thms -> thms
-  | Goal gs -> gs
   | Tactic tacs -> tacs
   | Unknown xs -> xs
 (** [step] performs one expansion of the proof tree and aggregates the results
     along with their continuations *)
+
+let cost_of_tactic (tac : tactic) (goal : goal) =
+  match tac goal with
+  | effect Burn (name, cost), _k -> (name, cost)
+  | _ -> failwith "Burn must be first call of tactic"
 
 let step (tac : tactic) (goal : goal) : step_result =
   match tac goal with
@@ -133,15 +144,22 @@ let step (tac : tactic) (goal : goal) : step_result =
       in
       let real_choices =
         match cs with
-        | Term ts -> List.combine (ts |> List.map @@ fun t -> CTerm t) choosable
+        | Term ts ->
+            List.combine (ts |> List.map @@ fun t -> CTerm (goal, t)) choosable
         | Theorem ts ->
-            List.combine (ts |> List.map @@ fun t -> CTheorem t) choosable
-        | Goal gs -> List.combine (gs |> List.map @@ fun g -> CGoal g) choosable
+            List.combine
+              (ts |> List.map @@ fun t -> CTheorem (goal, t))
+              choosable
         | Tactic ts ->
-            List.combine (ts |> List.map @@ fun t -> CTactic t) choosable
+            List.combine
+              (ts
+              |> List.map @@ fun t ->
+                 let _, cost = cost_of_tactic t goal in
+                 CTactic (goal, cost, t))
+              choosable
         | Unknown _ ->
             List.combine
-              (List.init (List.length choosable) (fun _ -> CUnknown))
+              (List.init (List.length choosable) (fun _ -> CUnknown goal))
               choosable
       in
       Cont real_choices
@@ -179,11 +197,6 @@ let trace_error a = perform (Trace (Error, a))
 
     Effects: Trace *)
 let trace_proof a = perform (Trace (Proof, a))
-
-(** [choose_goals] requests a choice among a list of goals
-
-    Effects: Choose *)
-let choose_goals gs = perform (Choose (Goal gs))
 
 (** [choose_terms] requests a choice among a list of terms
 
@@ -1489,7 +1502,7 @@ let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
 
 let run_proof ?(notrace = true) ?(name = "") goal tac =
   let fuel_count = ref 0 in
-  let limit = ref 10_000_000 in
+  let limit = ref 1_000_000 in
   let wrapped =
     (if notrace then with_no_trace ~show_proof:false else Fun.id)
     @@ (with_fuel_limit limit) (with_fuel_counter fuel_count tac)
