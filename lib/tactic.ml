@@ -791,6 +791,19 @@ let false_elim_tac : tactic =
     return_thm ~from:"false_elim_tac" thm
   else fail ()
 
+let exists_tac : tactic =
+ fun (asms, concl) ->
+  burn "exists_tac" (Unsafe 8);
+  let thm =
+    let* x, body = destruct_exists concl in
+    let chosen = choose_terms [] in
+    let* chosen_sub = vsubst [ (chosen, x) ] body in
+    let body_thm = perform (Subgoal (asms, chosen_sub)) in
+
+    exists x chosen body_thm
+  in
+  return_thm ~from:"exists_tac" thm
+
 (** [gen_tac] transforms a goal [forall x. P] into a subgoal [P]. Fails if the
     goal is not a universal quantification
 
@@ -980,6 +993,12 @@ let with_first_success : tactic_combinator =
       in
       try_each (as_chosen_list choices)
   | v -> v
+
+(** [with_arbitrary_term] forces a specific term to be chosen when a
+    [Choose (Term _)] effect is performed. *)
+let with_arbitrary_term (t : term) : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Choose (Term _), k -> continue k t | x -> x
 
 (** [with_term] forces a specific term to be chosen when a [Choose (Term _)]
     effect is performed. Fails if the term is not among the choices *)

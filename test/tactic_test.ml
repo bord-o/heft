@@ -1093,3 +1093,54 @@ let%expect_test "basic4" =
   let name, _ = cost_of_tactic left_tac goal in
   print_endline name;
   [%expect {| left_tac |}]
+
+let%expect_test "exists_tac_bool" =
+  let p = make_var "P" bool_ty in
+  let goal = ([ make_true () ], make_exists p p) in
+  (* ∃P. P *)
+  run_proof goal
+    (with_arbitrary_term (make_true ()) exists_tac >> assumption_tac);
+  [%expect
+    {|
+    ========================================
+    ∃P. P
+
+    Proof Complete!
+    with fuel: 9
+    |}]
+
+let%expect_test "exists_tac_refl" =
+  let open Theories.NatTheory in
+  let n = Var ("n", nat_ty) in
+  let eq_nn = Result.get_ok (safe_make_eq n n) in
+  let goal = ([], make_exists n eq_nn) in
+  (* ∃n. n = n *)
+  run_proof goal (with_arbitrary_term zero exists_tac >>> refl_tac);
+  [%expect
+    {|
+    ========================================
+    ∃n. n = n
+
+    Proof Complete!
+    with fuel: 9
+    |}]
+
+let%expect_test "exists_tac_nested" =
+  let open Theories.NatTheory in
+  let m = Var ("m", nat_ty) in
+  let n = Var ("n", nat_ty) in
+  let eq_mn = Result.get_ok (safe_make_eq m n) in
+  let goal = ([], make_exists m (make_exists n eq_mn)) in
+  (* ∃m. ∃n. m = n *)
+  run_proof goal
+    (with_arbitrary_term zero exists_tac
+    >> with_arbitrary_term zero exists_tac
+    >>> refl_tac);
+  [%expect
+    {|
+    ========================================
+    ∃m. ∃n. n = n
+
+    Proof Complete!
+    with fuel: 17
+    |}]
