@@ -1548,11 +1548,6 @@ let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
   in
   thm
 
-let type_of_existential (_, g) =
-  let* x, _ = destruct_exists g in
-  let* ty = type_of_term x in
-  Ok ty
-
 let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
  fun tac goal ->
   match tac goal with
