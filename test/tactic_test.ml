@@ -1139,7 +1139,7 @@ let%expect_test "exists_tac_nested" =
   [%expect
     {|
     ========================================
-    ∃m. ∃n. n = n
+    ∃m. ∃n. m = n
 
     Proof Complete!
     with fuel: 17

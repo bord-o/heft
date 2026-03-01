@@ -21,7 +21,6 @@ let make_app_inst f x =
   match make_app f x with
   | Ok app -> Ok app
   | Error _ -> (
-      (* Types didn't match - try to instantiate *)
       let fty =
         match type_of_term f with Ok t -> t | Error _ -> K.TyVar "?"
       in
@@ -34,7 +33,13 @@ let make_app_inst f x =
           | Some tysub ->
               let f' = term_type_subst tysub f in
               make_app f' x
-          | None -> Error (`MakeAppTypesDontAgree (fty, xty)))
+          | None -> (
+              (* Also try instantiating type variables in x *)
+              match type_match [] xty arg_ty with
+              | Some tysub ->
+                  let x' = term_type_subst tysub x in
+                  make_app f x'
+              | None -> Error (`MakeAppTypesDontAgree (fty, xty))))
       | _ -> Error (`MakeAppTypesDontAgree (fty, xty)))
 
 let rec get_hol_arg_types hty =
@@ -433,4 +438,6 @@ let elaborate_string s =
   elaborate defs
 
 let goals_from_string s =
-  match elaborate_string s with Ok (_, goals) -> goals | Error _ -> []
+  match elaborate_string s with
+  | Ok (_, goals) -> goals
+  | Error e -> failwith (Printing.print_error e)

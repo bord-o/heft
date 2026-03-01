@@ -797,10 +797,15 @@ let exists_tac : tactic =
   let thm =
     let* x, body = destruct_exists concl in
     let chosen = choose_terms [] in
-    let* chosen_sub = vsubst [ (chosen, x) ] body in
+    let* chosen_sub_raw = vsubst [ (chosen, x) ] body in
+    let* beta_eq = deep_beta chosen_sub_raw in
+    let* chosen_sub = rhs beta_eq in
     let body_thm = perform (Subgoal (asms, chosen_sub)) in
-
-    exists x chosen body_thm
+    let* thm = exists_p x body chosen body_thm in
+    trace_info
+      (Printf.sprintf "success with chosen term: %s"
+         (pretty_print_hol_term chosen));
+    Ok thm
   in
   return_thm ~from:"exists_tac" thm
 
@@ -1345,6 +1350,19 @@ let with_added_fuel extra : tactic_combinator =
       continue k ()
   | v -> v
 
+let with_fuel_limit' (limit : int) : tactic_combinator =
+  let fuel = ref limit in
+  fun tac goal ->
+    match tac goal with
+    | effect Burn (name, cost), k ->
+        let n = cost_value cost in
+        fuel := !fuel - n;
+        if !fuel <= 0 then fail ()
+        else (
+          burn name cost;
+          continue k ())
+    | v -> v
+
 (** [with_fuel_limit] tracks fuel consumption and raises [Out_of_fuel] when the
     limit is exceeded. The limit is a mutable reference that decreases with each
     [Burn] effect *)
@@ -1368,6 +1386,14 @@ let with_fuel_counter r : tactic_combinator =
   | effect Burn (name, cost), k ->
       r := !r + cost_value cost;
       burn name cost;
+      continue k ()
+  | v -> v
+
+let with_info_trace : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Trace (Info, t), k ->
+      print_endline t;
       continue k ()
   | v -> v
 
@@ -1486,7 +1512,10 @@ let auto_tac : tactic =
 
 (** [auto_dfs_tac] is [auto_tac] wrapped with [with_dfs] for automatic
     depth-first proof search *)
-let auto_dfs_tac : tactic = with_dfs @@ auto_tac
+let auto_dfs_tac : tactic =
+ fun goal ->
+  let thm = with_dfs auto_tac goal in
+  return_thm ~from:"auto_dfs_tac" (Ok thm)
 
 (** [simp_asm_tac] simplifies assumptions using rewrite rules from definitions.
     Use [add] to provide additional rules. Set [with_asms:false] to exclude
@@ -1518,6 +1547,28 @@ let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
       goal
   in
   thm
+
+let type_of_existential (_, g) =
+  let* x, _ = destruct_exists g in
+  let* ty = type_of_term x in
+  Ok ty
+
+let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Choose (Term _), k ->
+      let r = Multicont.Deep.promote k in
+      let ty = type_of_existential goal |> Result.get_ok in
+      let terms = Synth.enumerate ~extra [] ty depth in
+
+      List.iter
+        (fun t ->
+          trace_dbg (Printf.sprintf "term: %s" (pretty_print_hol_term t)))
+        terms;
+      let t = choose_terms (List.rev terms) in
+      trace_info (Printf.sprintf "chose synth: %s" (pretty_print_hol_term t));
+      Multicont.Deep.resume r t
+  | v -> v
 
 let run_proof ?(notrace = true) ?(name = "") goal tac =
   let fuel_count = ref 0 in

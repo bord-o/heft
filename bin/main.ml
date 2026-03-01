@@ -1,61 +1,40 @@
 open Heft
 open Kernel
-open Derived
 open Tactic
 
-(* open Effect *)
-open Printing
-
-(* Storage for proven lemmas *)
-(* let proven = ref [] *)
-(* let lemma s = [ List.assoc s !proven ] *)
-
-let run_proof ?(notrace = true) ?(name = "") goal tac =
-  let fuel_count = ref 0 in
-  let limit = ref 10_000_000 in
-  let wrapped =
-    (if notrace then with_no_trace ~show_proof:false else Fun.id)
-    @@ (with_fuel_limit limit) (with_fuel_counter fuel_count tac)
-  in
-  match prove ~name goal wrapped with
-  | Complete thm ->
-      print_thm thm;
-      print_endline "Proof Complete!";
-      Printf.printf "with fuel: %d\n" !fuel_count
-  | Incomplete (asms, c) ->
-      List.iter print_term asms;
-      print_term c;
-      print_endline "Proof Incomplete";
-      Printf.printf "with fuel: %d\n" !fuel_count
-
 let () =
-  let p = make_var "P" bool_ty in
-  let q = make_var "Q" bool_ty in
-  let r = make_var "R" bool_ty in
-  let goal =
-    ( [],
-      make_imp
-        (make_conj p (make_disj q r))
-        (make_disj (make_conj p q) (make_conj p r)) )
+  let open Theories.NatTheory in
+  let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
+  let extras = [ ("plus", plus_ty) ] in
+  let prg =
+    {|
+    variable nil_case : nat -> nat
+    variable suc_case : nat -> nat -> nat
+    variable g : nat -> nat -> nat
+    variable m : nat
+    variable n : nat
+    theorem synthesize_mult:
+        exists λnil_case.
+            exists λsuc_case.
+                imp
+                    (forall λn. eq (g zero n) (nil_case n))
+                    (imp
+                        (forall λm. forall λn.
+                            eq (g (suc m) n) (suc_case n (g m n)))
+                        (conj
+                            (eq (g zero (suc (suc zero))) zero)
+                            (eq
+                                (g (suc (suc zero)) (suc (suc (suc zero))))
+                                (suc (suc (suc (suc (suc (suc zero)))))))))
+  |}
   in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
     with_best_first
-      (pick_tac
-         [
-           assumption_tac;
-           intro_tac;
-           neg_intro_tac;
-           gen_tac;
-           conj_tac;
-           elim_conj_asm_tac;
-           elim_disj_asm_tac;
-           false_elim_tac;
-           neg_elim_tac;
-           apply_asm_tac;
-           apply_neg_asm_tac;
-           mp_asm_tac;
-           left_tac;
-           right_tac;
-         ])
+      (try_ (with_synthetic_term ~extra:extras 3 (with_info_trace exists_tac))
+      >> try_ (with_synthetic_term ~extra:extras 4 (with_info_trace exists_tac))
+      >> intros_tac >> auto_dfs_tac)
   in
-  run_proof goal proof
+  let t = Sys.time () in
+  let _ = run_proof goal proof in
+  Printf.printf "execution time: %fs\n" (Sys.time () -. t)

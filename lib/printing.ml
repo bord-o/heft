@@ -126,7 +126,7 @@ let print_error = function
   | `ConstantTermAlreadyDeclared _ -> "ConstantTermAlreadyDeclared"
   | `ConstructorsAlreadyExist -> "ConstructorsAlreadyExist"
   | `DefinitionError _ -> "DefinitionError"
-  | `Eq_MP _ -> "Eq_MP"
+  | `Eq_MP t -> Printf.sprintf "Eq_MP %s" (pretty_print_hol_term t)
   | `InvariantViolation s -> "InvariantViolation: " ^ s
   | `LamRuleCantApply -> "LamRuleCantApply"
   | `MakeAppTypesDontAgree (ty1, ty2) ->

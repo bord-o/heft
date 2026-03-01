@@ -297,6 +297,11 @@ let destruct_exists = function
   | App (Const ("?", _), Lam (bind, bod)) -> Ok (bind, bod)
   | _ -> Error `NotAnExists
 
+let type_of_existential (_, g) =
+  let* x, _ = destruct_exists g in
+  let* ty = type_of_term x in
+  Ok ty
+
 let term_of_negation = function
   | App (Const ("~", _), t) -> Ok t
   | _ -> Error `NotANegation
@@ -677,6 +682,35 @@ let ccontr p th =
   let* disj_np_contr = contr p disj_np in
 
   disj_cases speccd disj_p disj_np_contr
+
+(** [⊢ t = t] should derive [⊢ ∃x. x = x] *)
+let exists_p x pred_body tm th =
+  let* exists_def = exists_def in
+  let* tm_typ = type_of_term tm in
+  let* typed_exists_def = inst_type [ (make_vartype "a", tm_typ) ] exists_def in
+
+  let* pred_lam = make_lam x pred_body in
+
+  let* applied = unfold_definition typed_exists_def [ pred_lam ] in
+  let* applied_normal = conv_equality deep_beta applied in
+
+  let* l = lhs applied_normal in
+  let* inner_forall = term_of_negation l in
+
+  let* assm_forall = assume inner_forall in
+  let* speccd = spec tm assm_forall in
+  let* false_th = not_elim speccd in
+
+  let hyps = hyp false_th in
+  let p_hyp = List.find (fun h -> alphaorder h inner_forall <> 0) hyps in
+
+  let* p_hyp_refl = refl p_hyp in
+  let* beta_th = conv_left deep_beta p_hyp_refl in
+  let* p_hyp_th = eq_mp beta_th th in
+
+  let* false_th' = prove_hyp p_hyp_th false_th in
+  let* neg_forall = not_intro inner_forall false_th' in
+  eq_mp applied_normal neg_forall
 
 (** [⊢ t = t] should derive [⊢ ∃x. x = x] *)
 let exists x tm th =

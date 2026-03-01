@@ -117,6 +117,9 @@ module NatTheory = struct
     def minus : nat -> nat -> nat
         | m => (flip minus') m
 
+    def mult : nat -> nat -> nat
+        | zero => λn. zero
+        | suc n => λm. plus n (mult n m)
   |}
 
   let _ =
