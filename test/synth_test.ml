@@ -1338,3 +1338,117 @@ let%expect_test "synth replicate via make_synthesis_goal" =
 (*   in *)
 (*   run_proof goal proof; *)
 (*   [%expect {| |}] *)
+
+let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
+  let open Theories.NatTheory in
+  let open Theories.ListTheory in
+  let open Theories.PairTheory in
+  let _ = list_def in
+  let pair_nat_nat = TyCon ("pair", [ nat_ty; nat_ty ]) in
+  let list_pair = TyCon ("list", [ pair_nat_nat ]) in
+  let nil_lp =
+    Result.get_ok (type_inst [ (make_vartype "a", pair_nat_nat) ] nil)
+  in
+  let cons_lp =
+    Result.get_ok (type_inst [ (make_vartype "a", pair_nat_nat) ] cons)
+  in
+  let pair_const =
+    Result.get_ok
+      (type_inst
+         [ (make_vartype "a", nat_ty); (make_vartype "b", nat_ty) ]
+         (Result.get_ok (make_const "pair" [])))
+  in
+  let mk_pair a b =
+    Result.get_ok (make_app (Result.get_ok (make_app pair_const a)) b)
+  in
+  let mk_list_pair elems =
+    List.fold_right
+      (fun x acc ->
+        Result.get_ok (make_app (Result.get_ok (make_app cons_lp x)) acc))
+      elems nil_lp
+  in
+  let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
+  let fst_ty = make_fun_ty pair_nat_nat nat_ty in
+  let snd_ty = make_fun_ty pair_nat_nat nat_ty in
+  let extras = [ ("plus", plus_ty); ("fst", fst_ty); ("snd", snd_ty) ] in
+  let func_type = make_fun_ty list_pair nat_ty in
+  let test_cases =
+    [
+      (* (1,2) + (3,4) = 10 *)
+      ([ mk_list_pair [ mk_pair (n 1) (n 2); mk_pair (n 3) (n 4) ] ], n 10);
+      (* (5,0) = 5 *)
+      ([ mk_list_pair [ mk_pair (n 5) (n 0) ] ], n 5);
+    ]
+  in
+  let goal_tm = make_synthesis_goal ~func_type ~test_cases in
+  let goal = ([], goal_tm) in
+  let proof =
+    with_best_first
+      (try_ (with_synthetic_term ~extra:extras 3 (with_info_trace exists_tac))
+      >> try_ (with_synthetic_term ~extra:extras 6 (with_info_trace exists_tac))
+      >> intros_tac >> auto_dfs_tac)
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      conj_tac >>
+      refl_tac >>
+      refl_tac
+    success with chosen term: λp. plus (plus (fst p) (snd p))
+    success with chosen term: zero
+    Proof:
+      exists_tac >>
+      exists_tac >>
+      intro_tac >>
+      intro_tac >>
+      auto_dfs_tac
+    ========================================
+    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (pair (suc zero) (suc (suc zero))) (cons (pair (suc (suc (suc zero))) (suc (suc (suc (suc zero))))) nil)) = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))) ∧ g (cons (pair (suc (suc (suc (suc (suc zero))))) zero) nil) = suc (suc (suc (suc (suc zero))))
+
+    Proof Complete!
+    with fuel: 18575
+    |}]
