@@ -13,6 +13,13 @@ let rec term_subst old_tm new_tm tm =
     | App (f, a) -> App (term_subst old_tm new_tm f, term_subst old_tm new_tm a)
     | Lam (v, body) -> Lam (v, term_subst old_tm new_tm body)
 
+let rec term_size (t : term) =
+  match t with
+  | Var (_, _) -> 1
+  | Const (_, _) -> 1
+  | App (l, r) -> 1 + term_size l + term_size r
+  | Lam (bind, bod) -> 1 + term_size bind + term_size bod
+
 let make_exn thm =
   thm |> Result.map_error (fun _e -> "Todo") |> Result.error_to_failure
 

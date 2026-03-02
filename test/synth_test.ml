@@ -622,7 +622,7 @@ let%expect_test "synth goal enumerate" =
     ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀x. ∀xs. g (cons x xs) = cons_case x xs (g xs)) ==> g (cons x nil) = suc zero ∧ g (cons x (cons y nil)) = suc (suc zero)
 
     Proof Complete!
-    with fuel: 299
+    with fuel: 1214
     |}]
 
 let%expect_test "synth append" =
@@ -679,7 +679,7 @@ let%expect_test "synth append" =
     ∃nil_case. ∃cons_case. (∀ys. g nil ys = nil_case ys) ==> (∀x. ∀xs. ∀ys. g (cons x xs) ys = cons_case x xs (g xs ys)) ==> g nil (cons x nil) = cons x nil ∧ g (cons x nil) (cons y nil) = cons x (cons y nil)
 
     Proof Complete!
-    with fuel: 464
+    with fuel: 1204
     |}]
 
 let%expect_test "synth reverse" =
@@ -715,7 +715,7 @@ let%expect_test "synth reverse" =
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term ~extra 6 (with_info_trace exists_tac))
+      (try_ (with_synthetic_term ~extra 2 (with_info_trace exists_tac))
       >> try_ (with_synthetic_term ~extra 6 (with_info_trace exists_tac))
       >> intros_tac >> auto_dfs_tac)
   in
@@ -744,7 +744,7 @@ let%expect_test "synth reverse" =
     ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀x. ∀xs. g (cons x xs) = cons_case x xs (g xs)) ==> g (cons x (cons y nil)) = cons y (cons x nil)
 
     Proof Complete!
-    with fuel: 551
+    with fuel: 2271
     |}]
 
 let%expect_test "synth mult" =
@@ -812,7 +812,7 @@ let%expect_test "synth mult" =
     ∃nil_case. ∃suc_case. (∀n. g zero n = nil_case n) ==> (∀m. ∀n. g (suc m) n = suc_case n (g m n)) ==> g zero (suc (suc zero)) = zero ∧ g (suc (suc zero)) (suc (suc (suc zero))) = suc (suc (suc (suc (suc (suc zero)))))
 
     Proof Complete!
-    with fuel: 5414
+    with fuel: 529
     |}]
 
 let%expect_test "synth sum" =
@@ -867,7 +867,7 @@ let%expect_test "synth sum" =
       rewrite_tac >>
       beta_tac >>
       refl_tac
-    success with chosen term: λn. λn0. plus n n0
+    success with chosen term: plus
     success with chosen term: zero
     Proof:
       exists_tac >>
@@ -879,7 +879,7 @@ let%expect_test "synth sum" =
     ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀x. ∀xs. g (cons x xs) = cons_case x (g xs)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) = suc (suc (suc (suc (suc (suc zero)))))
 
     Proof Complete!
-    with fuel: 670
+    with fuel: 99
     |}]
 
 let nat_ty = Theories.NatTheory.nat_ty
@@ -948,7 +948,7 @@ let%expect_test "synth length via make_synthesis_goal" =
     ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc zero) nil) = suc zero ∧ g (cons (suc zero) (cons (suc (suc zero)) nil)) = suc (suc zero)
 
     Proof Complete!
-    with fuel: 1809
+    with fuel: 1194
     |}]
 
 (* ======================================================================= *)
@@ -988,7 +988,7 @@ let%expect_test "synth sum via make_synthesis_goal" =
       rewrite_tac >>
       beta_tac >>
       refl_tac
-    success with chosen term: λn. λn0. plus n n0
+    success with chosen term: plus
     success with chosen term: zero
     Proof:
       exists_tac >>
@@ -1000,7 +1000,7 @@ let%expect_test "synth sum via make_synthesis_goal" =
     ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) = suc (suc (suc (suc (suc (suc zero)))))
 
     Proof Complete!
-    with fuel: 670
+    with fuel: 99
     |}]
 
 (* ======================================================================= *)
@@ -1039,7 +1039,7 @@ let%expect_test "synth append via make_synthesis_goal" =
     ∃nil_case. ∃cons_case. (∀y0. g nil y0 = nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (cons c0 c1) y0 = cons_case c0 y0 (g c1 y0)) ==> g (cons (suc zero) nil) (cons (suc (suc zero)) nil) = cons (suc zero) (cons (suc (suc zero)) nil)
 
     Proof Complete!
-    with fuel: 1005
+    with fuel: 345
     |}]
 
 (* ======================================================================= *)
@@ -1092,7 +1092,7 @@ let%expect_test "synth mult via make_synthesis_goal" =
     ∃zero_case. ∃suc_case. (∀y0. g zero y0 = zero_case y0) ==> (∀c0. ∀y0. g (suc c0) y0 = suc_case y0 (g c0 y0)) ==> g zero (suc (suc zero)) = zero ∧ g (suc (suc zero)) (suc (suc (suc zero))) = suc (suc (suc (suc (suc (suc zero)))))
 
     Proof Complete!
-    with fuel: 13140
+    with fuel: 529
     |}]
 
 (* ======================================================================= *)
@@ -1139,5 +1139,202 @@ let%expect_test "synth reverse via make_synthesis_goal" =
     ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc zero) (cons (suc (suc zero)) nil)) = cons (suc (suc zero)) (cons (suc zero) nil)
 
     Proof Complete!
-    with fuel: 4925
+    with fuel: 3846
     |}]
+
+let%expect_test "synth stutter via make_synthesis_goal" =
+  let open Theories.NatTheory in
+  let open Theories.ListTheory in
+  let _ = list_def in
+  let list_nat = TyCon ("list", [ nat_ty ]) in
+  let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
+  let cons_nat =
+    Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] cons)
+  in
+  let mk_list elems =
+    List.fold_right
+      (fun x acc ->
+        Result.get_ok (make_app (Result.get_ok (make_app cons_nat x)) acc))
+      elems nil_nat
+  in
+  let func_type = make_fun_ty list_nat list_nat in
+  let test_cases =
+    [
+      ([ mk_list [ n 1; n 2; n 3 ] ], mk_list [ n 1; n 1; n 2; n 2; n 3; n 3 ]);
+    ]
+  in
+  let goal_tm = make_synthesis_goal ~func_type ~test_cases in
+  let goal = ([], goal_tm) in
+  let proof =
+    with_best_first
+      (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
+      >> try_ (with_synthetic_term 6 (with_info_trace exists_tac))
+      >> intros_tac >> auto_dfs_tac)
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      refl_tac
+    success with chosen term: λn. λl. cons n (cons n l)
+    success with chosen term: nil
+    Proof:
+      exists_tac >>
+      exists_tac >>
+      intro_tac >>
+      intro_tac >>
+      auto_dfs_tac
+    ========================================
+    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) = cons (suc zero) (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) (cons (suc (suc (suc zero))) nil)))))
+
+    Proof Complete!
+    with fuel: 810
+    |}]
+
+let%expect_test "synth map via make_synthesis_goal" =
+  let open Theories.NatTheory in
+  let open Theories.ListTheory in
+  let _ = list_def in
+  let list_nat = TyCon ("list", [ nat_ty ]) in
+  let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
+  let cons_nat =
+    Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] cons)
+  in
+  let mk_list elems =
+    List.fold_right
+      (fun x acc ->
+        Result.get_ok (make_app (Result.get_ok (make_app cons_nat x)) acc))
+      elems nil_nat
+  in
+  let f_ty = make_fun_ty nat_ty nat_ty in
+  let func_type = make_fun_ty list_nat (make_fun_ty f_ty list_nat) in
+  let suc_const = Result.get_ok (make_const "suc" []) in
+  let test_cases =
+    [ ([ mk_list [ n 1; n 2; n 3 ]; suc_const ], mk_list [ n 2; n 3; n 4 ]) ]
+  in
+  let goal_tm = make_synthesis_goal ~func_type ~test_cases in
+  let goal = ([], goal_tm) in
+  let proof =
+    with_best_first
+      (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
+      >> try_ (with_synthetic_term 6 (with_info_trace exists_tac))
+      >> intros_tac >> auto_dfs_tac)
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      refl_tac
+    success with chosen term: λn. λf. λl. cons (suc n) l
+    success with chosen term: λf. nil
+    Proof:
+      exists_tac >>
+      exists_tac >>
+      intro_tac >>
+      intro_tac >>
+      auto_dfs_tac
+    ========================================
+    ∃nil_case. ∃cons_case. (∀y0. g nil y0 = nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (cons c0 c1) y0 = cons_case c0 y0 (g c1 y0)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) suc = cons (suc (suc zero)) (cons (suc (suc (suc zero))) (cons (suc (suc (suc (suc zero)))) nil))
+
+    Proof Complete!
+    with fuel: 627
+    |}]
+
+let%expect_test "synth replicate via make_synthesis_goal" =
+  let open Theories.NatTheory in
+  let open Theories.ListTheory in
+  let _ = list_def in
+  let list_nat = TyCon ("list", [ nat_ty ]) in
+  let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
+  let cons_nat =
+    Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] cons)
+  in
+  let mk_list elems =
+    List.fold_right
+      (fun x acc ->
+        Result.get_ok (make_app (Result.get_ok (make_app cons_nat x)) acc))
+      elems nil_nat
+  in
+  let func_type = make_fun_ty nat_ty (make_fun_ty nat_ty list_nat) in
+  let test_cases = [ ([ n 3; n 5 ], mk_list [ n 5; n 5; n 5 ]) ] in
+  let goal_tm = make_synthesis_goal ~func_type ~test_cases in
+  let goal = ([], goal_tm) in
+  let proof =
+    with_best_first
+      (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
+      >> try_ (with_synthetic_term 4 (with_info_trace exists_tac))
+      >> intros_tac >> auto_dfs_tac)
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      refl_tac
+    success with chosen term: λn. λl. cons n l
+    success with chosen term: λn. nil
+    Proof:
+      exists_tac >>
+      exists_tac >>
+      intro_tac >>
+      intro_tac >>
+      auto_dfs_tac
+    ========================================
+    ∃zero_case. ∃suc_case. (∀y0. g zero y0 = zero_case y0) ==> (∀c0. ∀y0. g (suc c0) y0 = suc_case y0 (g c0 y0)) ==> g (suc (suc (suc zero))) (suc (suc (suc (suc (suc zero))))) = cons (suc (suc (suc (suc (suc zero))))) (cons (suc (suc (suc (suc (suc zero))))) (cons (suc (suc (suc (suc (suc zero))))) nil))
+
+    Proof Complete!
+    with fuel: 337
+    |}]
+
+(* let%expect_test "synth fib_helper via make_synthesis_goal" = *)
+(*   let open Theories.NatTheory in *)
+(*   let pair_nat_nat = TyCon ("pair", [ nat_ty; nat_ty ]) in *)
+(*   let pair_const = *)
+(*     Result.get_ok *)
+(*       (type_inst *)
+(*          [ (make_vartype "a", nat_ty); (make_vartype "b", nat_ty) ] *)
+(*          (Result.get_ok (make_const "pair" []))) *)
+(*   in *)
+(*   let mk_pair a b = *)
+(*     Result.get_ok (make_app (Result.get_ok (make_app pair_const a)) b) *)
+(*   in *)
+(*   let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in *)
+(*   let fst_ty = make_fun_ty pair_nat_nat nat_ty in *)
+(*   let snd_ty = make_fun_ty pair_nat_nat nat_ty in *)
+(*   let pair_ty = make_fun_ty nat_ty (make_fun_ty nat_ty pair_nat_nat) in *)
+(*   let extras = *)
+(*     [ ("plus", plus_ty); ("fst", fst_ty); ("snd", snd_ty); ("pair", pair_ty) ] *)
+(*   in *)
+(*   let func_type = make_fun_ty nat_ty pair_nat_nat in *)
+(*   let test_cases = *)
+(*     [ *)
+(*       ([ n 0 ], mk_pair (n 0) (n 1)); *)
+(*       ([ n 1 ], mk_pair (n 1) (n 1)); *)
+(*       (* ([ n 5 ], mk_pair (n 5) (n 8)); *) *)
+(*     ] *)
+(*   in *)
+(*   let goal_tm = make_synthesis_goal ~func_type ~test_cases in *)
+(*   let goal = ([], goal_tm) in *)
+(*   let proof = *)
+(*     with_best_first *)
+(*       (try_ *)
+(*          (with_info_trace *)
+(*             (with_synthetic_term ~extra:extras 3 (with_info_trace exists_tac))) *)
+(*       >> try_ *)
+(*            (with_info_trace *)
+(*               (with_synthetic_term ~extra:extras 7 (with_info_trace exists_tac))) *)
+(*       >> intros_tac >> auto_dfs_tac) *)
+(*   in *)
+(*   run_proof goal proof; *)
+(*   [%expect {| |}] *)

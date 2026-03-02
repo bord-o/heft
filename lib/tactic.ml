@@ -61,6 +61,9 @@ module Priority = struct
     | MResume, MChoice _ -> 1
     | MChoice m1, MChoice m2 -> (
         match (m1, m2) with
+        | CTerm (_, t1), CTerm (_, t2) ->
+            let s1, s2 = (term_size t1, term_size t2) in
+            compare s2 s1
         | CTactic (_, c1, _), CTactic (_, c2, _) -> (
             match (c1, c2) with
             | Safe _, Unsafe _ -> 1
@@ -1317,23 +1320,14 @@ let with_nth_choice n : tactic_combinator =
 (** [with_term_size_ranking] handles [Rank (Term _)] effects by sorting terms
     from smallest to largest based on AST size *)
 let with_term_size_ranking : tactic_combinator =
-  let rec term_size (t : term) =
-    match t with
-    | Var (_, _) -> 1
-    | Const (_, _) -> 1
-    | App (l, r) -> 1 + term_size l + term_size r
-    | Lam (bind, bod) -> 1 + term_size bind + term_size bod
-  in
-  fun tac goal ->
-    match tac goal with
-    | effect Rank (Term terms), k ->
-        let sorted =
-          List.stable_sort
-            (fun l r -> compare (term_size l) (term_size r))
-            terms
-        in
-        continue k sorted
-    | v -> v
+ fun tac goal ->
+  match tac goal with
+  | effect Rank (Term terms), k ->
+      let sorted =
+        List.stable_sort (fun l r -> compare (term_size l) (term_size r)) terms
+      in
+      continue k sorted
+  | v -> v
 
 let cost_value = function Safe n | Unsafe n -> n
 
@@ -1555,6 +1549,8 @@ let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
       let r = Multicont.Deep.promote k in
       let ty = type_of_existential goal |> Result.get_ok in
       let terms = Synth.enumerate ~extra [] ty depth in
+      trace_info
+        (Printf.sprintf "enumerated %d unique terms" (List.length terms));
 
       List.iter
         (fun t ->
