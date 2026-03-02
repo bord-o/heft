@@ -1214,7 +1214,11 @@ let%expect_test "synth map via make_synthesis_goal" =
   let func_type = make_fun_ty list_nat (make_fun_ty f_ty list_nat) in
   let suc_const = Result.get_ok (make_const "suc" []) in
   let test_cases =
-    [ ([ mk_list [ n 1; n 2; n 3 ]; suc_const ], mk_list [ n 2; n 3; n 4 ]) ]
+    [
+      ([ mk_list [ n 1; n 2; n 3 ]; suc_const ], mk_list [ n 2; n 3; n 4 ]);
+      ( [ mk_list [ n 1; n 2; n 3 ]; make_app plus (n 2) |> Result.get_ok ],
+        mk_list [ n 3; n 4; n 5 ] );
+    ]
   in
   let goal_tm = make_synthesis_goal ~func_type ~test_cases in
   let goal = ([], goal_tm) in
@@ -1232,8 +1236,18 @@ let%expect_test "synth map via make_synthesis_goal" =
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      conj_tac >>
+      refl_tac >>
       refl_tac
-    success with chosen term: λn. λf. λl. cons (suc n) l
+    success with chosen term: λn. λf. λl. cons (f n) l
     success with chosen term: λf. nil
     Proof:
       exists_tac >>
@@ -1242,10 +1256,10 @@ let%expect_test "synth map via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. (∀y0. g nil y0 = nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (cons c0 c1) y0 = cons_case c0 y0 (g c1 y0)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) suc = cons (suc (suc zero)) (cons (suc (suc (suc zero))) (cons (suc (suc (suc (suc zero)))) nil))
+    ∃nil_case. ∃cons_case. (∀y0. g nil y0 = nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (cons c0 c1) y0 = cons_case c0 y0 (g c1 y0)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) suc = cons (suc (suc zero)) (cons (suc (suc (suc zero))) (cons (suc (suc (suc (suc zero)))) nil)) ∧ g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) (plus (suc (suc zero))) = cons (suc (suc (suc zero))) (cons (suc (suc (suc (suc zero)))) (cons (suc (suc (suc (suc (suc zero))))) nil))
 
     Proof Complete!
-    with fuel: 627
+    with fuel: 1925
     |}]
 
 let%expect_test "synth replicate via make_synthesis_goal" =
