@@ -295,21 +295,20 @@ let rec strip_forall thm =
   | Error _ -> Ok thm
 
 (* Split a conjunction theorem into its components.
-   Only splits at the top level - does not recurse into conjuncts.
+   Recurses into both left and right conjuncts to handle both
+   left-associative ((A ∧ B) ∧ C) and right-associative (A ∧ (B ∧ C)) forms.
 
-   E.g., ⊢ A ∧ B ∧ C becomes [⊢ A; ⊢ B; ⊢ C]
-
-   This is safe for recursive function definitions where each conjunct
-   is a separate equation for one constructor case. *)
+   E.g., ⊢ A ∧ B ∧ C becomes [⊢ A; ⊢ B; ⊢ C] *)
 let rec split_conj_thm thm =
   match destruct_conj (concl thm) with
   | Ok _ ->
       (* It's a conjunction, split it *)
       let* left_thm = conj_left thm in
       let* right_thm = conj_right thm in
-      (* Recurse on right side to handle A ∧ B ∧ C = A ∧ (B ∧ C) *)
+      (* Recurse on both sides to handle both associativities *)
+      let* left_rules = split_conj_thm left_thm in
       let* right_rules = split_conj_thm right_thm in
-      Ok (left_thm :: right_rules)
+      Ok (left_rules @ right_rules)
   | Error _ ->
       (* Not a conjunction, this is a single rule *)
       Ok [ thm ]

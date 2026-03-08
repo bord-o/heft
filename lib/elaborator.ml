@@ -416,10 +416,10 @@ let elab_toplevel env (d : P.def) =
       | Ok def_thm ->
           let env' = { env with defs = (name, def_thm) :: env.defs } in
           Ok (env', None))
-  | P.Theorem (_name, expr) -> (
+  | P.Theorem (name, expr) -> (
       match elab_expr env expr with
       | Error e -> Error e
-      | Ok term -> Ok (env, Some term))
+      | Ok term -> Ok (env, Some (name, term)))
 
 (* Elaborate a full program - returns (env, goals) where goals are terms to prove *)
 let elaborate defs =
@@ -437,7 +437,15 @@ let elaborate_string s =
   let defs = parse_string s in
   elaborate defs
 
+let named_goal_from_string s name =
+  match elaborate_string s with
+  | Ok (_, goals) -> (
+      match goals |> List.find_opt (fun (n, _) -> n = name) with
+      | None -> Error `Todo
+      | Some (_, g) -> Ok ([], g))
+  | Error e -> failwith (Printing.print_error e)
+
 let goals_from_string s =
   match elaborate_string s with
-  | Ok (_, goals) -> goals
+  | Ok (_, goals) -> goals |> List.map snd
   | Error e -> failwith (Printing.print_error e)

@@ -12,7 +12,7 @@
 - [] Add more test cases for ctauto and itauto
     - [] Add more benchmarks that show dfs vs best-first comparison directly
 - [] Add forward reasoning tactic
-- [] Add existential tactic
+- [ x ] Add existential tactic
 - [] Test existing handlers more thoroughly
 - [] Write more tests for rewriting [../test/rewrite_test.ml]
 - [] Refactor error variants to carry useful information [../lib/kernel.ml]
@@ -20,6 +20,7 @@
 
 ## Soon
 - [] Set up core theorems and definitions of Set
+- [] Transitivity tactic
 
 ## Eventually 
 - [] Let language recurse on arbitrary argument

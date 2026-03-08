@@ -81,7 +81,7 @@ let%expect_test "elaborate_theorem" =
   | Ok (_, goals) ->
       Printf.printf "Goals: %d\n" (List.length goals);
       List.iter
-        (fun goal ->
+        (fun (_, goal) ->
           Printf.printf "  %s\n" (Printing.pretty_print_hol_term goal))
         goals
   | Error `NotAForall -> Printf.printf "Error: NotAForall\n"
