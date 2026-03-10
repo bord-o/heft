@@ -567,6 +567,17 @@ let beta_asm_tac : tactic =
   in
   return_thm ~from:"beta_asm_tac" thm
 
+let assert_tac : tactic =
+ fun (asms, concl) ->
+  burn "assert_tac" (Unsafe 5);
+  let thm =
+    let assertion = choose_terms [] in
+    let asserted_thm = perform (Subgoal (asms, assertion)) in
+    let with_assertion_thm = perform (Subgoal (assertion :: asms, concl)) in
+    prove_hyp asserted_thm with_assertion_thm
+  in
+  return_thm ~from:"assert_tac" thm
+
 (** [mp_asm_tac] finds an implication [P ==> Q] in assumptions where [P] is also
     an assumption, and adds [Q] to the assumptions. Fails if no such implication
     exists or [Q] is already present
@@ -999,10 +1010,10 @@ let then_each (tacs : tactic list) : tactic_combinator =
 
 let ( >>= ) = Fun.flip then_each
 
-(** [with_first_success] handles [Choose] by trying each choice in order until
-    one succeeds. Only handles choices at one level; for recursive search use
+(** [with_first] handles [Choose] by trying each choice in order until one
+    succeeds. Only handles choices at one level; for recursive search use
     [with_dfs] or [with_best_first] *)
-let with_first_success : tactic_combinator =
+let with_first : tactic_combinator =
  fun tac goal ->
   match tac goal with
   | effect Choose choices, k ->
@@ -1473,8 +1484,7 @@ let with_rules_and_assumptions (rules : thm list) : tactic_combinator =
 (** [intros_tac] repeatedly applies [intro_tac] and [gen_tac] until neither
     makes progress. Useful for introducing all hypotheses at once *)
 let intros_tac : tactic =
- fun goal ->
-  with_repeat (with_first_success (pick_tac [ intro_tac; gen_tac ])) goal
+ fun goal -> with_repeat (with_first (pick_tac [ intro_tac; gen_tac ])) goal
 
 (** [simp_tac] simplifies the goal using rewrite rules from definitions and
     registered simp lemmas. Set [with_asms:false] to exclude assumptions
@@ -1496,7 +1506,7 @@ let simp_tac ?(with_asms = true) : tactic =
 
   let thm =
     with_repeat
-      (with_first_success
+      (with_first
       @@ pick_tac [ with_rw rules rewrite_tac; with_repeat beta_tac; refl_tac ]
       )
       goal
@@ -1548,7 +1558,7 @@ let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
 
   let thm =
     with_repeat
-      (with_first_success
+      (with_first
       @@ pick_tac
            [
              with_rw rules rewrite_asm_tac;

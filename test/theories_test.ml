@@ -160,9 +160,9 @@ let%expect_test "plus comm" =
   in
   let proof =
     induct_tac >> gen_tac >> simp_tac
-    >> with_first_success (with_proven [ "plus_x_zero" ] rewrite_tac)
+    >> with_first (with_proven [ "plus_x_zero" ] rewrite_tac)
     >> refl_tac >> intros_tac >> simp_tac >> sym_tac
-    >> with_first_success (with_proven [ "plus_suc" ] apply_thm_tac)
+    >> with_first (with_proven [ "plus_suc" ] apply_thm_tac)
   in
   run_proof ~name:"plus_comm" goal proof;
 
@@ -188,7 +188,7 @@ let%expect_test "cancellation" =
   let goal = ([], Derived.make_foralls [ x; y ] (make_imp p_eq y_eq_z)) in
   let proof =
     induct_tac >> simp_tac >> intros_tac >> assumption_tac >> intros_tac
-    >> with_first_success (with_assumptions apply_thm_asm_tac)
+    >> with_first (with_assumptions apply_thm_asm_tac)
     >> assumption_tac
   in
   run_proof goal proof;
@@ -219,7 +219,7 @@ let%expect_test "cancellation rev" =
     >> with_proven [ "plus_suc" ] rewrite_asm_tac
     >> with_proven [ "plus_suc" ] rewrite_asm_tac
     >> with_proven [ "plus_inj" ] apply_thm_asm_tac
-    >> with_first_success (with_assumptions apply_thm_tac)
+    >> with_first (with_assumptions apply_thm_tac)
     >> assumption_tac
   in
   run_proof goal proof;
@@ -360,7 +360,7 @@ let%expect_test "length_zero_implies_nil" =
   let goal = ([], make_forall xs (make_imp length_eq_zero xs_eq_nil)) in
   let proof =
     induct_tac >> intros_tac >> refl_tac >> intros_tac
-    >> with_first_success (with_assumptions apply_thm_asm_tac)
+    >> with_first (with_assumptions apply_thm_asm_tac)
     >> assumption_tac
   in
   run_proof goal proof;
@@ -578,7 +578,7 @@ let%expect_test "length (reverse xs) = length xs" =
   let proof =
     induct_tac >> simp_tac >> intros_tac
     >> with_proven [ "append_length" ] simp_tac
-    >> with_first_success (with_proven [ "plus_comm" ] rewrite_tac)
+    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
     >> simp_tac
   in
   let goal = ([], make_forall xs @@ Result.get_ok (safe_make_eq lhs rhs)) in
@@ -615,7 +615,7 @@ let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
     induct_tac >> intros_tac
     >> with_proven [ "append_xs_nil" ] simp_tac
     >> intros_tac >> simp_tac
-    >> with_first_success (with_proven [ "append_assoc" ] apply_thm_tac)
+    >> with_first (with_proven [ "append_assoc" ] apply_thm_tac)
   in
   let goal =
     ([], make_foralls [ xs; ys ] @@ Result.get_ok (safe_make_eq lhs rhs))
