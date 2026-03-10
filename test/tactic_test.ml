@@ -1123,3 +1123,28 @@ let%expect_test "exists_tac_nested" =
     Proof Complete!
     with fuel: 17
     |}]
+
+let%expect_test "trans tac" =
+  let open Theories.NatTheory in
+  let m = Var ("m", nat_ty) in
+  let n = Var ("n", nat_ty) in
+  let o = Var ("o", nat_ty) in
+  let eq_mo = Result.get_ok (safe_make_eq m o) in
+  let eq_on = Result.get_ok (safe_make_eq o n) in
+  let eq_mn = Result.get_ok (safe_make_eq m n) in
+  let goal = ([ eq_mo; eq_on ], eq_mn) in
+
+  run_proof goal
+    (with_arbitrary_term o trans_tac
+    >> with_first_success assumption_tac
+    >> with_first_success assumption_tac);
+  [%expect
+    {|
+    m = o
+    o = n
+    ========================================
+    m = n
+
+    Proof Complete!
+    with fuel: 3
+    |}]

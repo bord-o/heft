@@ -13,7 +13,11 @@ type env = {
   defs : (string * thm) list;
 }
 
-let empty_env = { tyvars = []; vars = []; inductives = []; defs = [] }
+let empty_env () =
+  let inductives =
+    Hashtbl.fold (fun k v acc -> (k, v) :: acc) K.the_inductives []
+  in
+  { tyvars = []; vars = []; inductives; defs = [] }
 
 (* Application with type instantiation - if types don't match exactly,
    try to instantiate type variables in f to make it work *)
@@ -431,11 +435,16 @@ let elaborate defs =
         | Ok (env', Some goal) -> go env' (goal :: goals) ds
         | Error e -> Error e)
   in
-  go empty_env [] defs
+  go (empty_env ()) [] defs
 
 let elaborate_string s =
   let defs = parse_string s in
   elaborate defs
+
+let named_goals_from_string s =
+  match elaborate_string s with
+  | Ok (_, goals) -> goals
+  | Error e -> failwith (Printing.print_error e)
 
 let named_goal_from_string s name =
   match elaborate_string s with

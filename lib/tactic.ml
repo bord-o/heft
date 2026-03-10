@@ -639,8 +639,7 @@ let trans_tac : tactic =
   burn "trans_tac" (Safe 1);
   let thm =
     let* l, r = destruct_eq concl in
-    let* ty = type_of_term l in
-    let s = make_var "s" ty in
+    let s = choose_terms [] in
     let* leq = safe_make_eq l s in
     let* req = safe_make_eq s r in
     let lthm = perform (Subgoal (asms, leq)) in
