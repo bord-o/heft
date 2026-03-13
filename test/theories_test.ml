@@ -1226,3 +1226,39 @@ let%expect_test "sub eq minus" =
     Proof Complete!
     with fuel: 161
     |}]
+
+(* isort [] = [] *)
+let%expect_test "isort nil" =
+  let prg =
+    {|
+    theorem isort_nil : eq (isort nil) nil
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  run_proof goal simp_tac;
+  [%expect {|
+    ========================================
+    isort nil = nil
+
+    Proof Complete!
+    with fuel: 12
+    |}]
+
+(* isort [3,1,2] = [1,2,3] *)
+let%expect_test "isort [3,1,2] = [1,2,3]" =
+  let prg =
+    {|
+    theorem isort_test : eq
+      (isort (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))))
+      (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil)))
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  run_proof goal simp_tac;
+  [%expect {|
+    ========================================
+    isort (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))) = cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))
+
+    Proof Complete!
+    with fuel: 186
+    |}]

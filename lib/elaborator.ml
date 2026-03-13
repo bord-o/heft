@@ -96,7 +96,21 @@ let rec elab_expr env (e : P.expr) =
       | Ok l' -> (
           match elab_expr env r with
           | Error e -> Error e
-          | Ok r' -> safe_make_eq l' r'))
+          | Ok r' ->
+              let lty =
+                match type_of_term l' with Ok t -> t | Error _ -> K.TyVar "?"
+              in
+              let rty =
+                match type_of_term r' with Ok t -> t | Error _ -> K.TyVar "?"
+              in
+              if compare lty rty = 0 then safe_make_eq l' r'
+              else
+                match type_match [] rty lty with
+                | Some tysub -> safe_make_eq l' (term_type_subst tysub r')
+                | None -> (
+                    match type_match [] lty rty with
+                    | Some tysub -> safe_make_eq (term_type_subst tysub l') r'
+                    | None -> safe_make_eq l' r')))
   (* imp p q => make_imp p q *)
   | P.App (P.App (P.Var "imp", l), r) -> elab_binop env elab_expr l r make_imp
   (* conj p q => make_conj p q *)
@@ -378,7 +392,12 @@ let elab_definition env name ty clauses =
           | clause :: rest -> (
               match elab_def_clause env name ind_def ret_ty clause with
               | Error e -> Error e
-              | Ok term -> build_cases (term :: acc) rest)
+              | Ok term ->
+                  let term =
+                    if tysub = [] then term
+                    else Rewrite.term_type_subst tysub term
+                  in
+                  build_cases (term :: acc) rest)
         in
         match build_cases [] clauses with
         | Error e -> Error e

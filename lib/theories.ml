@@ -318,6 +318,14 @@ module ListTheory = struct
     def insert : list nat -> nat -> list nat
         | nil => λn. cons n nil
         | cons x xs => λn. (COND (nat_le x n) (cons x (insert xs n)) (cons n (cons x xs)))
+
+    variable h : nat
+    variable t : list nat
+    def isort : list nat -> list nat
+        | nil => nil
+        | cons h t => insert (isort t) h
+
+
     |}
 
   let _ =
