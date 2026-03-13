@@ -359,8 +359,58 @@ end
 
 module BoolTheory = struct
   let prg = {|
-    theorem bool_distinct : neg (eq T F) 
+    theorem bool_distinct : neg (eq T F)
   |}
 
   let _ = Elaborator.goals_from_string prg
+end
+
+module CondTheory = struct
+  open Tactic
+
+  let cond_true_goal =
+    let prg = {|
+      vartype a
+      variable t1 t2 : a
+      theorem cond_true : eq (COND T t1 t2) t1
+    |} in
+    ([], List.hd (Elaborator.goals_from_string prg))
+
+  let () =
+    let proof =
+      with_rule (cond_def |> Result.get_ok) rewrite_tac
+      >> beta_tac
+      >> with_rule t_eq_t rewrite_tac
+      >> with_rule t_eq_f rewrite_tac
+      >> with_rule f_imp_eq rewrite_tac
+      >> with_rule conj_t_eq rewrite_tac
+      >> with_rule t_imp_eq rewrite_tac
+      >> with_rule select_eq rewrite_tac
+      >> refl_tac
+    in
+    run_proof ~notrace:true ~name:"cond_true" ~simp:true ~quiet:true
+      cond_true_goal proof
+
+  let cond_false_goal =
+    let prg = {|
+      vartype a
+      variable t1 t2 : a
+      theorem cond_false : eq (COND F t1 t2) t2
+    |} in
+    ([], List.hd (Elaborator.goals_from_string prg))
+
+  let () =
+    let proof =
+      with_rule (cond_def |> Result.get_ok) rewrite_tac
+      >> beta_tac
+      >> with_rule f_eq_t rewrite_tac
+      >> with_rule f_eq_f rewrite_tac
+      >> with_rule f_imp_eq rewrite_tac
+      >> with_rule t_conj_eq rewrite_tac
+      >> with_rule t_imp_eq rewrite_tac
+      >> with_rule select_eq rewrite_tac
+      >> refl_tac
+    in
+    run_proof ~notrace:true ~name:"cond_false" ~simp:true ~quiet:true
+      cond_false_goal proof
 end

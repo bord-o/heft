@@ -328,7 +328,7 @@ let elab_definition env name ty clauses =
     env.inductives
     |> List.find_map (fun (_, def) ->
         match Rewrite.type_match [] def.ty rec_ty with
-        | Some _ -> Some def
+        | Some tysub -> Some (def, tysub)
         | None -> None)
   in
   (* Check if clauses use constructor patterns (recursive) or variable patterns (simple)
@@ -341,7 +341,7 @@ let elab_definition env name ty clauses =
   let is_recursive =
     match (clauses, ind_def_opt) with
     | [], _ -> false
-    | (pat, _) :: _, Some ind_def -> is_constructor_pattern pat ind_def
+    | (pat, _) :: _, Some (ind_def, _) -> is_constructor_pattern pat ind_def
     | (P.PCon _, _) :: _, None ->
         true (* PCon without inductive - will error later *)
     | (P.PVar _, _) :: _, None -> false
@@ -359,8 +359,21 @@ let elab_definition env name ty clauses =
     match ind_def_opt with
     | None ->
         Error (`InvariantViolation "No inductive type found for recursion")
-    | Some ind_def -> (
-        let rec build_cases acc = function
+    | Some (ind_def, tysub) ->
+        (* Specialize the inductive definition's constructor types *)
+        let ind_def =
+          if tysub = [] then ind_def
+          else
+            {
+              ind_def with
+              ty = Rewrite.type_subst tysub ind_def.ty;
+              constructors =
+                List.map
+                  (fun (name, tm) -> (name, Rewrite.term_type_subst tysub tm))
+                  ind_def.constructors;
+            }
+        in
+        (let rec build_cases acc = function
           | [] -> Ok (List.rev acc)
           | clause :: rest -> (
               match elab_def_clause env name ind_def ret_ty clause with
@@ -371,7 +384,7 @@ let elab_definition env name ty clauses =
         | Error e -> Error e
         | Ok case_terms ->
             let ind_name = match rec_ty with K.TyCon (n, _) -> n | _ -> "" in
-            define_recursive_function name ret_ty ind_name case_terms)
+            define_recursive_function ~tysub name ret_ty ind_name case_terms)
 
 (* Elaborate a top-level definition and update environment *)
 let elab_toplevel env (d : P.def) =

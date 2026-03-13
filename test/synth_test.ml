@@ -1509,3 +1509,90 @@ let%expect_test "synth insert via make_synthesis_goal" =
   ();
   (* run_proof goal proof; *)
   [%expect {| |}]
+
+let%expect_test "synth isort via make_synthesis_goal" =
+  let open Theories.NatTheory in
+  let open Theories.ListTheory in
+  let _ = list_def in
+  let list_nat = TyCon ("list", [ nat_ty ]) in
+  let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
+  let cons_nat =
+    Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] cons)
+  in
+  let mk_list elems =
+    List.fold_right
+      (fun x acc ->
+        Result.get_ok (make_app (Result.get_ok (make_app cons_nat x)) acc))
+      elems nil_nat
+  in
+  let insert_ty = make_fun_ty list_nat (make_fun_ty nat_ty list_nat) in
+  let extras = [ ("insert", insert_ty) ] in
+  let func_type = make_fun_ty list_nat list_nat in
+  let test_cases =
+    [
+      ([ mk_list [ n 3; n 1; n 2 ] ], mk_list [ n 1; n 2; n 3 ]);
+      ([ mk_list [] ], mk_list []);
+    ]
+  in
+  let goal_tm = make_synthesis_goal ~func_type ~test_cases in
+  let goal = ([], goal_tm) in
+  let proof =
+    with_best_first
+      (try_ (with_synthetic_term ~extra:extras 4 (with_info_trace exists_tac))
+      >> try_ (with_synthetic_term ~extra:extras 5 (with_info_trace exists_tac))
+      >> intros_tac >> auto_dfs_tac)
+  in
+  run_proof goal proof;
+  [%expect {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      conj_tac >>
+      refl_tac >>
+      refl_tac
+    success with chosen term: λn. λl. insert l n
+    success with chosen term: nil
+    Proof:
+      exists_tac >>
+      exists_tac >>
+      intro_tac >>
+      intro_tac >>
+      auto_dfs_tac
+    ========================================
+    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))) = cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil)) ∧ g nil = nil
+
+    Proof Complete!
+    with fuel: 9494
+    |}]

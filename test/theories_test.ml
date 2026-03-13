@@ -1099,3 +1099,43 @@ let%expect_test "le nat test2" =
     Proof Complete!
     with fuel: 58
     |}]
+
+(* insert 3 into [] = [3] *)
+let%expect_test "insert into nil" =
+  let prg =
+    {|
+    theorem insert_nil : eq (insert nil (suc (suc (suc zero)))) (cons (suc (suc (suc zero))) nil)
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = simp_tac in
+  run_proof ~notrace:true goal proof;
+
+  [%expect {|
+    ========================================
+    insert nil (suc (suc (suc zero))) = cons (suc (suc (suc zero))) nil
+
+    Proof Complete!
+    with fuel: 19
+    |}]
+
+(* insert 2 into [1] = [1, 2] *)
+let%expect_test "insert into singleton" =
+  let prg =
+    {|
+    theorem insert_sorted : eq
+      (insert (cons (suc zero) nil) (suc (suc zero)))
+      (cons (suc zero) (cons (suc (suc zero)) nil))
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = simp_tac in
+  run_proof ~notrace:true goal proof;
+
+  [%expect {|
+    ========================================
+    insert (cons (suc zero) nil) (suc (suc zero)) = cons (suc zero) (cons (suc (suc zero)) nil)
+
+    Proof Complete!
+    with fuel: 51
+    |}]
