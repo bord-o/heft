@@ -89,28 +89,6 @@ let elab_quantifier env elab x body make_quant =
 (* Expression elaboration *)
 let rec elab_expr env (e : P.expr) =
   match e with
-  (* eq l r => safe_make_eq l r *)
-  | P.App (P.App (P.Var "eq", l), r) -> (
-      match elab_expr env l with
-      | Error e -> Error e
-      | Ok l' -> (
-          match elab_expr env r with
-          | Error e -> Error e
-          | Ok r' ->
-              let lty =
-                match type_of_term l' with Ok t -> t | Error _ -> K.TyVar "?"
-              in
-              let rty =
-                match type_of_term r' with Ok t -> t | Error _ -> K.TyVar "?"
-              in
-              if compare lty rty = 0 then safe_make_eq l' r'
-              else
-                match type_match [] rty lty with
-                | Some tysub -> safe_make_eq l' (term_type_subst tysub r')
-                | None -> (
-                    match type_match [] lty rty with
-                    | Some tysub -> safe_make_eq (term_type_subst tysub l') r'
-                    | None -> safe_make_eq l' r')))
   (* imp p q => make_imp p q *)
   | P.App (P.App (P.Var "imp", l), r) -> elab_binop env elab_expr l r make_imp
   (* conj p q => make_conj p q *)
