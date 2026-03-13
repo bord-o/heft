@@ -1543,7 +1543,8 @@ let%expect_test "synth isort via make_synthesis_goal" =
       >> intros_tac >> auto_dfs_tac)
   in
   run_proof goal proof;
-  [%expect {|
+  [%expect
+    {|
     Proof:
       rewrite_tac >>
       rewrite_tac >>

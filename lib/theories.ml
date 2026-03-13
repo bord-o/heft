@@ -247,6 +247,10 @@ module NatTheory = struct
     def nat_le : nat -> nat -> bool
         | zero => λn. T
         | suc m => λn. nat_match n F (λk. nat_le m k)
+
+    def sub : nat -> nat -> nat
+        | zero => λn. zero
+        | suc m => λn. nat_match n (suc m) (λk. sub m k)
   |}
 
   let _ =
@@ -369,11 +373,13 @@ module CondTheory = struct
   open Tactic
 
   let cond_true_goal =
-    let prg = {|
+    let prg =
+      {|
       vartype a
       variable t1 t2 : a
       theorem cond_true : eq (COND T t1 t2) t1
-    |} in
+    |}
+    in
     ([], List.hd (Elaborator.goals_from_string prg))
 
   let () =
@@ -392,11 +398,13 @@ module CondTheory = struct
       cond_true_goal proof
 
   let cond_false_goal =
-    let prg = {|
+    let prg =
+      {|
       vartype a
       variable t1 t2 : a
       theorem cond_false : eq (COND F t1 t2) t2
-    |} in
+    |}
+    in
     ([], List.hd (Elaborator.goals_from_string prg))
 
   let () =

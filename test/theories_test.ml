@@ -1111,7 +1111,8 @@ let%expect_test "insert into nil" =
   let proof = simp_tac in
   run_proof ~notrace:true goal proof;
 
-  [%expect {|
+  [%expect
+    {|
     ========================================
     insert nil (suc (suc (suc zero))) = cons (suc (suc (suc zero))) nil
 
@@ -1132,10 +1133,92 @@ let%expect_test "insert into singleton" =
   let proof = simp_tac in
   run_proof ~notrace:true goal proof;
 
-  [%expect {|
+  [%expect
+    {|
     ========================================
     insert (cons (suc zero) nil) (suc (suc zero)) = cons (suc zero) (cons (suc (suc zero)) nil)
 
     Proof Complete!
     with fuel: 51
+    |}]
+
+let%expect_test "test sub" =
+  let prg =
+    {|
+    theorem sub_add_elim: eq
+        (sub
+            (suc (suc (suc (suc zero))))
+            (suc (suc (suc zero))))
+        (suc zero)
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  run_proof goal simp_tac;
+
+  [%expect
+    {|
+    ========================================
+    sub (suc (suc (suc (suc zero)))) (suc (suc (suc zero))) = suc zero
+
+    Proof Complete!
+    with fuel: 87
+    |}]
+
+let%expect_test "minus zero left" =
+  let prg =
+    {|
+    variable n : nat
+    theorem minus_zero_left:
+        forall λn.
+            eq (minus zero n) zero
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    induct_tac >> simp_tac >> intros_tac
+    >> simp_asm_tac ~with_asms:false
+    >> simp_tac ~with_asms:false
+    >> with_assumptions rewrite_tac
+    >> simp_tac
+  in
+  run_proof ~name:"minus_zero_left" goal proof;
+
+  [%expect
+    {|
+    ========================================
+    ∀x. minus zero x = zero
+
+    Proof Complete!
+    with fuel: 126
+    |}]
+
+let%expect_test "sub eq minus" =
+  let prg =
+    {|
+    variable m n : nat
+    theorem sub_eq_minus:
+        forall λm.
+        forall λn.
+            eq (sub m n) (minus m n)
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    induct_tac
+    >> with_proven [ "minus_zero_left" ] simp_tac
+    >> gen_tac >> refl_tac >> gen_tac >> intro_tac >> induct_tac
+    >> with_proven [ "minus_zero" ] simp_tac
+    >> intros_tac
+    >> with_proven [ "minus_suc_suc" ] rewrite_tac
+    >> simp_tac
+  in
+  run_proof goal proof;
+
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀n. sub x n = minus x n
+
+    Proof Complete!
+    with fuel: 161
     |}]

@@ -359,7 +359,7 @@ let elab_definition env name ty clauses =
     match ind_def_opt with
     | None ->
         Error (`InvariantViolation "No inductive type found for recursion")
-    | Some (ind_def, tysub) ->
+    | Some (ind_def, tysub) -> (
         (* Specialize the inductive definition's constructor types *)
         let ind_def =
           if tysub = [] then ind_def
@@ -373,7 +373,7 @@ let elab_definition env name ty clauses =
                   ind_def.constructors;
             }
         in
-        (let rec build_cases acc = function
+        let rec build_cases acc = function
           | [] -> Ok (List.rev acc)
           | clause :: rest -> (
               match elab_def_clause env name ind_def ret_ty clause with
