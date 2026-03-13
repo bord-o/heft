@@ -1448,7 +1448,15 @@ let with_rules (rules : thm list) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rules, k -> continue k rules | v -> v
 
-(** [with_rule] provides a single theorem when a [Rules] effect is performed *)
+(** [with_flip_rules] will invert the direction of all equality rules provided
+    by the outer Rules handler using sym *)
+let with_flip_rules : tactic_combinator =
+ fun tac goal ->
+  let rules = perform Rules in
+  let flipped = List.filter_map (Fun.compose Result.to_option sym) rules in
+  match tac goal with effect Rules, k -> continue k flipped | v -> v
+
+(** [] provides a single theorem when a [Rules] effect is performed *)
 let with_rule (rule : thm) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rules, k -> continue k [ rule ] | v -> v

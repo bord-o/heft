@@ -218,6 +218,35 @@ let init_choice () =
 
   new_axiom (make_forall p impl)
 
+let init_cond () =
+  let a = TyVar "a" in
+  let b = Var ("b", bool_ty) in
+  let t = Var ("t", a) in
+  let e = Var ("e", a) in
+  let x = Var ("x", a) in
+  let cond_ty = make_fun_ty bool_ty (make_fun_ty a (make_fun_ty a a)) in
+  let cond_var = Var ("COND", cond_ty) in
+  (* @x. (b = T ==> x = t) /\ (b = F ==> x = e) *)
+  let* b_eq_t = safe_make_eq b (make_true ()) in
+  let* x_eq_t = safe_make_eq x t in
+  let left_imp = make_imp b_eq_t x_eq_t in
+  let* b_eq_f = safe_make_eq b (make_false ()) in
+  let* x_eq_e = safe_make_eq x e in
+  let right_imp = make_imp b_eq_f x_eq_e in
+  let body = make_conj left_imp right_imp in
+  let* select = make_select x body in
+  let rhs = Lam (b, Lam (t, Lam (e, select))) in
+  let* def_eq = safe_make_eq cond_var rhs in
+  new_basic_definition def_eq
+
+let make_cond_const ty =
+  let cond_ty = make_fun_ty bool_ty (make_fun_ty ty (make_fun_ty ty ty)) in
+  Const ("COND", cond_ty)
+
+let make_cond b t e =
+  let ty = type_of_var t in
+  App (App (App (make_cond_const ty, b), t), e)
+
 let reset () =
   Hashtbl.clear the_inductives;
   Hashtbl.clear the_term_constants;
@@ -241,6 +270,7 @@ let reset () =
   let _ = init_disj () in
   let _ = init_classical () in
   let _ = init_choice () in
+  let _ = init_cond () in
   Ok ()
 
 let _ = init_types ()
@@ -273,6 +303,7 @@ let disj_def = init_disj ()
 let classical_def = init_classical ()
 
 let choice_def = init_choice ()
+let cond_def = init_cond ()
 
 let destruct_conj = function
   | App (App (Const ("/\\", _), p), q) -> Ok (p, q)

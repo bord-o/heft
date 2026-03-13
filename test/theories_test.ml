@@ -2,9 +2,10 @@ open Heft
 open Kernel
 open Derived
 open Tactic
+open Theories
 
 let%expect_test "rewrite induction" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let x = make_var "x" nat_ty in
   let x_plus_zero = make_plus x zero |> Result.get_ok in
   let goal = ([], make_forall x (Result.get_ok (safe_make_eq x_plus_zero x))) in
@@ -21,7 +22,7 @@ let%expect_test "rewrite induction" =
     |}]
 
 let%expect_test "basic nat" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let make_plus' a b = make_plus a b |> Result.get_ok in
   let two_plus_3 = make_plus' n2 n3 in
   let goal = ([], Result.get_ok (safe_make_eq two_plus_3 n5)) in
@@ -37,7 +38,7 @@ let%expect_test "basic nat" =
     |}]
 
 let%expect_test "plus assoc" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let z = make_var "z" nat_ty in
@@ -65,7 +66,7 @@ let%expect_test "plus assoc" =
     |}]
 
 let%expect_test "suc injective" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let suc_x = App (suc, x) in
@@ -96,7 +97,7 @@ let%expect_test "suc injective" =
 
 (* Lemma needed for commutativity: plus x (Suc y) = Suc (plus x y) *)
 let%expect_test "plus suc lemma" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let suc_y = App (suc, y) in
@@ -121,7 +122,7 @@ let%expect_test "plus suc lemma" =
     |}]
 
 let%expect_test "suc injective rev" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let suc_x = App (suc, x) in
@@ -147,7 +148,7 @@ let%expect_test "suc injective rev" =
 
 (* Commutativity: plus x y = plus y x *)
 let%expect_test "plus comm" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let plus_x_y = Result.get_ok (make_plus x y) in
@@ -176,7 +177,7 @@ let%expect_test "plus comm" =
     |}]
 
 let%expect_test "cancellation" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let z = make_var "z" nat_ty in
@@ -203,7 +204,7 @@ let%expect_test "cancellation" =
     |}]
 
 let%expect_test "cancellation rev" =
-  let open Theories.NatTheory in
+  let open NatTheory in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let z = make_var "z" nat_ty in
@@ -234,8 +235,8 @@ let%expect_test "cancellation rev" =
     |}]
 
 let%expect_test "length Nil = Zero" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
 
@@ -254,8 +255,8 @@ let%expect_test "length Nil = Zero" =
     |}]
 
 let%expect_test "length (Cons Zero Nil) = Suc Zero" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
   let cons_nat = type_inst [ (a, nat_ty) ] cons |> Result.get_ok in
@@ -277,8 +278,8 @@ let%expect_test "length (Cons Zero Nil) = Suc Zero" =
     |}]
 
 let%expect_test "length_cons" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let cons_nat = type_inst [ (a, nat_ty) ] cons |> Result.get_ok in
 
@@ -313,8 +314,8 @@ let%expect_test "length_cons" =
 
 (* xs = Nil ==> length xs = Zero *)
 let%expect_test "nil_implies_length_zero" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let length_const = make_const "length" [] |> Result.get_ok in
 
   let xs = make_var "xs" (TyCon ("list", [ a ])) in
@@ -342,8 +343,8 @@ let%expect_test "nil_implies_length_zero" =
 
 (* length xs = Zero ==> xs = Nil *)
 let%expect_test "length_zero_implies_nil" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
 
@@ -375,7 +376,7 @@ let%expect_test "length_zero_implies_nil" =
     |}]
 
 let%expect_test "append nil xs = xs" =
-  let open Theories.ListTheory in
+  let open ListTheory in
   let append_const = make_const "append" [] |> Result.get_ok in
 
   (* append Nil Nil = Nil *)
@@ -398,7 +399,7 @@ let%expect_test "append nil xs = xs" =
     |}]
 
 let%expect_test "append (Cons x xs) ys = Cons x (append xs ys)" =
-  let open Theories.ListTheory in
+  let open ListTheory in
   let append_const = make_const "append" [] |> Result.get_ok in
 
   (* append (Cons x xs) ys = Cons x (append xs ys) *)
@@ -432,7 +433,7 @@ let%expect_test "append (Cons x xs) ys = Cons x (append xs ys)" =
     |}]
 
 let%expect_test "append xs nil = xs" =
-  let open Theories.ListTheory in
+  let open ListTheory in
   let append_const = make_const "append" [] |> Result.get_ok in
 
   (* need a lemma *)
@@ -459,7 +460,7 @@ let%expect_test "append xs nil = xs" =
     |}]
 
 let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
-  let open Theories.ListTheory in
+  let open ListTheory in
   let append_const = make_const "append" [] |> Result.get_ok in
 
   let xs = make_var "xs" list_a in
@@ -509,8 +510,8 @@ let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
     |}]
 
 let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let append_const = make_const "append" [ (a, nat_ty) ] |> Result.get_ok in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
 
@@ -561,8 +562,8 @@ let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
     |}]
 
 let%expect_test "length (reverse xs) = length xs" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
   let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
 
@@ -594,8 +595,8 @@ let%expect_test "length (reverse xs) = length xs" =
     |}]
 
 let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let append_const = make_const "append" [ (a, nat_ty) ] |> Result.get_ok in
   let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
 
@@ -632,8 +633,8 @@ let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
     |}]
 
 let%expect_test "reverse (reverse xs) = xs" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open NatTheory in
+  let open ListTheory in
   let reverse_const = make_const "reverse" [ (a, nat_ty) ] |> Result.get_ok in
 
   let xs = make_var "xs" (TyCon ("list", [ nat_ty ])) in
@@ -976,4 +977,125 @@ let%expect_test "flip f" =
 
     Proof Complete!
     with fuel: 20
+    |}]
+
+let%expect_test "bool distinct" =
+  let prg = {|
+    theorem bool_distinct : neg (eq T F)
+    
+  |} in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let t = true_def |> Result.get_ok in
+  let proof =
+    neg_intro_tac
+    >> with_assumptions (with_flip_rules rewrite_tac)
+    >> with_rule t rewrite_tac >> refl_tac
+  in
+  run_proof goal proof;
+
+  [%expect
+    {|
+    ========================================
+    ¬T = F
+
+    Proof Complete!
+    with fuel: 15
+    |}]
+
+let%expect_test "cond true" =
+  let prg =
+    {|
+    vartype a
+    variable t1 t2 : a
+    theorem cond_true : eq (COND T t1 t2) t1
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    with_rule (cond_def |> Result.get_ok) rewrite_tac
+    >> beta_tac
+    >> with_rule t_eq_t rewrite_tac
+    >> with_rule t_eq_f rewrite_tac
+    >> with_rule f_imp_eq rewrite_tac
+    >> with_rule conj_t_eq rewrite_tac
+    >> with_rule t_imp_eq rewrite_tac
+    >> with_rule select_eq rewrite_tac
+    >> refl_tac
+  in
+  run_proof ~notrace:true goal proof;
+
+  [%expect
+    {|
+    ========================================
+    COND T t1 t2 = t1
+
+    Proof Complete!
+    with fuel: 37
+    |}]
+
+let%expect_test "cond false" =
+  let prg =
+    {|
+    vartype a
+    variable t1 t2 : a
+    theorem cond_false : eq (COND F t1 t2) t2
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    with_rule (cond_def |> Result.get_ok) rewrite_tac
+    >> beta_tac
+    >> with_rule f_eq_t rewrite_tac
+    >> with_rule f_eq_f rewrite_tac
+    >> with_rule f_imp_eq rewrite_tac
+    >> with_rule t_conj_eq rewrite_tac
+    >> with_rule t_imp_eq rewrite_tac
+    >> with_rule select_eq rewrite_tac
+    >> refl_tac
+  in
+  run_proof ~notrace:true goal proof;
+
+  [%expect
+    {|
+    ========================================
+    COND F t1 t2 = t2
+
+    Proof Complete!
+    with fuel: 37
+    |}]
+
+let%expect_test "le nat test" =
+  let prg = {|
+    theorem nat_test: eq (nat_le (zero) (suc zero)) T 
+  |} in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = simp_tac in
+  run_proof ~notrace:true goal proof;
+
+  [%expect
+    {|
+    ========================================
+    nat_le zero (suc zero) = T
+
+    Proof Complete!
+    with fuel: 19
+    |}]
+
+let%expect_test "le nat test2" =
+  let prg =
+    {|
+    theorem nat_test2: eq (nat_le (suc (suc (suc zero))) (suc zero)) F
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = simp_tac in
+  run_proof ~notrace:true goal proof;
+
+  [%expect
+    {|
+    ========================================
+    nat_le (suc (suc (suc zero))) (suc zero) = F
+
+    Proof Complete!
+    with fuel: 58
     |}]

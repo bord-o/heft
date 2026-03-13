@@ -1466,3 +1466,46 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
     Proof Complete!
     with fuel: 18575
     |}]
+
+let%expect_test "synth insert via make_synthesis_goal" =
+  let open Theories.NatTheory in
+  let open Theories.ListTheory in
+  let _ = list_def in
+  let list_nat = TyCon ("list", [ nat_ty ]) in
+  let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
+  let cons_nat =
+    Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] cons)
+  in
+  let mk_list elems =
+    List.fold_right
+      (fun x acc ->
+        Result.get_ok (make_app (Result.get_ok (make_app cons_nat x)) acc))
+      elems nil_nat
+  in
+  let bool_ty = Kernel.bool_ty in
+  let cond_ty =
+    make_fun_ty bool_ty (make_fun_ty list_nat (make_fun_ty list_nat list_nat))
+  in
+  let nat_le_ty = make_fun_ty nat_ty (make_fun_ty nat_ty bool_ty) in
+  let extras = [ ("COND", cond_ty); ("nat_le", nat_le_ty) ] in
+  (* insert : list nat -> nat -> list nat, recurse on list, carry nat *)
+  let func_type = make_fun_ty list_nat (make_fun_ty nat_ty list_nat) in
+  let test_cases =
+    [
+      (* insert [] 3 = [3] *)
+      ([ mk_list []; n 3 ], mk_list [ n 3 ]);
+      (* insert [1,3,5] 2 = [1,2,3,5] *)
+      ([ mk_list [ n 1; n 3; n 5 ]; n 2 ], mk_list [ n 1; n 2; n 3; n 5 ]);
+    ]
+  in
+  let goal_tm = make_synthesis_goal ~func_type ~test_cases in
+  let _goal = ([], goal_tm) in
+  let _proof =
+    with_best_first
+      (try_ (with_synthetic_term ~extra:extras 6 (with_info_trace exists_tac))
+      >> try_ (with_synthetic_term ~extra:extras 8 (with_info_trace exists_tac))
+      >> intros_tac >> auto_dfs_tac)
+  in
+  ();
+  (* run_proof goal proof; *)
+  [%expect {| |}]

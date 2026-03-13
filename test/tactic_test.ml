@@ -1159,5 +1159,23 @@ let%expect_test "assert_tac_basic" =
   in
   run_proof ~notrace:false goal proof;
 
-  [%expect {|
+  [%expect
+    {|
+    Found matching assumption
+    Assumption succeeded
+    assumption_tac
+    mp_asm_tac
+    Found matching assumption
+    Assumption succeeded
+    assumption_tac
+    mp_asm_tac
+    assert_tac
+    P
+    P ==> Q
+    Q ==> R
+    ========================================
+    R
+
+    Proof Complete!
+    with fuel: 13
     |}]

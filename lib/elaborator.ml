@@ -327,7 +327,9 @@ let elab_definition env name ty clauses =
   let ind_def_opt =
     env.inductives
     |> List.find_map (fun (_, def) ->
-        if def.ty = rec_ty then Some def else None)
+        match Rewrite.type_match [] def.ty rec_ty with
+        | Some _ -> Some def
+        | None -> None)
   in
   (* Check if clauses use constructor patterns (recursive) or variable patterns (simple)
      A PVar is a constructor if it matches a known constructor name *)
