@@ -1229,14 +1229,13 @@ let%expect_test "sub eq minus" =
 
 (* isort [] = [] *)
 let%expect_test "isort nil" =
-  let prg =
-    {|
+  let prg = {|
     theorem isort_nil : eq (isort nil) nil
-  |}
-  in
+  |} in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   run_proof goal simp_tac;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     isort nil = nil
 
@@ -1255,10 +1254,68 @@ let%expect_test "isort [3,1,2] = [1,2,3]" =
   in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   run_proof goal simp_tac;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     isort (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))) = cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))
 
     Proof Complete!
     with fuel: 186
     |}]
+
+let%expect_test "bool eq" =
+  let prg = {|
+    theorem bool_eq: eq (eqb T F) F
+    
+  |} in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = simp_tac in
+  run_proof goal proof;
+
+  [%expect
+    {|
+    ========================================
+    eqb T F = F
+
+    Proof Complete!
+    with fuel: 36
+    |}]
+
+(* let%expect_test "sort correct lemma" = *)
+(*   let prg = *)
+(*     {| *)
+(*   variable n : nat *)
+(*   variable l : list nat *)
+(*   theorem insert_sorted: *)
+(*       forall λl. forall λn. *)
+(*           imp (eq (sorted l) T) *)
+(*               (eq (sorted (insert l n)) T) *)
+(*   |} *)
+(*   in *)
+(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
+(*   let proof = *)
+(*     induct_tac >> induct_tac >> auto_dfs_tac >> auto_dfs_tac >> intros_tac *)
+(*     >> simp_asm_tac ~with_asms:false *)
+(*     >> simp_tac *)
+(*   in *)
+(*   run_proof ~name:"sort_correct_lemma" goal proof; *)
+(**)
+(*   [%expect {| *)
+(*     |}] *)
+
+(* let%expect_test "sort correct" = *)
+(*   let prg = *)
+(*     {| *)
+(*     variable l : list nat *)
+(*     theorem sort_correct:  *)
+(*         forall λl. *)
+(*             eq (sorted (isort l)) T *)
+(**)
+(*   |} *)
+(*   in *)
+(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
+(*   let proof = simp_tac in *)
+(*   run_proof goal proof; *)
+(**)
+(*   [%expect {| *)
+(*     |}] *)

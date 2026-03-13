@@ -171,6 +171,20 @@ let select_eq =
   in
   make_exn thm
 
+module BoolTheory = struct
+  let prg =
+    {|
+    variable a b : bool
+    def eqb : bool -> bool -> bool 
+        |  a => COND a (λb. COND b T F) (λb. COND b F T)
+
+    def andb : bool -> bool -> bool
+        | a => COND a (λb. COND b T F) (λb. COND b F F)
+  |}
+
+  let _ = Elaborator.goals_from_string prg
+end
+
 module FunctionTheory = struct
   let prg =
     {|
@@ -325,7 +339,22 @@ module ListTheory = struct
         | nil => nil
         | cons h t => insert (isort t) h
 
+    vartype b
+    variable nil_case : b
+    variable cons_case : a -> list a -> b
+    def list_match: list a -> b -> (a -> list a -> b) -> b
+        | nil => λnil_case. λcons_case. nil_case
+        | cons x xs => λnil_case. λcons_case. cons_case x xs
 
+    variable xs' : list nat
+    variable x' : nat
+    def sorted : list nat -> bool
+        | nil => T 
+        | cons h t => 
+            andb
+                (list_match t T (λx'. λxs'. (nat_le h x')))
+                (sorted t)
+            
     |}
 
   let _ =
@@ -367,14 +396,6 @@ module PairTheory = struct
   let list_def = Hashtbl.find the_inductives "list"
   let fst = make_const "fst" [] |> Result.get_ok
   let snd = make_const "snd" [] |> Result.get_ok
-end
-
-module BoolTheory = struct
-  let prg = {|
-    theorem bool_distinct : neg (eq T F)
-  |}
-
-  let _ = Elaborator.goals_from_string prg
 end
 
 module CondTheory = struct
