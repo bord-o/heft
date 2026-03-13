@@ -1205,12 +1205,16 @@ let%expect_test "sub eq minus" =
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
     induct_tac
-    >> with_proven [ "minus_zero_left" ] simp_tac
-    >> gen_tac >> refl_tac >> gen_tac >> intro_tac >> induct_tac
-    >> with_proven [ "minus_zero" ] simp_tac
-    >> intros_tac
-    >> with_proven [ "minus_suc_suc" ] rewrite_tac
-    >> simp_tac
+    >>= [
+          with_proven [ "minus_zero_left" ] simp_tac >>> gen_tac >>> refl_tac;
+          gen_tac >> intro_tac >> induct_tac
+          >>= [
+                with_proven [ "minus_zero" ] simp_tac;
+                intros_tac
+                >> with_proven [ "minus_suc_suc" ] rewrite_tac
+                >> simp_tac;
+              ];
+        ]
   in
   run_proof goal proof;
 
