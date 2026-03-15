@@ -1149,7 +1149,7 @@ let then_one (tac1 : tactic) : tactic_combinator =
 let ( >> ) = then_one
 
 (** [then_all] sequences two tactics: applies [tac1] then applies [tac] to all
-    subgoals. Infix: [>>>] *)
+    subgoals, including subgoals emitted from children. Infix: [>>>>] *)
 let then_all (tac1 : tactic) : tactic_combinator =
  fun tac goal ->
   let rec handler f =
@@ -1162,7 +1162,31 @@ let then_all (tac1 : tactic) : tactic_combinator =
   in
   handler (fun () -> tac1 goal)
 
-let ( >>> ) = then_all
+let ( >>>> ) = then_all
+
+(** [then_all_direct] applies [tac] to each direct subgoal of [tac1], but lets
+    subgoals from [tac] itself bubble up to the outer handler. Infix: [>>>] *)
+let then_all_direct (tac1 : tactic) : tactic_combinator =
+ fun tac goal ->
+  let depth = ref 0 in
+  let rec handler f =
+    match f () with
+    | effect Subgoal g, k when !depth = 0 ->
+        let r = Multicont.Deep.promote k in
+        incr depth;
+        let thm : thm = handler (fun () -> tac g) in
+        decr depth;
+        handler (fun () -> Multicont.Deep.resume r thm)
+    | effect Subgoal g, k when !depth > 0 ->
+        (* Re-emit for the outer handler *)
+        let r = Multicont.Deep.promote k in
+        let thm : thm = perform (Subgoal g) in
+        handler (fun () -> Multicont.Deep.resume r thm)
+    | v -> v
+  in
+  handler (fun () -> tac1 goal)
+
+let ( >>> ) = then_all_direct
 
 (** [then_each] applies a list of tactics to subgoals in order. Fails if there
     are more subgoals than tactics provided. Infix: [>>=] *)

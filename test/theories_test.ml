@@ -1370,54 +1370,46 @@ let%expect_test "sort correct lemma" =
 
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
-    induct_tac
+    induct_tac >>> (intros_tac >> simp_tac)
     >>= [
-          intros_tac >> simp_tac >> (conj_tac >>> truth_tac);
-          intros_tac >> simp_tac >> cond_tac
+          conj_tac >>> truth_tac;
+          cond_tac >>> (simp_tac >> conj_tac)
           >>= [
-                with_assumptions rewrite_tac
-                >> simp_tac >> conj_tac
+                with_arbitrary_term n1 destruct_tac
+                >> induct_tac >>> (intros_tac >> simp_tac)
+                >>= [
+                      truth_tac;
+                      with_arbitrary_term le cases_tac
+                      >>> simp_tac
+                      >>= [
+                            simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
+                            truth_tac;
+                          ];
+                    ];
+                spec_asm_tac (make_var "n" NatTheory.nat_ty)
+                >> apply_asm_tac >> simp_asm_tac >> elim_conj_asm_tac
+                >> with_first assumption_tac;
+                with_proven [ "nat_le_flip" ] apply_thm_asm_tac
+                >> simp_tac >> truth_tac;
+                conj_tac
                 >>= [
                       with_arbitrary_term n1 destruct_tac
-                      >> induct_tac
+                      >> induct_tac >>> (intros_tac >> simp_tac)
                       >>= [
-                            intros_tac >> simp_tac >> truth_tac;
-                            intros_tac >> simp_tac
-                            >> with_arbitrary_term le cases_tac
-                            >>= [
-                                  simp_tac >> simp_asm_tac >> elim_conj_asm_tac
-                                  >> assumption_tac;
-                                  simp_tac >> truth_tac;
-                                ];
+                            truth_tac;
+                            simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
                           ];
-                      spec_asm_tac (make_var "n" NatTheory.nat_ty)
-                      >> apply_asm_tac >> simp_asm_tac >> elim_conj_asm_tac
+                      spec_asm_tac n0 >> simp_asm_tac >> elim_conj_asm_tac
                       >> with_first assumption_tac;
-                    ];
-                simp_tac >> conj_tac
-                >>= [
-                      with_proven [ "nat_le_flip" ] apply_thm_asm_tac
-                      >> simp_tac >> truth_tac;
-                      conj_tac
-                      >>= [
-                            with_arbitrary_term n1 destruct_tac
-                            >> induct_tac
-                            >>= [
-                                  intros_tac >> simp_tac >> truth_tac;
-                                  intros_tac >> simp_tac >> simp_asm_tac
-                                  >> elim_conj_asm_tac >> assumption_tac;
-                                ];
-                            spec_asm_tac n0 >> simp_asm_tac >> elim_conj_asm_tac
-                            >> with_first assumption_tac;
-                          ];
                     ];
               ];
         ]
   in
 
-  run_proof ~notrace:true ~name:"sort_correct_lemma" goal proof;
+  run_proof ~name:"sort_correct_lemma" goal proof;
 
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀x. ∀n. sorted x ==> sorted (insert x n)
 
