@@ -31,11 +31,11 @@ type inductive_def = {
 [@@deriving show { with_path = false }]
 
 type kernel_error =
-  [ `NewAxiomNotAProp
-  | `NoBaseCase
-  | `NotPositive
-  | `TypeAlreadyExists
-  | `ConstructorsAlreadyExist
+  [ `NewAxiomNotAProp of term
+  | `NoBaseCase of string
+  | `NotPositive of string
+  | `TypeAlreadyExists of string
+  | `ConstructorsAlreadyExist of string list
   | `TypeAlreadyDeclared of string
   | `TypeNotDeclared of string
   | `WrongNumberOfTypeArgs of string
@@ -46,33 +46,32 @@ type kernel_error =
   | `NotAConstantName of string
   | `MakeLamNotAVariable of term
   | `MakeAppTypesDontAgree of hol_type * hol_type
-  | `NotAVar
-  | `NotAConst
-  | `NotAnApp
-  | `NotALam
-  | `UnexpectedLambdaForm
+  | `NotAVar of term
+  | `NotAConst of term
+  | `NotAnApp of term
+  | `NotALam of term
+  | `UnexpectedLambdaForm of term
   | `CantCreateVariantForNonVariable of term
-  | `BadSubstitutionList
+  | `BadSubstitutionList of (term * term) list
   | `Clash of term
   | `NotAnApplication of term
-  | `CantDestructEquality
-  | `RuleTrans
-  | `TypesDontAgree
-  | `NotBothEquations
-  | `LamRuleCantApply
-  | `NotTrivialBetaRedex
-  | `NotAProposition
-  | `Eq_MP of term
+  | `CantDestructEquality of term
+  | `RuleTrans of thm * thm
+  | `TypesDontAgree of hol_type * hol_type
+  | `NotBothEquations of thm * thm
+  | `LamRuleCantApply of term * thm
+  | `NotTrivialBetaRedex of term
+  | `NotAProposition of term
+  | `EqMp of thm * thm
   | `NewBasicDefinitionAlreadyDefined of string
   | `NewBasicDefinition of term
-  | `NotFreshConstructor
+  | `NotFreshConstructor of string list
   | `InvariantViolation of string
-  | `TypeEquivalenceNotImplemented
+  | `TypeEquivalenceNotImplemented of hol_type * hol_type
   | `NameMappingError of string
   | `DefinitionError of string
   | `TypeDefinitionError of string
-  | `Todo
-  | `NoRewriteMatch ]
+  | `NoRewriteMatch of thm * term ]
 [@@deriving show { with_path = false }]
 
 let the_type_constants : (string, int) Hashtbl.t = Hashtbl.create 512
@@ -153,7 +152,7 @@ let rec type_of_term = function
   | Lam (Var (_, ty), t) ->
       let* rty = type_of_term t in
       Ok (TyCon ("fun", [ ty; rty ]))
-  | Lam (_, _) -> Error `UnexpectedLambdaForm
+  | Lam (_, _) as tm -> Error (`UnexpectedLambdaForm tm)
 
 let is_var = function Var (_, _) -> true | _ -> false
 let is_const = function Const (_, _) -> true | _ -> false
@@ -179,14 +178,21 @@ let make_app f a =
   | TyCon ("fun", [ ty; _ ]) when compare ty aty = 0 -> Ok (App (f, a))
   | _ -> Error (`MakeAppTypesDontAgree (fty, aty))
 
-let destruct_var = function Var (s, ty) -> Ok (s, ty) | _ -> Error `NotAVar
+let destruct_var = function
+  | Var (s, ty) -> Ok (s, ty)
+  | tm -> Error (`NotAVar tm)
 
 let destruct_const = function
   | Const (s, ty) -> Ok (s, ty)
-  | _ -> Error `NotAConst
+  | tm -> Error (`NotAConst tm)
 
-let destruct_app = function App (f, x) -> Ok (f, x) | _ -> Error `NotAnApp
-let destruct_lam = function Lam (v, b) -> Ok (v, b) | _ -> Error `NotALam
+let destruct_app = function
+  | App (f, x) -> Ok (f, x)
+  | tm -> Error (`NotAnApp tm)
+
+let destruct_lam = function
+  | Lam (v, b) -> Ok (v, b)
+  | tm -> Error (`NotALam tm)
 
 let rec frees = function
   | Var (_, _) as tm -> [ tm ]
@@ -226,7 +232,7 @@ let rec type_vars_in_term tm =
   | Lam (Var (_, ty), t) ->
       let* tty = type_vars_in_term t in
       Ok (type_vars ty @ tty |> List.sort_uniq compare)
-  | Lam (_, _) -> Error `UnexpectedLambdaForm
+  | Lam (_, _) as tm -> Error (`UnexpectedLambdaForm tm)
 
 let rec variant avoid v =
   if not (List.exists (var_free_in v) avoid) then Ok v
@@ -286,7 +292,7 @@ let rec vsubst theta tm =
   in
   if theta = [] then Ok tm
   else if is_valid_substitution theta then aux theta tm
-  else Error `BadSubstitutionList
+  else Error (`BadSubstitutionList theta)
 
 and needs_renaming bound_var body subst_list =
   List.exists
@@ -349,7 +355,7 @@ let safe_make_eq l r =
 let destruct_eq tm =
   match tm with
   | App (App (Const ("=", _), l), r) -> Ok (l, r)
-  | _ -> Error `CantDestructEquality
+  | tm -> Error (`CantDestructEquality tm)
 
 let rec alpha_compare_var env x1 x2 =
   match env with
@@ -417,14 +423,14 @@ let refl tm =
   let* tm_eq = safe_make_eq tm tm in
   Ok (Sequent ([], tm_eq))
 
-let trans (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
+let trans ((Sequent (asl1, c1)) as th1) ((Sequent (asl2, c2)) as th2) =
   match (c1, c2) with
   | App ((App (Const ("=", _), _) as eql), m1), App (App (Const ("=", _), m2), r)
     when alphaorder m1 m2 = 0 ->
       Ok (Sequent (term_union asl1 asl2, App (eql, r)))
-  | _ -> Error `RuleTrans
+  | _ -> Error (`RuleTrans (th1, th2))
 
-let mk_comb (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
+let mk_comb ((Sequent (asl1, c1)) as th1) ((Sequent (asl2, c2)) as th2) =
   match (c1, c2) with
   | App (App (Const ("=", _), l1), r1), App (App (Const ("=", _), l2), r2) -> (
       let* tr1 = type_of_term r1 in
@@ -434,38 +440,37 @@ let mk_comb (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
           if compare ty tr2 = 0 then
             let* lr_eq = safe_make_eq (App (l1, l2)) (App (r1, r2)) in
             Ok (Sequent (term_union asl1 asl2, lr_eq))
-          else (
-            print_endline @@ show_hol_type ty;
-            print_endline @@ show_hol_type tr2;
-            Error `TypesDontAgree)
-      | _ -> Error `TypesDontAgree)
-  | _ -> Error `NotBothEquations
+          else Error (`TypesDontAgree (ty, tr2))
+      | _ ->
+          let* tr2 = type_of_term r2 in
+          Error (`TypesDontAgree (tr1, tr2)))
+  | _ -> Error (`NotBothEquations (th1, th2))
 
-let lam v (Sequent (asl, c)) =
+let lam v ((Sequent (asl, c)) as th) =
   match (v, c) with
   | Var (_, _), App (App (Const ("=", _), l), r) ->
       if not (List.exists (var_free_in v) asl) then
         let* lr_eq = safe_make_eq (Lam (v, l)) (Lam (v, r)) in
         Ok (Sequent (asl, lr_eq))
-      else Error `LamRuleCantApply
-  | _ -> Error `LamRuleCantApply
+      else Error (`LamRuleCantApply (v, th))
+  | _ -> Error (`LamRuleCantApply (v, th))
 
 let beta = function
   | App (Lam (v, bod), arg) as tm when compare arg v = 0 ->
       let* b = safe_make_eq tm bod in
       Ok (Sequent ([], b))
-  | _ -> Error `NotTrivialBetaRedex
+  | tm -> Error (`NotTrivialBetaRedex tm)
 
 let assume tm =
   let* tty = type_of_term tm in
   if compare tty bool_ty = 0 then Ok (Sequent ([ tm ], tm))
-  else Error `NotAProposition
+  else Error (`NotAProposition tm)
 
-let eq_mp (Sequent (asl1, eq)) (Sequent (asl2, c)) =
+let eq_mp ((Sequent (asl1, eq)) as th1) ((Sequent (asl2, c)) as th2) =
   match eq with
   | App (App (Const ("=", _), l), r) when alphaorder l c = 0 ->
       Ok (Sequent (term_union asl1 asl2, r))
-  | t -> Error (`Eq_MP t)
+  | _ -> Error (`EqMp (th1, th2))
 
 let deduct_antisym_rule (Sequent (asl1, c1)) (Sequent (asl2, c2)) =
   let asl1' = term_remove c2 asl1 and asl2' = term_remove c1 asl2 in
@@ -508,7 +513,7 @@ let new_axiom tm =
     let th = Sequent ([], tm) in
     the_axioms := th :: !the_axioms;
     Ok th)
-  else Error `NewAxiomNotAProp
+  else Error (`NewAxiomNotAProp tm)
 
 let subset l1 l2 =
   l1 |> List.for_all @@ fun elem -> l2 |> List.exists (( = ) elem)

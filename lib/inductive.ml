@@ -299,7 +299,7 @@ let make_injective_thms (ty : hol_type) (constructors : constructor_spec list) =
 let define_inductive tyname params (constructors : constructor_spec list) =
   let* () =
     match Hashtbl.find_opt the_type_constants tyname with
-    | Some _ -> Error `TypeAlreadyExists
+    | Some _ -> Error (`TypeAlreadyExists tyname)
     | None -> Ok ()
   in
 
@@ -311,14 +311,14 @@ let define_inductive tyname params (constructors : constructor_spec list) =
     in
     match not_fresh with
     | [] -> Ok ()
-    | _names -> Error `ConstructorsAlreadyExist
+    | names -> Error (`ConstructorsAlreadyExist names)
   in
 
   let positive = check_positivity tyname constructors in
-  let* () = if not positive then Error `NotPositive else Ok () in
+  let* () = if not positive then Error (`NotPositive tyname) else Ok () in
 
   let base_case_exists = check_base_case tyname constructors in
-  let* () = if not base_case_exists then Error `NoBaseCase else Ok () in
+  let* () = if not base_case_exists then Error (`NoBaseCase tyname) else Ok () in
 
   let* () = new_type tyname (List.length params) in
   let ty_params = List.map (fun p -> TyVar p) params in

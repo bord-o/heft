@@ -725,7 +725,7 @@ let%expect_test "rewrite_once: no match returns error" =
 
   let result = rewrite_once rule_thm target in
   (match result with
-  | Error `NoRewriteMatch -> print_endline "NoRewriteMatch"
+  | Error (`NoRewriteMatch _) -> print_endline "NoRewriteMatch"
   | _ -> print_endline "unexpected");
   [%expect {| NoRewriteMatch |}]
 
@@ -1274,9 +1274,9 @@ let%expect_test "rewrite_once: same variable different args doesn't match" =
 
   let result = rewrite_once rule_thm target in
   (match result with
-  | Error `NoRewriteMatch -> print_endline "NoRewriteMatch (correct)"
+  | Error (`NoRewriteMatch _) -> print_endline "NoRewriteMatch (correct)"
   | Ok _ -> print_endline "unexpected match"
-  | Error e -> print_endline ("unexpected error: " ^ show_kernel_error e));
+  | Error e -> print_endline ("unexpected error: " ^ show_kernel_error (e :> kernel_error)));
   [%expect {| NoRewriteMatch (correct) |}]
 
 let%expect_test "rewrite_once: rewrite in function position of application" =

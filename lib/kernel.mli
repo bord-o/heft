@@ -49,48 +49,47 @@ val pp_inductive_def :
 val show_inductive_def : inductive_def -> Ppx_deriving_runtime.string
 
 type kernel_error =
-  [ `BadSubstitutionList
+  [ `BadSubstitutionList of (term * term) list
   | `CantApplyNonFunctionType of term
   | `CantCreateVariantForNonVariable of term
-  | `CantDestructEquality
+  | `CantDestructEquality of term
   | `Clash of term
   | `ConstantTermAlreadyDeclared of string
-  | `ConstructorsAlreadyExist
+  | `ConstructorsAlreadyExist of string list
   | `DefinitionError of string
-  | `Eq_MP of term
+  | `EqMp of thm * thm
   | `InvariantViolation of string
-  | `LamRuleCantApply
+  | `LamRuleCantApply of term * thm
   | `MakeAppTypesDontAgree of hol_type * hol_type
   | `MakeLamNotAVariable of term
   | `NameMappingError of string
-  | `NewAxiomNotAProp
+  | `NewAxiomNotAProp of term
   | `NewBasicDefinition of term
   | `NewBasicDefinitionAlreadyDefined of string
-  | `NoBaseCase
-  | `NotAConst
+  | `NoBaseCase of string
+  | `NotAConst of term
   | `NotAConstantName of string
-  | `NotALam
-  | `NotAProposition
-  | `NotAVar
-  | `NotAnApp
+  | `NotALam of term
+  | `NotAProposition of term
+  | `NotAVar of term
+  | `NotAnApp of term
   | `NotAnApplication of term
-  | `NotBothEquations
-  | `NotFreshConstructor
-  | `NotPositive
-  | `NotTrivialBetaRedex
-  | `RuleTrans
-  | `Todo
+  | `NotBothEquations of thm * thm
+  | `NotFreshConstructor of string list
+  | `NotPositive of string
+  | `NotTrivialBetaRedex of term
+  | `RuleTrans of thm * thm
   | `TypeAlreadyDeclared of string
-  | `TypeAlreadyExists
+  | `TypeAlreadyExists of string
   | `TypeConstructorNotAVariable of string
   | `TypeDefinitionError of string
-  | `TypeEquivalenceNotImplemented
+  | `TypeEquivalenceNotImplemented of hol_type * hol_type
   | `TypeNotDeclared of string
   | `TypeVariableNotAConstructor of string
-  | `TypesDontAgree
-  | `UnexpectedLambdaForm
+  | `TypesDontAgree of hol_type * hol_type
+  | `UnexpectedLambdaForm of term
   | `WrongNumberOfTypeArgs of string
-  | `NoRewriteMatch ]
+  | `NoRewriteMatch of thm * term ]
 
 val pp_kernel_error :
   Ppx_deriving_runtime.Format.formatter ->
@@ -141,7 +140,7 @@ val new_constant :
 val type_of_term :
   term ->
   ( hol_type,
-    [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm ] )
+    [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ] )
   result
 
 val is_var : term -> bool
@@ -163,20 +162,20 @@ val make_app :
   ( term,
     [> `CantApplyNonFunctionType of term
     | `MakeAppTypesDontAgree of hol_type * hol_type
-    | `UnexpectedLambdaForm ] )
+    | `UnexpectedLambdaForm of term ] )
   result
 
-val destruct_var : term -> (string * hol_type, [> `NotAVar ]) result
-val destruct_const : term -> (string * hol_type, [> `NotAConst ]) result
-val destruct_app : term -> (term * term, [> `NotAnApp ]) result
-val destruct_lam : term -> (term * term, [> `NotALam ]) result
+val destruct_var : term -> (string * hol_type, [> `NotAVar of term ]) result
+val destruct_const : term -> (string * hol_type, [> `NotAConst of term ]) result
+val destruct_app : term -> (term * term, [> `NotAnApp of term ]) result
+val destruct_lam : term -> (term * term, [> `NotALam of term ]) result
 val frees : term -> term list
 val frees_in_list : term list -> term list
 val all_frees_within : term list -> term -> bool
 val var_free_in : term -> term -> bool
 
 val type_vars_in_term :
-  term -> (hol_type list, [> `UnexpectedLambdaForm ]) result
+  term -> (hol_type list, [> `UnexpectedLambdaForm of term ]) result
 
 val variant :
   term list ->
@@ -192,7 +191,8 @@ val vsubst :
   (term * term) list ->
   term ->
   ( term,
-    [> `BadSubstitutionList | `CantCreateVariantForNonVariable of term ] )
+    [> `BadSubstitutionList of (term * term) list
+    | `CantCreateVariantForNonVariable of term ] )
   result
 
 val needs_renaming : term -> term -> (term * term) list -> bool
@@ -202,9 +202,9 @@ val rand : term -> (term, [> `NotAnApplication of term ]) result
 val safe_make_eq :
   term ->
   term ->
-  (term, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm ]) result
+  (term, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ]) result
 
-val destruct_eq : term -> (term * term, [> `CantDestructEquality ]) result
+val destruct_eq : term -> (term * term, [> `CantDestructEquality of term ]) result
 val alpha_compare_var : ('a * 'a) list -> 'a -> 'a -> int
 val alpha_compare : (term * term) list -> term -> term -> int
 val alphaorder : term -> term -> int
@@ -217,18 +217,18 @@ val concl : thm -> term
 
 val refl :
   term ->
-  (thm, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm ]) result
+  (thm, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ]) result
 
-val trans : thm -> thm -> (thm, [> `RuleTrans ]) result
+val trans : thm -> thm -> (thm, [> `RuleTrans of thm * thm ]) result
 
 val mk_comb :
   thm ->
   thm ->
   ( thm,
     [> `CantApplyNonFunctionType of term
-    | `NotBothEquations
-    | `TypesDontAgree
-    | `UnexpectedLambdaForm ] )
+    | `NotBothEquations of thm * thm
+    | `TypesDontAgree of hol_type * hol_type
+    | `UnexpectedLambdaForm of term ] )
   result
 
 val lam :
@@ -236,66 +236,67 @@ val lam :
   thm ->
   ( thm,
     [> `CantApplyNonFunctionType of term
-    | `LamRuleCantApply
-    | `UnexpectedLambdaForm ] )
+    | `LamRuleCantApply of term * thm
+    | `UnexpectedLambdaForm of term ] )
   result
 
 val beta :
   term ->
   ( thm,
     [> `CantApplyNonFunctionType of term
-    | `NotTrivialBetaRedex
-    | `UnexpectedLambdaForm ] )
+    | `NotTrivialBetaRedex of term
+    | `UnexpectedLambdaForm of term ] )
   result
 
 val assume :
   term ->
   ( thm,
     [> `CantApplyNonFunctionType of term
-    | `NotAProposition
-    | `UnexpectedLambdaForm ] )
+    | `NotAProposition of term
+    | `UnexpectedLambdaForm of term ] )
   result
 
-val eq_mp : thm -> thm -> (thm, [> `Eq_MP of term ]) result
+val eq_mp : thm -> thm -> (thm, [> `EqMp of thm * thm ]) result
 
 val deduct_antisym_rule :
   thm ->
   thm ->
-  (thm, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm ]) result
+  (thm, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ]) result
 
 val type_inst :
   (hol_type * hol_type) list ->
   term ->
   ( term,
-    [> `BadSubstitutionList
+    [> `BadSubstitutionList of (term * term) list
     | `CantCreateVariantForNonVariable of term
     | `Clash of term
-    | `NotAVar ] )
+    | `NotAVar of term ] )
   result
 
 val inst_type :
   (hol_type * hol_type) list ->
   thm ->
   ( thm,
-    [> `BadSubstitutionList
+    [> `BadSubstitutionList of (term * term) list
     | `CantCreateVariantForNonVariable of term
     | `Clash of term
-    | `NotAVar ] )
+    | `NotAVar of term ] )
   result
 
 val inst :
   (term * term) list ->
   thm ->
   ( thm,
-    [> `BadSubstitutionList | `CantCreateVariantForNonVariable of term ] )
+    [> `BadSubstitutionList of (term * term) list
+    | `CantCreateVariantForNonVariable of term ] )
   result
 
 val new_axiom :
   term ->
   ( thm,
     [> `CantApplyNonFunctionType of term
-    | `NewAxiomNotAProp
-    | `UnexpectedLambdaForm ] )
+    | `NewAxiomNotAProp of term
+    | `UnexpectedLambdaForm of term ] )
   result
 
 val subset : 'a list -> 'a list -> bool
@@ -308,7 +309,7 @@ val new_basic_definition :
     | `DefinitionError of string
     | `NewBasicDefinition of term
     | `NewBasicDefinitionAlreadyDefined of string
-    | `UnexpectedLambdaForm ] )
+    | `UnexpectedLambdaForm of term ] )
   result
 
 val new_basic_type_definition :
@@ -318,10 +319,10 @@ val new_basic_type_definition :
   ( thm * thm,
     [> `CantApplyNonFunctionType of term
     | `ConstantTermAlreadyDeclared of string
-    | `NotAnApp
+    | `NotAnApp of term
     | `TypeAlreadyDeclared of string
     | `TypeDefinitionError of string
-    | `UnexpectedLambdaForm ] )
+    | `UnexpectedLambdaForm of term ] )
   result
 
 val make_fun_ty : hol_type -> hol_type -> hol_type

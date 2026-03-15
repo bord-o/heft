@@ -281,8 +281,8 @@ let%expect_test "reject_non_positive" =
   in
   let result = define_inductive "bad" [] constructors in
   (match result with
-  | Error `NotPositive -> print_endline "Correctly rejected non-positive"
-  | Error e -> print_endline ("Wrong error: " ^ show_kernel_error e)
+  | Error (`NotPositive _) -> print_endline "Correctly rejected non-positive"
+  | Error e -> print_endline ("Wrong error: " ^ show_kernel_error (e :> kernel_error))
   | Ok _ -> print_endline "ERROR: Should have been rejected!");
   [%expect {| Correctly rejected non-positive |}]
 
@@ -293,8 +293,8 @@ let%expect_test "reject_no_base_case" =
   let constructors = [ { name = "Loop"; arg_types = [ loop_ty ] } ] in
   let result = define_inductive "loop" [] constructors in
   (match result with
-  | Error `NoBaseCase -> print_endline "Correctly rejected no base case"
-  | Error e -> print_endline ("Wrong error: " ^ show_kernel_error e)
+  | Error (`NoBaseCase _) -> print_endline "Correctly rejected no base case"
+  | Error e -> print_endline ("Wrong error: " ^ show_kernel_error (e :> kernel_error))
   | Ok _ -> print_endline "ERROR: Should have been rejected!");
   [%expect {| Correctly rejected no base case |}]
 

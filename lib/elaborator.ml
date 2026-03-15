@@ -462,7 +462,7 @@ let named_goal_from_string s name =
   match elaborate_string s with
   | Ok (_, goals) -> (
       match goals |> List.find_opt (fun (n, _) -> n = name) with
-      | None -> Error `Todo
+      | None -> Error (`NameMappingError (Format.sprintf "goal '%s' not found" name))
       | Some (_, g) -> Ok ([], g))
   | Error e -> failwith (Printing.print_error e)
 

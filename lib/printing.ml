@@ -117,56 +117,117 @@ let pretty_print_thm ?(with_type = false) thm =
 let print_thm th = print_newline @@ print_endline @@ pretty_print_thm th
 let print_term trm = print_newline @@ print_endline @@ pretty_print_hol_term trm
 
+let fmt_term = pretty_print_hol_term
+let fmt_type = pretty_print_hol_type
+let fmt_thm thm =
+  let _, c = destruct_thm thm in
+  fmt_term c
+
 let print_error = function
-  | `BadSubstitutionList -> "BadSubstitutionList"
-  | `CantApplyNonFunctionType _ -> "CantApplyNonFunctionType"
-  | `CantCreateVariantForNonVariable _ -> "CantCreateVariantForNonVariable"
-  | `CantDestructEquality -> "CantDestructEquality"
-  | `Clash _ -> "Clash"
-  | `ConstantTermAlreadyDeclared _ -> "ConstantTermAlreadyDeclared"
-  | `ConstructorsAlreadyExist -> "ConstructorsAlreadyExist"
-  | `DefinitionError _ -> "DefinitionError"
-  | `Eq_MP t -> Printf.sprintf "Eq_MP %s" (pretty_print_hol_term t)
-  | `InvariantViolation s -> "InvariantViolation: " ^ s
-  | `LamRuleCantApply -> "LamRuleCantApply"
+  | `BadSubstitutionList pairs ->
+      let pp_pair (repl, target) =
+        Printf.sprintf "  %s / %s" (fmt_term repl) (fmt_term target)
+      in
+      Printf.sprintf "BadSubstitutionList:\n%s"
+        (String.concat "\n" (List.map pp_pair pairs))
+  | `CantApplyNonFunctionType t ->
+      Printf.sprintf "CantApplyNonFunctionType: %s" (fmt_term t)
+  | `CantCreateVariantForNonVariable t ->
+      Printf.sprintf "CantCreateVariantForNonVariable: %s" (fmt_term t)
+  | `CantDestructEquality t ->
+      Printf.sprintf "CantDestructEquality: %s is not an equality" (fmt_term t)
+  | `Clash t ->
+      Printf.sprintf "Clash: %s" (fmt_term t)
+  | `ConstantTermAlreadyDeclared s ->
+      Printf.sprintf "ConstantTermAlreadyDeclared: %s" s
+  | `ConstructorsAlreadyExist names ->
+      Printf.sprintf "ConstructorsAlreadyExist: %s" (String.concat ", " names)
+  | `DefinitionError s ->
+      Printf.sprintf "DefinitionError: %s" s
+  | `EqMp (th1, th2) ->
+      Printf.sprintf "EqMp: cannot apply\n  %s\nto\n  %s"
+        (fmt_thm th1) (fmt_thm th2)
+  | `InvariantViolation s ->
+      Printf.sprintf "InvariantViolation: %s" s
+  | `LamRuleCantApply (v, th) ->
+      Printf.sprintf "LamRuleCantApply: variable %s in theorem %s"
+        (fmt_term v) (fmt_thm th)
   | `MakeAppTypesDontAgree (ty1, ty2) ->
-      Printf.sprintf "MakeAppTypesDontAgree %s != %s\n"
-        (pretty_print_hol_type ty1)
-        (pretty_print_hol_type ty2)
-  | `MakeLamNotAVariable _ -> "MakeLamNotAVariable"
-  | `NameMappingError _ -> "NameMappingError"
-  | `NewAxiomNotAProp -> "NewAxiomNotAProp"
-  | `NewBasicDefinition _ -> "NewBasicDefinition"
-  | `NewBasicDefinitionAlreadyDefined _ -> "NewBasicDefinitionAlreadyDefined"
-  | `NoBaseCase -> "NoBaseCase"
-  | `NotAConst -> "NotAConst"
-  | `NotAConstantName _ -> "NotAConstantName"
-  | `NotALam -> "NotALam"
-  | `NotAProposition -> "NotAProposition"
-  | `NotAVar -> "NotAVar"
-  | `NotAnApp -> "NotAnApp"
-  | `NotAnApplication _ -> "NotAnApplication"
-  | `NotBothEquations -> "NotBothEquations"
-  | `NotFreshConstructor -> "NotFreshConstructor"
-  | `NotPositive -> "NotPositive"
-  | `NotTrivialBetaRedex -> "NotTrivialBetaRedex"
-  | `RuleTrans -> "RuleTrans"
-  | `Todo -> "Todo"
-  | `TypeAlreadyDeclared _ -> "TypeAlreadyDeclared"
-  | `TypeAlreadyExists -> "TypeAlreadyExists"
-  | `TypeConstructorNotAVariable _ -> "TypeConstructorNotAVariable"
-  | `TypeDefinitionError _ -> "TypeDefinitionError"
-  | `TypeEquivalenceNotImplemented -> "TypeEquivalenceNotImplemented"
-  | `TypeNotDeclared _ -> "TypeNotDeclared"
-  | `TypeVariableNotAConstructor _ -> "TypeVariableNotAConstructor"
-  | `TypesDontAgree -> "TypesDontAgree"
-  | `UnexpectedLambdaForm -> "UnexpectedLambdaForm"
-  | `WrongNumberOfTypeArgs _ -> "WrongNumberOfTypeArgs"
-  | `OperationDoesntMatch _ -> "OperationDoesntMatch"
-  | `NotAForall -> "NotAForall"
-  | `NotANegation -> "NotANegation"
-  | `NotAConj -> "NotAConj"
-  | `NotADisj -> "NotADisj"
-  | `NotAnImp -> "NotAnImp"
-  | `NotAnExists -> "NotAnExists"
-  | `NoRewriteMatch -> "NoRewriteMatch"
+      Printf.sprintf "MakeAppTypesDontAgree: %s != %s"
+        (fmt_type ty1) (fmt_type ty2)
+  | `MakeLamNotAVariable t ->
+      Printf.sprintf "MakeLamNotAVariable: %s" (fmt_term t)
+  | `NameMappingError s ->
+      Printf.sprintf "NameMappingError: %s" s
+  | `NewAxiomNotAProp t ->
+      Printf.sprintf "NewAxiomNotAProp: %s" (fmt_term t)
+  | `NewBasicDefinition t ->
+      Printf.sprintf "NewBasicDefinition: %s" (fmt_term t)
+  | `NewBasicDefinitionAlreadyDefined s ->
+      Printf.sprintf "NewBasicDefinitionAlreadyDefined: %s" s
+  | `NoBaseCase tyname ->
+      Printf.sprintf "NoBaseCase: type %s has no base case" tyname
+  | `NotAConst t ->
+      Printf.sprintf "NotAConst: %s" (fmt_term t)
+  | `NotAConstantName s ->
+      Printf.sprintf "NotAConstantName: %s" s
+  | `NotALam t ->
+      Printf.sprintf "NotALam: %s" (fmt_term t)
+  | `NotAProposition t ->
+      Printf.sprintf "NotAProposition: %s" (fmt_term t)
+  | `NotAVar t ->
+      Printf.sprintf "NotAVar: %s" (fmt_term t)
+  | `NotAnApp t ->
+      Printf.sprintf "NotAnApp: %s" (fmt_term t)
+  | `NotAnApplication t ->
+      Printf.sprintf "NotAnApplication: %s" (fmt_term t)
+  | `NotBothEquations (th1, th2) ->
+      Printf.sprintf "NotBothEquations:\n  %s\n  %s"
+        (fmt_thm th1) (fmt_thm th2)
+  | `NotFreshConstructor names ->
+      Printf.sprintf "NotFreshConstructor: %s" (String.concat ", " names)
+  | `NotPositive tyname ->
+      Printf.sprintf "NotPositive: type %s is not strictly positive" tyname
+  | `NotTrivialBetaRedex t ->
+      Printf.sprintf "NotTrivialBetaRedex: %s" (fmt_term t)
+  | `RuleTrans (th1, th2) ->
+      Printf.sprintf "RuleTrans: cannot chain\n  %s\nwith\n  %s"
+        (fmt_thm th1) (fmt_thm th2)
+  | `TypeAlreadyDeclared s ->
+      Printf.sprintf "TypeAlreadyDeclared: %s" s
+  | `TypeAlreadyExists tyname ->
+      Printf.sprintf "TypeAlreadyExists: %s" tyname
+  | `TypeConstructorNotAVariable s ->
+      Printf.sprintf "TypeConstructorNotAVariable: %s" s
+  | `TypeDefinitionError s ->
+      Printf.sprintf "TypeDefinitionError: %s" s
+  | `TypeEquivalenceNotImplemented (ty1, ty2) ->
+      Printf.sprintf "TypeEquivalenceNotImplemented: %s vs %s"
+        (fmt_type ty1) (fmt_type ty2)
+  | `TypeNotDeclared s ->
+      Printf.sprintf "TypeNotDeclared: %s" s
+  | `TypeVariableNotAConstructor s ->
+      Printf.sprintf "TypeVariableNotAConstructor: %s" s
+  | `TypesDontAgree (ty1, ty2) ->
+      Printf.sprintf "TypesDontAgree: %s != %s" (fmt_type ty1) (fmt_type ty2)
+  | `UnexpectedLambdaForm t ->
+      Printf.sprintf "UnexpectedLambdaForm: %s" (fmt_term t)
+  | `WrongNumberOfTypeArgs s ->
+      Printf.sprintf "WrongNumberOfTypeArgs: %s" s
+  | `OperationDoesntMatch op ->
+      Printf.sprintf "OperationDoesntMatch: %s" op
+  | `NotAForall t ->
+      Printf.sprintf "NotAForall: %s" (fmt_term t)
+  | `NotANegation t ->
+      Printf.sprintf "NotANegation: %s" (fmt_term t)
+  | `NotAConj t ->
+      Printf.sprintf "NotAConj: %s" (fmt_term t)
+  | `NotADisj t ->
+      Printf.sprintf "NotADisj: %s" (fmt_term t)
+  | `NotAnImp t ->
+      Printf.sprintf "NotAnImp: %s" (fmt_term t)
+  | `NotAnExists t ->
+      Printf.sprintf "NotAnExists: %s" (fmt_term t)
+  | `NoRewriteMatch (rule, tm) ->
+      Printf.sprintf "NoRewriteMatch: rule %s does not match %s"
+        (fmt_thm rule) (fmt_term tm)

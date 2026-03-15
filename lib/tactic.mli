@@ -197,55 +197,54 @@ val rank_terms : Kernel.term list -> Kernel.term list
 val return_thm :
   ?from:string ->
   ( 'a,
-    [< `BadSubstitutionList
-    | `CantApplyNonFunctionType of 'b
-    | `CantCreateVariantForNonVariable of 'c
-    | `CantDestructEquality
-    | `Clash of 'd
-    | `ConstantTermAlreadyDeclared of 'e
-    | `ConstructorsAlreadyExist
-    | `DefinitionError of 'f
-    | `Eq_MP of Kernel.term
+    [< `BadSubstitutionList of (Kernel.term * Kernel.term) list
+    | `CantApplyNonFunctionType of Kernel.term
+    | `CantCreateVariantForNonVariable of Kernel.term
+    | `CantDestructEquality of Kernel.term
+    | `Clash of Kernel.term
+    | `ConstantTermAlreadyDeclared of string
+    | `ConstructorsAlreadyExist of string list
+    | `DefinitionError of string
+    | `EqMp of Kernel.thm * Kernel.thm
     | `InvariantViolation of string
-    | `LamRuleCantApply
+    | `LamRuleCantApply of Kernel.term * Kernel.thm
     | `MakeAppTypesDontAgree of Kernel.hol_type * Kernel.hol_type
-    | `MakeLamNotAVariable of 'g
-    | `NameMappingError of 'h
-    | `NewAxiomNotAProp
-    | `NewBasicDefinition of 'i
-    | `NewBasicDefinitionAlreadyDefined of 'j
-    | `NoBaseCase
-    | `NoRewriteMatch
-    | `NotAConj
-    | `NotAConst
-    | `NotAConstantName of 'k
-    | `NotADisj
-    | `NotAForall
-    | `NotALam
-    | `NotANegation
-    | `NotAProposition
-    | `NotAVar
-    | `NotAnApp
-    | `NotAnApplication of 'l
-    | `NotAnExists
-    | `NotAnImp
-    | `NotBothEquations
-    | `NotFreshConstructor
-    | `NotPositive
-    | `NotTrivialBetaRedex
-    | `OperationDoesntMatch of 'm
-    | `RuleTrans
-    | `Todo
-    | `TypeAlreadyDeclared of 'n
-    | `TypeAlreadyExists
-    | `TypeConstructorNotAVariable of 'o
-    | `TypeDefinitionError of 'p
-    | `TypeEquivalenceNotImplemented
-    | `TypeNotDeclared of 'q
-    | `TypeVariableNotAConstructor of 'r
-    | `TypesDontAgree
-    | `UnexpectedLambdaForm
-    | `WrongNumberOfTypeArgs of 's ] )
+    | `MakeLamNotAVariable of Kernel.term
+    | `NameMappingError of string
+    | `NewAxiomNotAProp of Kernel.term
+    | `NewBasicDefinition of Kernel.term
+    | `NewBasicDefinitionAlreadyDefined of string
+    | `NoBaseCase of string
+    | `NoRewriteMatch of Kernel.thm * Kernel.term
+    | `NotAConj of Kernel.term
+    | `NotAConst of Kernel.term
+    | `NotAConstantName of string
+    | `NotADisj of Kernel.term
+    | `NotAForall of Kernel.term
+    | `NotALam of Kernel.term
+    | `NotANegation of Kernel.term
+    | `NotAProposition of Kernel.term
+    | `NotAVar of Kernel.term
+    | `NotAnApp of Kernel.term
+    | `NotAnApplication of Kernel.term
+    | `NotAnExists of Kernel.term
+    | `NotAnImp of Kernel.term
+    | `NotBothEquations of Kernel.thm * Kernel.thm
+    | `NotFreshConstructor of string list
+    | `NotPositive of string
+    | `NotTrivialBetaRedex of Kernel.term
+    | `OperationDoesntMatch of string
+    | `RuleTrans of Kernel.thm * Kernel.thm
+    | `TypeAlreadyDeclared of string
+    | `TypeAlreadyExists of string
+    | `TypeConstructorNotAVariable of string
+    | `TypeDefinitionError of string
+    | `TypeEquivalenceNotImplemented of Kernel.hol_type * Kernel.hol_type
+    | `TypeNotDeclared of string
+    | `TypeVariableNotAConstructor of string
+    | `TypesDontAgree of Kernel.hol_type * Kernel.hol_type
+    | `UnexpectedLambdaForm of Kernel.term
+    | `WrongNumberOfTypeArgs of string ] )
   result ->
   'a
 (** Used by tactics to handle failure and trace information about which tactic

@@ -46,8 +46,8 @@ let%expect_test "elaborate_nat_and_plus" =
       Printf.printf "Inductives: %d\n" (List.length env.inductives);
       Printf.printf "Defs: %d\n" (List.length env.defs);
       List.iter (fun (name, _) -> Printf.printf "  def: %s\n" name) env.defs
-  | Error `NotAForall -> Printf.printf "Error: NotAForall\n"
-  | Error `NotAnExists -> Printf.printf "Error: NotAnExists\n"
+  | Error (`NotAForall _) -> Printf.printf "Error: NotAForall\n"
+  | Error (`NotAnExists _) -> Printf.printf "Error: NotAnExists\n"
   | Error (`InvariantViolation s) ->
       Printf.printf "Error: InvariantViolation %s\n" s
   | Error (`NotAConstantName s) ->
@@ -84,8 +84,8 @@ let%expect_test "elaborate_theorem" =
         (fun (_, goal) ->
           Printf.printf "  %s\n" (Printing.pretty_print_hol_term goal))
         goals
-  | Error `NotAForall -> Printf.printf "Error: NotAForall\n"
-  | Error `NotAnExists -> Printf.printf "Error: NotAnExists\n"
+  | Error (`NotAForall _) -> Printf.printf "Error: NotAForall\n"
+  | Error (`NotAnExists _) -> Printf.printf "Error: NotAnExists\n"
   | Error (`InvariantViolation s) ->
       Printf.printf "Error: InvariantViolation %s\n" s
   | Error (`NotAConstantName s) ->

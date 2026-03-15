@@ -21,7 +21,7 @@ let rec term_size (t : term) =
   | Lam (bind, bod) -> 1 + term_size bind + term_size bod
 
 let make_exn thm =
-  thm |> Result.map_error (fun _e -> "Todo") |> Result.error_to_failure
+  thm |> Result.map_error (fun e -> Printing.print_error e) |> Result.error_to_failure
 
 (* initialization *)
 
@@ -307,33 +307,33 @@ let cond_def = init_cond ()
 
 let destruct_conj = function
   | App (App (Const ("/\\", _), p), q) -> Ok (p, q)
-  | _ -> Error `NotAConj
+  | tm -> Error (`NotAConj tm)
 
 let destruct_disj = function
   | App (App (Const ("\\/", _), p), q) -> Ok (p, q)
-  | _ -> Error `NotADisj
+  | tm -> Error (`NotADisj tm)
 
 let is_conj t =
-  match destruct_conj t with Error `NotAConj -> false | _ -> true
+  match destruct_conj t with Error (`NotAConj _) -> false | _ -> true
 
-let is_eq t = match destruct_eq t with Error `NotAnEq -> false | _ -> true
+let is_eq t = match destruct_eq t with Error (`CantDestructEquality _) -> false | _ -> true
 
 let is_disj t =
-  match destruct_disj t with Error `NotADisj -> false | _ -> true
+  match destruct_disj t with Error (`NotADisj _) -> false | _ -> true
 
 let destruct_imp = function
   | App (App (Const ("==>", _), p), q) -> Ok (p, q)
-  | _ -> Error `NotAnImp
+  | tm -> Error (`NotAnImp tm)
 
 let destruct_disj = function
   | App (App (Const ("\\/", _), p), q) -> Ok (p, q)
-  | _ -> Error `NotADisj
+  | tm -> Error (`NotADisj tm)
 
-let is_imp t = match destruct_imp t with Error `NotAnImp -> false | _ -> true
+let is_imp t = match destruct_imp t with Error (`NotAnImp _) -> false | _ -> true
 
 let destruct_exists = function
   | App (Const ("?", _), Lam (bind, bod)) -> Ok (bind, bod)
-  | _ -> Error `NotAnExists
+  | tm -> Error (`NotAnExists tm)
 
 let type_of_existential (_, g) =
   let* x, _ = destruct_exists g in
@@ -342,22 +342,22 @@ let type_of_existential (_, g) =
 
 let term_of_negation = function
   | App (Const ("~", _), t) -> Ok t
-  | _ -> Error `NotANegation
+  | tm -> Error (`NotANegation tm)
 
 let is_neg t =
-  match term_of_negation t with Error `NotANegation -> false | _ -> true
+  match term_of_negation t with Error (`NotANegation _) -> false | _ -> true
 
 let destruct_forall = function
   | App (Const ("!", _), Lam (bind, bod)) -> Ok (bind, bod)
-  | _ -> Error `NotAForall
+  | tm -> Error (`NotAForall tm)
 
 let quantifier_of_forall = function
   | App (Const ("!", _), Lam (bind, _)) -> Ok bind
-  | _ -> Error `NotAForall
+  | tm -> Error (`NotAForall tm)
 
 let body_of_forall = function
   | App (Const ("!", _), Lam (_, bod)) -> Ok bod
-  | _ -> Error `NotAForall
+  | tm -> Error (`NotAForall tm)
 
 type side = Left | Right
 

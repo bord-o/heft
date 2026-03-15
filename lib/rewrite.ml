@@ -229,20 +229,20 @@ let rec rewrite_once (rule : thm) (tm : term) =
   | None -> (
       (* Try subterms *)
       match tm with
-      | Var _ | Const _ -> Error `NoRewriteMatch
+      | Var _ | Const _ -> Error (`NoRewriteMatch (rule, tm))
       | App (f, x) -> (
           (* Try rewriting in function position first *)
           match rewrite_once rule f with
           | Ok f_eq ->
               (* f_eq : |- f = f', need |- f x = f' x *)
               ap_thm f_eq x
-          | Error `NoRewriteMatch -> (
+          | Error (`NoRewriteMatch _) -> (
               (* Try rewriting in argument position *)
               match rewrite_once rule x with
               | Ok x_eq ->
                   (* x_eq : |- x = x', need |- f x = f x' *)
                   ap_term f x_eq
-              | Error `NoRewriteMatch -> Error `NoRewriteMatch
+              | Error (`NoRewriteMatch _) -> Error (`NoRewriteMatch (rule, tm))
               | Error e -> Error e)
           | Error e -> Error e)
       | Lam (v, body) -> (
@@ -255,7 +255,7 @@ let rec rewrite_once (rule : thm) (tm : term) =
 (* Rewrite repeatedly until no more rewrites apply *)
 let rec rewrite_all (rule : thm) (tm : term) =
   match rewrite_once rule tm with
-  | Error `NoRewriteMatch ->
+  | Error (`NoRewriteMatch _) ->
       refl tm (* No rewrite possible, return reflexivity *)
   | Error e -> Error e
   | Ok step_thm ->
@@ -268,17 +268,18 @@ let rec rewrite_all (rule : thm) (tm : term) =
 (* Rewrite using multiple rules, trying each in order until one works *)
 let rec rewrite_once_with_rules (rules : thm list) (tm : term) =
   match rules with
-  | [] -> Error `NoRewriteMatch
+  | [ rule ] -> rewrite_once rule tm
   | rule :: rest -> (
       match rewrite_once rule tm with
       | Ok thm -> Ok thm
-      | Error `NoRewriteMatch -> rewrite_once_with_rules rest tm
+      | Error (`NoRewriteMatch _) -> rewrite_once_with_rules rest tm
       | Error e -> Error e)
+  | [] -> invalid_arg "rewrite_once_with_rules: empty rule list"
 
 (* Repeatedly rewrite using multiple rules until no more apply *)
 let rec rewrite_all_with_rules (rules : thm list) (tm : term) =
   match rewrite_once_with_rules rules tm with
-  | Error `NoRewriteMatch -> refl tm
+  | Error (`NoRewriteMatch _) -> refl tm
   | Error e -> Error e
   | Ok step_thm ->
       let* _, tm' = destruct_eq (concl step_thm) in
