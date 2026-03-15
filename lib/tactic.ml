@@ -1082,9 +1082,7 @@ let destruct_tac : tactic =
       List.fold_left (fun c asm -> make_imp asm c) concl mentioning
     in
     let forall_concl = make_forall var discharged_concl in
-    let non_mentioning =
-      List.filter (fun h -> not (var_free_in var h)) asms
-    in
+    let non_mentioning = List.filter (fun h -> not (var_free_in var h)) asms in
     let induct_thm = perform (Subgoal (non_mentioning, forall_concl)) in
     let* specced = spec var induct_thm in
     List.fold_left
