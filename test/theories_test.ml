@@ -1412,7 +1412,6 @@ let%expect_test "sort correct" =
     theorem sort_correct: 
         forall λl.
              sorted (isort l)
-
   |}
   in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in

@@ -406,18 +406,14 @@ let rec find_inductive_type_in_term = function
   | Lam (_, body) -> find_inductive_type_in_term body
   | _ -> None
 
-let find_recursed_inductive_type branches =
-  let rec search = function
-    | [] ->
-        Error
-          (`InvariantViolation
-             "Could not determine inductive type from branches")
-    | branch :: rest -> (
-        match find_inductive_type_in_term branch with
-        | Some result -> Ok result
-        | None -> search rest)
-  in
-  search branches
+let rec find_recursed_inductive_type = function
+  | [] ->
+      Error
+        (`InvariantViolation "Could not determine inductive type from branches")
+  | branch :: rest -> (
+      match find_inductive_type_in_term branch with
+      | Some result -> Ok result
+      | None -> find_recursed_inductive_type rest)
 
 (* Define a recursive function on an inductive type *)
 let define_recursive_function ?(tysub = []) func_name return_type
