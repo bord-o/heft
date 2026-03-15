@@ -766,6 +766,16 @@ let eq_true_elim_asm_tac : tactic =
   in
   return_thm ~from:"eq_true_elim_asm_tac" thm
 
+let eq_true_elim_tac : tactic =
+ fun (asms, concl) ->
+  burn "eq_true_elim_tac" (Safe 2);
+  let thm =
+    let* l, _r = destruct_eq concl in
+    let elim_thm = perform (Subgoal (asms, l)) in
+    eq_truth_intro elim_thm
+  in
+  return_thm ~from:"eq_true_elim_tac" thm
+
 (** [conj_tac] transforms a goal [P /\ Q] into two subgoals [P] and [Q]. Fails
     if the goal is not a conjunction
 

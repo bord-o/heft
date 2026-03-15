@@ -1335,38 +1335,27 @@ let%expect_test "nat_le_flip" =
 let%expect_test "sort correct lemma" =
   let prg =
     {|
+    variable n0 n0' n : nat
+    variable n1 : list nat
+
     variable n : nat
     variable l : list nat
+
     theorem insert_sorted:
         forall λl. forall λn.
             imp (sorted l)
                 (sorted (insert l n))
+
+    term le : nat_le n0' n
+    term n0 : n0
+    term n1 : n1
+    term n : n
     |}
   in
-  let le =
-    Elaborator.term_from_string
-      {|
-      variable n0' n : nat
-      term le : nat_le n0' n
-      |}
-      "le"
-  in
-  let n1 =
-    Elaborator.term_from_string
-      {|
-      variable n1 : list nat
-      term n1 : n1
-      |}
-      "n1"
-  in
-  let n0 =
-    Elaborator.term_from_string
-      {|
-      variable n0 : nat
-      term n0 : n0
-      |}
-      "n0"
-  in
+  let le = Elaborator.term_from_string prg "le" in
+  let n1 = Elaborator.term_from_string prg "n1" in
+  let n0 = Elaborator.term_from_string prg "n0" in
+  let n = Elaborator.term_from_string prg "n" in
 
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
@@ -1386,9 +1375,8 @@ let%expect_test "sort correct lemma" =
                             truth_tac;
                           ];
                     ];
-                spec_asm_tac (make_var "n" NatTheory.nat_ty)
-                >> apply_asm_tac >> simp_asm_tac >> elim_conj_asm_tac
-                >> with_first assumption_tac;
+                spec_asm_tac n >> apply_asm_tac >> simp_asm_tac
+                >> elim_conj_asm_tac >> with_first assumption_tac;
                 with_proven [ "nat_le_flip" ] apply_thm_asm_tac
                 >> simp_tac >> truth_tac;
                 conj_tac
@@ -1417,19 +1405,29 @@ let%expect_test "sort correct lemma" =
     with fuel: 550
     |}]
 
-(* let%expect_test "sort correct" = *)
-(*   let prg = *)
-(*     {| *)
-(*     variable l : list nat *)
-(*     theorem sort_correct:  *)
-(*         forall λl. *)
-(*             eq (sorted (isort l)) T *)
-(**)
-(*   |} *)
-(*   in *)
-(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = simp_tac in *)
-(*   run_proof goal proof; *)
-(**)
-(*   [%expect {| *)
-(*     |}] *)
+let%expect_test "sort correct" =
+  let prg =
+    {|
+    variable l : list nat
+    theorem sort_correct: 
+        forall λl.
+             sorted (isort l)
+
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    induct_tac >> simp_tac >> truth_tac >> intros_tac >> simp_tac
+    >> with_proven [ "sort_correct_lemma" ] apply_thm_tac
+    >> assumption_tac
+  in
+  run_proof goal proof;
+
+  [%expect
+    {|
+    ========================================
+    ∀x. sorted (isort x)
+
+    Proof Complete!
+    with fuel: 51
+    |}]
