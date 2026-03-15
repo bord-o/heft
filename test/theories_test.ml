@@ -1281,6 +1281,134 @@ let%expect_test "bool eq" =
     with fuel: 36
     |}]
 
+let%expect_test "bool cases tac" =
+  let b = make_var "b" bool_ty in
+  let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
+  let b_eq_f = Result.get_ok (safe_make_eq b (make_false ())) in
+  let goal = ([], make_forall b (make_disj b_eq_t b_eq_f)) in
+  let proof = cases_tac >>= [ left_tac >> refl_tac; right_tac >> refl_tac ] in
+  run_proof ~name:"bool_cases_test" goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀b. b = T ∨ b = F
+
+    Proof Complete!
+    with fuel: 22
+    |}]
+
+let%expect_test "nat_le_flip" =
+  let prg =
+    {|
+    variable m n : nat
+    theorem nat_le_flip:
+        forall λm. forall λn.
+            imp (eq (nat_le m n) F)
+                (eq (nat_le n m) T)
+    |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    induct_tac
+    >>= [
+          gen_tac >> intro_tac
+          >> simp_asm_tac ~with_asms:false
+          >> sym_asm_tac >> eq_true_elim_asm_tac >> false_elim_tac;
+          gen_tac >> intro_tac >> induct_tac >> (intro_tac >> simp_tac)
+          >> (intros_tac
+             >> simp_asm_tac ~with_asms:false
+             >> simp_tac
+             >> with_assumptions (with_first (apply_thm_tac >> assumption_tac))
+             );
+        ]
+  in
+  run_proof ~name:"nat_le_flip" goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀n. nat_le x n = F ==> nat_le n x = T
+
+    Proof Complete!
+    with fuel: 150
+    |}]
+
+let%expect_test "sort correct lemma" =
+  let prg =
+    {|
+    variable n : nat
+    variable l : list nat
+    theorem insert_sorted:
+        forall λl. forall λn.
+            imp (sorted l)
+                (sorted (insert l n))
+    |}
+  in
+  let le =
+    Elaborator.term_from_string
+      {|
+      variable n0' n : nat
+      term le : nat_le n0' n
+      |}
+      "le"
+  in
+  let n1 =
+    Elaborator.term_from_string
+      {|
+      variable n1 : list nat
+      term n1 : n1
+      |}
+      "n1"
+  in
+  let n0 =
+    Elaborator.term_from_string
+      {|
+      variable n0 : nat
+      term n0 : n0
+      |}
+      "n0"
+  in
+
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    induct_tac  >>= [
+
+        intros_tac >> simp_tac >> auto_dfs_tac ;
+        intros_tac >> simp_tac >> cond_tac
+        >> with_assumptions rewrite_tac
+        >> simp_tac >> conj_tac
+        >> with_arbitrary_term n1 destruct_tac
+        >> induct_tac >> intros_tac >> simp_tac >> truth_tac >> intros_tac
+        >> simp_tac >> with_repeat mp_asm_tac
+        >> with_arbitrary_term le cases_tac
+        >> simp_tac >> simp_asm_tac >> elim_conj_asm_tac >> assumption_tac
+        >> simp_tac >> truth_tac
+        >> spec_asm_tac (make_var "n" NatTheory.nat_ty)
+        >> apply_asm_tac >> simp_asm_tac >> elim_conj_asm_tac
+        >> with_first assumption_tac >> simp_tac >> conj_tac
+        >> with_proven [ "nat_le_flip" ] apply_thm_asm_tac
+        >> simp_tac >> truth_tac >> conj_tac
+        >> with_arbitrary_term n1 destruct_tac
+        >> induct_tac >> intros_tac >> simp_tac >> truth_tac >> intros_tac
+        >> simp_tac >> with_repeat mp_asm_tac >> simp_asm_tac >> elim_conj_asm_tac
+        >> assumption_tac >> spec_asm_tac n0 >> simp_asm_tac >> elim_conj_asm_tac
+        >> with_first assumption_tac
+    ]
+  in
+
+  run_proof ~notrace:true ~name:"sort_correct_lemma" goal proof;
+
+  [%expect
+    {|
+    Proof:
+      conj_tac
+    ∀n0. ∀n1. (∀n. sorted n1 ==> sorted (insert n1 n)) ==> ∀n. sorted (cons n0 n1) ==> sorted (insert (cons n0 n1) n)
+    ========================================
+    ∀x. ∀n. sorted x ==> sorted (insert x n)
+
+    Proof Complete!
+    with fuel: 621
+    |}]
+
 (* let%expect_test "sort correct lemma" = *)
 (*   let prg = *)
 (*     {| *)

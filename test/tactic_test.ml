@@ -1179,3 +1179,223 @@ let%expect_test "assert_tac_basic" =
     Proof Complete!
     with fuel: 13
     |}]
+
+(* ---- cases_tac tests ---- *)
+
+let%expect_test "cases_tac bool forall refl" =
+  (* ∀b. b = b — trivial, both cases solved by refl *)
+  let b = make_var "b" bool_ty in
+  let goal = ([], make_forall b (Result.get_ok (safe_make_eq b b))) in
+  let proof = cases_tac >> refl_tac >> with_first refl_tac in
+  run_proof goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀b. b = b
+
+    Proof Complete!
+    with fuel: 10
+    |}]
+
+let%expect_test "cases_tac bool forall imp" =
+  (* ∀b. b = T ==> b = T — each case trivially true *)
+  let b = make_var "b" bool_ty in
+  let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
+  let goal = ([], make_forall b (make_imp b_eq_t b_eq_t)) in
+  let proof =
+    cases_tac >> intro_tac >> assumption_tac >> with_first intro_tac
+    >> with_first assumption_tac
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀b. b = T ==> b = T
+
+    Proof Complete!
+    with fuel: 12
+    |}]
+
+let%expect_test "cases_tac bool forall with body" =
+  (* ∀b. b = T ∨ b = F — classic bool exhaustion *)
+  let b = make_var "b" bool_ty in
+  let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
+  let b_eq_f = Result.get_ok (safe_make_eq b (make_false ())) in
+  let goal = ([], make_forall b (make_disj b_eq_t b_eq_f)) in
+  let proof =
+    cases_tac >> left_tac >> refl_tac >> with_first right_tac
+    >> with_first refl_tac
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀b. b = T ∨ b = F
+
+    Proof Complete!
+    with fuel: 22
+    |}]
+
+let%expect_test "cases_tac bool forall conj" =
+  (* ∀b. (b = T ∨ b = F) ∧ (b = T ∨ b = F) *)
+  let b = make_var "b" bool_ty in
+  let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
+  let b_eq_f = Result.get_ok (safe_make_eq b (make_false ())) in
+  let disj = make_disj b_eq_t b_eq_f in
+  let goal = ([], make_forall b (make_conj disj disj)) in
+  let case_proof =
+    conj_tac >> left_tac >> refl_tac >> with_first left_tac
+    >> with_first refl_tac
+  in
+  let proof =
+    cases_tac >> case_proof
+    >> with_first
+         (conj_tac >> right_tac >> refl_tac >> with_first right_tac
+        >> with_first refl_tac)
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀b. b = T ∨ b = F ∧ b = T ∨ b = F
+
+    Proof Complete!
+    with fuel: 38
+    |}]
+
+let%expect_test "cases_tac inductive delegates to induct_tac" =
+  (* ∀x:nat. x = x — cases on nat should delegate to induct_tac *)
+  let open Theories.NatTheory in
+  let x = make_var "x" nat_ty in
+  let goal = ([], make_forall x (Result.get_ok (safe_make_eq x x))) in
+  let proof =
+    cases_tac >> refl_tac >> with_first gen_tac >> with_first intro_tac
+    >> with_first refl_tac
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀x. x = x
+
+    Proof Complete!
+    with fuel: 20
+    |}]
+
+let%expect_test "cases_tac arbitrary bool expr" =
+  (* Given A ∨ B, case split on A to add A=T or A=F as assumption *)
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let a_eq_t = Result.get_ok (safe_make_eq a (make_true ())) in
+  let goal = ([ a_eq_t; b ], Result.get_ok (safe_make_eq a (make_true ()))) in
+  let proof =
+    with_arbitrary_term a cases_tac
+    >> assumption_tac >> with_first assumption_tac
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    A = T
+    ========================================
+    A = T
+
+    Proof Complete!
+    with fuel: 10
+    |}]
+
+let%expect_test "cases_tac preserves assumptions" =
+  (* {P} ⊢ ∀b. P — case split on b, P should be available in both subgoals *)
+  let p = make_var "P" bool_ty in
+  let b = make_var "b" bool_ty in
+  let goal = ([ p ], make_forall b p) in
+  let proof =
+    cases_tac >> with_first assumption_tac >> with_first assumption_tac
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    P
+    ========================================
+    ∀b. P
+
+    Proof Complete!
+    with fuel: 10
+    |}]
+
+let%expect_test "spec_asm_tac basic" =
+  (* ∀x. P x as assumption, goal is P a *)
+  let nat_ty = Kernel.TyCon ("nat", []) in
+  let x = make_var "x" nat_ty in
+  let a = make_var "a" nat_ty in
+  let p_x = App (make_var "P" (make_fun_ty nat_ty bool_ty), x) in
+  let p_a = App (make_var "P" (make_fun_ty nat_ty bool_ty), a) in
+  let forall_px = make_forall x p_x in
+  let goal = ([ forall_px ], p_a) in
+  let proof = spec_asm_tac a >> with_first assumption_tac in
+  run_proof goal proof;
+  [%expect
+    {|
+    ∀x. P x
+    ========================================
+    P a
+
+    Proof Complete!
+    with fuel: 4
+    |}]
+
+let%expect_test "sym_asm_tac basic" =
+  let nat_ty = Kernel.TyCon ("nat", []) in
+  let a = make_var "a" nat_ty in
+  let b = make_var "b" nat_ty in
+  let a_eq_b = safe_make_eq a b |> Result.get_ok in
+  let b_eq_a = safe_make_eq b a |> Result.get_ok in
+  let goal = ([ a_eq_b ], b_eq_a) in
+  let proof = sym_asm_tac >> with_first assumption_tac in
+  run_proof goal proof;
+  [%expect
+    {|
+    a = b
+    ========================================
+    b = a
+
+    Proof Complete!
+    with fuel: 3
+    |}]
+
+let%expect_test "eq_true_asm_tac" =
+  let p = make_var "P" bool_ty in
+  let p_eq_t = Result.get_ok (safe_make_eq p (make_true ())) in
+  let goal = ([ p ], p_eq_t) in
+  let proof = eq_true_asm_tac >> assumption_tac in
+  run_proof goal proof;
+  [%expect
+    {|
+    P
+    ========================================
+    P = T
+
+    Proof Complete!
+    with fuel: 3
+    |}]
+
+let%expect_test "destruct_tac" =
+  let open Theories.NatTheory in
+  let n = make_var "n" nat_ty in
+  let p = make_var "P" (TyCon ("fun", [ nat_ty; bool_ty ])) in
+  let pn = Kernel.make_app p n |> Result.get_ok in
+  let goal = ([ pn ], pn) in
+  let proof =
+    with_arbitrary_term n destruct_tac
+    >> induct_tac >> intros_tac >> assumption_tac >> intros_tac
+    >> assumption_tac
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    P n
+    ========================================
+    P n
+
+    Proof Complete!
+    with fuel: 29
+    |}]

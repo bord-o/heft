@@ -351,9 +351,9 @@ module ListTheory = struct
     def sorted : list nat -> bool
         | nil => T 
         | cons h t => 
-            andb
+            (∧
                 (list_match t T (λx'. λxs'. (nat_le h x')))
-                (sorted t)
+                (sorted t))
             
     |}
 

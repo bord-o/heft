@@ -7,6 +7,7 @@ type token =
   | VARIABLE
   | DEF
   | THEOREM
+  | TERM
   (* Symbols *)
   | COLONEQ (* := *)
   | BAR (* | *)
@@ -42,6 +43,7 @@ let keyword_table =
     ("variable", VARIABLE);
     ("def", DEF);
     ("theorem", THEOREM);
+    ("term", TERM);
   ]
 
 let lookup_ident s =
@@ -84,6 +86,11 @@ let rec token buf =
   | 0x2192 -> ARROW (* → *)
   | "=>" -> FATARROW
   | 0x21D2 -> FATARROW (* ⇒ *)
+  (* Logical connectives - must come before single \ *)
+  | "/\\" -> IDENT "/\\"
+  | "\\/" -> IDENT "\\/"
+  | 0x2227 -> IDENT "/\\" (* ∧ *)
+  | 0x2228 -> IDENT "\\/" (* ∨ *)
   (* Single-character symbols *)
   | '|' -> BAR
   | ':' -> COLON

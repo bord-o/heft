@@ -516,6 +516,9 @@ let rewrite_asm_tac : tactic =
     let* chosen_rule = strip_forall (choose_theorems rules) in
     let chosen_asm = choose_terms asms in
 
+    (* prevent an assumption from being used as a rule to rewrite itself *)
+    if List.mem chosen_asm (hyp chosen_rule) then fail ();
+
     let* rw_thm = rewrite_once chosen_rule chosen_asm in
     let* _, asm_rewritten = destruct_eq (concl rw_thm) in
     if alphaorder chosen_asm asm_rewritten = 0 then fail ();
@@ -675,6 +678,93 @@ let assumption_tac : tactic =
     let t = assume concl in
     trace_dbg "Assumption succeeded";
     return_thm ~from:"assumption_tac" t)
+
+(** [spec_asm_tac tm] specializes a universally quantified assumption [∀x. P x]
+    with [tm], adding the result as a new assumption. The forall assumption is
+    chosen via [Choose].
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
+let spec_asm_tac (tm : term) : tactic =
+ fun (asms, concl) ->
+  burn "spec_asm_tac" (Unsafe 3);
+  let foralls =
+    List.filter
+      (fun a -> match destruct_forall a with Ok _ -> true | _ -> false)
+      asms
+  in
+  if List.is_empty foralls then fail ()
+  else
+    let thm =
+      let chosen = choose_terms foralls in
+      let* asm_thm = assume chosen in
+      let* specialized = spec tm asm_thm in
+      let spec_concl = Kernel.concl specialized in
+      if List.mem spec_concl asms then fail ()
+      else
+        let asms' = spec_concl :: asms in
+        let sub_thm = perform (Subgoal (asms', concl)) in
+        prove_hyp specialized sub_thm
+    in
+    return_thm ~from:"spec_asm_tac" thm
+
+(** [sym_asm_tac] finds an equality assumption [a = b] and replaces it with
+    [b = a]. The assumption is chosen via [Choose].
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
+let sym_asm_tac : tactic =
+ fun (asms, concl) ->
+  burn "sym_asm_tac" (Safe 2);
+  let eqs = List.filter is_eq asms in
+  if List.is_empty eqs then fail ()
+  else
+    let thm =
+      let chosen = choose_terms eqs in
+      let* asm_thm = assume chosen in
+      let* flipped = sym asm_thm in
+      let flipped_concl = Kernel.concl flipped in
+      if List.mem flipped_concl asms then fail ()
+      else
+        let asms' = flipped_concl :: asms in
+        let sub_thm = perform (Subgoal (asms', concl)) in
+        prove_hyp flipped sub_thm
+    in
+    return_thm ~from:"sym_asm_tac" thm
+
+(** [eq_true_asm_tac] finds a bare boolean assumption [P] (not an equality) and
+    adds [P = T] to the assumptions.
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
+let eq_true_asm_tac : tactic =
+ fun (asms, concl) ->
+  burn "eq_true_asm_tac" (Safe 2);
+  let thm =
+    let chosen = choose_terms asms in
+    let* asm_thm = assume chosen in
+    let* eq_t = eq_truth_intro asm_thm in
+    let new_asm = Kernel.concl eq_t in
+    let asms' = new_asm :: asms in
+    let sub_thm = perform (Subgoal (asms', concl)) in
+    prove_hyp eq_t sub_thm
+  in
+  return_thm ~from:"eq_true_asm_tac" thm
+
+(** [eq_true_elim_asm_tac] finds an assumption [P = T] and adds [P] to the
+    assumptions.
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
+let eq_true_elim_asm_tac : tactic =
+ fun (asms, concl) ->
+  burn "eq_true_elim_asm_tac" (Safe 2);
+  let thm =
+    let chosen = choose_terms asms in
+    let* asm_thm = assume chosen in
+    let* p = eq_truth_elim asm_thm in
+    let new_asm = Kernel.concl p in
+    let asms' = new_asm :: asms in
+    let sub_thm = perform (Subgoal (asms', concl)) in
+    prove_hyp p sub_thm
+  in
+  return_thm ~from:"eq_true_elim_asm_tac" thm
 
 (** [conj_tac] transforms a goal [P /\ Q] into two subgoals [P] and [Q]. Fails
     if the goal is not a conjunction
@@ -921,6 +1011,91 @@ let induct_tac : tactic =
   in
   return_thm ~from:"induction_tac" thm
 
+let truth_tac : tactic =
+ fun (_asms, concl) ->
+  burn "truth_tac" (Safe 1);
+  let t = make_true () in
+  if t <> concl then (
+    trace_error "goal is not T";
+    fail ())
+  else truth
+
+(** [cases_tac] performs case splitting. For ∀b:bool goals, splits into b=T and
+    b=F cases. For ∀x:inductive goals, delegates to induct_tac. For arbitrary
+    bool expressions (via with_arbitrary_term), adds e=T and e=F as assumptions.
+
+    Effects: Burn, Trace, Subgoal, Fail *)
+let cases_tac : tactic =
+ fun (asms, concl) ->
+  burn "cases_tac" (Unsafe 8);
+  let bool_case_branch var bod value asms =
+    let* var_eq_val = safe_make_eq var value in
+    let* bod_subst = vsubst [ (value, var) ] bod in
+    let subgoal_thm = perform (Subgoal (var_eq_val :: asms, bod_subst)) in
+    let* pred_lam = make_lam var bod in
+    let* var_eq_val_assumed = assume var_eq_val in
+    let* val_eq_var = sym var_eq_val_assumed in
+    let* lam_eq = mk_comb (refl pred_lam |> Result.get_ok) val_eq_var in
+    let* beta_eq = conv_equality deep_beta lam_eq in
+    eq_mp beta_eq subgoal_thm
+  in
+  let bool_forall_cases asms var bod =
+    let* bc = spec var bool_cases in
+    let* case_t = bool_case_branch var bod (make_true ()) asms in
+    let* case_f = bool_case_branch var bod (make_false ()) asms in
+    let* result = disj_cases bc case_t case_f in
+    gen var result
+  in
+  let bool_expr_cases asms concl tm =
+    let* bc = spec tm bool_cases in
+    let* tm_eq_t = safe_make_eq tm (make_true ()) in
+    let* tm_eq_f = safe_make_eq tm (make_false ()) in
+    let t_thm = perform (Subgoal (tm_eq_t :: asms, concl)) in
+    let f_thm = perform (Subgoal (tm_eq_f :: asms, concl)) in
+    disj_cases bc t_thm f_thm
+  in
+  let thm =
+    match destruct_forall concl with
+    | Ok (var, bod) ->
+        let ty = type_of_var var in
+        if compare ty bool_ty = 0 then bool_forall_cases asms var bod
+        else Ok (induct_tac (asms, concl))
+    | Error _ ->
+        let tm = perform (Choose (Term [ concl ])) in
+        bool_expr_cases asms concl tm
+  in
+  return_thm ~from:"cases_tac" thm
+
+(** [destruct_tac] performs case analysis on a free variable that appears in
+    assumptions. It discharges assumptions mentioning the variable into the
+    goal, generalizes over the variable, fires a subgoal for induction, then
+    recovers the assumptions via spec and mp.
+
+    Effects: Burn, Choose, Subgoal, Fail *)
+let destruct_tac : tactic =
+ fun (asms, concl) ->
+  burn "destruct_tac" (Unsafe 10);
+  let thm =
+    let var = choose_terms [] in
+    let mentioning = List.filter (fun h -> var_free_in var h) asms in
+    let discharged_concl =
+      List.fold_left (fun c asm -> make_imp asm c) concl mentioning
+    in
+    let forall_concl = make_forall var discharged_concl in
+    let non_mentioning =
+      List.filter (fun h -> not (var_free_in var h)) asms
+    in
+    let induct_thm = perform (Subgoal (non_mentioning, forall_concl)) in
+    let* specced = spec var induct_thm in
+    List.fold_left
+      (fun acc asm ->
+        let* th = acc in
+        let* assumed = assume asm in
+        mp th assumed)
+      (Ok specced) mentioning
+  in
+  return_thm ~from:"destruct_tac" thm
+
 (** [prove] is the main effect handler that runs a tactic on a goal. It provides
     default interpretations for all effects: printing traces, taking first
     choices, ignoring fuel costs, etc. Returns [Complete thm] on success or
@@ -1044,6 +1219,34 @@ let with_term (t : term) : tactic_combinator =
   | effect Choose (Term terms), k ->
       if List.mem t terms then continue k t else fail ()
   | x -> x
+
+(** [cond_tac] finds COND applications in the goal and case-splits on the
+    condition argument. Collects all condition terms from COND expressions,
+    presents them via [Choose], then delegates to [cases_tac].
+
+    Effects: Choose, Burn, Trace, Subgoal, Fail *)
+let cond_tac : tactic =
+ fun (asms, concl) ->
+  let rec collect_cond_args tm acc =
+    match tm with
+    | App (App (App (Const ("COND", _), b), t), e) ->
+        let acc = collect_cond_args b acc in
+        let acc = collect_cond_args t acc in
+        collect_cond_args e (b :: acc)
+    | App (f, x) ->
+        let acc = collect_cond_args f acc in
+        collect_cond_args x acc
+    | Lam (_, body) -> collect_cond_args body acc
+    | _ -> acc
+  in
+  let cond_args = collect_cond_args concl [] in
+  match cond_args with
+  | [] ->
+      trace_error "no COND expressions found in goal";
+      fail ()
+  | terms ->
+      let tm = choose_terms terms in
+      with_arbitrary_term tm cases_tac (asms, concl)
 
 (** [try_] converts failure into a subgoal request, a tactics sequence to be
     used in situations where one or more intermediate tactics could fail *)
@@ -1345,6 +1548,13 @@ let with_nth_choice n : tactic_combinator =
       | Some c -> continue k c)
   | v -> v
 
+let with_nth_term n : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Choose (Term ts), k -> (
+      match List.nth_opt ts n with None -> fail () | Some c -> continue k c)
+  | v -> v
+
 (** [with_term_size_ranking] handles [Rank (Term _)] effects by sorting terms
     from smallest to largest based on AST size *)
 let with_term_size_ranking : tactic_combinator =
@@ -1410,6 +1620,14 @@ let with_fuel_counter r : tactic_combinator =
       burn name cost;
       continue k ()
   | v -> v
+
+let with_show_subgoal : tactic_combinator =
+ fun tac goal ->
+  print_endline "Current subgoal:";
+  List.iter print_term (fst goal);
+  print_endline "-------------------------";
+  print_term @@ snd goal;
+  tac goal
 
 let with_info_trace : tactic_combinator =
  fun tac goal ->
@@ -1531,6 +1749,7 @@ let auto_tac : tactic =
       simp_tac ~with_asms:true;
       gen_tac;
       intro_tac;
+      truth_tac;
       assumption_tac;
       neg_intro_tac;
       conj_tac;
@@ -1553,13 +1772,13 @@ let auto_dfs_tac : tactic =
     Effects: Rules, Choose, Burn, Trace, Subgoal, Fail *)
 let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
  fun goal ->
-  let definitions =
-    the_specifications |> Hashtbl.to_seq |> List.of_seq |> List.map snd
-  in
+  let extra = perform Rules in
+  let definitions = !Rules.definitions |> List.map snd in
+  let simps = !Rules.simps |> List.map snd in
   let rules =
-    definitions
+    definitions |> List.append extra |> List.append simps |> List.append add
     |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
-    |> List.flatten |> List.append add
+    |> List.flatten
   in
 
   let with_rw = if with_asms then with_rules_and_assumptions else with_rules in
@@ -1614,6 +1833,7 @@ let run_proof ?(notrace = true) ?(name = "") ?(simp = false) ?(quiet = false)
   | Incomplete (asms, c) ->
       if not quiet then (
         List.iter print_term asms;
+        print_endline "--------------";
         print_term c;
         print_endline "Proof Incomplete";
         Printf.printf "with fuel: %d\n" !fuel_count)

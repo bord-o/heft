@@ -14,6 +14,7 @@ type def =
   | Inductive of string * (string * ty) list
   | Def of string * ty * (pat * expr) list
   | Theorem of string * expr
+  | Term of string * expr
 [@@deriving show]
 
 (** Parser *)
@@ -211,6 +212,11 @@ let def s =
       let name = ident s in
       expect s COLON;
       Theorem (name, expr s)
+  | TERM ->
+      advance s;
+      let name = ident s in
+      expect s COLON;
+      Term (name, expr s)
   | t ->
       raise
         (ParseError

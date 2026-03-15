@@ -91,10 +91,6 @@ let rec elab_expr env (e : P.expr) =
   match e with
   (* imp p q => make_imp p q *)
   | P.App (P.App (P.Var "imp", l), r) -> elab_binop env elab_expr l r make_imp
-  (* conj p q => make_conj p q *)
-  | P.App (P.App (P.Var "conj", l), r) -> elab_binop env elab_expr l r make_conj
-  (* disj p q => make_disj p q *)
-  | P.App (P.App (P.Var "disj", l), r) -> elab_binop env elab_expr l r make_disj
   (* forall (λx. body) => make_forall x body *)
   | P.App (P.Var "forall", P.Lam (x, body)) ->
       elab_quantifier env elab_expr x body make_forall
@@ -436,6 +432,10 @@ let elab_toplevel env (d : P.def) =
       match elab_expr env expr with
       | Error e -> Error e
       | Ok term -> Ok (env, Some (name, term)))
+  | P.Term (name, expr) -> (
+      match elab_expr env expr with
+      | Error e -> Error e
+      | Ok term -> Ok (env, Some (name, term)))
 
 (* Elaborate a full program - returns (env, goals) where goals are terms to prove *)
 let elaborate defs =
@@ -469,4 +469,17 @@ let named_goal_from_string s name =
 let goals_from_string s =
   match elaborate_string s with
   | Ok (_, goals) -> goals |> List.map snd
+  | Error e -> failwith (Printing.print_error e)
+
+let terms_from_string s =
+  match elaborate_string s with
+  | Ok (_, terms) -> terms
+  | Error e -> failwith (Printing.print_error e)
+
+let term_from_string s name =
+  match elaborate_string s with
+  | Ok (_, terms) -> (
+      match terms |> List.find_opt (fun (n, _) -> n = name) with
+      | None -> failwith (Printf.sprintf "term %s not found" name)
+      | Some (_, t) -> t)
   | Error e -> failwith (Printing.print_error e)

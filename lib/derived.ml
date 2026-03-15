@@ -824,3 +824,26 @@ let neg_sym th =
   let* neg_th = not_elim th in
   let* app = prove_hyp flip neg_th in
   not_intro r_eq_l app
+
+(* ⊢ ∀b. b = T ∨ b = F *)
+let bool_cases =
+  let b = Var ("b", bool_ty) in
+  let thm =
+    let* classical = classical_def in
+    let* excl_middle = spec b classical in
+    let* b_eq_t = safe_make_eq b (make_true ()) in
+    let* b_eq_f = safe_make_eq b (make_false ()) in
+    let* b_assumed = assume b in
+    let* b_is_t = eq_truth_intro b_assumed in
+    let* left_disj = disj_left b_eq_f b_is_t in
+    let neg_b = make_neg b in
+    let* neg_b_assumed = assume neg_b in
+    let* neg_b_elim = not_elim neg_b_assumed in
+    let* f_assumed = assume (make_false ()) in
+    let* b_from_f = contr b f_assumed in
+    let* b_eq_f_thm = deduct_antisym_rule b_from_f neg_b_elim in
+    let* right_disj = disj_right b_eq_f_thm b_eq_t in
+    let* combined = disj_cases excl_middle left_disj right_disj in
+    gen b combined
+  in
+  match thm with Ok t -> t | Error _ -> failwith "bool_cases: proof failed"
