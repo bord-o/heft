@@ -318,7 +318,9 @@ let define_inductive tyname params (constructors : constructor_spec list) =
   let* () = if not positive then Error (`NotPositive tyname) else Ok () in
 
   let base_case_exists = check_base_case tyname constructors in
-  let* () = if not base_case_exists then Error (`NoBaseCase tyname) else Ok () in
+  let* () =
+    if not base_case_exists then Error (`NoBaseCase tyname) else Ok ()
+  in
 
   let* () = new_type tyname (List.length params) in
   let ty_params = List.map (fun p -> TyVar p) params in

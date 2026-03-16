@@ -21,7 +21,9 @@ let rec term_size (t : term) =
   | Lam (bind, bod) -> 1 + term_size bind + term_size bod
 
 let make_exn thm =
-  thm |> Result.map_error (fun e -> Printing.print_error e) |> Result.error_to_failure
+  thm
+  |> Result.map_error (fun e -> Printing.print_error e)
+  |> Result.error_to_failure
 
 (* initialization *)
 
@@ -316,7 +318,10 @@ let destruct_disj = function
 let is_conj t =
   match destruct_conj t with Error (`NotAConj _) -> false | _ -> true
 
-let is_eq t = match destruct_eq t with Error (`CantDestructEquality _) -> false | _ -> true
+let is_eq t =
+  match destruct_eq t with
+  | Error (`CantDestructEquality _) -> false
+  | _ -> true
 
 let is_disj t =
   match destruct_disj t with Error (`NotADisj _) -> false | _ -> true
@@ -329,7 +334,8 @@ let destruct_disj = function
   | App (App (Const ("\\/", _), p), q) -> Ok (p, q)
   | tm -> Error (`NotADisj tm)
 
-let is_imp t = match destruct_imp t with Error (`NotAnImp _) -> false | _ -> true
+let is_imp t =
+  match destruct_imp t with Error (`NotAnImp _) -> false | _ -> true
 
 let destruct_exists = function
   | App (Const ("?", _), Lam (bind, bod)) -> Ok (bind, bod)

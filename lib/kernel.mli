@@ -202,9 +202,13 @@ val rand : term -> (term, [> `NotAnApplication of term ]) result
 val safe_make_eq :
   term ->
   term ->
-  (term, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ]) result
+  ( term,
+    [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ] )
+  result
 
-val destruct_eq : term -> (term * term, [> `CantDestructEquality of term ]) result
+val destruct_eq :
+  term -> (term * term, [> `CantDestructEquality of term ]) result
+
 val alpha_compare_var : ('a * 'a) list -> 'a -> 'a -> int
 val alpha_compare : (term * term) list -> term -> term -> int
 val alphaorder : term -> term -> int
@@ -217,7 +221,9 @@ val concl : thm -> term
 
 val refl :
   term ->
-  (thm, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ]) result
+  ( thm,
+    [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ] )
+  result
 
 val trans : thm -> thm -> (thm, [> `RuleTrans of thm * thm ]) result
 
@@ -261,7 +267,9 @@ val eq_mp : thm -> thm -> (thm, [> `EqMp of thm * thm ]) result
 val deduct_antisym_rule :
   thm ->
   thm ->
-  (thm, [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ]) result
+  ( thm,
+    [> `CantApplyNonFunctionType of term | `UnexpectedLambdaForm of term ] )
+  result
 
 val type_inst :
   (hol_type * hol_type) list ->

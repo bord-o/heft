@@ -423,14 +423,14 @@ let refl tm =
   let* tm_eq = safe_make_eq tm tm in
   Ok (Sequent ([], tm_eq))
 
-let trans ((Sequent (asl1, c1)) as th1) ((Sequent (asl2, c2)) as th2) =
+let trans (Sequent (asl1, c1) as th1) (Sequent (asl2, c2) as th2) =
   match (c1, c2) with
   | App ((App (Const ("=", _), _) as eql), m1), App (App (Const ("=", _), m2), r)
     when alphaorder m1 m2 = 0 ->
       Ok (Sequent (term_union asl1 asl2, App (eql, r)))
   | _ -> Error (`RuleTrans (th1, th2))
 
-let mk_comb ((Sequent (asl1, c1)) as th1) ((Sequent (asl2, c2)) as th2) =
+let mk_comb (Sequent (asl1, c1) as th1) (Sequent (asl2, c2) as th2) =
   match (c1, c2) with
   | App (App (Const ("=", _), l1), r1), App (App (Const ("=", _), l2), r2) -> (
       let* tr1 = type_of_term r1 in
@@ -446,7 +446,7 @@ let mk_comb ((Sequent (asl1, c1)) as th1) ((Sequent (asl2, c2)) as th2) =
           Error (`TypesDontAgree (tr1, tr2)))
   | _ -> Error (`NotBothEquations (th1, th2))
 
-let lam v ((Sequent (asl, c)) as th) =
+let lam v (Sequent (asl, c) as th) =
   match (v, c) with
   | Var (_, _), App (App (Const ("=", _), l), r) ->
       if not (List.exists (var_free_in v) asl) then
@@ -466,7 +466,7 @@ let assume tm =
   if compare tty bool_ty = 0 then Ok (Sequent ([ tm ], tm))
   else Error (`NotAProposition tm)
 
-let eq_mp ((Sequent (asl1, eq)) as th1) ((Sequent (asl2, c)) as th2) =
+let eq_mp (Sequent (asl1, eq) as th1) (Sequent (asl2, c) as th2) =
   match eq with
   | App (App (Const ("=", _), l), r) when alphaorder l c = 0 ->
       Ok (Sequent (term_union asl1 asl2, r))
