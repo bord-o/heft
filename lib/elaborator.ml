@@ -272,14 +272,14 @@ let elab_def_clause env func_name ind_def ret_ty (pat, body) =
          polymorphic types (e.g., none : option a) used in the body. *)
       let body' =
         match type_of_term body' with
-        | Ok body_ty ->
+        | Ok body_ty -> (
             let rec leaf_ty = function
               | K.TyCon ("fun", [ _; rest ]) -> leaf_ty rest
               | ty -> ty
             in
-            (match type_match [] (leaf_ty body_ty) (leaf_ty ret_ty) with
-             | Some tysub when tysub <> [] -> term_type_subst tysub body'
-             | _ -> body')
+            match type_match [] (leaf_ty body_ty) (leaf_ty ret_ty) with
+            | Some tysub when tysub <> [] -> term_type_subst tysub body'
+            | _ -> body')
         | Error _ -> body'
       in
       let rec_vars = List.map (fun (_, r, _) -> K.Var (r, ret_ty)) rec_info in
