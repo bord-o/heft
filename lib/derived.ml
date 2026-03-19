@@ -709,6 +709,24 @@ let contr p th =
   let* applied = eq_mp false_def th in
   spec p applied
 
+(** [⊢ ¬P] derives [⊢ P = F] *)
+let eq_false_intro th =
+  let* p = term_of_negation (concl th) in
+  let* p_imp_f = not_elim th in
+  let f = make_false () in
+  let* f_assumed = assume f in
+  let* f_imp_p = contr p f_assumed in
+  deduct_antisym_rule f_imp_p p_imp_f
+
+(** [⊢ P = F] derives [⊢ ¬P] *)
+let eq_false_elim th =
+  match concl th with
+  | App (App (Const ("=", _), p), f) when f = make_false () ->
+      let* p_assumed = assume p in
+      let* false_th = eq_mp th p_assumed in
+      not_intro p false_th
+  | _ -> Error (`InvariantViolation "eqf_elim: expected P = F")
+
 (** [{¬P} ⊢ F] should derive [⊢ P] (classical contradiction) *)
 let ccontr p th =
   let* neg_def = neg_def in

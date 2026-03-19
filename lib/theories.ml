@@ -185,6 +185,30 @@ module BoolTheory = struct
   let _ = Elaborator.goals_from_string prg
 end
 
+module OptionTheory = struct
+  let prg =
+    {|
+
+    vartype a
+    inductive option :=
+        | none : option a
+        | some : a -> option a
+
+    vartype b
+    variable none_case : b
+    variable some_case : a -> b
+
+    def option_match : option a -> b -> (a -> b) -> b
+        | none => λnone_case. λsome_case. none_case
+        | some x => λnone_case. λsome_case. some_case x
+  |}
+
+  let _ =
+    match Elaborator.elaborate_string prg with
+    | Ok v -> v
+    | Error e -> failwith @@ Printing.print_error e
+end
+
 module FunctionTheory = struct
   let prg =
     {|

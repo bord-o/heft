@@ -267,6 +267,21 @@ let elab_def_clause env func_name ind_def ret_ty (pat, body) =
   match elab_expr_with_rec env' (func_name, rec_arg_map) body with
   | Error e -> Error e
   | Ok body' ->
+      (* Instantiate any remaining type variables in body by matching against
+         the expected return type. This handles nullary constructors of
+         polymorphic types (e.g., none : option a) used in the body. *)
+      let body' =
+        match type_of_term body' with
+        | Ok body_ty ->
+            let rec leaf_ty = function
+              | K.TyCon ("fun", [ _; rest ]) -> leaf_ty rest
+              | ty -> ty
+            in
+            (match type_match [] (leaf_ty body_ty) (leaf_ty ret_ty) with
+             | Some tysub when tysub <> [] -> term_type_subst tysub body'
+             | _ -> body')
+        | Error _ -> body'
+      in
       let rec_vars = List.map (fun (_, r, _) -> K.Var (r, ret_ty)) rec_info in
       let all_vars = arg_bindings @ rec_vars in
       let case_term =
