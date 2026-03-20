@@ -188,6 +188,13 @@ let make_disj_const () =
 
 let make_disj p q = App (App (make_disj_const (), p), q)
 
+let make_disjs = function
+  | [] -> make_false ()
+  | [ p ] -> p
+  | p :: ps -> List.fold_left make_disj p ps
+
+let make_existss vars body = List.fold_right make_exists vars body
+
 let make_neq l r =
   match safe_make_eq l r with Ok eq -> Ok (make_neg eq) | Error e -> Error e
 
@@ -352,6 +359,8 @@ let term_of_negation = function
 
 let is_neg t =
   match term_of_negation t with Error (`NotANegation _) -> false | _ -> true
+
+let is_exists t = match destruct_exists t with Error _ -> false | _ -> true
 
 let destruct_forall = function
   | App (Const ("!", _), Lam (bind, bod)) -> Ok (bind, bod)

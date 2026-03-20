@@ -27,6 +27,7 @@ type inductive_def = {
   recursion : thm;
   distinct : thm list;
   injective : thm list;
+  exhaustiveness : thm;
 }
 [@@deriving show { with_path = false }]
 

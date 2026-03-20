@@ -597,3 +597,90 @@ let%expect_test "no_injectivity" =
   let def = define_inductive "bool_like" [] constructors in
   print_injective_thms def;
   [%expect {||}]
+
+(* Exhaustiveness theorems *)
+
+let print_exhaustiveness_thm def =
+  match def with
+  | Ok d -> print_endline (Printing.pretty_print_thm d.exhaustiveness)
+  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+
+let%expect_test "nat_exhaustiveness" =
+  let () = reset () |> Result.get_ok in
+  let nat_ty = TyCon ("nat", []) in
+  let constructors =
+    [
+      { name = "Zero"; arg_types = [] };
+      { name = "Suc"; arg_types = [ nat_ty ] };
+    ]
+  in
+  let def = define_inductive "nat" [] constructors in
+  print_exhaustiveness_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀x. x = Zero ∨ (∃a0. x = Suc a0)
+    |}]
+
+let%expect_test "list_exhaustiveness" =
+  let () = reset () |> Result.get_ok in
+  let a = TyVar "a" in
+  let list_a = TyCon ("list", [ a ]) in
+  let constructors =
+    [
+      { name = "Nil"; arg_types = [] };
+      { name = "Cons"; arg_types = [ a; list_a ] };
+    ]
+  in
+  let def = define_inductive "list" [ "a" ] constructors in
+  print_exhaustiveness_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀x. x = Nil ∨ (∃a0. ∃a1. x = Cons a0 a1)
+    |}]
+
+let%expect_test "bool_like_exhaustiveness" =
+  let () = reset () |> Result.get_ok in
+  let constructors =
+    [ { name = "True"; arg_types = [] }; { name = "False"; arg_types = [] } ]
+  in
+  let def = define_inductive "bool_like" [] constructors in
+  print_exhaustiveness_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀x. x = True ∨ x = False
+    |}]
+
+let%expect_test "option_exhaustiveness" =
+  let () = reset () |> Result.get_ok in
+  let a = TyVar "a" in
+  let constructors =
+    [ { name = "None"; arg_types = [] }; { name = "Some"; arg_types = [ a ] } ]
+  in
+  let def = define_inductive "option" [ "a" ] constructors in
+  print_exhaustiveness_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀x. x = None ∨ (∃a0. x = Some a0)
+    |}]
+
+let%expect_test "tree_exhaustiveness" =
+  let () = reset () |> Result.get_ok in
+  let a = TyVar "a" in
+  let tree_a = TyCon ("tree", [ a ]) in
+  let constructors =
+    [
+      { name = "Leaf"; arg_types = [] };
+      { name = "Node"; arg_types = [ a; tree_a; tree_a ] };
+    ]
+  in
+  let def = define_inductive "tree" [ "a" ] constructors in
+  print_exhaustiveness_thm def;
+  [%expect
+    {|
+    ========================================
+    ∀x. x = Leaf ∨ (∃a0. ∃a1. ∃a2. x = Node a0 a1 a2)
+    |}]

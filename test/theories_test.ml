@@ -1364,8 +1364,8 @@ let%expect_test "sort correct lemma" =
           conj_tac >>> truth_tac;
           cond_tac >>> (simp_tac >> conj_tac)
           >>= [
-                with_arbitrary_term n1 destruct_tac
-                >> induct_tac >>> (intros_tac >> simp_tac)
+                with_arbitrary_term n1 induct_tac
+                >>> (intros_tac >> simp_tac)
                 >>= [
                       truth_tac;
                       with_arbitrary_term le cases_tac
@@ -1381,8 +1381,8 @@ let%expect_test "sort correct lemma" =
                 >> simp_tac >> truth_tac;
                 conj_tac
                 >>= [
-                      with_arbitrary_term n1 destruct_tac
-                      >> induct_tac >>> (intros_tac >> simp_tac)
+                      with_arbitrary_term n1 induct_tac
+                      >>> (intros_tac >> simp_tac)
                       >>= [
                             truth_tac;
                             simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
@@ -1402,7 +1402,7 @@ let%expect_test "sort correct lemma" =
     ∀x. ∀n. sorted x ==> sorted (insert x n)
 
     Proof Complete!
-    with fuel: 550
+    with fuel: 546
     |}]
 
 let%expect_test "sort correct" =

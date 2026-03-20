@@ -39,6 +39,7 @@ type inductive_def = {
   recursion : thm;
   distinct : thm list;
   injective : thm list;
+  exhaustiveness : thm;
 }
 
 val pp_inductive_def :

@@ -296,6 +296,35 @@ let make_injective_thms (ty : hol_type) (constructors : constructor_spec list) =
       (* Assert as axiom *)
       new_axiom theorem)
 
+(* Exhaustiveness Theorem *)
+(* For nat: ∀x. x = Zero ∨ (∃a0. x = Suc a0)           *)
+(* For list: ∀x. x = Nil ∨ (∃a0. ∃a1. x = Cons a0 a1)  *)
+let make_exhaustiveness_thm (ty : hol_type)
+    (constructors : constructor_spec list) =
+  let x = Var ("x", ty) in
+  let make_disjunct c =
+    match c.arg_types with
+    | [] -> Result.get_ok (safe_make_eq x (Const (c.name, ty)))
+    | arg_tys ->
+        let arg_vars =
+          arg_tys
+          |> List.mapi (fun i arg_ty -> Var ("a" ^ string_of_int i, arg_ty))
+        in
+        let con_ty = make_constructor_type arg_tys ty in
+        let con_applied =
+          List.fold_left
+            (fun acc arg -> Result.get_ok (make_app acc arg))
+            (Const (c.name, con_ty))
+            arg_vars
+        in
+        let eq = Result.get_ok (safe_make_eq x con_applied) in
+        make_existss arg_vars eq
+  in
+  let disjuncts = List.map make_disjunct constructors in
+  let body = make_disjs disjuncts in
+  let theorem = make_forall x body in
+  new_axiom theorem
+
 let define_inductive tyname params (constructors : constructor_spec list) =
   let* () =
     match Hashtbl.find_opt the_type_constants tyname with
@@ -353,6 +382,8 @@ let define_inductive tyname params (constructors : constructor_spec list) =
     make_injective_thms ty constructors |> Util.result_of_results []
   in
 
+  let* exhaustiveness = make_exhaustiveness_thm ty constructors in
+
   let def =
     {
       ty;
@@ -361,6 +392,7 @@ let define_inductive tyname params (constructors : constructor_spec list) =
       recursion;
       distinct;
       injective;
+      exhaustiveness;
     }
   in
   Hashtbl.add the_inductives tyname def;

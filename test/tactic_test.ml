@@ -1385,9 +1385,8 @@ let%expect_test "destruct_tac" =
   let pn = Kernel.make_app p n |> Result.get_ok in
   let goal = ([ pn ], pn) in
   let proof =
-    with_arbitrary_term n destruct_tac
-    >> induct_tac >> intros_tac >> assumption_tac >> intros_tac
-    >> assumption_tac
+    with_arbitrary_term n induct_tac
+    >> intros_tac >> assumption_tac >> intros_tac >> assumption_tac
   in
   run_proof goal proof;
   [%expect
@@ -1397,5 +1396,5 @@ let%expect_test "destruct_tac" =
     P n
 
     Proof Complete!
-    with fuel: 29
+    with fuel: 27
     |}]

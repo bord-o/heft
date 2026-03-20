@@ -662,6 +662,22 @@ let elim_conj_asm_tac : tactic =
     in
     return_thm ~from:"elim_conj_asm_tac" thm
 
+let elim_exists_asm_tac : tactic =
+ fun (asms, concl) ->
+  burn "elim_exists_asm_tac" (Safe 2);
+  let exists_asms = List.filter is_exists asms in
+  if List.is_empty exists_asms then fail ()
+  else
+    let thm =
+      let chosen = choose_terms exists_asms in
+      let* var, body = destruct_exists chosen in
+      let asms' = body :: List.filter (( <> ) chosen) asms in
+      let sub_thm = perform (Subgoal (asms', concl)) in
+      let* exists_assumed = assume chosen in
+      choose var exists_assumed sub_thm
+    in
+    return_thm ~from:"elim_exists_asm_tac" thm
+
 let neg_elim_tac : tactic =
  fun (asms, concl) ->
   burn "neg_elim_tac" (Unsafe 3);
@@ -757,58 +773,82 @@ let gen_tac : tactic =
   in
   return_thm ~from:"gen_tac" thm
 
-let induct_tac : tactic =
+let rec induct_tac : tactic =
  fun (asms, concl) ->
   burn "induct_tac" (Unsafe 8);
-  let thm =
-    let* induction_var, bod = destruct_forall concl in
-    let* ty = type_of_term induction_var in
-    let* ty_name, ty_args = destruct_type ty in
+  match destruct_forall concl with
+  | Ok _ ->
+      let thm =
+        let* induction_var, bod = destruct_forall concl in
+        let* ty = type_of_term induction_var in
+        let* ty_name, ty_args = destruct_type ty in
 
-    let inductive_def =
-      match Hashtbl.find_opt the_inductives ty_name with
-      | None ->
-          trace_error "quantified type is not an inductive";
-          fail ()
-      | Some d -> d
-    in
+        let inductive_def =
+          match Hashtbl.find_opt the_inductives ty_name with
+          | None ->
+              trace_error "quantified type is not an inductive";
+              fail ()
+          | Some d -> d
+        in
 
-    let* _, def_ty_params = destruct_type inductive_def.ty in
+        let* _, def_ty_params = destruct_type inductive_def.ty in
 
-    let type_sub = List.combine def_ty_params ty_args in
+        let type_sub = List.combine def_ty_params ty_args in
 
-    let* typed_induction = inst_type type_sub inductive_def.induction in
+        let* typed_induction = inst_type type_sub inductive_def.induction in
 
-    let binder = make_var "pred_binder" ty in
-    let* bod_with_binder = vsubst [ (binder, induction_var) ] bod in
-    let* p = make_lam binder bod_with_binder in
+        let binder = make_var "pred_binder" ty in
+        let* bod_with_binder = vsubst [ (binder, induction_var) ] bod in
+        let* p = make_lam binder bod_with_binder in
 
-    let* inst_induction = spec p typed_induction in
+        let* inst_induction = spec p typed_induction in
 
-    let rec collect_premises tm acc =
-      match destruct_imp tm with
-      | Ok (premise, rest) -> collect_premises rest (premise :: acc)
-      | Error _ -> (List.rev acc, tm)
-    in
-    let cases, _conclusion =
-      collect_premises (Kernel.concl inst_induction) []
-    in
+        let rec collect_premises tm acc =
+          match destruct_imp tm with
+          | Ok (premise, rest) -> collect_premises rest (premise :: acc)
+          | Error _ -> (List.rev acc, tm)
+        in
+        let cases, _conclusion =
+          collect_premises (Kernel.concl inst_induction) []
+        in
 
-    let solved =
-      cases
-      |> List.map (fun case -> ((asms, case), perform (Subgoal (asms, case))))
-    in
+        let solved =
+          cases
+          |> List.map (fun case ->
+              ((asms, case), perform (Subgoal (asms, case))))
+        in
 
-    let* result =
-      List.fold_left
-        (fun acc_thm (_goal, case_thm) ->
-          let* acc = acc_thm in
-          mp acc case_thm)
-        (Ok inst_induction) solved
-    in
-    Ok result
-  in
-  return_thm ~from:"induction_tac" thm
+        let* result =
+          List.fold_left
+            (fun acc_thm (_goal, case_thm) ->
+              let* acc = acc_thm in
+              mp acc case_thm)
+            (Ok inst_induction) solved
+        in
+        Ok result
+      in
+      return_thm ~from:"induction_tac" thm
+  | Error _ ->
+      let thm =
+        let var = choose_terms [] in
+        let mentioning = List.filter (fun h -> var_free_in var h) asms in
+        let discharged_concl =
+          List.fold_left (fun c asm -> make_imp asm c) concl mentioning
+        in
+        let forall_concl = make_forall var discharged_concl in
+        let non_mentioning =
+          List.filter (fun h -> not (var_free_in var h)) asms
+        in
+        let induct_thm = induct_tac (non_mentioning, forall_concl) in
+        let* specced = spec var induct_thm in
+        List.fold_left
+          (fun acc asm ->
+            let* th = acc in
+            let* assumed = assume asm in
+            mp th assumed)
+          (Ok specced) mentioning
+      in
+      return_thm ~from:"induction_tac" thm
 
 let truth_tac : tactic =
  fun (_asms, concl) ->
@@ -862,23 +902,26 @@ let cases_tac : tactic =
 
 let destruct_tac : tactic =
  fun (asms, concl) ->
-  burn "destruct_tac" (Unsafe 10);
+  burn "destruct_tac" (Unsafe 6);
   let thm =
-    let var = choose_terms [] in
-    let mentioning = List.filter (fun h -> var_free_in var h) asms in
-    let discharged_concl =
-      List.fold_left (fun c asm -> make_imp asm c) concl mentioning
+    let tm = choose_terms [] in
+    let* ty = type_of_term tm in
+    let* ty_name, ty_args = destruct_type ty in
+    let ind_def =
+      match Hashtbl.find_opt the_inductives ty_name with
+      | None ->
+          trace_error
+            (Printf.sprintf "destruct: %s is not an inductive type" ty_name);
+          fail ()
+      | Some d -> d
     in
-    let forall_concl = make_forall var discharged_concl in
-    let non_mentioning = List.filter (fun h -> not (var_free_in var h)) asms in
-    let induct_thm = perform (Subgoal (non_mentioning, forall_concl)) in
-    let* specced = spec var induct_thm in
-    List.fold_left
-      (fun acc asm ->
-        let* th = acc in
-        let* assumed = assume asm in
-        mp th assumed)
-      (Ok specced) mentioning
+    let* _, def_ty_params = destruct_type ind_def.ty in
+    let type_sub = List.combine def_ty_params ty_args in
+    let* typed_exhaust = inst_type type_sub ind_def.exhaustiveness in
+    let* specced = spec tm typed_exhaust in
+    let exhaust_fact = Kernel.concl specced in
+    let sub_thm = perform (Subgoal (exhaust_fact :: asms, concl)) in
+    prove_hyp specced sub_thm
   in
   return_thm ~from:"destruct_tac" thm
 
@@ -1454,6 +1497,7 @@ let auto_tac : tactic =
       neg_intro_tac;
       conj_tac;
       elim_conj_asm_tac;
+      elim_exists_asm_tac;
       false_elim_tac;
       mp_asm_tac;
     ]

@@ -388,10 +388,10 @@ val gen_tac : tactic
     a universal quantification *)
 
 val induct_tac : tactic
-(** Applies structural induction on the quantified variable of a goal
-    [forall x. P]. Creates subgoals for each constructor case of the inductive
-    type. Fails if the goal is not universally quantified or the type is not
-    inductive *)
+(** Applies structural induction. Works on both [forall x. P x] goals (inducting
+    on the quantified variable) and goals with a free variable (discharges
+    assumptions, requantifies, inducts, then re-specializes). For the free
+    variable case, the variable is chosen via [Choose]. *)
 
 val truth_tac : tactic
 (** Proves the goal [T] (truth). Fails if the goal is not [T] *)
@@ -403,10 +403,17 @@ val cases_tac : tactic
     as assumptions *)
 
 val destruct_tac : tactic
-(** Performs case analysis on a free variable that appears in assumptions. It
-    discharges assumptions mentioning the variable into the goal, generalizes
-    over the variable, fires a subgoal for induction, then recovers the
-    assumptions via spec and mp *)
+(** Performs case analysis on a chosen term of an inductive type using
+    exhaustiveness. Adds an assumption of the form
+    [tm = C1 \/ (exists a0. tm = C2 a0) \/ ...] to the goal. Works on arbitrary
+    terms, not just variables. Use [elim_disj_asm_tac] and [elim_exists_asm_tac]
+    to split the resulting disjunction. For induction with hypotheses, use
+    [induct_tac] instead. *)
+
+val elim_exists_asm_tac : tactic
+(** Eliminates an existential [exists x. P x] in the assumptions by replacing it
+    with [P x] where [x] is the bound variable. The existential assumption is
+    chosen via [Choose]. Fails if no existential assumptions exist. *)
 
 (** {1 Proof Runner} *)
 
