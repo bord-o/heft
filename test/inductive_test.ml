@@ -447,7 +447,7 @@ let%expect_test "nat_distinctness" =
   [%expect
     {|
     ========================================
-    ∀y0. ¬Zero = Suc y0
+    ∀y0. Zero = Suc y0 = F
     |}]
 
 (* Test 2: Two constructors - list *)
@@ -466,7 +466,7 @@ let%expect_test "list_distinctness" =
   [%expect
     {|
     ========================================
-    ∀y0. ∀y1. ¬Nil = Cons y0 y1
+    ∀y0. ∀y1. Nil = Cons y0 y1 = F
     |}]
 
 (* Test 3: Three constructors - result *)
@@ -486,11 +486,11 @@ let%expect_test "result_distinctness" =
   [%expect
     {|
     ========================================
-    ∀y0. ¬Err = Pending y0
+    ∀y0. Err = Pending y0 = F
     ========================================
-    ∀x0. ∀y0. ¬Ok x0 = Pending y0
+    ∀x0. ∀y0. Ok x0 = Pending y0 = F
     ========================================
-    ∀x0. ¬Ok x0 = Err
+    ∀x0. Ok x0 = Err = F
     |}]
 
 (* Test 4: Four constructors - multiple pairs *)
@@ -509,17 +509,17 @@ let%expect_test "four_constructor_distinctness" =
   [%expect
     {|
     ========================================
-    ¬C = D
+    C = D = F
     ========================================
-    ¬B = D
+    B = D = F
     ========================================
-    ¬B = C
+    B = C = F
     ========================================
-    ¬A = D
+    A = D = F
     ========================================
-    ¬A = C
+    A = C = F
     ========================================
-    ¬A = B
+    A = B = F
     |}]
 
 (* Test injectivity theorems *)

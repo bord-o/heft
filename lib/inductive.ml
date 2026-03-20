@@ -227,13 +227,13 @@ let make_distinct_thms (ty : hol_type) (constructors : constructor_spec list) =
           c2_const c2_vars
       in
 
-      (* Build: ¬(lhs = rhs) *)
+      (* Build: (lhs = rhs) = F *)
       let* eq = safe_make_eq lhs rhs in
-      let neq = make_neg eq in
+      let* eq_false = safe_make_eq eq (make_false ()) in
 
       (* Quantify over all variables *)
       let all_vars = c1_vars @ c2_vars in
-      let theorem = make_foralls all_vars neq in
+      let theorem = make_foralls all_vars eq_false in
 
       (* Assert as axiom *)
       new_axiom theorem)
