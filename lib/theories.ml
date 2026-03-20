@@ -207,6 +207,8 @@ module OptionTheory = struct
     match Elaborator.elaborate_string prg with
     | Ok v -> v
     | Error e -> failwith @@ Printing.print_error e
+
+  let option_def = Hashtbl.find the_inductives "option"
 end
 
 module FunctionTheory = struct
@@ -289,6 +291,17 @@ module NatTheory = struct
     def sub : nat -> nat -> nat
         | zero => λn. zero
         | suc m => λn. nat_match n (suc m) (λk. sub m k)
+
+    variable a b r : nat
+    def div_aux : nat -> nat -> nat -> option nat
+        | zero => λa. λb. none
+        | suc n => λa. λb.
+            COND (nat_le b (suc a))
+                 (option_match (div_aux n (sub a b) b)
+                    none
+                    (λr. some (suc r)))
+                 (some zero)
+
   |}
 
   let _ =

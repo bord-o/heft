@@ -161,6 +161,8 @@ let return_thm ?(from = "unknown") = function
       trace_error @@ print_error e;
       fail ()
 
+(* let noop_tac : tactic = fun goal -> perform (Subgoal goal) *)
+
 let left_tac : tactic =
  fun (asms, concl) ->
   burn "left_tac" (Unsafe 6);

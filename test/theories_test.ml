@@ -1430,3 +1430,12 @@ let%expect_test "sort correct" =
     Proof Complete!
     with fuel: 51
     |}]
+
+(* let%expect_test "option not none" = *)
+(*   let prg = {| *)
+(*   |} in *)
+(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
+(*   let proof = simp_tac in *)
+(*   run_proof goal proof; *)
+(*   [%expect {| *)
+(*     |}] *)
