@@ -615,6 +615,10 @@ val with_flip_rules : tactic_combinator
 val with_rule : Kernel.thm -> tactic_combinator
 (** Provides a single theorem when a [Rules] effect is performed *)
 
+val with_definition : string list -> tactic_combinator
+(** Looks up definitions by name and provides them when a [Rules] effect is
+    performed. Fails if any name is not found *)
+
 val with_proven : string list -> tactic_combinator
 (** Looks up previously proven theorems by name and provides them when a [Rules]
     effect is performed. Fails if any name is not found *)

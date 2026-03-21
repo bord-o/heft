@@ -1,5 +1,5 @@
 (library
- (name tests)
+ (name elab_tests)
  (libraries ppx_deriving sexplib heft)
  (inline_tests)
  (preprocess

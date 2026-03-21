@@ -1439,6 +1439,21 @@ let with_rule (rule : thm) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rules, k -> continue k [ rule ] | v -> v
 
+let with_definition (names : string list) : tactic_combinator =
+  let rules =
+    names
+    |> List.map (fun n ->
+        match Rules.get_def n with
+        | None ->
+            trace_error (Printf.sprintf "Couldn't find def with name %s\n" n);
+            fail ()
+        | Some rule -> Rewrite.rules_of_def rule)
+    |> List.filter_map Result.to_option
+    |> List.flatten
+  in
+  fun tac goal ->
+    match tac goal with effect Rules, k -> continue k rules | v -> v
+
 let with_proven (names : string list) : tactic_combinator =
   let rules =
     names

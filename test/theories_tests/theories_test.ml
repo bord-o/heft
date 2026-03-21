@@ -1431,11 +1431,88 @@ let%expect_test "sort correct" =
     with fuel: 51
     |}]
 
-(* let%expect_test "option not none" = *)
-(*   let prg = {| *)
-(*   |} in *)
+let%expect_test "option not none" =
+  let prg =
+    {|
+
+  vartype a
+  variable x a0 : a
+  variable o : option a
+  theorem option_not_none:
+    forall λo.
+        imp (neg (eq o none))
+            (exists λx. eq o (some x))
+  term o : o
+  term a0 : a0
+  |}
+  in
+  (* Printing.print_thm OptionTheory.option_def.exhaustiveness; *)
+  let o = Elaborator.term_from_string prg "o" in
+  let a0 = Elaborator.term_from_string prg "a0" in
+
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    intros_tac
+    >> with_arbitrary_term o destruct_tac
+    >> elim_disj_asm_tac >> neg_elim_tac >> elim_exists_asm_tac
+    >> with_arbitrary_term a0 exists_tac
+    >> assumption_tac
+  in
+  run_proof goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀o. ¬o = none ==> ∃x. o = some x
+
+    Proof Complete!
+    with fuel: 30
+    |}]
+
+(* let%expect_test "fuel irrel" = *)
+(*   let prg = *)
+(*     {| *)
+(*   variable n m a b x n0 a0: nat *)
+(**)
+(*   theorem fuel_irrel: *)
+(*     forall λn. forall λm. forall λa. forall λb. forall λx. *)
+(*         imp (eq (div_aux n a b) (some x)) *)
+(*             (eq (div_aux (plus n m) a b) (some x)) *)
+(**)
+(*   term le : nat_le b (suc a) *)
+(*   term div1 : div_aux n0 (sub a b) b *)
+(*   term subab : sub a b *)
+(*   term a0 : a0 *)
+(*   term m : m *)
+(*   term b : b *)
+(**)
+(*   |} *)
+(*   in *)
+(*   let le = Elaborator.term_from_string prg "le" in *)
+(*   let div1 = Elaborator.term_from_string prg "div1" in *)
+(*   let subab = Elaborator.term_from_string prg "subab" in *)
+(*   let a0 = Elaborator.term_from_string prg "a0" in *)
+(*   let m = Elaborator.term_from_string prg "m" in *)
+(*   let b = Elaborator.term_from_string prg "b" in *)
+(**)
 (*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = simp_tac in *)
-(*   run_proof goal proof; *)
+(*   let proof = *)
+(*     induct_tac >> intros_tac >> simp_asm_tac *)
+(*     >> with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac *)
+(*     >> false_elim_tac >> intros_tac *)
+(*     >> with_first (with_definition [ "plus" ] rewrite_tac) *)
+(*     >> beta_tac >> simp_tac >> simp_asm_tac *)
+(*     >> with_arbitrary_term le cases_tac *)
+(*     >> simp_tac >> simp_asm_tac *)
+(*     >> with_arbitrary_term div1 destruct_tac *)
+(*     >> elim_disj_asm_tac >> simp_asm_tac *)
+(*     >> with_first *)
+(*        @@ with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac *)
+(*     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac >> spec_asm_tac m *)
+(*     >> spec_asm_tac subab >> spec_asm_tac b >> spec_asm_tac a0 *)
+(*     >> with_first mp_asm_tac *)
+(*     >> with_assumptions rewrite_tac *)
+(*     >> assume_tac *)
+(*   in *)
+(*   run_proof ~notrace:false goal proof; *)
 (*   [%expect {| *)
 (*     |}] *)
