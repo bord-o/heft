@@ -288,19 +288,25 @@ module NatTheory = struct
         | zero => λn. T
         | suc m => λn. nat_match n F (λk. nat_le m k)
 
+    variable a b r : nat
+
+    def nat_lt : nat -> nat -> bool
+        | zero => λn. nat_match n F (λk. T)
+        | suc m => λn. nat_match n F (λk. nat_lt m k)
+
+
     def sub : nat -> nat -> nat
         | zero => λn. zero
         | suc m => λn. nat_match n (suc m) (λk. sub m k)
 
-    variable a b r : nat
     def div_aux : nat -> nat -> nat -> option nat
         | zero => λa. λb. none
         | suc n => λa. λb.
-            COND (nat_le b (suc a))
+            COND (nat_lt a b)
+                 (some zero)
                  (option_match (div_aux n (sub a b) b)
                     none
                     (λr. some (suc r)))
-                 (some zero)
 
   |}
 

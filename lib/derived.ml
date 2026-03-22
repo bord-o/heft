@@ -820,7 +820,8 @@ let choose x exists_th q_th =
 
   let* _, pred_lam = destruct_app (concl exists_th) in
 
-  let p_x_hyp = List.hd (hyp q_th) in
+  let* p_x_beta = beta (App (pred_lam, x)) in
+  let* _, p_x_hyp = destruct_eq (concl p_x_beta) in
 
   let neg_q = make_neg q in
   let* neg_q_assumed = assume neg_q in
