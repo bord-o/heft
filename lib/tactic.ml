@@ -606,6 +606,16 @@ let eq_true_elim_tac : tactic =
   in
   return_thm ~from:"eq_true_elim_tac" thm
 
+let eq_false_elim_tac : tactic =
+ fun (asms, concl) ->
+  burn "eq_false_elim_tac" (Safe 2);
+  let thm =
+    let* l, _r = destruct_eq concl in
+    let elim_thm = perform (Subgoal (asms, make_neg l)) in
+    eq_false_intro elim_thm
+  in
+  return_thm ~from:"eq_false_elim_tac" thm
+
 let conj_tac : tactic =
  fun (asms, concl) ->
   burn "conj_tac" (Safe 1);

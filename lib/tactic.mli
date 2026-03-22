@@ -351,6 +351,8 @@ val eq_true_elim_tac : tactic
 (** Transforms a goal [P = T] into a subgoal [P], then wraps the result with
     [eq_truth_intro] *)
 
+val eq_false_elim_tac : tactic
+
 val conj_tac : tactic
 (** Transforms a goal [P /\ Q] into two subgoals [P] and [Q]. Fails if the goal
     is not a conjunction *)
