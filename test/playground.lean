@@ -30,6 +30,16 @@ theorem test_nest : ((p -> q) /\ (q -> r)) -> (p -> r) := by
     apply hl
     assumption
 
+theorem test_apply: q -> (p -> q -> r) -> r := by 
+  intro q
+  intro ha
+  apply ha
+  { 
+    
+  }
+  { sorry }
+   
+
 theorem add0n : (Nat.add n Nat.zero) = n := by
   rewrite[Nat.add.eq_def]
   simp only

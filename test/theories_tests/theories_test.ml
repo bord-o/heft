@@ -2767,39 +2767,49 @@ let%expect_test "sub_le" =
 let%expect_test "sub_lt" =
   let prg =
     {|
-    variable a b a0 n0' : nat
+    variable a b a0 n0 : nat
     theorem sub_lt:
-        forall λa. forall λb.
+        forall λb. forall λa.
             imp (nat_lt zero b)
                 (imp (nat_le b a)
                     (nat_lt (sub a b) a))
     term a : a
     term b : b
     term a0 : a0
-    term n0' : n0'
+    term n0 : n0
   |}
   in
   let a = Elaborator.term_from_string prg "a" in
   let b = Elaborator.term_from_string prg "b" in
-  (* let a0 = Elaborator.term_from_string prg "a0" in *)
-  let n0' = Elaborator.term_from_string prg "n0'" in
+  let a0 = Elaborator.term_from_string prg "a0" in
+  let n0 = Elaborator.term_from_string prg "n0" in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
-    with_arbitrary_term a induct_tac
-    >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
-    >>> try_ intros_tac
-    >>> try_ assumption_reasoning_tac
+    with_arbitrary_term b induct_tac
+    >>> intros_tac >> assumption_reasoning_tac
+    >> with_arbitrary_term a destruct_tac
+    >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac
+    >> with_first assumption_tac >> elim_exists_asm_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> with_first (with_assumptions rewrite_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
     >> with_proven [ "sub_suc_suc" ] rewrite_tac
+    >> with_first (with_proven [ "le_suc_suc" ] rewrite_asm_tac)
+    >> with_arbitrary_term n0 destruct_tac
+    >> elim_disj_asm_tac >> simp_tac >> truth_tac >> elim_exists_asm_tac
     >> with_proven [ "lt_weaken_suc" ] apply_thm_tac
-    >> spec_asm_tac n0'
-    (* >> with_arbitrary_term n0' destruct_tac *)
-    (* >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac >> with_first apply_asm_tac *)
-    (* >> with_first apply_asm_tac *)
-    (* >> assumption_tac *)
+    >> spec_asm_tac a0 >> simp_asm_tac >> simp_tac >> with_repeat mp_asm_tac
+    >> assumption_tac
   in
   run_proof ~name:"sub_lt" ~notrace:true goal proof;
-  [%expect {||}]
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀a. nat_lt zero x ==> nat_le x a ==> nat_lt (sub a x) a
+
+    Proof Complete!
+    with fuel: 429
+    |}]
 
 (* let%expect_test "sub_add_cancel" = *)
 (*   let prg = *)

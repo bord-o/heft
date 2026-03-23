@@ -197,23 +197,28 @@ let or_tac : tactic =
 let apply_asm_tac : tactic =
  fun (asms, concl) ->
   burn "apply_asm_tac" (Unsafe 4);
+  let rec collect_premises tm acc =
+    match destruct_imp tm with
+    | Ok (premise, rest) -> collect_premises rest (premise :: acc)
+    | Error _ -> (List.rev acc, tm)
+  in
   let matching =
     asms
     |> List.filter_map (fun asm ->
-        match destruct_imp asm with
-        | Ok (prem, conc) when conc = concl -> Some (asm, prem)
-        | _ -> None)
+        let prems, final_conc = collect_premises asm [] in
+        if prems <> [] && final_conc = concl then Some (asm, prems) else None)
   in
   let choices = rank_terms (List.map fst matching) in
   let chosen = choose_terms choices in
-  let h = matching |> List.assoc chosen in
+  let prems = matching |> List.assoc chosen in
   let thm =
     let* assumed = assume chosen in
-    trace_dbg "assume chosen h success";
-    let sub_thm = perform (Subgoal (asms, h)) in
-    let thm = mp assumed sub_thm in
-    trace_dbg "mp success";
-    thm
+    List.fold_left
+      (fun acc_thm prem ->
+        let* acc = acc_thm in
+        let sub_thm = perform (Subgoal (asms, prem)) in
+        mp acc sub_thm)
+      (Ok assumed) prems
   in
   return_thm ~from:"apply_asm_tac" thm
 
@@ -234,41 +239,41 @@ let apply_thm_tac : tactic =
   in
   let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] in
 
+  let rec collect_premises tm acc =
+    match destruct_imp tm with
+    | Ok (premise, rest) -> collect_premises rest (premise :: acc)
+    | Error _ -> (List.rev acc, tm)
+  in
+  let prems, final_conc = collect_premises (concl stripped_thm) [] in
+
   let thm =
-    match destruct_imp (concl stripped_thm) with
-    | Ok (_prem, thm_conc) -> (
-        match Rewrite.match_term thm_conc conc with
-        | Some env ->
-            let all_vars_bound =
-              List.for_all
-                (fun v ->
-                  let v_typed = Rewrite.term_type_subst env.type_sub v in
-                  List.exists
-                    (fun (pat, _) -> alphaorder pat v_typed = 0)
-                    env.term_sub)
-                quant_vars
-            in
-            if not all_vars_bound then fail ();
+    match Rewrite.match_term final_conc conc with
+    | Some env ->
+        let all_vars_bound =
+          List.for_all
+            (fun v ->
+              let v_typed = Rewrite.term_type_subst env.type_sub v in
+              List.exists
+                (fun (pat, _) -> alphaorder pat v_typed = 0)
+                env.term_sub)
+            quant_vars
+        in
+        if not all_vars_bound then fail ();
 
-            let* type_inst = inst_type env.type_sub stripped_thm in
-            let term_sub_flipped =
-              List.map (fun (v, t) -> (t, v)) env.term_sub
-            in
-            let* fully_inst = inst term_sub_flipped type_inst in
+        let* type_inst = inst_type env.type_sub stripped_thm in
+        let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
+        let* fully_inst = inst term_sub_flipped type_inst in
 
-            let* inst_prem, _ = destruct_imp (concl fully_inst) in
-            let sub_thm = perform (Subgoal (asms, inst_prem)) in
-            mp fully_inst sub_thm
-        | None -> fail ())
-    | Error _ -> (
-        match Rewrite.match_term (concl stripped_thm) conc with
-        | Some env ->
-            let* type_inst = inst_type env.type_sub stripped_thm in
-            let term_sub_flipped =
-              List.map (fun (v, t) -> (t, v)) env.term_sub
-            in
-            inst term_sub_flipped type_inst
-        | None -> fail ())
+        if prems = [] then Ok fully_inst
+        else
+          let inst_prems, _ = collect_premises (concl fully_inst) [] in
+          List.fold_left
+            (fun acc_thm prem ->
+              let* acc = acc_thm in
+              let sub_thm = perform (Subgoal (asms, prem)) in
+              mp acc sub_thm)
+            (Ok fully_inst) inst_prems
+    | None -> fail ()
   in
   return_thm ~from:"apply_thm_tac" thm
 

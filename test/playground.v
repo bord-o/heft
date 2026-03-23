@@ -66,3 +66,13 @@ Proof.
     * simpl. lia.
 Qed.
 
+Lemma test_imp (p q r : Prop) : p -> q -> (p -> q -> r ) -> r.
+Proof.
+  intro hp.
+  intro hq.
+  intro hi.
+  apply hi.
+  assumption.
+  assumption.
+Qed.
+
