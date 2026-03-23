@@ -683,10 +683,23 @@ let elim_exists_asm_tac : tactic =
     let thm =
       let chosen = choose_terms exists_asms in
       let* var, body = destruct_exists chosen in
-      let asms' = body :: List.filter (( <> ) chosen) asms in
-      let sub_thm = perform (Subgoal (asms', concl)) in
-      let* exists_assumed = assume chosen in
-      choose var exists_assumed sub_thm
+      let other_asms = List.filter (( <> ) chosen) asms in
+      (* Rename witness variable if it's already free in other assumptions
+         or conclusion, to avoid capture when choose calls gen *)
+      let avoid = concl :: other_asms in
+      let needs_rename = List.exists (var_free_in var) avoid in
+      if needs_rename then
+        let* var' = variant avoid var in
+        let* body' = vsubst [ (var', var) ] body in
+        let asms' = body' :: other_asms in
+        let sub_thm = perform (Subgoal (asms', concl)) in
+        let* exists_assumed = assume chosen in
+        choose var' exists_assumed sub_thm
+      else
+        let asms' = body :: other_asms in
+        let sub_thm = perform (Subgoal (asms', concl)) in
+        let* exists_assumed = assume chosen in
+        choose var exists_assumed sub_thm
     in
     return_thm ~from:"elim_exists_asm_tac" thm
 
@@ -1400,6 +1413,14 @@ let with_fuel_counter r : tactic_combinator =
       continue k ()
   | v -> v
 
+let show_tac : tactic =
+ fun goal ->
+  print_endline "Current subgoal:";
+  List.iter print_term (fst goal);
+  print_endline "-------------------------";
+  print_term @@ snd goal;
+  fail ()
+
 let with_show_subgoal : tactic_combinator =
  fun tac goal ->
   print_endline "Current subgoal:";
@@ -1415,6 +1436,10 @@ let with_info_trace : tactic_combinator =
       print_endline t;
       continue k ()
   | v -> v
+
+let with_no_automation_trace : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Trace (Search, _), k -> continue k () | v -> v
 
 let with_no_trace ?(show_proof = false) : tactic_combinator =
  fun tac goal ->

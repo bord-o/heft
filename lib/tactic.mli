@@ -589,6 +589,8 @@ val with_fuel_counter : int ref -> tactic_combinator
 (** Tracks total fuel consumed by incrementing a mutable reference for each
     [Burn] effect *)
 
+val show_tac : tactic
+
 val with_show_subgoal : tactic_combinator
 (** Prints the current subgoal (assumptions and conclusion) before running the
     tactic *)
@@ -596,6 +598,8 @@ val with_show_subgoal : tactic_combinator
 val with_info_trace : tactic_combinator
 (** Prints info-level trace messages to stdout, letting all other effects pass
     through *)
+
+val with_no_automation_trace : tactic_combinator
 
 val with_no_trace : ?show_proof:bool -> tactic_combinator
 (** Suppresses trace messages. By default suppresses all except [Search]. Set

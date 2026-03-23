@@ -31,9 +31,21 @@ def div_fuel : Nat -> Nat -> Nat -> Option Nat :=
 theorem fuel_irrel (n m a b x : Nat) :  
   div_fuel n a b = some x -> div_fuel (n + m) a b = some x
   := by
-    induction ih : n with
+    induction hn : n with
     | zero  => 
       intro h1
-      sorry
-    | succ n' => sorry
+      unfold div_fuel at h1
+      contradiction
+    | succ n' ih => 
+      intro h1
+      rewrite [Nat.succ_add]
+      simp_all
+      unfold div_fuel at *
+      cases (b <= a.succ) with
+      | c1 => sorry
+      | c2 => sorry
+
+
+      
+      
 
