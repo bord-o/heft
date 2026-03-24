@@ -2667,8 +2667,9 @@ let%expect_test "le_lt_trans" =
     >>> try_ assumption_reasoning_tac
     (* all subgoals are trivial except the last one *)
     >>= [
-          with_first (with_proven [ "le_suc_suc" ] rewrite_asm_tac)
-          >> with_first (with_proven [ "lt_suc_suc" ] rewrite_asm_tac)
+          with_repeat
+            (with_first
+               (with_proven [ "le_suc_suc"; "lt_suc_suc" ] rewrite_asm_tac))
           >> spec_asm_tac n0' >> spec_asm_tac n0''
           >> with_proven [ "lt_suc_suc" ] rewrite_tac
           >> with_repeat mp_asm_tac >> assumption_tac;
@@ -2681,7 +2682,7 @@ let%expect_test "le_lt_trans" =
     ∀x. ∀b. ∀c. nat_le x b ==> nat_lt b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 991
+    with fuel: 1001
     |}]
 
 let%expect_test "lt_le_trans" =
@@ -2717,9 +2718,8 @@ let%expect_test "lt_le_trans" =
     >>= [
           with_proven [ "lt_suc_suc" ] rewrite_tac
           >> with_repeat
-               (with_first (with_proven [ "lt_suc_suc" ] rewrite_asm_tac))
-          >> with_repeat
-               (with_first (with_proven [ "le_suc_suc" ] rewrite_asm_tac))
+               (with_first
+                  (with_proven [ "lt_suc_suc"; "le_suc_suc" ] rewrite_asm_tac))
           >> spec_asm_tac n0' >> spec_asm_tac n0'' >> with_repeat mp_asm_tac
           >> assumption_tac;
         ]
@@ -2732,7 +2732,7 @@ let%expect_test "lt_le_trans" =
     ∀x. ∀b. ∀c. nat_lt x b ==> nat_le b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 1000
+    with fuel: 995
     |}]
 
 let%expect_test "le_antisym" =
@@ -3128,18 +3128,15 @@ let%expect_test "fuel sufficient" =
     induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
     >> simp_tac >> cond_tac >> simp_tac
     >> with_arbitrary_term NatTheory.n0 exists_tac
-    >> refl_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> beta_tac
-    >> with_proven [ "cond_false" ] rewrite_tac
+    >> refl_tac >> simp_tac
     >> with_first (with_proven [ "lt_suc_le" ] rewrite_asm_tac)
     >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
-    >> with_arbitrary_term l1 assert_tac
-    >> with_proven [ "sub_lt" ] apply_thm_tac
-    >> with_first assumption_tac >> with_first assumption_tac
-    >> with_arbitrary_term l2 assert_tac
-    >> with_proven [ "lt_le_trans" ] apply_thm_tac
-    >> with_first assumption_tac >> with_first assumption_tac
+    >> (with_arbitrary_term l1 assert_tac
+       >> with_proven [ "sub_lt" ] apply_thm_tac
+       >> with_first assumption_tac >> with_first assumption_tac)
+    >> (with_arbitrary_term l2 assert_tac
+       >> with_proven [ "lt_le_trans" ] apply_thm_tac
+       >> with_first assumption_tac >> with_first assumption_tac)
     >> spec_asm_tac subab >> spec_asm_tac b >> with_repeat mp_asm_tac
     >> elim_exists_asm_tac
     >> with_arbitrary_term x exists_tac
@@ -3153,5 +3150,5 @@ let%expect_test "fuel sufficient" =
     ∀x. ∀a. ∀b. nat_lt zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = some x'
 
     Proof Complete!
-    with fuel: 199
+    with fuel: 205
     |}]
