@@ -308,6 +308,11 @@ module NatTheory = struct
                     none
                     (λr. some (suc r)))
 
+    variable x : nat
+    def div : nat -> nat -> nat
+        | a => λb.
+            option_match (div_aux (suc a) a b) zero (λx. x)
+            
   |}
 
   let _ =

@@ -1535,7 +1535,7 @@ let%expect_test "fuel irrel" =
     >> with_nth_term 1 (with_assumptions rewrite_asm_tac)
     >> simp_asm_tac >> simp_asm_tac
   in
-  run_proof ~notrace:true goal proof;
+  run_proof ~name:"div_fuel_irrel" ~notrace:true goal proof;
   [%expect
     {|
     ========================================
@@ -3143,7 +3143,7 @@ let%expect_test "fuel sufficient" =
     >> with_first (with_assumptions rewrite_tac)
     >> simp_tac
   in
-  run_proof ~notrace:true goal proof;
+  run_proof ~name:"div_fuel_sufficient" ~notrace:true goal proof;
   [%expect
     {|
     ========================================
@@ -3151,4 +3151,88 @@ let%expect_test "fuel sufficient" =
 
     Proof Complete!
     with fuel: 205
+    |}]
+
+let%expect_test "div unfold" =
+  let prg =
+    {|
+  variable a b r x x' : nat
+
+  theorem div_unfold:
+    forall λa. forall λb.
+        imp (nat_lt zero b)
+            (eq (div a b)
+                (COND (nat_lt a b)
+                      zero
+                      (suc (div (sub a b) b))))
+
+
+    term l1: nat_lt (sub a b) a
+    term l2 : exists (λx. eq (div_aux a (sub a b) b) (some x))
+    term l3 : exists (λx. eq (div_aux (suc (sub a b)) (sub a b) b) (some x))
+    term l4 : eq (div_aux (plus (suc (sub a b)) (sub a (suc (sub a b)))) (sub a b) b) (some x')
+    term arith : eq (plus (sub a (suc (sub a b))) (suc (sub a b))) a
+  |}
+  in
+
+  let l1 = Elaborator.term_from_string prg "l1" in
+  let l2 = Elaborator.term_from_string prg "l2" in
+  let l3 = Elaborator.term_from_string prg "l3" in
+  let l4 = Elaborator.term_from_string prg "l4" in
+  let arith = Elaborator.term_from_string prg "arith" in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    intros_tac
+    >> with_definition [ "div" ] rewrite_tac
+    >> beta_tac
+    >> with_first (with_definition [ "div_aux" ] rewrite_tac)
+    >> beta_tac >> with_nth_choice 1 cond_tac >> simp_tac
+    >> with_repeat @@ with_assumptions rewrite_tac
+    >> with_repeat @@ with_proven [ "cond_false" ] rewrite_tac
+    >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
+    >> with_arbitrary_term l1 assert_tac
+    >> with_proven [ "sub_lt" ] apply_thm_tac
+    >> with_first assumption_tac >> with_first assumption_tac
+    >> with_arbitrary_term l2 assert_tac
+    >> with_proven [ "div_fuel_sufficient" ] apply_thm_tac
+    >> with_first assumption_tac >> with_first assumption_tac
+    >> elim_exists_asm_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> with_first (with_definition [ "option_match" ] rewrite_tac)
+    >> beta_tac
+    >> with_first (with_definition [ "option_match" ] rewrite_tac)
+    >> beta_tac
+    >> with_arbitrary_term l3 assert_tac
+    >> with_proven [ "div_fuel_sufficient" ] apply_thm_tac
+    >> with_first assumption_tac
+    >> with_proven [ "lt_suc_self" ] rewrite_tac
+    >> truth_tac >> elim_exists_asm_tac
+    >> with_arbitrary_term l4 assert_tac
+    >> with_proven [ "div_fuel_irrel" ] apply_thm_tac
+    >> with_first assumption_tac
+    >> with_arbitrary_term arith assert_tac
+    >> with_proven [ "sub_add_cancel" ] apply_thm_tac
+    >> with_proven [ "le_lt_suc" ] rewrite_tac
+    >> with_proven [ "lt_suc_suc" ] rewrite_tac
+    >> with_first assumption_tac
+    >> with_nth_choice 0 @@ with_proven [ "plus_comm" ] rewrite_asm_tac
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_rule
+         (OptionTheory.option_def.injective |> List.hd)
+         apply_thm_asm_tac
+    >> with_nth_term 3 (with_assumptions rewrite_asm_tac)
+    >> with_definition [ "div" ] rewrite_tac
+    >> beta_tac
+    >> with_assumptions rewrite_tac
+    >> simp_tac
+  in
+  run_proof ~name:"div_unfold" ~notrace:true goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀a. ∀b. nat_lt zero b ==> div a b = COND (nat_lt a b) zero (suc (div (sub a b) b))
+
+    Proof Complete!
+    with fuel: 261
     |}]

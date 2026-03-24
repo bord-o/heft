@@ -228,8 +228,17 @@ let apply_thm_tac : tactic =
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
 
-  (* avoid clashes, probably need a smarter way to do this generally *)
-  let avoid = conc :: asms in
+  (* collect all vars (including bound) so quant var names don't collide
+     with bound vars during term_match's lambda handling *)
+  let rec all_vars acc = function
+    | Var _ as v -> v :: acc
+    | Const _ -> acc
+    | App (s, t) -> all_vars (all_vars acc s) t
+    | Lam (v, bod) -> all_vars (v :: acc) bod
+  in
+  let avoid =
+    List.fold_left all_vars [] (conc :: asms) |> List.sort_uniq compare
+  in
   let rec strip_foralls_acc thm vars avoid =
     match destruct_forall (concl thm) with
     | Ok (var, _body) -> (
@@ -301,7 +310,15 @@ let apply_thm_asm_tac : tactic =
   let chosen_thm = choose_theorems lemmas in
   let chosen_asm = choose_terms asms in
 
-  let avoid = conc :: asms in
+  let rec all_vars acc = function
+    | Var _ as v -> v :: acc
+    | Const _ -> acc
+    | App (s, t) -> all_vars (all_vars acc s) t
+    | Lam (v, bod) -> all_vars (v :: acc) bod
+  in
+  let avoid =
+    List.fold_left all_vars [] (conc :: asms) |> List.sort_uniq compare
+  in
   let rec strip_foralls_acc thm vars avoid =
     match destruct_forall (concl thm) with
     | Ok (var, _body) -> (
