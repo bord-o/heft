@@ -3038,61 +3038,65 @@ let%expect_test "sub_lt" =
 (* (*   run_proof ~name:"sub_lt_lemma" ~notrace:true goal proof; *) *)
 (* (*   [%expect {| *) *)
 (* (*     |}] *) *)
-(**)
-(* (* let%expect_test "fuel sufficient" = *) *)
-(* (*   let prg = *) *)
-(* (*     {| *) *)
-(* (*     variable a b x n n0 : nat *) *)
-(* (**) *)
-(* (*     variable n a b x : nat *) *)
-(* (*     theorem fuel_sufficient : *) *)
-(* (*         forall λn. *) *)
-(* (*             forall λa. *) *)
-(* (*                 forall λb. *) *)
-(* (*                     imp (nat_lt zero b) *) *)
-(* (*                         (imp (nat_lt a n) *) *)
-(* (*                             (exists λx. *) *)
-(* (*                                 (eq (div_aux n a b) (some x)))) *) *)
-(* (*     term a : a *) *)
-(* (*     term b : b *) *)
-(* (*     term n0p : suc n0 *) *)
-(* (*     term subab : sub a b *) *)
-(* (*   |} *) *)
-(* (*   in *) *)
-(* (**) *)
-(* (*   (* let a = Elaborator.term_from_string prg "a" in *) *) *)
-(* (*   let b = Elaborator.term_from_string prg "b" in *) *)
-(* (*   (* let n0p = Elaborator.term_from_string prg "n0p" in *) *) *)
-(* (*   let subab = Elaborator.term_from_string prg "subab" in *) *)
-(* (*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *) *)
-(* (*   let proof = *) *)
-(* (*     induct_tac >> intros_tac *) *)
-(* (*     >> with_first (with_proven [ "lt_zero_false" ] rewrite_asm_tac) *) *)
-(* (*     >> false_elim_tac >> intros_tac *) *)
-(* (*     >> with_first (with_definition [ "div_aux" ] rewrite_tac) *) *)
-(* (*     >> beta_tac *) *)
-(* (*     >> with_first (with_proven [ "lt_zero_suc" ] apply_thm_asm_tac) *) *)
-(* (*     >> elim_exists_asm_tac >> cond_tac >> simp_tac *) *)
-(* (*     >> with_arbitrary_term NatTheory.n0 exists_tac *) *)
-(* (*     >> refl_tac >> spec_asm_tac subab >> spec_asm_tac b *) *)
-(* (*     >> with_first (with_proven [ "suc_lt_zero" ] apply_thm_asm_tac) *) *)
-(* (*     >> with_first mp_asm_tac *) *)
-(* (*     (* with_arbitrary_term a induct_tac *) *) *)
-(* (*     (* >> intros_tac *) *) *)
-(* (*     (* >> with_arbitrary_term NatTheory.n1 exists_tac *) *) *)
-(* (*     (* >> with_first (with_proven [ "lt_zero_suc" ] apply_thm_asm_tac) *) *) *)
-(* (*     (* >> elim_exists_asm_tac >> simp_tac *) *) *)
-(* (*     (* >> with_arbitrary_term NatTheory.n0 exists_tac *) *) *)
-(* (*     (* >> refl_tac *) *) *)
-(* (*     (* >> refl_tac >> intros_tac >> spec_asm_tac b >> with_first mp_asm_tac *) *) *)
-(* (*     (* >> with_first (with_proven [ "lt_zero_suc" ] apply_thm_asm_tac) *) *) *)
-(* (*     (* >> elim_exists_asm_tac >> simp_tac *) *) *)
-(* (*     (* >> with_arbitrary_term n0p exists_tac *) *) *)
-(* (*     (* >> simp_tac *) *) *)
-(* (*     (* >> cond_tac >> simp_tac *) *) *)
-(* (*     (* >> with_arbitrary_term NatTheory.n0 exists_tac *) *) *)
-(* (*     (* >> refl_tac >> simp_tac *) *) *)
-(* (*   in *) *)
-(* (*   run_proof ~notrace:true goal proof; *) *)
-(* (*   [%expect {| *) *)
-(* (*     |}] *) *)
+
+let%expect_test "fuel sufficient" =
+  let prg =
+    {|
+    variable a b x n n0 : nat
+
+    variable n a b x : nat
+    theorem fuel_sufficient :
+        forall λn.
+            forall λa.
+                forall λb.
+                    imp (nat_lt zero b)
+                        (imp (nat_lt a n)
+                            (exists λx.
+                                (eq (div_aux n a b) (some x))))
+    term a : a
+    term b : b
+    term x : suc x
+    term subab : sub a b
+
+    term l1: nat_lt (sub a b) a
+    term l2: nat_lt (sub a b) n0
+  |}
+  in
+
+  (* let a = Elaborator.term_from_string prg "a" in *)
+  let b = Elaborator.term_from_string prg "b" in
+  let x = Elaborator.term_from_string prg "x" in
+  let l1 = Elaborator.term_from_string prg "l1" in
+  let l2 = Elaborator.term_from_string prg "l2" in
+  let subab = Elaborator.term_from_string prg "subab" in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
+    >> simp_tac >> cond_tac >> simp_tac
+    >> with_arbitrary_term NatTheory.n0 exists_tac
+    >> refl_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> beta_tac
+    >> with_proven [ "cond_false" ] rewrite_tac
+    >> with_first (with_proven [ "lt_suc_le" ] rewrite_asm_tac)
+    >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
+    >> with_arbitrary_term l1 assert_tac
+    >> with_proven [ "sub_lt" ] apply_thm_tac
+    >> with_first assumption_tac >> with_first assumption_tac
+    >> with_arbitrary_term l2 assert_tac
+    >> with_proven [ "lt_le_trans" ] apply_thm_tac
+    >> with_first assumption_tac >> with_first assumption_tac
+    >> spec_asm_tac subab >> spec_asm_tac b >> with_repeat mp_asm_tac
+    >> elim_exists_asm_tac
+    >> with_arbitrary_term x exists_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac
+  in
+  run_proof ~notrace:true goal proof;
+  [%expect {|
+    ========================================
+    ∀x. ∀a. ∀b. nat_lt zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = some x'
+
+    Proof Complete!
+    with fuel: 199
+    |}]

@@ -228,16 +228,22 @@ let apply_thm_tac : tactic =
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
 
-  let rec strip_foralls_acc thm vars =
+  (* avoid clashes, probably need a smarter way to do this generally *)
+  let avoid = conc :: asms in
+  let rec strip_foralls_acc thm vars avoid =
     match destruct_forall (concl thm) with
     | Ok (var, _body) -> (
-        let thm' = Derived.spec var thm in
+        let fresh_var =
+          match variant avoid var with Ok v -> v | Error _ -> var
+        in
+        let thm' = Derived.spec fresh_var thm in
         match thm' with
-        | Ok thm' -> strip_foralls_acc thm' (var :: vars)
+        | Ok thm' ->
+            strip_foralls_acc thm' (fresh_var :: vars) (fresh_var :: avoid)
         | Error _ -> (thm, List.rev vars))
     | Error _ -> (thm, List.rev vars)
   in
-  let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] in
+  let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] avoid in
 
   let rec collect_premises tm acc =
     match destruct_imp tm with
@@ -246,19 +252,30 @@ let apply_thm_tac : tactic =
   in
   let prems, final_conc = collect_premises (concl stripped_thm) [] in
 
+  let extend_env_from_asms env =
+    List.fold_left
+      (fun env prem ->
+        List.fold_left
+          (fun env asm ->
+            match Rewrite.term_match [] [] env prem asm with
+            | Some env' -> env'
+            | None -> env)
+          env asms)
+      env prems
+  in
+  let all_vars_bound env =
+    List.for_all
+      (fun v ->
+        let v_typed = Rewrite.term_type_subst env.type_sub v in
+        List.exists (fun (pat, _) -> alphaorder pat v_typed = 0) env.term_sub)
+      quant_vars
+  in
+
   let thm =
     match Rewrite.match_term final_conc conc with
     | Some env ->
-        let all_vars_bound =
-          List.for_all
-            (fun v ->
-              let v_typed = Rewrite.term_type_subst env.type_sub v in
-              List.exists
-                (fun (pat, _) -> alphaorder pat v_typed = 0)
-                env.term_sub)
-            quant_vars
-        in
-        if not all_vars_bound then fail ();
+        let env = extend_env_from_asms env in
+        if not (all_vars_bound env) then fail ();
 
         let* type_inst = inst_type env.type_sub stripped_thm in
         let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
@@ -284,16 +301,21 @@ let apply_thm_asm_tac : tactic =
   let chosen_thm = choose_theorems lemmas in
   let chosen_asm = choose_terms asms in
 
-  let rec strip_foralls_acc thm vars =
+  let avoid = conc :: asms in
+  let rec strip_foralls_acc thm vars avoid =
     match destruct_forall (concl thm) with
     | Ok (var, _body) -> (
-        let thm' = Derived.spec var thm in
+        let fresh_var =
+          match variant avoid var with Ok v -> v | Error _ -> var
+        in
+        let thm' = Derived.spec fresh_var thm in
         match thm' with
-        | Ok thm' -> strip_foralls_acc thm' (var :: vars)
+        | Ok thm' ->
+            strip_foralls_acc thm' (fresh_var :: vars) (fresh_var :: avoid)
         | Error _ -> (thm, List.rev vars))
     | Error _ -> (thm, List.rev vars)
   in
-  let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] in
+  let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] avoid in
 
   let thm =
     match destruct_imp (concl stripped_thm) with
