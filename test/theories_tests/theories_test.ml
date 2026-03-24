@@ -3093,7 +3093,8 @@ let%expect_test "fuel sufficient" =
     >> simp_tac
   in
   run_proof ~notrace:true goal proof;
-  [%expect {|
+  [%expect
+    {|
     ========================================
     ∀x. ∀a. ∀b. nat_lt zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = some x'
 
