@@ -1467,7 +1467,6 @@ let%expect_test "option not none" =
   term a0 : a0
   |}
   in
-  (* Printing.print_thm OptionTheory.option_def.exhaustiveness; *)
   let o = Elaborator.term_from_string prg "o" in
   let a0 = Elaborator.term_from_string prg "a0" in
 
@@ -1651,6 +1650,126 @@ let%expect_test "lt_zero_suc" =
 
     Proof Complete!
     with fuel: 94
+    |}]
+
+let%expect_test "lt_add_suc_r" =
+  let prg =
+    {|
+    variable a b : nat
+    theorem lt_add_suc_r:
+        forall λa. forall λb. nat_lt a (plus a (suc b))
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in
+  run_proof ~name:"lt_add_suc_r" ~notrace:true goal proof;
+  [%expect
+    {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      gen_tac
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      gen_tac >>
+      intro_tac >>
+      assumption_tac
+    ========================================
+    ∀x. ∀b. nat_lt x (plus x (suc b))
+
+    Proof Complete!
+    with fuel: 149
+    |}]
+
+let%expect_test "add_lt_cancel_l" =
+  let prg =
+    {|
+    variable a b c : nat
+    theorem add_lt_cancel_l:
+        forall λa. forall λb. forall λc.
+            eq (nat_lt (plus a b) (plus a c)) (nat_lt b c)
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in
+  run_proof ~name:"add_lt_cancel_l" ~notrace:true goal proof;
+  [%expect
+    {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      gen_tac >>
+      gen_tac >>
+      refl_tac
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      gen_tac >>
+      intro_tac >>
+      rewrite_tac >>
+      gen_tac >>
+      gen_tac >>
+      refl_tac
+    ========================================
+    ∀x. ∀b. ∀c. nat_lt (plus x b) (plus x c) = nat_lt b c
+
+    Proof Complete!
+    with fuel: 155
+    |}]
+
+let%expect_test "add_le_cancel_l" =
+  let prg =
+    {|
+    variable a b c : nat
+    theorem add_le_cancel_l:
+        forall λa. forall λb. forall λc.
+            eq (nat_le (plus a b) (plus a c)) (nat_le b c)
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in
+  run_proof ~name:"add_le_cancel_l" ~notrace:true goal proof;
+  [%expect
+    {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      gen_tac >>
+      gen_tac >>
+      refl_tac
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      rewrite_tac >>
+      beta_tac >>
+      gen_tac >>
+      intro_tac >>
+      rewrite_tac >>
+      gen_tac >>
+      gen_tac >>
+      refl_tac
+    ========================================
+    ∀x. ∀b. ∀c. nat_le (plus x b) (plus x c) = nat_le b c
+
+    Proof Complete!
+    with fuel: 155
     |}]
 
 (* ===== Group 1: Basic computation rules ===== *)
@@ -2811,233 +2930,169 @@ let%expect_test "sub_lt" =
     with fuel: 429
     |}]
 
-(* let%expect_test "sub_add_cancel" = *)
-(*   let prg = *)
-(*     {| *)
-(*     variable a b : nat *)
-(*     theorem sub_add_cancel: *)
-(*         forall λa. forall λb. *)
-(*             imp (nat_le b a) *)
-(*                 (eq (plus (sub a b) b) a) *)
-(*   |} *)
-(*   in *)
-(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in *)
-(*   run_proof ~name:"sub_add_cancel" ~notrace:true goal proof; *)
-(*   [%expect {||}] *)
-(**)
+let%expect_test "sub_add_cancel" =
+  let prg =
+    {|
+    variable a b n0' : nat
+    theorem sub_add_cancel:
+        forall λa. forall λb.
+            imp (nat_le b a)
+                (eq (plus (sub a b) b) a)
+    term a : a
+    term b : b
+    term n0' : n0'
+  |}
+  in
+  let a = Elaborator.term_from_string prg "a" in
+  let b = Elaborator.term_from_string prg "b" in
+  let n0' = Elaborator.term_from_string prg "n0'" in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    with_arbitrary_term a induct_tac
+    >>> intros_tac
+    >>> with_arbitrary_term b induct_tac
+    >>> try_ intros_tac
+    >>> try_ assumption_reasoning_tac
+    >>= [
+          simp_tac
+          >> with_proven [ "eq_cong" ] apply_thm_tac
+          >> with_proven [ "plus_x_zero" ] rewrite_tac
+          >> refl_tac;
+          simp_asm_tac >> simp_tac
+          >> with_proven [ "plus_suc" ] rewrite_tac
+          >> with_proven [ "eq_cong" ] apply_thm_tac
+          >> spec_asm_tac n0' >> mp_asm_tac >> assumption_tac;
+        ]
+  in
+  run_proof ~name:"sub_add_cancel" ~notrace:true goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le b x ==> plus (sub x b) b = x
+
+    Proof Complete!
+    with fuel: 492
+    |}]
+
 (* (* ===== Group 8: Ordering and addition ===== *) *)
-(**)
-(* let%expect_test "lt_add_suc_r" = *)
-(*   let prg = *)
-(*     {| *)
-(*     variable a b : nat *)
-(*     theorem lt_add_suc_r: *)
-(*         forall λa. forall λb. nat_lt a (plus a (suc b)) *)
-(*   |} *)
-(*   in *)
-(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in *)
-(*   run_proof ~name:"lt_add_suc_r" ~notrace:true goal proof; *)
-(*   [%expect *)
-(*     {| *)
-(*     Proof: *)
-(*       rewrite_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       gen_tac *)
-(*     Proof: *)
-(*       rewrite_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       gen_tac >> *)
-(*       intro_tac >> *)
-(*       assumption_tac *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_lt x (plus x (suc b)) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 149 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_add_r" = *)
-(*   let prg = *)
-(*     {| *)
-(*     variable a b : nat *)
-(*     theorem le_add_r: *)
-(*         forall λa. forall λb. nat_le a (plus a b) *)
-(*   |} *)
-(*   in *)
-(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in *)
-(*   run_proof ~name:"le_add_r" ~notrace:true goal proof; *)
-(*   [%expect *)
-(*     {| *)
-(*     Proof: *)
-(*       rewrite_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       gen_tac *)
-(*     Proof: *)
-(*       rewrite_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       gen_tac >> *)
-(*       intro_tac >> *)
-(*       assumption_tac *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le x (plus x b) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 137 *)
-(*     |}] *)
-(**)
-(* let%expect_test "add_lt_cancel_l" = *)
-(*   let prg = *)
-(*     {| *)
-(*     variable a b c : nat *)
-(*     theorem add_lt_cancel_l: *)
-(*         forall λa. forall λb. forall λc. *)
-(*             eq (nat_lt (plus a b) (plus a c)) (nat_lt b c) *)
-(*   |} *)
-(*   in *)
-(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in *)
-(*   run_proof ~name:"add_lt_cancel_l" ~notrace:true goal proof; *)
-(*   [%expect *)
-(*     {| *)
-(*     Proof: *)
-(*       rewrite_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       gen_tac >> *)
-(*       gen_tac >> *)
-(*       refl_tac *)
-(*     Proof: *)
-(*       rewrite_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       gen_tac >> *)
-(*       intro_tac >> *)
-(*       rewrite_tac >> *)
-(*       gen_tac >> *)
-(*       gen_tac >> *)
-(*       refl_tac *)
-(*     ======================================== *)
-(*     ∀x. ∀b. ∀c. nat_lt (plus x b) (plus x c) = nat_lt b c *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 155 *)
-(*     |}] *)
-(**)
-(* let%expect_test "add_le_cancel_l" = *)
-(*   let prg = *)
-(*     {| *)
-(*     variable a b c : nat *)
-(*     theorem add_le_cancel_l: *)
-(*         forall λa. forall λb. forall λc. *)
-(*             eq (nat_le (plus a b) (plus a c)) (nat_le b c) *)
-(*   |} *)
-(*   in *)
-(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in *)
-(*   run_proof ~name:"add_le_cancel_l" ~notrace:true goal proof; *)
-(*   [%expect *)
-(*     {| *)
-(*     Proof: *)
-(*       rewrite_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       gen_tac >> *)
-(*       gen_tac >> *)
-(*       refl_tac *)
-(*     Proof: *)
-(*       rewrite_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       rewrite_tac >> *)
-(*       beta_tac >> *)
-(*       gen_tac >> *)
-(*       intro_tac >> *)
-(*       rewrite_tac >> *)
-(*       gen_tac >> *)
-(*       gen_tac >> *)
-(*       refl_tac *)
-(*     ======================================== *)
-(*     ∀x. ∀b. ∀c. nat_le (plus x b) (plus x c) = nat_le b c *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 155 *)
-(*     |}] *)
-(**)
+
+let%expect_test "le_add_r" =
+  let prg =
+    {|
+    variable a b : nat
+    theorem le_add_r:
+        forall λa. forall λb. nat_le a (plus a b)
+  |}
+  in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in
+  run_proof ~name:"le_add_r" ~notrace:true goal proof;
+  [%expect
+    {|
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      gen_tac
+    Proof:
+      rewrite_tac >>
+      rewrite_tac >>
+      gen_tac >>
+      intro_tac >>
+      assumption_tac
+    ========================================
+    ∀x. ∀b. nat_le x (plus x b)
+
+    Proof Complete!
+    with fuel: 111
+    |}]
+
 (* (* ===== Group 9: Totality ===== *) *)
-(**)
-(* let%expect_test "lt_total" = *)
-(*   let prg = *)
-(*     {| *)
-(*     variable a b : nat *)
-(*     theorem lt_total: *)
-(*         forall λa. forall λb. *)
-(*             \/ (nat_lt a b) (nat_le b a) *)
-(*   |} *)
-(*   in *)
-(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in *)
-(*   run_proof ~name:"lt_total" ~notrace:true goal proof; *)
-(*   [%expect {||}] *)
-(**)
-(* let%expect_test "le_total" = *)
-(*   let prg = *)
-(*     {| *)
-(*     variable a b : nat *)
-(*     theorem le_total: *)
-(*         forall λa. forall λb. *)
-(*             \/ (nat_le a b) (nat_le b a) *)
-(*   |} *)
-(*   in *)
-(*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *)
-(*   let proof = induct_tac >> auto_dfs_tac >> auto_dfs_tac in *)
-(*   run_proof ~name:"le_total" ~notrace:true goal proof; *)
-(*   [%expect {||}] *)
-(**)
-(* (* let%expect_test "sub_lt_lemma" = *) *)
-(* (*   let prg = *) *)
-(* (*     {| *) *)
-(* (*     variable a b n x' : nat *) *)
-(* (*     theorem sub_lt_lemma : *) *)
-(* (*     forall λb. forall λa. forall λn. *) *)
-(* (*         imp (eq (nat_lt a b) F) *) *)
-(* (*             (imp (nat_lt zero b) *) *)
-(* (*                 (imp (nat_lt a (suc n)) *) *)
-(* (*                     (nat_lt (sub a b) n))) *) *)
-(* (*     term n : n *) *)
-(* (*     term x' : x' *) *)
-(* (*   |} *) *)
-(* (*   in *) *)
-(* (**) *)
-(* (*   let n = Elaborator.term_from_string prg "n" in *) *)
-(* (*   let x' = Elaborator.term_from_string prg "x'" in *) *)
-(* (*   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in *) *)
-(* (*   let proof = *) *)
-(* (*     induct_tac >> auto_dfs_tac >> intros_tac *) *)
-(* (*     (* >> with_first (with_proven [ "lt_zero_suc" ] apply_thm_asm_tac) *) *) *)
-(* (*     (* >> elim_exists_asm_tac >> simp_tac >> spec_asm_tac x' >> spec_asm_tac n *) *) *)
-(* (*   in *) *)
-(* (*   run_proof ~name:"sub_lt_lemma" ~notrace:true goal proof; *) *)
-(* (*   [%expect {| *) *)
-(* (*     |}] *) *)
+
+let%expect_test "lt_total" =
+  let prg =
+    {|
+    variable a b n0' : nat
+    theorem lt_total:
+        forall λa. forall λb.
+            \/ (nat_lt a b) (nat_le b a)
+    term a : a
+    term b : b
+    term n0' : n0'
+  |}
+  in
+  let a = Elaborator.term_from_string prg "a" in
+  let b = Elaborator.term_from_string prg "b" in
+  let n0' = Elaborator.term_from_string prg "n0'" in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    with_arbitrary_term a induct_tac
+    >>> intros_tac
+    >>> with_arbitrary_term b induct_tac
+    >>> try_ intros_tac
+    >>= [
+          right_tac >> simp_tac >> truth_tac;
+          left_tac >> simp_tac >> truth_tac;
+          right_tac >> simp_tac >> truth_tac;
+          spec_asm_tac n0' >> elim_disj_asm_tac >> left_tac
+          >> with_proven [ "lt_suc_suc" ] rewrite_tac
+          >> assumption_tac >> right_tac
+          >> with_proven [ "le_suc_suc" ] rewrite_tac
+          >> assumption_tac;
+        ]
+  in
+  run_proof ~name:"lt_total" ~notrace:true goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_lt x b ∨ nat_le b x
+
+    Proof Complete!
+    with fuel: 159
+    |}]
+
+let%expect_test "le_total" =
+  let prg =
+    {|
+
+    variable a b n0' : nat
+    theorem le_total:
+        forall λa. forall λb.
+            \/ (nat_le a b) (nat_le b a)
+
+    term a : a
+    term b : b
+    term n0' : n0'
+  |}
+  in
+  let a = Elaborator.term_from_string prg "a" in
+  let b = Elaborator.term_from_string prg "b" in
+  let n0' = Elaborator.term_from_string prg "n0'" in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    with_arbitrary_term a induct_tac
+    >>> intros_tac
+    >>> with_arbitrary_term b induct_tac
+    >>> try_ intros_tac
+    >>= [
+          right_tac >> simp_tac >> truth_tac;
+          left_tac >> simp_tac >> truth_tac;
+          right_tac >> simp_tac >> truth_tac;
+          spec_asm_tac n0' >> elim_disj_asm_tac >> left_tac
+          >> with_proven [ "le_suc_suc" ] rewrite_tac
+          >> assumption_tac >> right_tac
+          >> with_proven [ "le_suc_suc" ] rewrite_tac
+          >> assumption_tac;
+        ]
+  in
+  run_proof ~name:"le_total" ~notrace:true goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le x b ∨ nat_le b x
+
+    Proof Complete!
+    with fuel: 154
+    |}]
 
 let%expect_test "fuel sufficient" =
   let prg =
@@ -3063,7 +3118,6 @@ let%expect_test "fuel sufficient" =
   |}
   in
 
-  (* let a = Elaborator.term_from_string prg "a" in *)
   let b = Elaborator.term_from_string prg "b" in
   let x = Elaborator.term_from_string prg "x" in
   let l1 = Elaborator.term_from_string prg "l1" in
