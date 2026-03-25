@@ -1397,8 +1397,7 @@ let%expect_test "sort correct lemma" =
                     ];
                 spec_asm_tac n >> apply_asm_tac >> simp_asm_tac
                 >> elim_conj_asm_tac >> with_first assumption_tac;
-                with_proven [ "nat_le_flip" ] apply_thm_asm_tac
-                >> simp_tac;
+                with_proven [ "nat_le_flip" ] apply_thm_asm_tac >> simp_tac;
                 conj_tac
                 >>= [
                       with_arbitrary_term n1 induct_tac
@@ -2410,8 +2409,7 @@ let%expect_test "equality simp rules" =
     >> truth_tac);
   prove_it "eq_false_false" (eq_true_elim_tac >> refl_tac);
   prove_it "eq_true_true" (eq_true_elim_tac >> refl_tac);
-  prove_it "eq_false_true"
-    (eq_false_elim_tac >> neg_intro_tac >> simp_tac);
+  prove_it "eq_false_true" (eq_false_elim_tac >> neg_intro_tac >> simp_tac);
   prove_it "neg_false_true" (eq_true_elim_tac >> neg_intro_tac >> false_elim_tac);
   prove_it "neg_true_false"
     (eq_false_elim_tac
@@ -2475,11 +2473,9 @@ let%expect_test "not_le_is_lt" =
   let proof =
     induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
     >> with_arbitrary_term b destruct_tac
-    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac
-    >> simp_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac
     >> with_arbitrary_term n0 destruct_tac
-    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac
-    >> simp_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac
   in
   run_proof ~name:"not_le_is_lt" ~notrace:true goal proof;
   [%expect
