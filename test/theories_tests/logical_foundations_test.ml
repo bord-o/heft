@@ -289,7 +289,7 @@ let%expect_test "basics" =
     m = n ==> plus m m = plus n n
 
     Proof Complete!
-    with fuel: 26
+    with fuel: 27
     Proof:
       intro_tac >>
       rewrite_tac >>
@@ -302,7 +302,7 @@ let%expect_test "basics" =
     n = m ==> m = o ==> plus n m = plus m o
 
     Proof Complete!
-    with fuel: 52
+    with fuel: 55
     ========================================
     ∀x. ∀c. andb' x c = andb' c x
 

@@ -1558,7 +1558,7 @@ let simp_tac ?(with_asms = true) : tactic =
   let thm =
     with_repeat
       (with_first
-      @@ pick_tac [ with_rw rules rewrite_tac; with_repeat beta_tac; refl_tac ]
+      @@ pick_tac [ with_rw rules rewrite_tac; with_repeat beta_tac; refl_tac; truth_tac ]
       )
       goal
   in

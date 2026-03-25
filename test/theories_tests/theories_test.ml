@@ -194,7 +194,7 @@ let%expect_test "plus comm" =
     ∀x. ∀y. plus x y = plus y x
 
     Proof Complete!
-    with fuel: 71
+    with fuel: 73
     |}]
 
 let%expect_test "cancellation" =
@@ -221,7 +221,7 @@ let%expect_test "cancellation" =
     ∀x. ∀y. plus x y = plus x z ==> y = z
 
     Proof Complete!
-    with fuel: 53
+    with fuel: 54
     |}]
 
 let%expect_test "cancellation rev" =
@@ -252,7 +252,7 @@ let%expect_test "cancellation rev" =
     ∀x. ∀y. plus y x = plus z x ==> y = z
 
     Proof Complete!
-    with fuel: 60
+    with fuel: 61
     |}]
 
 let%expect_test "length Nil = Zero" =
@@ -527,7 +527,7 @@ let%expect_test "append (append xs ys) zs = append xs (append ys zs)" =
     ∀x. ∀ys. ∀zs. append (append x ys) zs = append x (append ys zs)
 
     Proof Complete!
-    with fuel: 151
+    with fuel: 161
     |}]
 
 let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
@@ -579,7 +579,7 @@ let%expect_test "length (append xs ys) = plus (length xs) (length ys)" =
     ∀x. ∀ys. length (append x ys) = plus (length x) (length ys)
 
     Proof Complete!
-    with fuel: 138
+    with fuel: 146
     |}]
 
 let%expect_test "length (reverse xs) = length xs" =
@@ -612,7 +612,7 @@ let%expect_test "length (reverse xs) = length xs" =
     ∀x. length (reverse x) = length x
 
     Proof Complete!
-    with fuel: 103
+    with fuel: 104
     |}]
 
 let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
@@ -650,7 +650,7 @@ let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
     ∀x. ∀ys. reverse (append x ys) = append (reverse ys) (reverse x)
 
     Proof Complete!
-    with fuel: 89
+    with fuel: 90
     |}]
 
 let%expect_test "reverse (reverse xs) = xs" =
@@ -789,7 +789,7 @@ let%expect_test "n - 0 = n" =
     ∀x. minus x zero = x
 
     Proof Complete!
-    with fuel: 119
+    with fuel: 122
     |}]
 
 (* n - (suc m) = (n - m) - 1 *)
@@ -845,7 +845,7 @@ let%expect_test "minus suc right" =
     ∀x. ∀m. minus x (suc m) = pred (minus x m)
 
     Proof Complete!
-    with fuel: 172
+    with fuel: 178
     |}]
 
 (* (suc n) - (suc m) = n - m *)
@@ -911,7 +911,7 @@ let%expect_test "n - n = z" =
     ∀x. minus x x = zero
 
     Proof Complete!
-    with fuel: 102
+    with fuel: 103
     |}]
 
 let%expect_test "x - n + n = x" =
@@ -1210,7 +1210,7 @@ let%expect_test "minus zero left" =
     ∀x. minus zero x = zero
 
     Proof Complete!
-    with fuel: 126
+    with fuel: 127
     |}]
 
 let%expect_test "sub eq minus" =
@@ -1245,7 +1245,7 @@ let%expect_test "sub eq minus" =
     ∀x. ∀n. sub x n = minus x n
 
     Proof Complete!
-    with fuel: 161
+    with fuel: 162
     |}]
 
 (* isort [] = [] *)
@@ -1350,7 +1350,7 @@ let%expect_test "nat_le_flip" =
     ∀x. ∀n. nat_le x n = F ==> nat_le n x = T
 
     Proof Complete!
-    with fuel: 150
+    with fuel: 151
     |}]
 
 let%expect_test "sort correct lemma" =
@@ -1388,7 +1388,6 @@ let%expect_test "sort correct lemma" =
                 with_arbitrary_term n1 induct_tac
                 >>> (intros_tac >> simp_tac)
                 >>= [
-                      truth_tac;
                       with_arbitrary_term le cases_tac
                       >>> simp_tac
                       >>= [
@@ -1399,13 +1398,12 @@ let%expect_test "sort correct lemma" =
                 spec_asm_tac n >> apply_asm_tac >> simp_asm_tac
                 >> elim_conj_asm_tac >> with_first assumption_tac;
                 with_proven [ "nat_le_flip" ] apply_thm_asm_tac
-                >> simp_tac >> truth_tac;
+                >> simp_tac;
                 conj_tac
                 >>= [
                       with_arbitrary_term n1 induct_tac
                       >>> (intros_tac >> simp_tac)
                       >>= [
-                            truth_tac;
                             simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
                           ];
                       spec_asm_tac n0 >> simp_asm_tac >> elim_conj_asm_tac
@@ -1423,7 +1421,7 @@ let%expect_test "sort correct lemma" =
     ∀x. ∀n. sorted x ==> sorted (insert x n)
 
     Proof Complete!
-    with fuel: 546
+    with fuel: 553
     |}]
 
 let%expect_test "sort correct" =
@@ -1437,7 +1435,7 @@ let%expect_test "sort correct" =
   in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
-    induct_tac >> simp_tac >> truth_tac >> intros_tac >> simp_tac
+    induct_tac >> simp_tac >> intros_tac >> simp_tac
     >> with_proven [ "sort_correct_lemma" ] apply_thm_tac
     >> assumption_tac
   in
@@ -1449,7 +1447,7 @@ let%expect_test "sort correct" =
     ∀x. sorted (isort x)
 
     Proof Complete!
-    with fuel: 51
+    with fuel: 52
     |}]
 
 let%expect_test "option not none" =
@@ -1542,7 +1540,7 @@ let%expect_test "fuel irrel" =
     ∀x. ∀m. ∀a. ∀b. ∀x'. div_aux x a b = some x' ==> div_aux (plus x m) a b = some x'
 
     Proof Complete!
-    with fuel: 290
+    with fuel: 292
     |}]
 
 let%expect_test "lt_zero_suc" =
@@ -1613,7 +1611,7 @@ let%expect_test "suc_lt_zero" =
     ∀x. ∀b. b = suc x ==> nat_lt zero b
 
     Proof Complete!
-    with fuel: 170
+    with fuel: 160
     |}]
 
 let%expect_test "lt_zero_suc" =
@@ -1649,7 +1647,7 @@ let%expect_test "lt_zero_suc" =
     ∀x. nat_lt x zero = F
 
     Proof Complete!
-    with fuel: 94
+    with fuel: 97
     |}]
 
 let%expect_test "lt_add_suc_r" =
@@ -1685,7 +1683,7 @@ let%expect_test "lt_add_suc_r" =
     ∀x. ∀b. nat_lt x (plus x (suc b))
 
     Proof Complete!
-    with fuel: 149
+    with fuel: 154
     |}]
 
 let%expect_test "add_lt_cancel_l" =
@@ -1727,7 +1725,7 @@ let%expect_test "add_lt_cancel_l" =
     ∀x. ∀b. ∀c. nat_lt (plus x b) (plus x c) = nat_lt b c
 
     Proof Complete!
-    with fuel: 155
+    with fuel: 164
     |}]
 
 let%expect_test "add_le_cancel_l" =
@@ -1769,7 +1767,7 @@ let%expect_test "add_le_cancel_l" =
     ∀x. ∀b. ∀c. nat_le (plus x b) (plus x c) = nat_le b c
 
     Proof Complete!
-    with fuel: 155
+    with fuel: 164
     |}]
 
 (* ===== Group 1: Basic computation rules ===== *)
@@ -1803,7 +1801,7 @@ let%expect_test "sub_zero_r" =
     ∀x. sub x zero = x
 
     Proof Complete!
-    with fuel: 82
+    with fuel: 85
     |}]
 
 let%expect_test "sub_suc_suc" =
@@ -1845,7 +1843,7 @@ let%expect_test "sub_suc_suc" =
     ∀x. ∀b. sub (suc x) (suc b) = sub x b
 
     Proof Complete!
-    with fuel: 147
+    with fuel: 153
     |}]
 
 let%expect_test "sub_zero_l" =
@@ -1875,7 +1873,7 @@ let%expect_test "sub_zero_l" =
     ∀x. sub zero x = zero
 
     Proof Complete!
-    with fuel: 68
+    with fuel: 71
     |}]
 
 let%expect_test "lt_zero_suc" =
@@ -1911,7 +1909,7 @@ let%expect_test "lt_zero_suc" =
     ∀x. nat_lt zero (suc x) = T
 
     Proof Complete!
-    with fuel: 104
+    with fuel: 107
     |}]
 
 let%expect_test "lt_suc_suc" =
@@ -1953,7 +1951,7 @@ let%expect_test "lt_suc_suc" =
     ∀x. ∀b. nat_lt (suc x) (suc b) = nat_lt x b
 
     Proof Complete!
-    with fuel: 147
+    with fuel: 153
     |}]
 
 let%expect_test "le_zero_l" =
@@ -1984,7 +1982,7 @@ let%expect_test "le_zero_l" =
     ∀x. nat_le zero x = T
 
     Proof Complete!
-    with fuel: 75
+    with fuel: 78
     |}]
 
 let%expect_test "le_suc_suc" =
@@ -2026,7 +2024,7 @@ let%expect_test "le_suc_suc" =
     ∀x. ∀b. nat_le (suc x) (suc b) = nat_le x b
 
     Proof Complete!
-    with fuel: 147
+    with fuel: 153
     |}]
 
 let%expect_test "le_zero_r" =
@@ -2064,7 +2062,7 @@ let%expect_test "le_zero_r" =
     ∀x. nat_le (suc x) zero = F
 
     Proof Complete!
-    with fuel: 114
+    with fuel: 117
     |}]
 
 (* ===== Group 2: Reflexivity and basic identity ===== *)
@@ -2095,7 +2093,7 @@ let%expect_test "lt_irrefl" =
     ∀x. nat_lt x x = F
 
     Proof Complete!
-    with fuel: 61
+    with fuel: 64
     |}]
 
 let%expect_test "le_refl" =
@@ -2124,7 +2122,7 @@ let%expect_test "le_refl" =
     ∀x. nat_le x x = T
 
     Proof Complete!
-    with fuel: 61
+    with fuel: 64
     |}]
 
 let%expect_test "sub_self" =
@@ -2153,7 +2151,7 @@ let%expect_test "sub_self" =
     ∀x. sub x x = zero
 
     Proof Complete!
-    with fuel: 61
+    with fuel: 64
     |}]
 
 let%expect_test "add_zero_l" =
@@ -2184,7 +2182,7 @@ let%expect_test "add_zero_l" =
     ∀x. plus zero x = x
 
     Proof Complete!
-    with fuel: 75
+    with fuel: 78
     |}]
 
 let%expect_test "add_suc_l" =
@@ -2221,7 +2219,7 @@ let%expect_test "add_suc_l" =
     ∀x. ∀b. plus (suc x) b = suc (plus x b)
 
     Proof Complete!
-    with fuel: 118
+    with fuel: 124
     |}]
 
 (* ===== Group 3: Successor relationships ===== *)
@@ -2252,7 +2250,7 @@ let%expect_test "lt_suc_self" =
     ∀x. nat_lt x (suc x) = T
 
     Proof Complete!
-    with fuel: 61
+    with fuel: 64
     |}]
 
 let%expect_test "le_suc_self" =
@@ -2281,7 +2279,7 @@ let%expect_test "le_suc_self" =
     ∀x. nat_le x (suc x) = T
 
     Proof Complete!
-    with fuel: 61
+    with fuel: 64
     |}]
 
 let%expect_test "lt_suc_le" =
@@ -2312,7 +2310,7 @@ let%expect_test "lt_suc_le" =
     ∀x. ∀b. nat_lt x (suc b) = nat_le x b
 
     Proof Complete!
-    with fuel: 152
+    with fuel: 155
     |}]
 
 let%expect_test "le_lt_suc" =
@@ -2348,7 +2346,7 @@ let%expect_test "le_lt_suc" =
     ∀x. ∀b. nat_le x b = nat_lt x (suc b)
 
     Proof Complete!
-    with fuel: 111
+    with fuel: 117
     |}]
 
 (* (* ===== Group 4: Connection between lt and le ===== *) *)
@@ -2380,7 +2378,7 @@ let%expect_test "not_lt_is_le" =
     ∀x. ∀b. nat_lt x b = F = nat_le b x
 
     Proof Complete!
-    with fuel: 192
+    with fuel: 196
     |}]
 
 let%expect_test "equality simp rules" =
@@ -2413,7 +2411,7 @@ let%expect_test "equality simp rules" =
   prove_it "eq_false_false" (eq_true_elim_tac >> refl_tac);
   prove_it "eq_true_true" (eq_true_elim_tac >> refl_tac);
   prove_it "eq_false_true"
-    (eq_false_elim_tac >> neg_intro_tac >> simp_tac >> truth_tac);
+    (eq_false_elim_tac >> neg_intro_tac >> simp_tac);
   prove_it "neg_false_true" (eq_true_elim_tac >> neg_intro_tac >> false_elim_tac);
   prove_it "neg_true_false"
     (eq_false_elim_tac
@@ -2475,13 +2473,13 @@ let%expect_test "not_le_is_lt" =
   let n0 = Elaborator.term_from_string prg "n0" in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
-    induct_tac >> intros_tac >> simp_tac >> truth_tac >> intros_tac >> simp_tac
+    induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
     >> with_arbitrary_term b destruct_tac
-    >> elim_disj_asm_tac >> simp_tac >> truth_tac >> elim_exists_asm_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac
     >> simp_tac
     >> with_arbitrary_term n0 destruct_tac
-    >> elim_disj_asm_tac >> simp_tac >> truth_tac >> elim_exists_asm_tac
-    >> simp_tac >> truth_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac
+    >> simp_tac
   in
   run_proof ~name:"not_le_is_lt" ~notrace:true goal proof;
   [%expect
@@ -2490,7 +2488,7 @@ let%expect_test "not_le_is_lt" =
     ∀x. ∀b. ¬(nat_le x b) = nat_lt b x
 
     Proof Complete!
-    with fuel: 255
+    with fuel: 257
     |}]
 
 let%expect_test "lt_implies_le" =
@@ -2527,7 +2525,7 @@ let%expect_test "lt_implies_le" =
     ∀x. ∀b. nat_lt x b ==> nat_le x b
 
     Proof Complete!
-    with fuel: 226
+    with fuel: 230
     |}]
 
 (* (* ===== Group 5: Transitivity ===== *) *)
@@ -2585,7 +2583,7 @@ let%expect_test "lt_trans" =
     ∀x. ∀b. ∀c. nat_lt x b ==> nat_lt b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 1029
+    with fuel: 914
     |}]
 
 let%expect_test "le_trans" =
@@ -2633,7 +2631,7 @@ let%expect_test "le_trans" =
     ∀x. ∀b. ∀c. nat_le x b ==> nat_le b c ==> nat_le x c
 
     Proof Complete!
-    with fuel: 803
+    with fuel: 663
     |}]
 
 let%expect_test "le_lt_trans" =
@@ -2682,7 +2680,7 @@ let%expect_test "le_lt_trans" =
     ∀x. ∀b. ∀c. nat_le x b ==> nat_lt b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 1001
+    with fuel: 900
     |}]
 
 let%expect_test "lt_le_trans" =
@@ -2732,7 +2730,7 @@ let%expect_test "lt_le_trans" =
     ∀x. ∀b. ∀c. nat_lt x b ==> nat_le b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 995
+    with fuel: 870
     |}]
 
 let%expect_test "le_antisym" =
@@ -2768,7 +2766,7 @@ let%expect_test "le_antisym" =
     ∀x. ∀b. nat_le x b ==> nat_le b x ==> x = b
 
     Proof Complete!
-    with fuel: 239
+    with fuel: 243
     |}]
 
 (* (* ===== Group 6: Subtraction properties ===== *) *)
@@ -2807,7 +2805,7 @@ let%expect_test "le_weaken_suc" =
     ∀x. ∀b. nat_le x b ==> nat_le x (suc b)
 
     Proof Complete!
-    with fuel: 348
+    with fuel: 334
     |}]
 
 let%expect_test "lt_weaken_suc" =
@@ -2844,7 +2842,7 @@ let%expect_test "lt_weaken_suc" =
     ∀x. ∀b. nat_lt x b ==> nat_lt x (suc b)
 
     Proof Complete!
-    with fuel: 443
+    with fuel: 412
     |}]
 
 let%expect_test "sub_le" =
@@ -2880,7 +2878,7 @@ let%expect_test "sub_le" =
     ∀x. ∀b. nat_le (sub x b) x
 
     Proof Complete!
-    with fuel: 261
+    with fuel: 266
     |}]
 
 let%expect_test "sub_lt" =
@@ -2915,7 +2913,7 @@ let%expect_test "sub_lt" =
     >> with_proven [ "sub_suc_suc" ] rewrite_tac
     >> with_first (with_proven [ "le_suc_suc" ] rewrite_asm_tac)
     >> with_arbitrary_term n0 destruct_tac
-    >> elim_disj_asm_tac >> simp_tac >> truth_tac >> elim_exists_asm_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac
     >> with_proven [ "lt_weaken_suc" ] apply_thm_tac
     >> spec_asm_tac a0 >> simp_asm_tac >> simp_tac >> with_repeat mp_asm_tac
     >> assumption_tac
@@ -2927,7 +2925,7 @@ let%expect_test "sub_lt" =
     ∀x. ∀a. nat_lt zero x ==> nat_le x a ==> nat_lt (sub a x) a
 
     Proof Complete!
-    with fuel: 429
+    with fuel: 434
     |}]
 
 let%expect_test "sub_add_cancel" =
@@ -2971,7 +2969,7 @@ let%expect_test "sub_add_cancel" =
     ∀x. ∀b. nat_le b x ==> plus (sub x b) b = x
 
     Proof Complete!
-    with fuel: 492
+    with fuel: 507
     |}]
 
 (* (* ===== Group 8: Ordering and addition ===== *) *)
@@ -3003,7 +3001,7 @@ let%expect_test "le_add_r" =
     ∀x. ∀b. nat_le x (plus x b)
 
     Proof Complete!
-    with fuel: 111
+    with fuel: 116
     |}]
 
 (* (* ===== Group 9: Totality ===== *) *)
@@ -3030,9 +3028,9 @@ let%expect_test "lt_total" =
     >>> with_arbitrary_term b induct_tac
     >>> try_ intros_tac
     >>= [
-          right_tac >> simp_tac >> truth_tac;
-          left_tac >> simp_tac >> truth_tac;
-          right_tac >> simp_tac >> truth_tac;
+          right_tac >> simp_tac;
+          left_tac >> simp_tac;
+          right_tac >> simp_tac;
           spec_asm_tac n0' >> elim_disj_asm_tac >> left_tac
           >> with_proven [ "lt_suc_suc" ] rewrite_tac
           >> assumption_tac >> right_tac
@@ -3074,9 +3072,9 @@ let%expect_test "le_total" =
     >>> with_arbitrary_term b induct_tac
     >>> try_ intros_tac
     >>= [
-          right_tac >> simp_tac >> truth_tac;
-          left_tac >> simp_tac >> truth_tac;
-          right_tac >> simp_tac >> truth_tac;
+          right_tac >> simp_tac;
+          left_tac >> simp_tac;
+          right_tac >> simp_tac;
           spec_asm_tac n0' >> elim_disj_asm_tac >> left_tac
           >> with_proven [ "le_suc_suc" ] rewrite_tac
           >> assumption_tac >> right_tac
@@ -3150,7 +3148,7 @@ let%expect_test "fuel sufficient" =
     ∀x. ∀a. ∀b. nat_lt zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = some x'
 
     Proof Complete!
-    with fuel: 205
+    with fuel: 208
     |}]
 
 let%expect_test "div unfold" =
