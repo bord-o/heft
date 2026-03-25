@@ -104,10 +104,20 @@ let rec term_match (context_vars : term list) (bound : term list)
           let env' = { env with type_sub = type_sub' } in
           let body1_typed = term_type_subst type_sub' body1 in
           let v1_typed = term_type_subst type_sub' v1 in
-          match vsubst [ (v2, v1_typed) ] body1_typed with
-          | Error _ -> None
-          | Ok body1' -> term_match context_vars (v2 :: bound) env' body1' body2
-          ))
+          (* Use a fresh variable to avoid collisions between the target's
+             bound variable and free variables in the pattern body *)
+          let fresh =
+            match variant [ body1_typed; body2 ] v2 with
+            | Ok v -> v
+            | Error _ -> v2
+          in
+          match
+            ( vsubst [ (fresh, v1_typed) ] body1_typed,
+              vsubst [ (fresh, v2) ] body2 )
+          with
+          | Ok body1', Ok body2' ->
+              term_match context_vars (fresh :: bound) env' body1' body2'
+          | _ -> None))
   | _, _ -> None
 
 (* Get all free variables from a list of terms (the hypotheses) *)

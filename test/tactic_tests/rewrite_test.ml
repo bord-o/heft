@@ -376,7 +376,8 @@ let%expect_test "match_term: match against forall" =
   print_match_result result;
   [%expect {|
     term_sub:
-      body -> y ==> y |}]
+      body -> y' ==> y'
+    |}]
 
 let%expect_test "match_term: match forall body structurally" =
   let () = reset () |> Result.get_ok in
