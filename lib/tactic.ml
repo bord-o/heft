@@ -377,6 +377,12 @@ let assume_tac : tactic =
   burn "assume_tac" (Unsafe 2);
   return_thm ~from:"assume_tac" @@ assume conc
 
+let sorry_tac : tactic =
+ fun (_, conc) ->
+  burn "sorry_tac" (Unsafe 1);
+  let thm = new_axiom conc in
+  return_thm ~from:"sorry_tac" thm
+
 let sym_tac : tactic =
  fun (asms, conc) ->
   burn "sym_tac" (Safe 1);
@@ -713,9 +719,29 @@ let elim_exists_asm_tac : tactic =
       (* Rename witness variable if it's already free in other assumptions
          or conclusion, to avoid capture when choose calls gen *)
       let avoid = concl :: other_asms in
-      let needs_rename = List.exists (var_free_in var) avoid in
+      let free_names =
+        List.concat_map frees avoid
+        |> List.filter_map (fun v ->
+            match v with Var (n, _) -> Some n | _ -> None)
+      in
+      let var_name = match var with Var (n, _) -> n | _ -> "" in
+      let needs_rename = var_name <> "" && List.mem var_name free_names in
       if needs_rename then
-        let* var' = variant avoid var in
+        let name_set =
+          List.filter_map
+            (fun v -> match v with Var (n, _) -> Some n | _ -> None)
+            (frees_in_list (var :: avoid))
+        in
+        let fresh_name =
+          let n = ref var_name in
+          while List.mem !n name_set do
+            n := !n ^ "'"
+          done;
+          !n
+        in
+        let var' =
+          match var with Var (_, ty) -> Var (fresh_name, ty) | _ -> var
+        in
         let* body' = vsubst [ (var', var) ] body in
         let asms' = body' :: other_asms in
         let sub_thm = perform (Subgoal (asms', concl)) in

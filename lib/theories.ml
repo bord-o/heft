@@ -201,6 +201,11 @@ module OptionTheory = struct
     def option_match : option a -> b -> (a -> b) -> b
         | none => λnone_case. λsome_case. none_case
         | some x => λnone_case. λsome_case. some_case x
+
+    variable x y : a
+    def default : option a -> a -> a
+        | none => λx. x
+        | some y => λx. y
   |}
 
   let _ =
@@ -312,7 +317,6 @@ module NatTheory = struct
     def div : nat -> nat -> nat
         | a => λb.
             option_match (div_aux (suc a) a b) zero (λx. x)
-            
   |}
 
   let _ =
@@ -402,7 +406,26 @@ module ListTheory = struct
             (∧
                 (list_match t T (λx'. λxs'. (nat_le h x')))
                 (sorted t))
-            
+
+    variable n y' : nat
+    variable xs ys ys' zs : list nat
+
+    def merge_aux : nat -> list nat -> list nat -> option (list nat)
+      | zero => λxs. λys. none
+      | suc n => λxs. λys. 
+        list_match xs
+            (some ys)
+            (λh. λt. 
+                (list_match ys
+                    (some (cons h t))
+                    (λy'. λys'.
+                        COND (nat_lt h y')
+                            (option_match (merge_aux n t (cons y' ys'))
+                                    (none)
+                                    (λzs. some (cons h zs)))
+                            (option_match (merge_aux n (cons h t) ys')
+                                    (none)
+                                    (λzs. some (cons y' zs))))))
     |}
 
   let _ =

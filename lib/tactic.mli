@@ -287,6 +287,8 @@ val assume_tac : tactic
 (** Proves any goal by assuming it. This creates a theorem with the goal as a
     hypothesis *)
 
+val sorry_tac : tactic
+
 val sym_tac : tactic
 (** Transforms a goal [l = r] into [r = l] *)
 
