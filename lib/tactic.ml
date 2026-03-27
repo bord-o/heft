@@ -706,6 +706,12 @@ let elim_conj_asm_tac : tactic =
     in
     return_thm ~from:"elim_conj_asm_tac" thm
 
+let rec all_var_names = function
+  | Var (n, _) -> [ n ]
+  | Const _ -> []
+  | App (s, t) -> all_var_names s @ all_var_names t
+  | Lam (bv, bod) -> all_var_names bv @ all_var_names bod
+
 let elim_exists_asm_tac : tactic =
  fun (asms, concl) ->
   burn "elim_exists_asm_tac" (Safe 2);
@@ -719,22 +725,15 @@ let elim_exists_asm_tac : tactic =
       (* Rename witness variable if it's already free in other assumptions
          or conclusion, to avoid capture when choose calls gen *)
       let avoid = concl :: other_asms in
-      let free_names =
-        List.concat_map frees avoid
-        |> List.filter_map (fun v ->
-            match v with Var (n, _) -> Some n | _ -> None)
+      let used_names =
+        List.concat_map all_var_names avoid |> List.sort_uniq String.compare
       in
       let var_name = match var with Var (n, _) -> n | _ -> "" in
-      let needs_rename = var_name <> "" && List.mem var_name free_names in
+      let needs_rename = var_name <> "" && List.mem var_name used_names in
       if needs_rename then
-        let name_set =
-          List.filter_map
-            (fun v -> match v with Var (n, _) -> Some n | _ -> None)
-            (frees_in_list (var :: avoid))
-        in
         let fresh_name =
           let n = ref var_name in
-          while List.mem !n name_set do
+          while List.mem !n used_names do
             n := !n ^ "'"
           done;
           !n

@@ -322,7 +322,7 @@ let%expect_test "length_cons" =
         (Result.get_ok (safe_make_eq length_cons_x_xs suc_length_xs)) )
   in
   let proof = intros_tac >> simp_tac in
-  run_proof goal proof;
+  run_proof ~name:"length_cons" ~simp:true goal proof;
 
   [%expect
     {|
@@ -3088,13 +3088,13 @@ let%expect_test "le_total" =
     with fuel: 154
     |}]
 
-let%expect_test "fuel sufficient" =
+let%expect_test "div fuel sufficient" =
   let prg =
     {|
     variable a b x n n0 : nat
 
-    variable n a b x : nat
-    theorem fuel_sufficient :
+    variable n a b x x' : nat
+    theorem div_fuel_sufficient :
         forall λn.
             forall λa.
                 forall λb.
@@ -3105,6 +3105,7 @@ let%expect_test "fuel sufficient" =
     term a : a
     term b : b
     term x : suc x
+    term sucx' : suc x'
     term subab : sub a b
 
     term l1: nat_lt (sub a b) a
@@ -3113,7 +3114,7 @@ let%expect_test "fuel sufficient" =
   in
 
   let b = Elaborator.term_from_string prg "b" in
-  let x = Elaborator.term_from_string prg "x" in
+  let sucx' = Elaborator.term_from_string prg "sucx'" in
   let l1 = Elaborator.term_from_string prg "l1" in
   let l2 = Elaborator.term_from_string prg "l2" in
   let subab = Elaborator.term_from_string prg "subab" in
@@ -3132,9 +3133,8 @@ let%expect_test "fuel sufficient" =
        >> with_proven [ "lt_le_trans" ] apply_thm_tac
        >> with_first assumption_tac >> with_first assumption_tac)
     >> spec_asm_tac subab >> spec_asm_tac b >> with_repeat mp_asm_tac
-    >> elim_exists_asm_tac
-    >> with_arbitrary_term x exists_tac
-    >> with_first (with_assumptions rewrite_tac)
+    >> elim_exists_asm_tac >> simp_tac
+    >> with_arbitrary_term sucx' exists_tac
     >> simp_tac
   in
   run_proof ~name:"div_fuel_sufficient" ~notrace:true goal proof;
@@ -3144,7 +3144,7 @@ let%expect_test "fuel sufficient" =
     ∀x. ∀a. ∀b. nat_lt zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = some x'
 
     Proof Complete!
-    with fuel: 208
+    with fuel: 216
     |}]
 
 let%expect_test "div unfold" =
@@ -3162,9 +3162,9 @@ let%expect_test "div unfold" =
 
 
     term l1: nat_lt (sub a b) a
-    term l2 : exists (λx. eq (div_aux a (sub a b) b) (some x))
+    term l2 : exists (λx'. eq (div_aux a (sub a b) b) (some x'))
     term l3 : exists (λx. eq (div_aux (suc (sub a b)) (sub a b) b) (some x))
-    term l4 : eq (div_aux (plus (suc (sub a b)) (sub a (suc (sub a b)))) (sub a b) b) (some x')
+    term l4 : eq (div_aux (plus (suc (sub a b)) (sub a (suc (sub a b)))) (sub a b) b) (some x)
     term arith : eq (plus (sub a (suc (sub a b))) (suc (sub a b))) a
   |}
   in
@@ -3315,17 +3315,20 @@ let%expect_test "merge fuel irrel" =
   let xs = Elaborator.term_from_string prg "xs" in
   let ys = Elaborator.term_from_string prg "ys" in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let rw_asm =
+    with_first (with_assumptions rewrite_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
+  in
   let proof =
     with_arbitrary_term fuel induct_tac
     >> intros_tac >> simp_asm_tac
-    >> with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac
+    >> with_rules OptionTheory.option_def.distinct rewrite_asm_tac
     >> false_elim_tac >> intros_tac
     >> with_arbitrary_term xs destruct_tac
     >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac
     >> elim_exists_asm_tac
     >> with_proven [ "add_suc_l" ] rewrite_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> with_first (with_assumptions rewrite_asm_tac)
+    >> rw_asm
     >> with_arbitrary_term ys destruct_tac
     >> elim_disj_asm_tac
     >> with_first (with_definition [ "merge_aux" ] rewrite_tac)
@@ -3333,21 +3336,16 @@ let%expect_test "merge fuel irrel" =
     >> with_first (with_definition [ "merge_aux" ] rewrite_asm_tac)
     >> beta_tac >> simp_tac >> beta_asm_tac
     >> with_first (with_assumptions rewrite_asm_tac)
-    >> simp_asm_tac >> elim_exists_asm_tac >> elim_exists_asm_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> with_first (with_assumptions rewrite_asm_tac)
+    >> simp_asm_tac >> elim_exists_asm_tac >> elim_exists_asm_tac >> rw_asm
     >> with_first (with_definition [ "merge_aux" ] rewrite_tac)
     >> beta_tac
     >> with_first (with_definition [ "merge_aux" ] rewrite_asm_tac)
-    >> beta_asm_tac >> simp_tac >> simp_asm_tac >> cond_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> with_first (with_assumptions rewrite_asm_tac)
+    >> beta_asm_tac >> simp_tac >> simp_asm_tac >> cond_tac >> rw_asm
     >> with_proven [ "cond_true" ] rewrite_tac
     >> with_proven [ "cond_true" ] rewrite_asm_tac
     >> with_arbitrary_term m destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
-    >> with_first
-         (with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac)
+    >> with_first (with_rules OptionTheory.option_def.distinct rewrite_asm_tac)
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac additional >> spec_asm_tac a1 >> spec_asm_tac consa
     >> spec_asm_tac a0'' >> with_repeat mp_asm_tac >> simp_tac >> simp_tac
@@ -3355,8 +3353,7 @@ let%expect_test "merge fuel irrel" =
     >> simp_asm_tac
     >> with_arbitrary_term n destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
-    >> with_first
-         (with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac)
+    >> with_first (with_rules OptionTheory.option_def.distinct rewrite_asm_tac)
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac additional >> spec_asm_tac consa2 >> spec_asm_tac a1'
     >> spec_asm_tac a0'' >> with_repeat mp_asm_tac >> simp_tac
@@ -3369,4 +3366,84 @@ let%expect_test "merge fuel irrel" =
 
     Proof Complete!
     with fuel: 640
+    |}]
+
+let%expect_test "merge fuel sufficient" =
+  let prg =
+    {|
+    variable fuel a0 a0': nat
+    variable xs ys x a1 a1' x' : list nat
+    
+    theorem merge_fuel_sufficient :
+        forall λfuel.
+            forall λxs. forall λys.
+                        imp (nat_lt (plus (length xs) (length ys)) fuel)
+                            (exists λx.
+                                (eq (merge_aux fuel xs ys) (some x)))
+    term xs : xs
+    term ys : ys
+    term consa01 :  (cons a0 a1) 
+    term consa01' :  (cons a0' a1') 
+    term a1 : a1
+    term a1' : a1'
+    term x : x
+    term wit : (cons a0 x')
+    term wit2 :  (cons a0' x')
+
+  |}
+  in
+
+  let xs = Elaborator.term_from_string prg "xs" in
+  let ys = Elaborator.term_from_string prg "ys" in
+  let wit = Elaborator.term_from_string prg "wit" in
+  let wit2 = Elaborator.term_from_string prg "wit2" in
+  let a1 = Elaborator.term_from_string prg "a1" in
+  let a1' = Elaborator.term_from_string prg "a1'" in
+  let consa01 = Elaborator.term_from_string prg "consa01" in
+  let consa01' = Elaborator.term_from_string prg "consa01'" in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
+    >> simp_tac
+    >> with_arbitrary_term xs destruct_tac
+    >> elim_disj_asm_tac >> simp_tac
+    >> with_arbitrary_term ys exists_tac
+    >> refl_tac
+    >> with_repeat elim_exists_asm_tac
+    >> simp_tac
+    >> with_arbitrary_term ys destruct_tac
+    >> elim_disj_asm_tac >> simp_tac
+    >> with_arbitrary_term consa01 exists_tac
+    >> refl_tac
+    >> with_repeat elim_exists_asm_tac
+    >> simp_tac >> cond_tac >> simp_tac
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_proven [ "length_cons" ] rewrite_asm_tac
+    >> with_proven [ "add_suc_l" ] rewrite_asm_tac
+    >> with_proven [ "lt_suc_suc" ] rewrite_asm_tac
+    >> spec_asm_tac a1 >> spec_asm_tac consa01' >> mp_asm_tac
+    >> elim_exists_asm_tac >> simp_tac
+    >> with_arbitrary_term wit exists_tac
+    >> refl_tac >> simp_tac
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_proven [ "plus_comm" ] rewrite_asm_tac
+    >> with_proven [ "length_cons" ] rewrite_asm_tac
+    >> with_proven [ "add_suc_l" ] rewrite_asm_tac
+    >> with_proven [ "plus_comm" ] rewrite_asm_tac
+    >> with_proven [ "lt_suc_suc" ] rewrite_asm_tac
+    >> spec_asm_tac consa01 >> spec_asm_tac a1' >> mp_asm_tac
+    >> elim_exists_asm_tac >> simp_tac
+    >> with_arbitrary_term wit2 exists_tac
+    >> refl_tac
+  in
+  run_proof ~name:"merge_fuel_sufficient" ~notrace:true goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀xs. ∀ys. nat_lt (plus (length xs) (length ys)) x ==> ∃x. merge_aux x xs ys = some x
+
+    Proof Complete!
+    with fuel: 404
     |}]
