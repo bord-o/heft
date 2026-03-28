@@ -270,8 +270,7 @@ let%expect_test "bool with T and F as extras" =
 
 let%expect_test "pair nat bool depth 2 with T F extras" =
   let open Theories.NatTheory in
-  let open Theories.PairTheory in
-  let _ = list_def in
+  let _ = Theories.ListTheory.list_def in
   let extras = [ ("T", bool_ty); ("F", bool_ty) ] in
   let pair_ty = TyCon ("pair", [ nat_ty; bool_ty ]) in
   enumerate ~extra:extras [] pair_ty 2 |> print_terms;
@@ -282,8 +281,7 @@ let%expect_test "pair nat bool depth 2 with T F extras" =
 
 let%expect_test "pair nat bool depth 3 with T F extras" =
   let open Theories.NatTheory in
-  let open Theories.PairTheory in
-  let _ = list_def in
+  let _ = Theories.ListTheory.list_def in
   let extras = [ ("T", bool_ty); ("F", bool_ty) ] in
   let pair_ty = TyCon ("pair", [ nat_ty; bool_ty ]) in
   let terms = enumerate ~extra:extras [] pair_ty 3 in
@@ -1356,7 +1354,6 @@ let%expect_test "synth replicate via make_synthesis_goal" =
 let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
   let open Theories.NatTheory in
   let open Theories.ListTheory in
-  let open Theories.PairTheory in
   let _ = list_def in
   let pair_nat_nat = TyCon ("pair", [ nat_ty; nat_ty ]) in
   let list_pair = TyCon ("list", [ pair_nat_nat ]) in

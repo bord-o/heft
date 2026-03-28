@@ -350,6 +350,33 @@ module NatTheory = struct
     make_app ab b
 end
 
+module PairTheory = struct
+  let prg =
+    {|
+    vartype a b
+    inductive pair := 
+        | pair : a -> b -> pair a b
+
+    variable l : a
+    variable r : b
+    variable p : pair a b
+
+    def fst : pair a b -> a
+        | pair l r => l
+
+    def snd : pair a b -> b
+        | pair l r => r
+
+    variable x y : a
+    theorem fst_snd_eq: imp (eq x y) (eq (fst (pair x y)) (snd (pair x y)))
+
+  |}
+
+  let _ = Elaborator.goals_from_string prg
+  let fst = make_const "fst" [] |> Result.get_ok
+  let snd = make_const "snd" [] |> Result.get_ok
+end
+
 module ListTheory = struct
   let a = make_vartype "a"
   let list_ty = TyCon ("list", [ a ])
@@ -433,7 +460,38 @@ module ListTheory = struct
                 option_match (merge_aux (suc (plus (length xs) (length ys))) xs ys)
                     nil 
                     (λzs. zs)
-            
+
+    def take : nat -> list nat -> list nat
+        | zero => λxs. nil
+        | suc n => λxs.
+            list_match xs
+                (nil)
+                (λh. λt. cons h (take n t))
+
+    def drop : nat -> list nat -> list nat
+        | zero => λxs. xs
+        | suc n => λxs.
+            list_match xs
+                (nil)
+                (λh. λt. drop n t)
+    
+    variable half_length n : nat
+    variable left right : list nat
+
+    def merge_sort_aux : nat -> list nat -> option (list nat)
+    | zero => λxs. none
+    | suc n => λxs.
+        COND (nat_le (length xs) (suc zero))
+            (some xs)
+            ((λhalf_length. 
+                option_match (merge_sort_aux n (take half_length xs))
+                    (none)
+                    (λleft. 
+                        option_match (merge_sort_aux n (drop half_length xs))
+                            (none)
+                            (λright. some (merge left right))
+                    )
+            ) (div (length xs) (suc (suc zero))))
     |}
 
   let _ =
@@ -447,34 +505,6 @@ module ListTheory = struct
   let length = make_const "length" [] |> Result.get_ok
   let append = make_const "append" [] |> Result.get_ok
   let reverse = make_const "reverse" [] |> Result.get_ok
-end
-
-module PairTheory = struct
-  let prg =
-    {|
-    vartype a b
-    inductive pair := 
-        | pair : a -> b -> pair a b
-
-    variable l : a
-    variable r : b
-    variable p : pair a b
-
-    def fst : pair a b -> a
-        | pair l r => l
-
-    def snd : pair a b -> b
-        | pair l r => r
-
-    variable x y : a
-    theorem fst_snd_eq: imp (eq x y) (eq (fst (pair x y)) (snd (pair x y)))
-
-  |}
-
-  let _ = Elaborator.goals_from_string prg
-  let list_def = Hashtbl.find the_inductives "list"
-  let fst = make_const "fst" [] |> Result.get_ok
-  let snd = make_const "snd" [] |> Result.get_ok
 end
 
 module CondTheory = struct

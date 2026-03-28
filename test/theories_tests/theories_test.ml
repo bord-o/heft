@@ -3548,3 +3548,37 @@ let%expect_test "merge unfolding lemma" =
     Proof Complete!
     with fuel: 1197
     |}]
+
+(* sort [3,1,2] = [1,2,3] *)
+let%expect_test "merge sort [3,1,2] = [1,2,3]" =
+  let prg =
+    {|
+    theorem isort_test : eq
+      (merge_sort_aux (suc (suc (suc (suc (suc ( suc (suc (suc zero)))))))) (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))))
+      (some (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))))
+  |}
+  in
+
+  let rw_def r =
+    with_first (with_definition [ r ] rewrite_tac)
+    >> try_ (with_repeat beta_tac)
+  in
+  (* let rw_thm r = *)
+  (*   with_first (with_proven [ r ] rewrite_tac) >> try_ (with_repeat beta_tac) *)
+  (* in *)
+
+  let proof = 
+    rw_def "merge_sort_aux" >>
+      simp_tac ~exclude: ["merge_sort_aux"; "merge"; "merge_aux"; "div"; "div_aux"; "merge_unfold"; "div_unfold"]
+      >> sorry_tac
+  in
+
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  run_proof ~notrace:true goal proof;
+  [%expect {|
+    ========================================
+    merge_sort_aux (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))) (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))) = some (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil)))
+
+    Proof Complete!
+    with fuel: 81
+    |}]
