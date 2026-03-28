@@ -28,11 +28,24 @@ let get_prec = function
   | App _ -> PrecApp
   | Lam _ -> PrecQuant
 
-let rec pretty_print_hol_term ?(with_type = false) ?(parent_prec = PrecImp) term
-    =
+(* Try to read a term as a nat numeral: suc (suc ... zero) -> Some n *)
+let rec read_nat = function
+  | Const ("zero", _) -> Some 0
+  | App (Const ("suc", _), t) -> Option.map (fun n -> n + 1) (read_nat t)
+  | _ -> None
+
+(* Try to read a term as a list: cons x (cons y ... nil) -> Some [x; y; ...] *)
+let rec read_list = function
+  | Const ("nil", _) -> Some []
+  | App (App (Const ("cons", _), x), rest) ->
+      Option.map (fun xs -> x :: xs) (read_list rest)
+  | _ -> None
+
+let rec pretty_print_hol_term ?(with_type = false) ?(pretty = false)
+    ?(parent_prec = PrecImp) term =
   let my_prec = get_prec term in
   let aux ?(parent_prec = PrecImp) t =
-    pretty_print_hol_term ~with_type ~parent_prec t
+    pretty_print_hol_term ~with_type ~pretty ~parent_prec t
   in
 
   (* Decide if we need parens based on precedence *)
@@ -47,6 +60,24 @@ let rec pretty_print_hol_term ?(with_type = false) ?(parent_prec = PrecImp) term
   in
   let wrap s = if needs_parens then Format.sprintf "(%s)" s else s in
 
+  (* Try pretty-printing rules for nats and lists *)
+  if pretty then
+    match read_nat term with
+    | Some n -> string_of_int n
+    | None -> (
+        match read_list term with
+        | Some elems ->
+            let strs = List.map (aux ~parent_prec:PrecImp) elems in
+            Format.sprintf "[%s]" (String.concat ", " strs)
+        | None ->
+            pretty_print_hol_term_inner ~with_type ~pretty ~parent_prec ~wrap
+              ~aux term)
+  else
+    pretty_print_hol_term_inner ~with_type ~pretty ~parent_prec:PrecImp ~wrap
+      ~aux term
+
+and pretty_print_hol_term_inner ~with_type ~pretty:_ ~parent_prec:_ ~wrap ~aux
+    term =
   match term with
   (* Special cases for logical connectives *)
   | App (App (Const ("=", _), l), r) ->
@@ -102,20 +133,27 @@ let rec pretty_print_hol_term ?(with_type = false) ?(parent_prec = PrecImp) term
            (aux ~parent_prec:PrecAtom bind)
            (aux ~parent_prec:PrecQuant body))
 
-let pretty_print_thm ?(with_type = false) thm =
+let pretty_print_thm ?(pretty = false) ?(with_type = false) thm =
   let assm, concl = destruct_thm thm in
   let bar = String.make 40 '=' in
   match assm with
-  | [] -> Format.sprintf "%s\n%s" bar (pretty_print_hol_term ~with_type concl)
+  | [] ->
+      Format.sprintf "%s\n%s" bar
+        (pretty_print_hol_term ~pretty ~with_type concl)
   | _ ->
       let assms =
-        List.map (pretty_print_hol_term ~with_type) assm |> String.concat "\n"
+        List.map (pretty_print_hol_term ~pretty ~with_type) assm
+        |> String.concat "\n"
       in
       Format.sprintf "%s\n%s\n%s" assms bar
-        (pretty_print_hol_term ~with_type concl)
+        (pretty_print_hol_term ~pretty ~with_type concl)
 
-let print_thm th = print_newline @@ print_endline @@ pretty_print_thm th
-let print_term trm = print_newline @@ print_endline @@ pretty_print_hol_term trm
+let print_thm ?(pretty = false) th =
+  print_newline @@ print_endline @@ pretty_print_thm ~pretty th
+
+let print_term ?(pretty = false) trm =
+  print_newline @@ print_endline @@ pretty_print_hol_term ~pretty trm
+
 let fmt_term = pretty_print_hol_term
 let fmt_type = pretty_print_hol_type
 

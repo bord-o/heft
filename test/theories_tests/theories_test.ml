@@ -3563,22 +3563,43 @@ let%expect_test "merge sort [3,1,2] = [1,2,3]" =
     with_first (with_definition [ r ] rewrite_tac)
     >> try_ (with_repeat beta_tac)
   in
-  (* let rw_thm r = *)
-  (*   with_first (with_proven [ r ] rewrite_tac) >> try_ (with_repeat beta_tac) *)
-  (* in *)
-
-  let proof = 
-    rw_def "merge_sort_aux" >>
-      simp_tac ~exclude: ["merge_sort_aux"; "merge"; "merge_aux"; "div"; "div_aux"; "merge_unfold"; "div_unfold"]
-      >> sorry_tac
+  let rw_thm r =
+    with_first (with_proven [ r ] rewrite_tac) >> try_ (with_repeat beta_tac)
+  in
+  let exclude =
+    [
+      "merge_sort_aux";
+      "merge";
+      "merge_aux";
+      "div";
+      "div_aux";
+      "merge_unfold";
+      "div_unfold";
+    ]
+  in
+  let proof =
+    rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> with_repeat @@ rw_def "div"
+    >> with_repeat @@ rw_def "div_aux"
+    >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> with_repeat @@ rw_def "div"
+    >> with_repeat @@ rw_def "div_aux"
+    >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> rw_def "merge_sort_aux" >> simp_tac ~exclude >> rw_thm "merge_unfold"
+    >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude
+    >> rw_thm "merge_unfold" >> simp_tac ~exclude >> rw_thm "merge_unfold"
+    >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude
+    >> rw_thm "merge_unfold" >> simp_tac ~exclude
   in
 
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  run_proof ~notrace:true goal proof;
-  [%expect {|
+  run_proof ~pretty:true ~notrace:true goal proof;
+  [%expect
+    {|
     ========================================
-    merge_sort_aux (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))) (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))) = some (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil)))
+    merge_sort_aux 8 [3, 1, 2] = some [1, 2, 3]
 
     Proof Complete!
-    with fuel: 81
+    with fuel: 1371
     |}]

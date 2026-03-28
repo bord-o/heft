@@ -1668,8 +1668,8 @@ let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
       Multicont.Deep.resume r t
   | v -> v
 
-let run_proof ?(notrace = true) ?(name = "") ?(simp = false) ?(quiet = false)
-    goal tac =
+let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
+    ?(quiet = false) goal tac =
   let fuel_count = ref 0 in
   let limit = ref 1_000_000 in
   let wrapped =
@@ -1680,13 +1680,13 @@ let run_proof ?(notrace = true) ?(name = "") ?(simp = false) ?(quiet = false)
   | Complete thm ->
       if simp then Rules.add_simp name thm;
       if not quiet then (
-        print_thm thm;
+        print_thm ~pretty thm;
         print_endline "Proof Complete!";
         Printf.printf "with fuel: %d\n" !fuel_count)
   | Incomplete (asms, c) ->
       if not quiet then (
-        List.iter print_term asms;
+        List.iter (print_term ~pretty) asms;
         print_endline "--------------";
-        print_term c;
+        print_term ~pretty c;
         print_endline "Proof Incomplete";
         Printf.printf "with fuel: %d\n" !fuel_count)

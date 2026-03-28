@@ -668,6 +668,7 @@ val with_synthetic_term :
 (** {1 Proof Execution} *)
 
 val run_proof :
+  ?pretty:bool ->
   ?notrace:bool ->
   ?name:string ->
   ?simp:bool ->
