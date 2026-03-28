@@ -3447,3 +3447,104 @@ let%expect_test "merge fuel sufficient" =
     Proof Complete!
     with fuel: 404
     |}]
+
+(*
+what we want
+    def merge : list nat -> list nat -> list nat
+        | nil => λys. ys
+        | cons h t =>
+            list_match ys
+                (cons h t)
+                (λy'. λys'. 
+                    COND (nat_lt h 'y)
+                        (cons h (merge t (cons y' ys')))
+                        (cons 'y (merge (cons h t) ys')))
+
+ *)
+let%expect_test "merge unfolding lemma" =
+  let prg =
+    {|
+  variable fuel : nat
+  variable h y' a0 a0' : nat
+  variable xs ys x t ys' a1 a1' witness : list nat
+
+  theorem merge_unfold:
+    forall λxs. forall λys.
+            (eq (merge xs ys)
+                (list_match xs
+                    (ys)
+                    (λh. λt. 
+                        (list_match ys
+                            (cons h t)
+                            (λy'. λys'.
+                                COND (nat_lt h y')
+                                    (cons h (merge t (cons y' ys')))
+                                    (cons y' (merge (cons h t) ys')))))))
+    term xs : xs
+    term ys : ys
+    term suf : exists (λx. eq  (merge_aux (suc (plus (length a1') (suc (length a1)))) a1' (cons a0 a1)) (some x))
+    term suf2 : exists (λx. eq  (merge_aux (suc (plus (length a1') (suc (length a1)))) (cons a0' a1') a1) (some x))
+
+    |}
+  in
+
+  let xs = Elaborator.term_from_string prg "xs" in
+  let suf = Elaborator.term_from_string prg "suf" in
+  let suf2 = Elaborator.term_from_string prg "suf2" in
+  let ys = Elaborator.term_from_string prg "ys" in
+  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
+  let proof =
+    intros_tac
+    >> with_arbitrary_term xs destruct_tac
+    >> with_arbitrary_term ys destruct_tac
+    >> with_repeat elim_disj_asm_tac
+    >> simp_tac
+    >> with_repeat elim_exists_asm_tac
+    >> simp_tac
+    >> with_repeat elim_exists_asm_tac
+    >> simp_tac
+    >> with_repeat elim_exists_asm_tac
+    >> with_definition [ "merge" ] rewrite_tac
+    >> beta_tac
+    >> with_first (with_definition [ "merge_aux" ] rewrite_tac)
+    >> with_repeat (with_first (with_assumptions rewrite_tac))
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> cond_tac
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> with_arbitrary_term suf assert_tac
+    >> with_proven [ "merge_fuel_sufficient" ] apply_thm_tac
+    >> simp_tac >> elim_exists_asm_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> with_definition [ "merge" ] rewrite_tac
+    >> beta_tac
+    >> with_proven [ "length_cons" ] rewrite_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> with_arbitrary_term suf2 assert_tac
+    >> with_proven [ "merge_fuel_sufficient" ] apply_thm_tac
+    >> simp_tac
+    >> with_proven [ "plus_suc" ] rewrite_tac
+    >> simp_tac >> elim_exists_asm_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> with_definition [ "merge" ] rewrite_tac
+    >> beta_tac
+    >> with_proven [ "length_cons" ] rewrite_tac
+    >> with_first (with_proven [ "plus_suc" ] rewrite_asm_tac)
+    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
+    >> with_first (with_proven [ "plus_suc" ] rewrite_tac)
+    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac
+  in
+  run_proof ~name:"merge_unfold" ~notrace:true goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀xs. ∀ys. merge xs ys = list_match xs ys (λh. λt. list_match ys (cons h t) (λy'. λys'. COND (nat_lt h y') (cons h (merge t (cons y' ys'))) (cons y' (merge (cons h t) ys'))))
+
+    Proof Complete!
+    with fuel: 1197
+    |}]

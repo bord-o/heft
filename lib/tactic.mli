@@ -641,7 +641,7 @@ val intros_tac : tactic
 (** Repeatedly applies [intro_tac] and [gen_tac] until neither makes progress.
     Useful for introducing all hypotheses at once *)
 
-val simp_tac : ?with_asms:bool -> tactic
+val simp_tac : ?exclude:string list -> ?with_asms:bool -> tactic
 (** Simplifies the goal using rewrite rules from definitions and registered simp
     lemmas. Set [with_asms:false] to exclude assumptions *)
 

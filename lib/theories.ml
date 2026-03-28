@@ -426,6 +426,14 @@ module ListTheory = struct
                             (option_match (merge_aux n (cons h t) ys')
                                     (none)
                                     (λzs. some (cons y' zs))))))
+
+    def merge : list nat -> list nat -> list nat
+        | xs =>
+            λys. 
+                option_match (merge_aux (suc (plus (length xs) (length ys))) xs ys)
+                    nil 
+                    (λzs. zs)
+            
     |}
 
   let _ =

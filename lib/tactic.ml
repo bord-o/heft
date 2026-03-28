@@ -1567,11 +1567,19 @@ let with_rules_and_assumptions (rules : thm list) : tactic_combinator =
 let intros_tac : tactic =
  fun goal -> with_repeat (with_first (pick_tac [ intro_tac; gen_tac ])) goal
 
-let simp_tac ?(with_asms = true) : tactic =
+let simp_tac ?(exclude = []) ?(with_asms = true) : tactic =
  fun goal ->
   let add = perform Rules in
-  let definitions = !Rules.definitions |> List.map snd in
-  let simps = !Rules.simps |> List.map snd in
+  let definitions =
+    !Rules.definitions
+    |> List.filter (fun (n, _) -> not @@ List.mem n exclude)
+    |> List.map snd
+  in
+  let simps =
+    !Rules.simps
+    |> List.filter (fun (n, _) -> not @@ List.mem n exclude)
+    |> List.map snd
+  in
   let rules =
     definitions |> List.append add |> List.append simps
     |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
