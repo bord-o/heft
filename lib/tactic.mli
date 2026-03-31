@@ -652,7 +652,8 @@ val auto_tac : tactic
 val auto_dfs_tac : tactic
 (** [auto_tac] wrapped with [with_dfs] for automatic depth-first proof search *)
 
-val simp_asm_tac : ?with_asms:bool -> ?add:Kernel.thm list -> tactic
+val simp_asm_tac :
+  ?exclude:string list -> ?with_asms:bool -> ?add:Kernel.thm list -> tactic
 (** Simplifies assumptions using rewrite rules from definitions. Use [add] to
     provide additional rules. Set [with_asms:false] to exclude other assumptions
     as rewrite rules *)

@@ -1518,7 +1518,16 @@ let with_rules (rules : thm list) : tactic_combinator =
 let with_flip_rules : tactic_combinator =
  fun tac goal ->
   let rules = perform Rules in
-  let flipped = List.filter_map (Fun.compose Result.to_option sym) rules in
+  let flipped =
+    List.filter_map
+      (fun r ->
+        let r' =
+          let* stripped = strip_forall r in
+          sym stripped
+        in
+        Result.to_option r')
+      rules
+  in
   match tac goal with effect Rules, k -> continue k flipped | v -> v
 
 let with_rule (rule : thm) : tactic_combinator =
@@ -1623,11 +1632,19 @@ let auto_dfs_tac : tactic =
   let thm = with_dfs auto_tac goal in
   return_thm ~from:"auto_dfs_tac" (Ok thm)
 
-let simp_asm_tac ?(with_asms = true) ?(add = []) : tactic =
+let simp_asm_tac ?(exclude = []) ?(with_asms = true) ?(add = []) : tactic =
  fun goal ->
   let extra = perform Rules in
-  let definitions = !Rules.definitions |> List.map snd in
-  let simps = !Rules.simps |> List.map snd in
+  let definitions =
+    !Rules.definitions
+    |> List.filter (fun (n, _) -> not @@ List.mem n exclude)
+    |> List.map snd
+  in
+  let simps =
+    !Rules.simps
+    |> List.filter (fun (n, _) -> not @@ List.mem n exclude)
+    |> List.map snd
+  in
   let rules =
     definitions |> List.append extra |> List.append simps |> List.append add
     |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
