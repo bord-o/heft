@@ -1,6 +1,6 @@
 (library
  (name tactic_tests)
- (libraries ppx_deriving sexplib heft)
+ (libraries ppx_deriving sexplib heft heft.theories)
  (inline_tests)
  (preprocess
   (pps ppx_expect ppx_deriving.show)))

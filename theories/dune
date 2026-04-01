@@ -1,0 +1,4 @@
+(library
+ (name heft_theories)
+ (public_name heft.theories)
+ (libraries heft))

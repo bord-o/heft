@@ -1,0 +1,5 @@
+(library
+ (name ppx_heft)
+ (kind ppx_rewriter)
+ (libraries ppxlib)
+ (public_name heft.ppx_heft))

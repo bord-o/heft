@@ -1,5 +1,6 @@
 (** Example definitions used in some test proofs *)
 
+open Heft
 open Kernel
 open Derived
 open Result.Syntax

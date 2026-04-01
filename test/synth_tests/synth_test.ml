@@ -2,6 +2,7 @@ open Heft
 open Kernel
 open Tactic
 open Synth
+open Heft_theories
 
 let%expect_test "synth goal setup" =
   let open Theories.NatTheory in

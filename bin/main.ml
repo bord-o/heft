@@ -1,6 +1,7 @@
 open Heft
 open Kernel
 open Tactic
+open Heft_theories
 
 let () =
   let open Theories.NatTheory in

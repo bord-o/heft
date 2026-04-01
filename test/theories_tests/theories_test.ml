@@ -2,6 +2,7 @@ open Heft
 open Kernel
 open Derived
 open Tactic
+open Heft_theories
 open Theories
 
 let%expect_test "template" =
@@ -3958,7 +3959,7 @@ let%expect_test "merge sort sufficient" =
        >> with_first (with_proven [ "lt_le_trans" ] apply_thm_tac)
        >> with_first (with_assumptions rewrite_tac)
        >> truth_tac >> with_first assumption_tac)
-    >> (with_arbitrary_term right_oblig assert_tac
+    >> with_arbitrary_term right_oblig assert_tac
        >> with_first (with_proven [ "not_le_is_lt" ] rewrite_asm_tac)
        >> with_first (with_proven [ "div_pos" ] apply_thm_asm_tac)
        >> with_proven [ "length_drop" ] rewrite_tac
@@ -3974,7 +3975,7 @@ let%expect_test "merge sort sufficient" =
        >> with_repeat elim_exists_asm_tac
        >> simp_tac ~exclude:[ "div"; "merge" ]
        >> with_arbitrary_term wit exists_tac
-       >> refl_tac)
+       >> refl_tac
   in
   run_proof ~name:"merge_sort_fuel_sufficient" ~pretty:true ~notrace:true goal
     proof;
