@@ -1,8 +1,279 @@
 open Heft
 open Kernel
+open Derived
 
-let%expect_test "basic transformation" =
+let%expect_test "variable with type annotation" =
   let (t : term) = [%term (test : nat list)] in
   let s = Printing.pretty_print_hol_term ~with_type:true t in
   print_endline s;
   [%expect {| test:(nat list) |}]
+
+let%expect_test "constant" =
+  let (t : term) = [%term zero] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| zero:nat |}]
+
+let%expect_test "application: suc zero" =
+  let (t : term) = [%term suc zero] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| suc:(nat -> nat) zero:nat |}]
+
+let%expect_test "nested application: plus zero zero" =
+  let (t : term) = [%term plus zero zero] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| plus:(nat -> (nat -> nat)) zero:nat zero:nat |}]
+
+let%expect_test "application with variable: suc (n : nat)" =
+  let (t : term) = [%term suc (n : nat)] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| suc:(nat -> nat) n:nat |}]
+
+let%expect_test "lambda: fun (x : nat) -> x" =
+  let (t : term) = [%term fun (x : nat) -> (x : nat)] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| λx:nat. x:nat |}]
+
+let%expect_test "forall with equality" =
+  let (t : term) = [%term forall (fun (x : nat) -> (x : nat) = (x : nat))] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀x. x = x |}]
+
+let%expect_test "equality: (x : nat) = (y : nat)" =
+  let (t : term) = [%term (x : nat) = (y : nat)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| x = y |}]
+
+let%expect_test "forall with equality" =
+  let (t : term) =
+    [%term forall (fun (n : nat) -> plus zero (n : nat) = (n : nat))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀n. plus zero n = n |}]
+
+let%expect_test "negation" =
+  let (t : term) = [%term not (x : bool)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ¬x |}]
+
+let%expect_test "conjunction" =
+  let (t : term) = [%term (x : bool) && (y : bool)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| x ∧ y |}]
+
+let%expect_test "disjunction" =
+  let (t : term) = [%term (x : bool) || (y : bool)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| x ∨ y |}]
+
+let%expect_test "implication" =
+  let (t : term) = [%term (x : bool) ==> (y : bool)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| x ==> y |}]
+
+(* === Application edge cases === *)
+
+let%expect_test "three-argument application" =
+  let (t : term) = [%term nat_lt (n : nat) (m : nat)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| nat_lt n m |}]
+
+let%expect_test "nested application in argument position" =
+  let (t : term) = [%term suc (suc zero)] in
+  let s = Printing.pretty_print_hol_term ~pretty:true t in
+  print_endline s;
+  [%expect {| 2 |}]
+
+let%expect_test "deeply nested suc" =
+  let (t : term) = [%term suc (suc (suc zero))] in
+  let s = Printing.pretty_print_hol_term ~pretty:true t in
+  print_endline s;
+  [%expect {| 3 |}]
+
+let%expect_test "application of constant to variable" =
+  let (t : term) = [%term plus (n : nat) (m : nat)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| plus n m |}]
+
+let%expect_test "application mixing constants and variables" =
+  let (t : term) = [%term plus (suc (n : nat)) zero] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| plus (suc n) zero |}]
+
+(* === Lambda edge cases === *)
+
+let%expect_test "lambda with application body" =
+  let (t : term) = [%term fun (x : nat) -> suc (x : nat)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| λx. suc x |}]
+
+let%expect_test "lambda with arrow type parameter" =
+  let (t : term) = [%term fun (f : nat -> nat) -> (f : nat -> nat)] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| λf:(nat -> nat). f:(nat -> nat) |}]
+
+let%expect_test "multivariable lambda" =
+  let (t : term) =
+    [%term fun (a : nat) -> fun (b : nat) -> plus (a : nat) (b : nat)]
+  in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| λa:nat. λb:nat. plus:(nat -> (nat -> nat)) a:nat b:nat |}]
+
+(* === Quantifier edge cases === *)
+
+let%expect_test "exists" =
+  let (t : term) = [%term exists (fun (x : nat) -> (x : nat) = zero)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∃x. x = zero |}]
+
+let%expect_test "nested forall" =
+  let (t : term) =
+    [%term
+      forall (fun (x : nat) -> forall (fun (y : nat) -> (x : nat) = (y : nat)))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀x. ∀y. x = y |}]
+
+let%expect_test "forall with implication body" =
+  let (t : term) =
+    [%term forall (fun (p : bool) -> (p : bool) ==> (p : bool))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀p. p ==> p |}]
+
+let%expect_test "forall with complex body" =
+  let (t : term) =
+    [%term
+      forall (fun (n : nat) ->
+          forall (fun (m : nat) ->
+              plus (n : nat) (m : nat) = plus (m : nat) (n : nat)))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀n. ∀m. plus n m = plus m n |}]
+
+(* === Connective edge cases === *)
+
+(* Note: OCaml parses `not x && y` as `(not x) && y` since application
+   binds tighter than &&. To negate a conjunction, the user would need
+   a different encoding. This test captures the actual parse behavior. *)
+let%expect_test "not and conjunction precedence" =
+  let (t : term) = [%term not ((x : bool) && (y : bool))] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ¬x ∧ y |}]
+
+let%expect_test "conjunction with equality" =
+  let (t : term) = [%term (x : nat) = (y : nat) && (y : nat) = (x : nat)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| x = y ∧ y = x |}]
+
+let%expect_test "disjunction with negation" =
+  let (t : term) = [%term (p : bool) || not (p : bool)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| p ∨ ¬p |}]
+
+let%expect_test "implication chain" =
+  let (t : term) = [%term (p : bool) ==> ((q : bool) ==> (p : bool))] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| p ==> q ==> p |}]
+
+(* === Type edge cases === *)
+
+let%expect_test "type variable" =
+  let (t : term) = [%term (x : 'a)] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| x:a |}]
+
+let%expect_test "arrow type variable" =
+  let (t : term) = [%term (f : 'a -> 'b)] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| f:(a -> b) |}]
+
+let%expect_test "nested parameterized type" =
+  let (t : term) = [%term (xs : nat list list)] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| xs:((nat list) list) |}]
+
+(* === Equality edge cases === *)
+
+let%expect_test "equality of applications" =
+  let (t : term) = [%term suc (n : nat) = suc (m : nat)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| suc n = suc m |}]
+
+let%expect_test "equality of zero" =
+  let (t : term) = [%term zero = zero] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| zero = zero |}]
+
+(* === Realistic theorem-like terms === *)
+
+let%expect_test "induction-style: base case statement" =
+  let (t : term) = [%term plus zero (n : nat) = (n : nat)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| plus zero n = n |}]
+
+let%expect_test "induction-style: step case statement" =
+  let (t : term) =
+    [%term plus (suc (n : nat)) (m : nat) = suc (plus (n : nat) (m : nat))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| plus (suc n) m = suc (plus n m) |}]
+
+let%expect_test "full universally quantified theorem" =
+  let (t : term) =
+    [%term
+      forall (fun (n : nat) ->
+          forall (fun (m : nat) ->
+              plus (suc (n : nat)) (m : nat) = suc (plus (n : nat) (m : nat))))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀n. ∀m. plus (suc n) m = suc (plus n m) |}]
+
+let%expect_test "exists with application" =
+  let (t : term) = [%term exists (fun (n : nat) -> suc (n : nat) = zero)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∃n. suc n = zero |}]
+
+let%expect_test "mixed quantifiers" =
+  let (t : term) =
+    [%term
+      forall (fun (p : bool) ->
+          exists (fun (q : bool) -> (p : bool) ==> (q : bool)))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀p. ∃q. p ==> q |}]

@@ -34,7 +34,10 @@ let rec translate_type ~loc ct =
       let lv, le = translate_type ~loc l in
       let rv, re = translate_type ~loc r in
       let v = fresh_id "ty" in
-      let final = A.eapply (A.evar "make_fun_ty") [ A.evar lv; A.evar rv ] in
+      let final =
+        A.eapply (A.evar "Result.ok")
+          [ A.eapply (A.evar "make_fun_ty") [ A.evar lv; A.evar rv ] ]
+      in
       let wrapped = mk_bind ~loc le lv (mk_bind ~loc re rv final) in
       (v, wrapped)
   | Ptyp_var name ->
@@ -50,21 +53,172 @@ and translate_type_args ~loc args =
   let vars = List.map fst results in
   (bindings, vars)
 
+let extract_fun_param_and_body (input : expression) =
+  match input.pexp_desc with
+  | Pexp_function
+      ( [ { pparam_desc = Pparam_val (Nolabel, None, pat); _ } ],
+        None,
+        Pfunction_body body ) ->
+      Some (pat, body)
+  | _ -> None
+
+let is_fun_expr (input : expression) =
+  match extract_fun_param_and_body input with Some _ -> true | None -> false
+
+let rec translate_expr ~loc (input : expression) =
+  let (module A) = Ast_builder.make loc in
+  match input.pexp_desc with
+  (* Annotated identifier → HOL variable: (x : nat) *)
+  | Pexp_constraint
+      ({ pexp_desc = Pexp_ident { txt = Lident name; _ }; _ }, core_type) ->
+      let ty_var, ty_expr = translate_type ~loc core_type in
+      mk_bind ~loc ty_expr ty_var
+        (A.eapply (A.evar "Result.ok")
+           [ A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ] ])
+  (* Bare identifier → HOL constant *)
+  | Pexp_ident { txt = Lident name; _ } ->
+      A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
+  (* Lambda: fun (x : ty) -> body *)
+  | Pexp_function _ -> (
+      match extract_fun_param_and_body input with
+      | Some (pat, body) -> translate_lambda ~loc pat body
+      | None ->
+          Location.raise_errorf ~loc
+            "lambda must have a single annotated parameter: fun (x : ty) -> \
+             body")
+  (* Application *)
+  | Pexp_apply (func, args) -> translate_apply ~loc func args
+  | _ -> Location.raise_errorf ~loc "unsupported expression in [%%term]"
+
+and translate_lambda ~loc pat body =
+  let (module A) = Ast_builder.make loc in
+  let name, core_type =
+    match pat.ppat_desc with
+    | Ppat_constraint ({ ppat_desc = Ppat_var { txt = name; _ }; _ }, ct) ->
+        (name, ct)
+    | _ ->
+        Location.raise_errorf ~loc:pat.ppat_loc
+          "lambda parameter must have a type annotation: (x : ty)"
+  in
+  let ty_var, ty_expr = translate_type ~loc core_type in
+  let var_expr =
+    A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
+  in
+  let body_expr = translate_expr ~loc body in
+  let body_var = fresh_id "body" in
+  let lam_var = fresh_id "lam" in
+  mk_bind ~loc ty_expr ty_var
+    (mk_bind ~loc body_expr body_var
+       (mk_bind ~loc
+          (A.eapply (A.evar "make_lam") [ var_expr; A.evar body_var ])
+          lam_var
+          (A.eapply (A.evar "Result.ok") [ A.evar lam_var ])))
+
+and translate_apply ~loc func args =
+  let (module A) = Ast_builder.make loc in
+  (* Check for special forms based on the function name *)
+  match (func.pexp_desc, args) with
+  (* forall (fun (x : ty) -> body) → make_forall var body *)
+  | Pexp_ident { txt = Lident "forall"; _ }, [ (Nolabel, lam) ]
+    when is_fun_expr lam ->
+      translate_quantifier ~loc ~quant:"make_forall" lam
+  (* exists (fun (x : ty) -> body) → make_exists var body *)
+  | Pexp_ident { txt = Lident "exists"; _ }, [ (Nolabel, lam) ]
+    when is_fun_expr lam ->
+      translate_quantifier ~loc ~quant:"make_exists" lam
+  (* not p → make_neg p *)
+  | Pexp_ident { txt = Lident "not"; _ }, [ (Nolabel, p) ] ->
+      let p_expr = translate_expr ~loc p in
+      let p_var = fresh_id "arg" in
+      mk_bind ~loc p_expr p_var
+        (A.eapply (A.evar "Result.ok")
+           [ A.eapply (A.evar "make_neg") [ A.evar p_var ] ])
+  (* p = q → safe_make_eq p q *)
+  | Pexp_ident { txt = Lident "="; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
+      translate_binary_result ~loc ~fn:"safe_make_eq" lhs rhs
+  (* p ==> q → make_imp p q (pure) *)
+  | Pexp_ident { txt = Lident "==>"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
+      translate_binary_pure ~loc ~fn:"make_imp" lhs rhs
+  (* p && q → make_conj p q (pure) *)
+  | Pexp_ident { txt = Lident "&&"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
+      translate_binary_pure ~loc ~fn:"make_conj" lhs rhs
+  (* p || q → make_disj p q (pure) *)
+  | Pexp_ident { txt = Lident "||"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
+      translate_binary_pure ~loc ~fn:"make_disj" lhs rhs
+  (* General application: f x y → make_app (make_app f x) y *)
+  | _ ->
+      let all_args = List.map (fun (_, arg) -> arg) args in
+      let func_expr = translate_expr ~loc func in
+      let func_var = fresh_id "app" in
+      List.fold_left
+        (fun (acc_expr, acc_var) arg ->
+          let arg_expr = translate_expr ~loc arg in
+          let arg_var = fresh_id "arg" in
+          let app_var = fresh_id "app" in
+          let expr =
+            mk_bind ~loc acc_expr acc_var
+              (mk_bind ~loc arg_expr arg_var
+                 (A.eapply (A.evar "make_app")
+                    [ A.evar acc_var; A.evar arg_var ]))
+          in
+          (expr, app_var))
+        (func_expr, func_var) all_args
+      |> fst
+
+(* forall/exists applied to a lambda: quantifier (fun (x : ty) -> body) *)
+and translate_quantifier ~loc ~quant lam =
+  let (module A) = Ast_builder.make loc in
+  match extract_fun_param_and_body lam with
+  | Some (pat, body) ->
+      let name, core_type =
+        match pat.ppat_desc with
+        | Ppat_constraint ({ ppat_desc = Ppat_var { txt = name; _ }; _ }, ct) ->
+            (name, ct)
+        | _ ->
+            Location.raise_errorf ~loc:pat.ppat_loc
+              "quantifier parameter must have a type annotation: (x : ty)"
+      in
+      let ty_var, ty_expr = translate_type ~loc core_type in
+      let var_expr =
+        A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
+      in
+      let body_expr = translate_expr ~loc body in
+      let body_var = fresh_id "body" in
+      mk_bind ~loc ty_expr ty_var
+        (mk_bind ~loc body_expr body_var
+           (A.eapply (A.evar "Result.ok")
+              [ A.eapply (A.evar quant) [ var_expr; A.evar body_var ] ]))
+  | None ->
+      Location.raise_errorf ~loc:lam.pexp_loc
+        "forall/exists expects a lambda argument"
+
+(* Binary operator where the kernel function returns a result *)
+and translate_binary_result ~loc ~fn lhs rhs =
+  let (module A) = Ast_builder.make loc in
+  let l_expr = translate_expr ~loc lhs in
+  let r_expr = translate_expr ~loc rhs in
+  let l_var = fresh_id "arg" in
+  let r_var = fresh_id "arg" in
+  mk_bind ~loc l_expr l_var
+    (mk_bind ~loc r_expr r_var
+       (A.eapply (A.evar fn) [ A.evar l_var; A.evar r_var ]))
+
+(* Binary operator where the kernel function is pure *)
+and translate_binary_pure ~loc ~fn lhs rhs =
+  let (module A) = Ast_builder.make loc in
+  let l_expr = translate_expr ~loc lhs in
+  let r_expr = translate_expr ~loc rhs in
+  let l_var = fresh_id "arg" in
+  let r_var = fresh_id "arg" in
+  mk_bind ~loc l_expr l_var
+    (mk_bind ~loc r_expr r_var
+       (A.eapply (A.evar "Result.ok")
+          [ A.eapply (A.evar fn) [ A.evar l_var; A.evar r_var ] ]))
+
 let translate ~(loc : location) ~(path : label) (input : expression) =
   let (module A) = Ast_builder.make loc in
   let _ = path in
-  let inner =
-    match input.pexp_desc with
-    | Pexp_constraint
-        ({ pexp_desc = Pexp_ident { txt = Lident name; _ }; _ }, core_type) ->
-        let ty_var, ty_expr = translate_type ~loc core_type in
-        mk_bind ~loc ty_expr ty_var
-          (A.eapply (A.evar "Result.ok")
-             [ A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ] ])
-    | Pexp_ident { txt = Lident name; _ } ->
-        A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
-    | _ -> Location.raise_errorf ~loc "expected an identifier"
-  in
+  let inner = translate_expr ~loc input in
   A.eapply (A.evar "Heft.Printing.unwrap_term") [ inner ]
 
 let extension =
