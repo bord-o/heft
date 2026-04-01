@@ -2,7 +2,8 @@
 
 ## Saturday, March 28
 
-While building a proof-of-concept of fuel-based general recursion, I decided that a mergesort implementation would be a good stopping point. Mergesort cannot be written in a structurally recursive way, due the necessity of recursion on a symmetrical split of the list being sorted. In addition to this, the auxilliary function 'merge', used to merge two sorted lists, is also not structurally recursive. So this should be a good test of both a more complex definition and a definition which uses other non-structurally recursive functions in its definition.
+While building a proof-of-concept of fuel-based general recursion, I decided that a merge-sort implementation would be a good stopping point. Merge-sort cannot be written in a structurally recursive way, due the necessity of recursion on a symmetrical split of the list being sorted. In addition to this, the auxiliary function 'merge', used to merge two sorted lists, is also not structurally recursive. So this should be a good test of both a more complex definition and a definition which uses other non-structurally recursive functions in its definition.
+
 
 While other systems generally set up machinery for proving well-foundedness of a measure function (over the arguments), I was curious if simply defining these functions with a fuel argument could get me the same results. Essentially the goal is to get to an 'unfolding lemma' which allows us to abstract away the fuel based definition by proving that sufficient fuel exists and that using this fuel ensures the function's totality and equality with the body of the fuel-based definition. More concretely for merge, this looks something like the following two proofs.
 
@@ -336,3 +337,60 @@ for rationals
 ```
 
 For my system I will elect to go the more traditional route of the number tower, as I think it will make for a more readable and easily understood formulation at the cost of having some more fiddly definitions for the algebraic laws due to reasoning about these underlying representations directly and respecting normalization at each step. Another benefit to the more traditional approach is that I don't necessarily need to add quotient typing to the system, not that it would be a large addition.
+
+## Wednesday, April 1
+
+One thing that has bothered me about the state of proof assistants today is that the two main approaches of dependent type theory (DTT) and LCF (HOL) have really significant trade-offs, especially from the perspective of someone that is only beginning their journey through the space. Most of what I'll be discussing here is coming from the perspective of someone who knows how to program, and is interested in leveraging formal verification in some way.
+
+On one hand the dominant DTT provers (Rocq, Lean) have tons of good documentation, and Lean specifically has invested heavily in making the onboarding experience as frictionless as possible. Still, these provers ask a lot of the user. To begin proving something outside of a trivial tutorial you must:
+
+1. Be comfortable with functional programming 
+1. Understand logic
+1. Understand dependent types
+1. Learn the tactic DSL
+
+Lean is by far the best in minimizing the burden of these issues, I think largely because of the meta-programming-based tactics system and availability of quality documentation.
+
+The other camp of widely-used proof assistants is the HOL family, including HOL-Light, HOL4, and Isabelle/HOL. These systems take a drastically different approach the core proof assistant's construction, something I might get into another time. The main difference is that these systems don't use dependent types at all, instead embedding a small simply-typed lambda calculus as the 'term language' or sometimes referred to as 'object language' to distinguish from the implementation language (often called the meta-language, hence ML). This term language is far easier to wrap your mind around compared to DTT, but creates a different problem altogether. 
+
+Aside from the cultural issues (smaller user-base, less documentation) with HOL systems that have nothing to do with the incredible implementations that have been created, I see the main issue with usability in these systems being this multiple language stratification that I mentioned above. These systems essentially trade out the technical complexity of DTT for the mental overhead of working in a system with sometimes 4 different languages all mangled together.
+
+The most popular HOL prover, Isabelle/HOL, illustrates my point clearly. To use Isabelle you need to learn this 'shell' language, I'm not sure whats it's called, but it serves as the main interface for creating definitions, types, and setting up proofs. Parts of this shell language are actually quoted pieces of the internal HOL term language, creating a lot of friction just to define a function for example. In addition to these two, we also have a 'tactic mode' for doing proofs manually, and another language, Isar, for structuring proofs to read more like traditional proofs. Each of these 4 languages requires it's own learning process, and the fact that they're so tightly integrated means that you can't really get started without learning a bit about all of them.
+
+I believe that a HOL system is the right call for a widely usable proof system that shields the user from a lot of theory that comes with DTT, and the only missing piece in the current systems is a reasonable usability story.
+
+---
+
+Since my system is based on HOL-Light, I'll go over some of the friction that system has as well. HOL-Light is essentially a stripped-down HOL core, with the kernel famously consisting of only ~700 lines of readable OCaml, the only 'trusted' code in the system as far as I know. Since this is a HOL system we have the same quotation problem, where we often have a need for referencing the term language when defining things, writing proofs, etc. HOL-Light does this with some clever but clunky quoting preprocessing, allowing for quotation of HOL terms with backticks.
+
+HOL-Light handles interactivity by assuming the user will be working on proofs and definitions directly in the OCaml top-level, which is in my experience far less pleasant to use than working in your favorite text editor with LSP-based diagnostics and proof state display.
+
+Until now, I've been using a small domain-specific language (DSL) for writing my HOL definitions, types, and theorems. I have some infrastructure in elaborate.ml for this purpose, as well as a lexer and parser for the language. I've run into a lot of friction using this system, as I don't have quotation like HOL-Light, requiring me to manually construct terms, elaborate them, and then use the OCaml value when specializing an assumption or asserting a intermediate lemma. To get around these issues and retain a text-editor based interactive workflow, I'm exploring OCaml PPXes as my quotation mechanism, combined with leveraging OCaml's speedy compiler to refresh my proof state with `dune build --watch` in another window.
+
+To build HOL terms with a PPX, I will leverage the fact that the term language's semantics are close enough to a subset of OCaml's AST that I can write my HOL definitions, types, and goals as OCaml directly. We'll see how this works in practice but I think it's a really pragmatic path forward to a potentially beginner-friendly proof assistant. The system will then trade out a lot of the traditional proof assistant onboarding process with "just know OCaml", which I think is a far more reasonable ask. The onboarding process would potentially be:
+
+1. Install OCaml
+1. `dune init proj my_proofs`
+1. Add to `dune-project` the dependencies `heft heft.ppx heft.theories` and `dune pkg lock`
+1. Start writing definitions and goals as valid OCaml with ppx_heft as a preprocessor
+1. Run `dune build --watch` in another window to see the proof state update on each save
+
+The end user would see something like:
+
+```ocaml
+type%heft nat =
+    | Zero
+    | Suc of nat
+
+let%heft_primrec plus (m : nat) =
+    match (m:nat) with
+    | Zero -> fun (n:nat) -> (n:nat)
+    | Suc (m':nat) -> fun (n:nat) -> Suc (plus (m':nat) (n:nat))
+
+let%heft_goal plus_zero_right =
+    forall (fun (m:nat) ->
+        plus (m:nat) zero = (m:nat)
+    )
+```
+
+There are still a few problems to solve here, like how to tell which terms should be variables vs constants for example, since PPX extensions are a purely syntactic transformation, and I don't know how acceptable it is to do things like type inference during the translation. For now I think I can get around this by just requiring all variables to have explicit annotation, matching HOL's internal representation. Also, I still need to think about other edge cases for HOL that could be difficult or confusing to represent as OCaml, subtypes for example.
