@@ -479,19 +479,26 @@ module ListTheory = struct
     variable left right : list nat
 
     def merge_sort_aux : nat -> list nat -> option (list nat)
-    | zero => λxs. none
-    | suc n => λxs.
-        COND (nat_le (length xs) (suc zero))
-            (some xs)
-            ((λhalf_length. 
-                option_match (merge_sort_aux n (take half_length xs))
-                    (none)
-                    (λleft. 
-                        option_match (merge_sort_aux n (drop half_length xs))
-                            (none)
-                            (λright. some (merge left right))
-                    )
-            ) (div (length xs) (suc (suc zero))))
+        | zero => λxs. none
+        | suc n => λxs.
+            COND (nat_le (length xs) (suc zero))
+                (some xs)
+                ((λhalf_length. 
+                    option_match (merge_sort_aux n (take half_length xs))
+                        (none)
+                        (λleft. 
+                            option_match (merge_sort_aux n (drop half_length xs))
+                                (none)
+                                (λright. some (merge left right))
+                        )
+                ) (div (length xs) (suc (suc zero))))
+
+    def merge_sort : list nat -> list nat
+        | xs => 
+            option_match (merge_sort_aux (suc (length xs)) xs)
+                nil
+                (λzs. zs)
+
     |}
 
   let _ =
