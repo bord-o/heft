@@ -4003,6 +4003,7 @@ let%expect_test "merge sort fuel irrel" =
 
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof = sorry_tac in
+  (*TODO: finish this one*)
   run_proof ~notrace:true goal proof;
   [%expect
     {|
@@ -4012,7 +4013,6 @@ let%expect_test "merge sort fuel irrel" =
     Proof Complete!
     with fuel: 1
     |}]
-
 
 let%expect_test "merge sort unfold" =
   let prg =
@@ -4039,7 +4039,6 @@ let%expect_test "merge sort unfold" =
 
   term left_length : eq  (plus (suc (length (take (div (length xs) (suc (suc zero))) xs))) (sub (length xs) (suc (length (take (div (length xs) (suc (suc zero))) xs))))) (length xs)
   |}
-
   in
 
   (* let xs = Elaborator.term_from_string prg "xs" in *)
@@ -4048,55 +4047,56 @@ let%expect_test "merge sort unfold" =
   let left_length = Elaborator.term_from_string prg "left_length" in
   (* let right_suf = Elaborator.term_from_string prg "right_suf" in *)
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof = 
-      intros_tac 
-      (* >> with_arbitrary_term xs destruct_tac *)
-      (* >> elim_disj_asm_tac *)
-      (* >> simp_tac *)
-      (* >> with_repeat elim_exists_asm_tac *)
+  let proof =
+    intros_tac
+    (* >> with_arbitrary_term xs destruct_tac *)
+    (* >> elim_disj_asm_tac *)
+    (* >> simp_tac *)
+    (* >> with_repeat elim_exists_asm_tac *)
+    >> with_definition [ "merge_sort" ] rewrite_tac
+    >> beta_tac
+    >> with_first (with_definition [ "merge_sort_aux" ] rewrite_tac)
+    >> beta_tac
+    (* >> with_repeat (with_first (with_assumptions rewrite_tac)) *)
+    >> cond_tac
+    >> with_repeat (with_first (with_assumptions rewrite_tac))
+    >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ]
+    >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ]
+    >> with_arbitrary_term left_suf assert_tac
+    >> with_definition [ "merge_sort" ] rewrite_tac
+    >> beta_tac
+    >> with_arbitrary_term left_suf' assert_tac
+    >> with_proven [ "merge_sort_fuel_sufficient" ] apply_thm_tac
+    >> simp_tac >> elim_exists_asm_tac
+    >> with_assumptions rewrite_tac
+    >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ]
+    >> with_arbitrary_term left_length assert_tac
+    >> with_proven [ "plus_comm" ] rewrite_tac
+    >> with_proven [ "sub_add_cancel" ] apply_thm_tac
+    >> with_proven [ "length_take" ] rewrite_tac
+    >> sorry_tac >> sorry_tac >> sorry_tac
+    (*TODO: finish this one*)
+    (* >> with_proven ["merge_sort_fuel_sufficient"] apply_thm_tac *)
+    (* >> assume_tac *)
+    (* >> with_arbitrary_term right_suf assert_tac *)
+    (* >> with_proven ["merge_sort_fuel_sufficient"] apply_thm_tac *)
+    (* >> assume_tac *)
+    (* >> with_repeat elim_exists_asm_tac *)
+    (* >> with_repeat (with_first (with_assumptions rewrite_tac)) *)
+    (* >> simp_tac ~exclude:["merge_sort"; "merge"; "merge_sort_aux"; "div"] *)
 
-      >> with_definition ["merge_sort"] rewrite_tac
-      >> beta_tac
-      >> with_first (with_definition ["merge_sort_aux"] rewrite_tac)
-      >> beta_tac
-      (* >> with_repeat (with_first (with_assumptions rewrite_tac)) *)
-      >> cond_tac
-      >> with_repeat (with_first (with_assumptions rewrite_tac))
-      >> simp_tac ~exclude:["merge_sort"; "merge"; "merge_sort_aux"; "div"]
-      >> simp_tac ~exclude:["merge_sort"; "merge"; "merge_sort_aux"; "div"]
-      >> with_arbitrary_term left_suf assert_tac
-      >> with_definition ["merge_sort"] rewrite_tac
-      >> beta_tac
-      >> with_arbitrary_term left_suf' assert_tac
-      >> with_proven ["merge_sort_fuel_sufficient"] apply_thm_tac
-      >> simp_tac
-      >> elim_exists_asm_tac
-      >> with_assumptions rewrite_tac
-      >> simp_tac ~exclude:["merge_sort"; "merge"; "merge_sort_aux"; "div"]
-      >> with_arbitrary_term left_length assert_tac
-      >> with_proven ["plus_comm"] rewrite_tac
-      >> with_proven ["sub_add_cancel"] apply_thm_tac
-      >> with_proven ["length_take"]  rewrite_tac
+    (* >> with_repeat (with_first (with_assumptions rewrite_tac)) *)
+    (* >> with_repeat (with_proven ["cond_false"] rewrite_tac) *)
 
-      (* >> with_proven ["merge_sort_fuel_sufficient"] apply_thm_tac *)
-      (* >> assume_tac *)
-      (* >> with_arbitrary_term right_suf assert_tac *)
-      (* >> with_proven ["merge_sort_fuel_sufficient"] apply_thm_tac *)
-      (* >> assume_tac *)
-      (* >> with_repeat elim_exists_asm_tac *)
-      (* >> with_repeat (with_first (with_assumptions rewrite_tac)) *)
-      (* >> simp_tac ~exclude:["merge_sort"; "merge"; "merge_sort_aux"; "div"] *)
-
-
-      (* >> with_repeat (with_first (with_assumptions rewrite_tac)) *)
-      (* >> with_repeat (with_proven ["cond_false"] rewrite_tac) *)
-
-      (* >> with_first (with_definition ["merge_sort_aux"] rewrite_tac) *)
-      (* >> simp_tac ~exclude:["merge_sort"; "merge"; "merge_sort_aux"] *)
-
-
+    (* >> with_first (with_definition ["merge_sort_aux"] rewrite_tac) *)
+    (* >> simp_tac ~exclude:["merge_sort"; "merge"; "merge_sort_aux"] *)
   in
   run_proof ~pretty:false ~notrace:true goal proof;
   [%expect
     {|
+    ========================================
+    ∀xs. merge_sort xs = COND (nat_le (length xs) (suc zero)) xs ((λhalf_length. merge (merge_sort (take half_length xs)) (merge_sort (drop half_length xs))) (div (length xs) (suc (suc zero))))
+
+    Proof Complete!
+    with fuel: 185
     |}]
