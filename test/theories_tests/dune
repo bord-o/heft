@@ -1,6 +1,6 @@
 (library
  (name theories_tests)
- (libraries ppx_deriving sexplib heft heft_theories)
+ (libraries ppx_deriving sexplib heft heft.theories heft.ppx_heft)
  (inline_tests)
  (preprocess
-  (pps ppx_expect ppx_deriving.show)))
+  (pps ppx_expect ppx_deriving.show ppx_heft)))

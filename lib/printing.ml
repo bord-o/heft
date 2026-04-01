@@ -244,3 +244,7 @@ let print_error = function
   | `NoRewriteMatch (rule, tm) ->
       Printf.sprintf "NoRewriteMatch: rule %s does not match %s" (fmt_thm rule)
         (fmt_term tm)
+
+let unwrap_term = function
+  | Ok (t : term) -> t
+  | Error e -> failwith (print_error e)

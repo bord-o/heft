@@ -1369,15 +1369,9 @@ let%expect_test "sort correct lemma" =
                 (sorted (insert l n))
 
     term le : nat_le n0' n
-    term n0 : n0
-    term n1 : n1
-    term n : n
     |}
   in
   let le = Elaborator.term_from_string prg "le" in
-  let n1 = Elaborator.term_from_string prg "n1" in
-  let n0 = Elaborator.term_from_string prg "n0" in
-  let n = Elaborator.term_from_string prg "n" in
 
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
@@ -1386,7 +1380,7 @@ let%expect_test "sort correct lemma" =
           conj_tac >>> truth_tac;
           cond_tac >>> (simp_tac >> conj_tac)
           >>= [
-                with_arbitrary_term n1 induct_tac
+              with_arbitrary_term [%term (n1 : nat list)] induct_tac
                 >>> (intros_tac >> simp_tac)
                 >>= [
                       with_arbitrary_term le cases_tac
@@ -1396,17 +1390,17 @@ let%expect_test "sort correct lemma" =
                             truth_tac;
                           ];
                     ];
-                spec_asm_tac n >> apply_asm_tac >> simp_asm_tac
+                spec_asm_tac [%term (n:nat)] >> apply_asm_tac >> simp_asm_tac
                 >> elim_conj_asm_tac >> with_first assumption_tac;
                 with_proven [ "nat_le_flip" ] apply_thm_asm_tac >> simp_tac;
                 conj_tac
                 >>= [
-                      with_arbitrary_term n1 induct_tac
+                      with_arbitrary_term [%term (n1:nat list)] induct_tac
                       >>> (intros_tac >> simp_tac)
                       >>= [
                             simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
                           ];
-                      spec_asm_tac n0 >> simp_asm_tac >> elim_conj_asm_tac
+                      spec_asm_tac [%term (n1:nat)] >> simp_asm_tac >> elim_conj_asm_tac
                       >> with_first assumption_tac;
                     ];
               ];
