@@ -1380,7 +1380,7 @@ let%expect_test "sort correct lemma" =
           conj_tac >>> truth_tac;
           cond_tac >>> (simp_tac >> conj_tac)
           >>= [
-              with_arbitrary_term [%term (n1 : nat list)] induct_tac
+                with_arbitrary_term [%term (n1 : nat list)] induct_tac
                 >>> (intros_tac >> simp_tac)
                 >>= [
                       with_arbitrary_term le cases_tac
@@ -1390,17 +1390,19 @@ let%expect_test "sort correct lemma" =
                             truth_tac;
                           ];
                     ];
-                spec_asm_tac [%term (n:nat)] >> apply_asm_tac >> simp_asm_tac
-                >> elim_conj_asm_tac >> with_first assumption_tac;
+                spec_asm_tac [%term (n : nat)]
+                >> apply_asm_tac >> simp_asm_tac >> elim_conj_asm_tac
+                >> with_first assumption_tac;
                 with_proven [ "nat_le_flip" ] apply_thm_asm_tac >> simp_tac;
                 conj_tac
                 >>= [
-                      with_arbitrary_term [%term (n1:nat list)] induct_tac
+                      with_arbitrary_term [%term (n1 : nat list)] induct_tac
                       >>> (intros_tac >> simp_tac)
                       >>= [
                             simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
                           ];
-                      spec_asm_tac [%term (n1:nat)] >> simp_asm_tac >> elim_conj_asm_tac
+                      spec_asm_tac [%term (n1 : nat)]
+                      >> simp_asm_tac >> elim_conj_asm_tac
                       >> with_first assumption_tac;
                     ];
               ];

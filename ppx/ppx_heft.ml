@@ -20,8 +20,15 @@ let rec translate_type ~loc ct =
   | Ptyp_constr ({ txt = Lident name; _ }, args) ->
       let bindings, arg_vars = translate_type_args ~loc args in
       let v = fresh_id "ty" in
-      let final = A.eapply (A.evar "make_type") [ A.estring name; A.elist (List.map A.evar arg_vars) ] in
-      let wrapped = List.fold_right (fun (var, expr) acc -> mk_bind ~loc expr var acc) bindings final in
+      let final =
+        A.eapply (A.evar "make_type")
+          [ A.estring name; A.elist (List.map A.evar arg_vars) ]
+      in
+      let wrapped =
+        List.fold_right
+          (fun (var, expr) acc -> mk_bind ~loc expr var acc)
+          bindings final
+      in
       (v, wrapped)
   | Ptyp_arrow (_, l, r) ->
       let lv, le = translate_type ~loc l in
@@ -32,8 +39,10 @@ let rec translate_type ~loc ct =
       (v, wrapped)
   | Ptyp_var name ->
       let v = fresh_id "ty" in
-      (v, A.eapply (A.evar "Result.ok") [ A.eapply (A.evar "make_vartype") [ A.estring name ] ])
-  | _ -> Location.raise_errorf ~loc:(ct.ptyp_loc) "unsupported type"
+      ( v,
+        A.eapply (A.evar "Result.ok")
+          [ A.eapply (A.evar "make_vartype") [ A.estring name ] ] )
+  | _ -> Location.raise_errorf ~loc:ct.ptyp_loc "unsupported type"
 
 and translate_type_args ~loc args =
   let results = List.map (translate_type ~loc) args in
@@ -44,13 +53,14 @@ and translate_type_args ~loc args =
 let translate ~(loc : location) ~(path : label) (input : expression) =
   let (module A) = Ast_builder.make loc in
   let _ = path in
-  let inner = match input.pexp_desc with
+  let inner =
+    match input.pexp_desc with
     | Pexp_constraint
         ({ pexp_desc = Pexp_ident { txt = Lident name; _ }; _ }, core_type) ->
         let ty_var, ty_expr = translate_type ~loc core_type in
         mk_bind ~loc ty_expr ty_var
           (A.eapply (A.evar "Result.ok")
-            [ A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ] ])
+             [ A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ] ])
     | Pexp_ident { txt = Lident name; _ } ->
         A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
     | _ -> Location.raise_errorf ~loc "expected an identifier"
