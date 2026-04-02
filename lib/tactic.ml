@@ -7,6 +7,9 @@ open Result.Syntax
 open Rewrite
 
 type goal = term list * term [@@deriving show]
+
+let make_goal ?(asms = []) t = (asms, t)
+
 type level = Debug | Info | Warn | Error | Proof | Search
 type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
 type tactic = goal -> thm

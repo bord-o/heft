@@ -136,7 +136,8 @@ let rec translate_expr ~loc ~env (input : expression) =
                   (A.eapply (A.evar "make_const")
                      [ A.estring "suc"; A.elist [] ])
                   suc_var
-                  (A.eapply (A.evar "make_app")
+                  (A.eapply
+                     (A.evar "Heft.Rewrite.smart_make_app")
                      [ A.evar suc_var; A.evar acc_var ])))
       in
       wrap n zero
@@ -186,7 +187,7 @@ and translate_apply ~loc ~env func args =
            [ A.eapply (A.evar "make_neg") [ A.evar p_var ] ])
   (* p = q → safe_make_eq p q *)
   | Pexp_ident { txt = Lident "="; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
-      translate_binary_result ~loc ~env ~fn:"safe_make_eq" lhs rhs
+      translate_binary_result ~loc ~env ~fn:"Heft.Rewrite.smart_make_eq" lhs rhs
   (* p ==> q → make_imp p q (pure) *)
   | Pexp_ident { txt = Lident "==>"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
       translate_binary_pure ~loc ~env ~fn:"make_imp" lhs rhs
@@ -209,7 +210,8 @@ and translate_apply ~loc ~env func args =
           let expr =
             mk_bind ~loc acc_expr acc_var
               (mk_bind ~loc arg_expr arg_var
-                 (A.eapply (A.evar "make_app")
+                 (A.eapply
+                    (A.evar "Heft.Rewrite.smart_make_app")
                     [ A.evar acc_var; A.evar arg_var ]))
           in
           (expr, app_var))

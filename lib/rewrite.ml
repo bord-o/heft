@@ -335,3 +335,40 @@ let rules_of_def thm =
       let* stripped = strip_each th in
       Ok (stripped :: acc_list))
     conjuncts (Ok [])
+
+let smart_make_app f x =
+  match make_app f x with
+  | Ok app -> Ok app
+  | Error _ -> (
+      let fty = match type_of_term f with Ok t -> t | Error _ -> TyVar "?" in
+      let xty = match type_of_term x with Ok t -> t | Error _ -> TyVar "?" in
+      match fty with
+      | TyCon ("fun", [ arg_ty; _ ]) -> (
+          match type_match [] arg_ty xty with
+          | Some tysub ->
+              let f' = term_type_subst tysub f in
+              make_app f' x
+          | None -> (
+              match type_match [] xty arg_ty with
+              | Some tysub ->
+                  let x' = term_type_subst tysub x in
+                  make_app f x'
+              | None -> Error (`MakeAppTypesDontAgree (fty, xty))))
+      | _ -> Error (`MakeAppTypesDontAgree (fty, xty)))
+
+let smart_make_eq l r =
+  match safe_make_eq l r with
+  | Ok eq -> Ok eq
+  | Error _ -> (
+      let lty = match type_of_term l with Ok t -> t | Error _ -> TyVar "?" in
+      let rty = match type_of_term r with Ok t -> t | Error _ -> TyVar "?" in
+      match type_match [] lty rty with
+      | Some tysub ->
+          let l' = term_type_subst tysub l in
+          safe_make_eq l' r
+      | None -> (
+          match type_match [] rty lty with
+          | Some tysub ->
+              let r' = term_type_subst tysub r in
+              safe_make_eq l r'
+          | None -> Error (`MakeAppTypesDontAgree (lty, rty))))

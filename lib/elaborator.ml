@@ -19,32 +19,7 @@ let empty_env () =
   in
   { tyvars = []; vars = []; inductives; defs = [] }
 
-(* Application with type instantiation - if types don't match exactly,
-   try to instantiate type variables in f to make it work *)
-let make_app_inst f x =
-  match make_app f x with
-  | Ok app -> Ok app
-  | Error _ -> (
-      let fty =
-        match type_of_term f with Ok t -> t | Error _ -> K.TyVar "?"
-      in
-      let xty =
-        match type_of_term x with Ok t -> t | Error _ -> K.TyVar "?"
-      in
-      match fty with
-      | K.TyCon ("fun", [ arg_ty; _ ]) -> (
-          match type_match [] arg_ty xty with
-          | Some tysub ->
-              let f' = term_type_subst tysub f in
-              make_app f' x
-          | None -> (
-              (* Also try instantiating type variables in x *)
-              match type_match [] xty arg_ty with
-              | Some tysub ->
-                  let x' = term_type_subst tysub x in
-                  make_app f x'
-              | None -> Error (`MakeAppTypesDontAgree (fty, xty))))
-      | _ -> Error (`MakeAppTypesDontAgree (fty, xty)))
+let make_app_inst = Rewrite.smart_make_app
 
 let rec get_hol_arg_types hty =
   match hty with

@@ -181,44 +181,12 @@ let%expect_test "cancellation rev" =
     with fuel: 65
     |}]
 
-(*TODO: why is this failing with ppx?*)
-(* let%expect_test "length_cons" = *)
-(*   let goal = *)
-(*     ( [], *)
-(*       [%term *)
-(*         forall (fun (x : nat) (xs : nat list) -> *)
-(*             (length (cons x xs)) = suc (length xs))] ) *)
-(*   in *)
-(*   run_proof ~name:"length_cons" ~simp:true goal (intros_tac >> simp_tac); *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀xs. length (cons x xs) = suc (length xs) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 18 *)
-(*     |}] *)
-
 (* xs = Nil ==> length xs = Zero *)
 let%expect_test "nil_implies_length_zero" =
-  let open NatTheory in
-  let open ListTheory in
-  let length_const = make_const "length" [] |> Result.get_ok in
-
-  let xs = make_var "xs" (TyCon ("list", [ a ])) in
-
-  (* xs = Nil *)
-  let xs_eq_nil = Result.get_ok (safe_make_eq xs nil) in
-
-  (* length xs = Zero *)
-  let length_xs = App (length_const, xs) in
-  let length_eq_zero = Result.get_ok (safe_make_eq length_xs zero) in
-
-  (* ∀xs. xs = Nil ==> length xs = Zero *)
-  let goal = ([], make_forall xs (make_imp xs_eq_nil length_eq_zero)) in
-  let proof = intros_tac >> simp_tac ~with_asms:true in
-  run_proof goal proof;
+  let goal =
+    ([], [%term forall (fun (xs : 'a list) -> xs = nil ==> (length xs = zero))])
+  in
+  run_proof goal (intros_tac >> simp_tac ~with_asms:true);
 
   [%expect
     {|
@@ -231,48 +199,26 @@ let%expect_test "nil_implies_length_zero" =
 
 (* length xs = Zero ==> xs = Nil *)
 let%expect_test "length_zero_implies_nil" =
-  let open NatTheory in
-  let open ListTheory in
-  let length_const = make_const "length" [ (a, nat_ty) ] |> Result.get_ok in
-  let nil_nat = type_inst [ (a, nat_ty) ] nil |> Result.get_ok in
-
-  let xs = make_var "xs" (TyCon ("list", [ nat_ty ])) in
-
-  (* length xs = Zero *)
-  let length_xs = App (length_const, xs) in
-  let length_eq_zero = Result.get_ok (safe_make_eq length_xs zero) in
-
-  (* xs = Nil *)
-  let xs_eq_nil = Result.get_ok (safe_make_eq xs nil_nat) in
-
-  (* ∀xs. length xs = Zero ==> xs = Nil *)
-  let goal = ([], make_forall xs (make_imp length_eq_zero xs_eq_nil)) in
-  let proof =
-    induct_tac >> intros_tac >> refl_tac >> intros_tac
-    >> with_first (with_assumptions apply_thm_asm_tac)
-    >> assumption_tac
+  let goal =
+    ([], [%term forall (fun (xs : 'a list) -> length xs = zero ==> (xs = nil))])
   in
-  run_proof goal proof;
+  run_proof goal
+    (induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
+   >> sym_asm_tac
+    >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
+    >> false_elim_tac);
   [%expect
     {|
-    ∀n0. ∀n1. (length n1 = zero ==> n1 = nil) ==> length (cons n0 n1) = zero ==> cons n0 n1 = nil
     ========================================
     ∀x. length x = zero ==> x = nil
 
     Proof Complete!
-    with fuel: 27
+    with fuel: 40
     |}]
 
 let%expect_test "append nil xs = xs" =
-  let open ListTheory in
-  let append_const = make_const "append" [] |> Result.get_ok in
-
-  (* append Nil Nil = Nil *)
-  let xs = make_var "xs" list_a in
-  let append_nil = App (append_const, nil) in
-  let append_nil_xs = App (append_nil, xs) in
   let goal =
-    ([], make_forall xs @@ Result.get_ok (safe_make_eq append_nil_xs xs))
+    make_goal [%term forall (fun (xs : 'a list) -> append nil xs = xs)]
   in
   let proof = intros_tac >> simp_tac in
   run_proof goal proof;

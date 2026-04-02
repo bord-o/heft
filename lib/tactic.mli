@@ -5,6 +5,8 @@
 type goal = Kernel.term list * Kernel.term
 (** A list of assumptions and a term to prove under them *)
 
+val make_goal : ?asms:Kernel.term list -> Kernel.term -> goal
+
 val pp_goal :
   Ppx_deriving_runtime.Format.formatter -> goal -> Ppx_deriving_runtime.unit
 
