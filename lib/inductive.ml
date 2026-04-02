@@ -376,8 +376,7 @@ let make_match_function tyname ty constructors recursion =
         let body =
           List.fold_left
             (fun acc arg -> Result.get_ok (make_app acc arg))
-            (List.nth handler_vars i)
-            arg_vars
+            (List.nth handler_vars i) arg_vars
         in
         let with_handlers =
           List.fold_right

@@ -326,21 +326,25 @@ let rec translate_type_raw ~loc ct =
   let (module A) = Ast_builder.make loc in
   match ct.ptyp_desc with
   | Ptyp_constr ({ txt = Lident name; _ }, []) ->
-      A.pexp_construct { txt = Lident "TyCon"; loc }
+      A.pexp_construct
+        { txt = Lident "TyCon"; loc }
         (Some (A.pexp_tuple [ A.estring name; A.elist [] ]))
   | Ptyp_constr ({ txt = Lident name; _ }, args) ->
       let arg_exprs = List.map (translate_type_raw ~loc) args in
-      A.pexp_construct { txt = Lident "TyCon"; loc }
+      A.pexp_construct
+        { txt = Lident "TyCon"; loc }
         (Some (A.pexp_tuple [ A.estring name; A.elist arg_exprs ]))
   | Ptyp_arrow (_, l, r) ->
       let le = translate_type_raw ~loc l in
       let re = translate_type_raw ~loc r in
-      A.pexp_construct { txt = Lident "TyCon"; loc }
+      A.pexp_construct
+        { txt = Lident "TyCon"; loc }
         (Some (A.pexp_tuple [ A.estring "fun"; A.elist [ le; re ] ]))
   | Ptyp_var name ->
       A.pexp_construct { txt = Lident "TyVar"; loc } (Some (A.estring name))
   | _ ->
-      Location.raise_errorf ~loc:ct.ptyp_loc "unsupported type in [%%%%inductive]"
+      Location.raise_errorf ~loc:ct.ptyp_loc
+        "unsupported type in [%%%%inductive]"
 
 let translate_inductive ~(loc : location) ~(path : label)
     (payload : structure_item list) =
@@ -390,27 +394,24 @@ let translate_inductive ~(loc : location) ~(path : label)
       constructors
   in
   let define_expr =
-    A.eapply (A.evar "Heft.Inductive.define_inductive")
+    A.eapply
+      (A.evar "Heft.Inductive.define_inductive")
       [ A.estring type_name; A.elist type_params; A.elist spec_exprs ]
   in
   let body =
     A.pexp_match define_expr
       [
         A.case
-          ~lhs:
-            (A.ppat_construct { txt = Lident "Ok"; loc } (Some (A.pvar "_")))
+          ~lhs:(A.ppat_construct { txt = Lident "Ok"; loc } (Some (A.pvar "_")))
           ~guard:None
-          ~rhs:(A.pexp_construct { txt = Lident "()" ; loc } None);
+          ~rhs:(A.pexp_construct { txt = Lident "()"; loc } None);
         A.case
           ~lhs:
-            (A.ppat_construct { txt = Lident "Error"; loc }
-               (Some (A.pvar "e")))
+            (A.ppat_construct { txt = Lident "Error"; loc } (Some (A.pvar "e")))
           ~guard:None
           ~rhs:
             (A.eapply (A.evar "failwith")
-               [
-                 A.eapply (A.evar "Heft.Printing.print_error") [ A.evar "e" ];
-               ]);
+               [ A.eapply (A.evar "Heft.Printing.print_error") [ A.evar "e" ] ]);
       ]
   in
   A.pstr_eval body []
