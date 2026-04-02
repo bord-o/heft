@@ -141,6 +141,27 @@ let rec translate_expr ~loc ~env (input : expression) =
                      [ A.evar suc_var; A.evar acc_var ])))
       in
       wrap n zero
+  (* if/then/else → COND cond then_branch else_branch *)
+  | Pexp_ifthenelse (cond, then_br, Some else_br) ->
+      let cond_const =
+        A.eapply (A.evar "make_const") [ A.estring "COND"; A.elist [] ]
+      in
+      let all_args = [ cond; then_br; else_br ] in
+      let func_var = fresh_id "app" in
+      List.fold_left
+        (fun (acc_expr, acc_var) arg ->
+          let arg_expr = translate_expr ~loc ~env arg in
+          let arg_var = fresh_id "arg" in
+          let app_var = fresh_id "app" in
+          let expr =
+            mk_bind ~loc acc_expr acc_var
+              (mk_bind ~loc arg_expr arg_var
+                 (A.eapply (A.evar "Heft.Rewrite.smart_make_app")
+                    [ A.evar acc_var; A.evar arg_var ]))
+          in
+          (expr, app_var))
+        (cond_const, func_var) all_args
+      |> fst
   (* Application *)
   | Pexp_apply (func, args) -> translate_apply ~loc ~env func args
   | _ -> Location.raise_errorf ~loc "unsupported expression in [%%term]"

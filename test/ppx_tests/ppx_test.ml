@@ -456,3 +456,21 @@ let%expect_test "realistic: plus_comm" =
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
   [%expect {| ∀n. ∀m. plus n m = plus m n |}]
+
+(* === if/then/else === *)
+
+let%expect_test "if/then/else" =
+  let (t : term) = [%term if (b : bool) then (x : nat) else (y : nat)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| COND b x y |}]
+
+let%expect_test "if/then/else with binder scoping" =
+  let (t : term) =
+    [%term
+      forall (fun (b : bool) (x : nat) (y : nat) ->
+          (if b then x else y) = (if not b then y else x))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀b. ∀x. ∀y. COND b x y = COND ¬b y x |}]
