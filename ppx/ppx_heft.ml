@@ -53,19 +53,34 @@ and translate_type_args ~loc args =
   let vars = List.map fst results in
   (bindings, vars)
 
-let extract_fun_param_and_body (input : expression) =
+let extract_fun_params_and_body (input : expression) =
   match input.pexp_desc with
-  | Pexp_function
-      ( [ { pparam_desc = Pparam_val (Nolabel, None, pat); _ } ],
-        None,
-        Pfunction_body body ) ->
-      Some (pat, body)
+  | Pexp_function (params, None, Pfunction_body body) ->
+      let pats =
+        List.filter_map
+          (fun (p : function_param) ->
+            match p.pparam_desc with
+            | Pparam_val (Nolabel, None, pat) -> Some pat
+            | _ -> None)
+          params
+      in
+      if List.length pats = List.length params && pats <> [] then
+        Some (pats, body)
+      else None
   | _ -> None
 
 let is_fun_expr (input : expression) =
-  match extract_fun_param_and_body input with Some _ -> true | None -> false
+  match extract_fun_params_and_body input with Some _ -> true | None -> false
 
-let rec translate_expr ~loc (input : expression) =
+let extract_pat_binding pat =
+  match pat.ppat_desc with
+  | Ppat_constraint ({ ppat_desc = Ppat_var { txt = name; _ }; _ }, ct) ->
+      (name, ct)
+  | _ ->
+      Location.raise_errorf ~loc:pat.ppat_loc
+        "parameter must have a type annotation: (x : ty)"
+
+let rec translate_expr ~loc ~env (input : expression) =
   let (module A) = Ast_builder.make loc in
   match input.pexp_desc with
   (* Annotated identifier → HOL variable: (x : nat) *)
@@ -75,84 +90,120 @@ let rec translate_expr ~loc (input : expression) =
       mk_bind ~loc ty_expr ty_var
         (A.eapply (A.evar "Result.ok")
            [ A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ] ])
-  (* Bare identifier → HOL constant *)
-  | Pexp_ident { txt = Lident name; _ } ->
-      A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
-  (* Lambda: fun (x : ty) -> body *)
+  (* Bare identifier → check env for variable, otherwise HOL constant *)
+  | Pexp_ident { txt = Lident name; _ } -> (
+      match List.assoc_opt name env with
+      | Some core_type ->
+          let ty_var, ty_expr = translate_type ~loc core_type in
+          mk_bind ~loc ty_expr ty_var
+            (A.eapply (A.evar "Result.ok")
+               [
+                 A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ];
+               ])
+      | None -> A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ])
+  (* Lambda: fun (x : ty) (y : ty) -> body *)
   | Pexp_function _ -> (
-      match extract_fun_param_and_body input with
-      | Some (pat, body) -> translate_lambda ~loc pat body
+      match extract_fun_params_and_body input with
+      | Some (pats, body) -> translate_lambda ~loc ~env pats body
       | None ->
           Location.raise_errorf ~loc
-            "lambda must have a single annotated parameter: fun (x : ty) -> \
-             body")
+            "lambda parameters must be annotated: fun (x : ty) -> body")
+  (* true/false → HOL constants T/F *)
+  | Pexp_construct ({ txt = Lident "true"; _ }, None) ->
+      A.eapply (A.evar "make_const") [ A.estring "T"; A.elist [] ]
+  | Pexp_construct ({ txt = Lident "false"; _ }, None) ->
+      A.eapply (A.evar "make_const") [ A.estring "F"; A.elist [] ]
+  (* Nat literals: 0n, 1n, 2n, ... → zero, suc zero, suc (suc zero), ... *)
+  | Pexp_constant (Pconst_integer (s, Some 'n')) ->
+      let n =
+        match int_of_string_opt s with
+        | Some n when n >= 0 -> n
+        | _ ->
+            Location.raise_errorf ~loc
+              "nat literal must be a non-negative integer"
+      in
+      let zero =
+        A.eapply (A.evar "make_const") [ A.estring "zero"; A.elist [] ]
+      in
+      let rec wrap k acc =
+        if k = 0 then acc
+        else
+          let acc_var = fresh_id "nat" in
+          let suc_var = fresh_id "nat" in
+          wrap (k - 1)
+            (mk_bind ~loc acc acc_var
+               (mk_bind ~loc
+                  (A.eapply (A.evar "make_const")
+                     [ A.estring "suc"; A.elist [] ])
+                  suc_var
+                  (A.eapply (A.evar "make_app")
+                     [ A.evar suc_var; A.evar acc_var ])))
+      in
+      wrap n zero
   (* Application *)
-  | Pexp_apply (func, args) -> translate_apply ~loc func args
+  | Pexp_apply (func, args) -> translate_apply ~loc ~env func args
   | _ -> Location.raise_errorf ~loc "unsupported expression in [%%term]"
 
-and translate_lambda ~loc pat body =
+and translate_lambda ~loc ~env pats body =
   let (module A) = Ast_builder.make loc in
-  let name, core_type =
-    match pat.ppat_desc with
-    | Ppat_constraint ({ ppat_desc = Ppat_var { txt = name; _ }; _ }, ct) ->
-        (name, ct)
-    | _ ->
-        Location.raise_errorf ~loc:pat.ppat_loc
-          "lambda parameter must have a type annotation: (x : ty)"
-  in
-  let ty_var, ty_expr = translate_type ~loc core_type in
-  let var_expr =
-    A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
-  in
-  let body_expr = translate_expr ~loc body in
-  let body_var = fresh_id "body" in
-  let lam_var = fresh_id "lam" in
-  mk_bind ~loc ty_expr ty_var
-    (mk_bind ~loc body_expr body_var
-       (mk_bind ~loc
-          (A.eapply (A.evar "make_lam") [ var_expr; A.evar body_var ])
-          lam_var
-          (A.eapply (A.evar "Result.ok") [ A.evar lam_var ])))
+  match pats with
+  | [] -> translate_expr ~loc ~env body
+  | pat :: rest ->
+      let name, core_type = extract_pat_binding pat in
+      let env = (name, core_type) :: env in
+      let ty_var, ty_expr = translate_type ~loc core_type in
+      let var_expr =
+        A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
+      in
+      let inner = translate_lambda ~loc ~env rest body in
+      let body_var = fresh_id "body" in
+      let lam_var = fresh_id "lam" in
+      mk_bind ~loc ty_expr ty_var
+        (mk_bind ~loc inner body_var
+           (mk_bind ~loc
+              (A.eapply (A.evar "make_lam") [ var_expr; A.evar body_var ])
+              lam_var
+              (A.eapply (A.evar "Result.ok") [ A.evar lam_var ])))
 
-and translate_apply ~loc func args =
+and translate_apply ~loc ~env func args =
   let (module A) = Ast_builder.make loc in
   (* Check for special forms based on the function name *)
   match (func.pexp_desc, args) with
   (* forall (fun (x : ty) -> body) → make_forall var body *)
   | Pexp_ident { txt = Lident "forall"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
-      translate_quantifier ~loc ~quant:"make_forall" lam
+      translate_quantifier ~loc ~env ~quant:"make_forall" lam
   (* exists (fun (x : ty) -> body) → make_exists var body *)
   | Pexp_ident { txt = Lident "exists"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
-      translate_quantifier ~loc ~quant:"make_exists" lam
+      translate_quantifier ~loc ~env ~quant:"make_exists" lam
   (* not p → make_neg p *)
   | Pexp_ident { txt = Lident "not"; _ }, [ (Nolabel, p) ] ->
-      let p_expr = translate_expr ~loc p in
+      let p_expr = translate_expr ~loc ~env p in
       let p_var = fresh_id "arg" in
       mk_bind ~loc p_expr p_var
         (A.eapply (A.evar "Result.ok")
            [ A.eapply (A.evar "make_neg") [ A.evar p_var ] ])
   (* p = q → safe_make_eq p q *)
   | Pexp_ident { txt = Lident "="; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
-      translate_binary_result ~loc ~fn:"safe_make_eq" lhs rhs
+      translate_binary_result ~loc ~env ~fn:"safe_make_eq" lhs rhs
   (* p ==> q → make_imp p q (pure) *)
   | Pexp_ident { txt = Lident "==>"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
-      translate_binary_pure ~loc ~fn:"make_imp" lhs rhs
+      translate_binary_pure ~loc ~env ~fn:"make_imp" lhs rhs
   (* p && q → make_conj p q (pure) *)
   | Pexp_ident { txt = Lident "&&"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
-      translate_binary_pure ~loc ~fn:"make_conj" lhs rhs
+      translate_binary_pure ~loc ~env ~fn:"make_conj" lhs rhs
   (* p || q → make_disj p q (pure) *)
   | Pexp_ident { txt = Lident "||"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
-      translate_binary_pure ~loc ~fn:"make_disj" lhs rhs
+      translate_binary_pure ~loc ~env ~fn:"make_disj" lhs rhs
   (* General application: f x y → make_app (make_app f x) y *)
   | _ ->
       let all_args = List.map (fun (_, arg) -> arg) args in
-      let func_expr = translate_expr ~loc func in
+      let func_expr = translate_expr ~loc ~env func in
       let func_var = fresh_id "app" in
       List.fold_left
         (fun (acc_expr, acc_var) arg ->
-          let arg_expr = translate_expr ~loc arg in
+          let arg_expr = translate_expr ~loc ~env arg in
           let arg_var = fresh_id "arg" in
           let app_var = fresh_id "app" in
           let expr =
@@ -165,38 +216,37 @@ and translate_apply ~loc func args =
         (func_expr, func_var) all_args
       |> fst
 
-(* forall/exists applied to a lambda: quantifier (fun (x : ty) -> body) *)
-and translate_quantifier ~loc ~quant lam =
-  let (module A) = Ast_builder.make loc in
-  match extract_fun_param_and_body lam with
-  | Some (pat, body) ->
-      let name, core_type =
-        match pat.ppat_desc with
-        | Ppat_constraint ({ ppat_desc = Ppat_var { txt = name; _ }; _ }, ct) ->
-            (name, ct)
-        | _ ->
-            Location.raise_errorf ~loc:pat.ppat_loc
-              "quantifier parameter must have a type annotation: (x : ty)"
-      in
-      let ty_var, ty_expr = translate_type ~loc core_type in
-      let var_expr =
-        A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
-      in
-      let body_expr = translate_expr ~loc body in
-      let body_var = fresh_id "body" in
-      mk_bind ~loc ty_expr ty_var
-        (mk_bind ~loc body_expr body_var
-           (A.eapply (A.evar "Result.ok")
-              [ A.eapply (A.evar quant) [ var_expr; A.evar body_var ] ]))
+(* forall/exists applied to a lambda: quantifier (fun (x : ty) (y : ty) -> body) *)
+and translate_quantifier ~loc ~env ~quant lam =
+  match extract_fun_params_and_body lam with
+  | Some (pats, body) -> translate_quantifier_params ~loc ~env ~quant pats body
   | None ->
       Location.raise_errorf ~loc:lam.pexp_loc
         "forall/exists expects a lambda argument"
 
-(* Binary operator where the kernel function returns a result *)
-and translate_binary_result ~loc ~fn lhs rhs =
+and translate_quantifier_params ~loc ~env ~quant pats body =
   let (module A) = Ast_builder.make loc in
-  let l_expr = translate_expr ~loc lhs in
-  let r_expr = translate_expr ~loc rhs in
+  match pats with
+  | [] -> translate_expr ~loc ~env body
+  | pat :: rest ->
+      let name, core_type = extract_pat_binding pat in
+      let env = (name, core_type) :: env in
+      let ty_var, ty_expr = translate_type ~loc core_type in
+      let var_expr =
+        A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
+      in
+      let inner = translate_quantifier_params ~loc ~env ~quant rest body in
+      let body_var = fresh_id "body" in
+      mk_bind ~loc ty_expr ty_var
+        (mk_bind ~loc inner body_var
+           (A.eapply (A.evar "Result.ok")
+              [ A.eapply (A.evar quant) [ var_expr; A.evar body_var ] ]))
+
+(* Binary operator where the kernel function returns a result *)
+and translate_binary_result ~loc ~env ~fn lhs rhs =
+  let (module A) = Ast_builder.make loc in
+  let l_expr = translate_expr ~loc ~env lhs in
+  let r_expr = translate_expr ~loc ~env rhs in
   let l_var = fresh_id "arg" in
   let r_var = fresh_id "arg" in
   mk_bind ~loc l_expr l_var
@@ -204,10 +254,10 @@ and translate_binary_result ~loc ~fn lhs rhs =
        (A.eapply (A.evar fn) [ A.evar l_var; A.evar r_var ]))
 
 (* Binary operator where the kernel function is pure *)
-and translate_binary_pure ~loc ~fn lhs rhs =
+and translate_binary_pure ~loc ~env ~fn lhs rhs =
   let (module A) = Ast_builder.make loc in
-  let l_expr = translate_expr ~loc lhs in
-  let r_expr = translate_expr ~loc rhs in
+  let l_expr = translate_expr ~loc ~env lhs in
+  let r_expr = translate_expr ~loc ~env rhs in
   let l_var = fresh_id "arg" in
   let r_var = fresh_id "arg" in
   mk_bind ~loc l_expr l_var
@@ -218,7 +268,7 @@ and translate_binary_pure ~loc ~fn lhs rhs =
 let translate ~(loc : location) ~(path : label) (input : expression) =
   let (module A) = Ast_builder.make loc in
   let _ = path in
-  let inner = translate_expr ~loc input in
+  let inner = translate_expr ~loc ~env:[] input in
   A.eapply (A.evar "Heft.Printing.unwrap_term") [ inner ]
 
 let extension =

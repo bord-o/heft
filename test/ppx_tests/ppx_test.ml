@@ -277,3 +277,182 @@ let%expect_test "mixed quantifiers" =
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
   [%expect {| ∀p. ∃q. p ==> q |}]
+
+(* === true/false === *)
+
+let%expect_test "true" =
+  let (t : term) = [%term true] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| T |}]
+
+let%expect_test "false" =
+  let (t : term) = [%term false] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| F |}]
+
+let%expect_test "forall with true body" =
+  let (t : term) = [%term forall (fun (a : nat) -> true)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀a. T |}]
+
+let%expect_test "negation of false" =
+  let (t : term) = [%term not false] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ¬F |}]
+
+let%expect_test "true implies false" =
+  let (t : term) = [%term true ==> false] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| T ==> F |}]
+
+(* === Multi-param lambda === *)
+
+let%expect_test "multi-param lambda" =
+  let (t : term) =
+    [%term fun (x : nat) (y : nat) -> plus (x : nat) (y : nat)]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| λx. λy. plus x y |}]
+
+let%expect_test "three-param lambda" =
+  let (t : term) =
+    [%term
+      fun (a : bool) (b : bool) (c : bool) ->
+        ((a : bool) && (b : bool)) || (c : bool)]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| λa. λb. λc. a ∧ b ∨ c |}]
+
+(* === Multi-param forall === *)
+
+let%expect_test "multi-param forall" =
+  let (t : term) =
+    [%term
+      forall (fun (n : nat) (m : nat) ->
+          plus (n : nat) (m : nat) = plus (m : nat) (n : nat))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀n. ∀m. plus n m = plus m n |}]
+
+let%expect_test "three-param forall" =
+  let (t : term) =
+    [%term
+      forall (fun (a : nat) (b : nat) (c : nat) ->
+          plus (a : nat) (plus (b : nat) (c : nat))
+          = plus (plus (a : nat) (b : nat)) (c : nat))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀a. ∀b. ∀c. plus a (plus b c) = plus (plus a b) c |}]
+
+(* === Multi-param exists === *)
+
+let%expect_test "multi-param exists" =
+  let (t : term) =
+    [%term exists (fun (x : nat) (y : nat) -> (x : nat) = (y : nat))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∃x. ∃y. x = y |}]
+
+(* === Nat literals === *)
+
+let%expect_test "0n" =
+  let (t : term) = [%term 0n] in
+  let s = Printing.pretty_print_hol_term ~pretty:true t in
+  print_endline s;
+  [%expect {| 0 |}]
+
+let%expect_test "3n" =
+  let (t : term) = [%term 3n] in
+  let s = Printing.pretty_print_hol_term ~pretty:true t in
+  print_endline s;
+  [%expect {| 3 |}]
+
+let%expect_test "nat literal in application" =
+  let (t : term) = [%term plus 2n 3n] in
+  let s = Printing.pretty_print_hol_term ~pretty:true t in
+  print_endline s;
+  [%expect {| plus 2 3 |}]
+
+let%expect_test "nat literal in equality" =
+  let (t : term) = [%term suc 2n = 3n] in
+  let s = Printing.pretty_print_hol_term ~pretty:true t in
+  print_endline s;
+  [%expect {| 3 = 3 |}]
+
+let%expect_test "nat literal in forall" =
+  let (t : term) =
+    [%term forall (fun (n : nat) -> plus (n : nat) 0n = (n : nat))]
+  in
+  let s = Printing.pretty_print_hol_term ~pretty:true t in
+  print_endline s;
+  [%expect {| ∀n. plus n 0 = n |}]
+
+(* === Binder-scoped variables (no repeated annotations) === *)
+
+let%expect_test "forall: bare variables from binder" =
+  let (t : term) = [%term forall (fun (n : nat) -> plus zero n = n)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀n. plus zero n = n |}]
+
+let%expect_test "forall: multi-param bare variables" =
+  let (t : term) =
+    [%term
+      forall (fun (x : nat) (y : nat) (z : nat) ->
+          plus x (plus y z) = plus (plus x y) z)]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀x. ∀y. ∀z. plus x (plus y z) = plus (plus x y) z |}]
+
+let%expect_test "exists: bare variable from binder" =
+  let (t : term) = [%term exists (fun (x : nat) -> suc x = zero)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∃x. suc x = zero |}]
+
+let%expect_test "lambda: bare variable from binder" =
+  let (t : term) = [%term fun (x : nat) -> suc x] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| λx. suc x |}]
+
+let%expect_test "lambda: multi-param bare variables" =
+  let (t : term) = [%term fun (x : nat) (y : nat) -> plus x y] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| λx. λy. plus x y |}]
+
+let%expect_test "nested quantifiers: inner uses outer binder" =
+  let (t : term) =
+    [%term forall (fun (x : nat) -> exists (fun (y : nat) -> x = y))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀x. ∃y. x = y |}]
+
+let%expect_test "realistic: plus_suc theorem" =
+  let (t : term) =
+    [%term forall (fun (n : nat) (m : nat) -> plus (suc n) m = suc (plus n m))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀n. ∀m. plus (suc n) m = suc (plus n m) |}]
+
+let%expect_test "realistic: plus_comm" =
+  let (t : term) =
+    [%term forall (fun (n : nat) (m : nat) -> plus n m = plus m n)]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀n. ∀m. plus n m = plus m n |}]
