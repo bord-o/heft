@@ -1,7 +1,6 @@
 (library
  (name heft)
  (public_name heft)
- (libraries ppx_here ppx_deriving sexplib multicont sedlex)
- (inline_tests)
+ (libraries ppx_deriving multicont sedlex)
  (preprocess
-  (pps ppx_here ppx_expect ppx_deriving.show sedlex.ppx)))
+  (pps ppx_deriving.show sedlex.ppx)))

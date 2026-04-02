@@ -3,4 +3,4 @@
  (name main)
  (ocamlopt_flags
   (:standard -g))
- (libraries heft heft.theories sexplib))
+ (libraries heft heft.theories))

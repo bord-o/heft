@@ -17,10 +17,10 @@
 
 (package
  (name heft)
- (synopsis "interactive theorem proving with algebraic effects")
- (description "applying algebraic effects to a HOL tactic system for composable tactics and ergonomic proof search")
- (depends ocaml ppx_here ppx_deriving ppx_expect sexplib utop multicont ocamlformat sedlex)
+ (synopsis "Interactive theorem proving with algebraic effects.")
+ (description "Applying algebraic effects to a HOL tactic system for composable tactics and ergonomic proof search.")
+ (depends ocaml ppx_deriving ppx_expect multicont ocamlformat sedlex ppxlib)
  (tags
-  ("add topics" "to describe" your project)))
+  ("proof assistant" "formal verification" effects)))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
