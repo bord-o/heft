@@ -6,7 +6,7 @@ open Heft_theories
 open Theories
 
 let%expect_test "template" =
-  let goal = ([], [%term forall (fun (a : nat) -> true)]) in
+  let goal = make_goal [%term forall (fun (a : nat) -> true)] in
   run_proof ~notrace:true goal (intros_tac >> truth_tac);
   [%expect
     {|
@@ -17,8 +17,27 @@ let%expect_test "template" =
     with fuel: 5
     |}]
 
+let%expect_test "eq_true intro" =
+  let goal =
+    let bool_ty = Result.get_ok (make_type "bool" []) in
+    let p = make_var "P" bool_ty in
+    let t_const = Result.get_ok (make_const "T" []) in
+    make_goal
+      (make_forall p (make_imp p (Result.get_ok (safe_make_eq p t_const))))
+  in
+  run_proof ~name:"eq_true_intro" ~notrace:true goal
+    (intros_tac >> eq_true_elim_tac >> assumption_tac);
+  [%expect
+    {|
+    ========================================
+    ∀P. P ==> P = T
+
+    Proof Complete!
+    with fuel: 8
+    |}]
+
 let%expect_test "rewrite induction" =
-  let goal = ([], [%term forall (fun (x : nat) -> plus x zero = x)]) in
+  let goal = make_goal [%term forall (fun (x : nat) -> plus x zero = x)] in
   run_proof ~name:"plus_x_zero" goal
     (induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac);
 
@@ -32,7 +51,7 @@ let%expect_test "rewrite induction" =
     |}]
 
 let%expect_test "basic nat" =
-  let goal = ([], [%term plus 2n 3n = 5n]) in
+  let goal = make_goal [%term plus 2n 3n = 5n] in
   run_proof ~pretty:true goal simp_tac;
 
   [%expect
@@ -46,10 +65,10 @@ let%expect_test "basic nat" =
 
 let%expect_test "plus assoc" =
   let goal =
-    ( [],
+    make_goal
       [%term
         forall (fun (x : nat) (y : nat) (z : nat) ->
-            plus x (plus y z) = plus (plus x y) z)] )
+            plus x (plus y z) = plus (plus x y) z)]
   in
   run_proof ~name:"plus_assoc" goal
     (with_term x induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac);
@@ -64,7 +83,8 @@ let%expect_test "plus assoc" =
 
 let%expect_test "suc injective" =
   let goal =
-    ([], [%term forall (fun (x : nat) (y : nat) -> suc x = suc y ==> (x = y))])
+    make_goal
+      [%term forall (fun (x : nat) (y : nat) -> suc x = suc y ==> (x = y))]
   in
   run_proof ~name:"suc_inj" goal
     (intros_tac
@@ -83,9 +103,9 @@ let%expect_test "suc injective" =
 (* Lemma needed for commutativity: plus x (Suc y) = Suc (plus x y) *)
 let%expect_test "plus suc lemma" =
   let goal =
-    ( [],
+    make_goal
       [%term
-        forall (fun (x : nat) (y : nat) -> plus x (suc y) = suc (plus x y))] )
+        forall (fun (x : nat) (y : nat) -> plus x (suc y) = suc (plus x y))]
   in
   run_proof ~name:"plus_suc" goal
     (induct_tac >> gen_tac >> simp_tac >> intros_tac >> simp_tac);
@@ -100,7 +120,8 @@ let%expect_test "plus suc lemma" =
 
 let%expect_test "suc injective rev" =
   let goal =
-    ([], [%term forall (fun (x : nat) (y : nat) -> x = y ==> (suc x = suc y))])
+    make_goal
+      [%term forall (fun (x : nat) (y : nat) -> x = y ==> (suc x = suc y))]
   in
   run_proof ~name:"suc_inj_rev" goal
     (intros_tac >> (rewrite_tac |> with_assumptions) >> refl_tac);
@@ -116,7 +137,7 @@ let%expect_test "suc injective rev" =
 (* Commutativity: plus x y = plus y x *)
 let%expect_test "plus comm" =
   let goal =
-    ([], [%term forall (fun (x : nat) (y : nat) -> plus x y = plus y x)])
+    make_goal [%term forall (fun (x : nat) (y : nat) -> plus x y = plus y x)]
   in
   run_proof ~name:"plus_comm" goal
     (induct_tac >> gen_tac >> simp_tac
@@ -135,10 +156,10 @@ let%expect_test "plus comm" =
 
 let%expect_test "cancellation" =
   let goal =
-    ( [],
+    make_goal
       [%term
         forall (fun (x : nat) (y : nat) (z : nat) ->
-            plus x y = plus x z ==> (y = z))] )
+            plus x y = plus x z ==> (y = z))]
   in
   run_proof goal
     (induct_tac >> simp_tac >> intros_tac >> assumption_tac >> intros_tac
@@ -157,10 +178,10 @@ let%expect_test "cancellation" =
 
 let%expect_test "cancellation rev" =
   let goal =
-    ( [],
+    make_goal
       [%term
         forall (fun (x : nat) (y : nat) (z : nat) ->
-            plus y x = plus z x ==> (y = z))] )
+            plus y x = plus z x ==> (y = z))]
   in
   run_proof goal
     (induct_tac >> gen_tac
@@ -184,7 +205,8 @@ let%expect_test "cancellation rev" =
 (* xs = Nil ==> length xs = Zero *)
 let%expect_test "nil_implies_length_zero" =
   let goal =
-    ([], [%term forall (fun (xs : 'a list) -> xs = nil ==> (length xs = zero))])
+    make_goal
+      [%term forall (fun (xs : 'a list) -> xs = nil ==> (length xs = zero))]
   in
   run_proof goal (intros_tac >> simp_tac ~with_asms:true);
 
@@ -200,7 +222,8 @@ let%expect_test "nil_implies_length_zero" =
 (* length xs = Zero ==> xs = Nil *)
 let%expect_test "length_zero_implies_nil" =
   let goal =
-    ([], [%term forall (fun (xs : 'a list) -> length xs = zero ==> (xs = nil))])
+    make_goal
+      [%term forall (fun (xs : 'a list) -> length xs = zero ==> (xs = nil))]
   in
   run_proof goal
     (induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
@@ -220,8 +243,7 @@ let%expect_test "append nil xs = xs" =
   let goal =
     make_goal [%term forall (fun (xs : 'a list) -> append nil xs = xs)]
   in
-  let proof = intros_tac >> simp_tac in
-  run_proof goal proof;
+  run_proof goal (intros_tac >> simp_tac);
 
   [%expect
     {|
@@ -612,8 +634,7 @@ let%expect_test "cond false" =
 
 let%expect_test "le nat test" =
   let goal = make_goal [%term nat_le 0n 1n] in
-  let proof = simp_tac in
-  run_proof ~notrace:true goal proof;
+  run_proof ~notrace:true goal simp_tac;
 
   [%expect
     {|
@@ -1472,43 +1493,28 @@ let assumption_reasoning_tac =
              ])))
 
 let%expect_test "lt_trans" =
-  let prg =
-    {|
-    variable a b c n0' n0'' : nat
-    theorem lt_trans:
-        forall λa. forall λb. forall λc.
-            imp (nat_lt a b) (imp (nat_lt b c) (nat_lt a c))
-    term a : a
-    term b : b
-    term c : c
-    term n0' : n0'
-    term n0'' : n0''
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_lt a b ==> (nat_lt b c ==> nat_lt a c))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let c = Elaborator.term_from_string prg "c" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let n0'' = Elaborator.term_from_string prg "n0''" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"lt_trans" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term c induct_tac
+    >>> with_arbitrary_term [%term (c : nat)] induct_tac
     >>> intros_tac
     >>> try_ assumption_reasoning_tac
-    (* all subgoals are trivial except the last one *)
     >>= [
           with_repeat
             (with_first (with_proven [ "lt_suc_suc" ] rewrite_asm_tac))
-          >> spec_asm_tac n0' >> spec_asm_tac n0''
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "lt_suc_suc" ] rewrite_tac
           >> with_repeat mp_asm_tac >> assumption_tac;
-        ]
-  in
-  run_proof ~name:"lt_trans" ~notrace:true goal proof;
+        ]);
   [%expect
     {|
     ========================================
@@ -1519,44 +1525,28 @@ let%expect_test "lt_trans" =
     |}]
 
 let%expect_test "le_trans" =
-  let prg =
-    {|
-    variable a b c n0' n0'' : nat
-    theorem le_trans:
-        forall λa. forall λb. forall λc.
-            imp (nat_le a b) (imp (nat_le b c) (nat_le a c))
-
-    term a : a
-    term b : b
-    term c : c
-    term n0' : n0'
-    term n0'' : n0''
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_le a b ==> (nat_le b c ==> nat_le a c))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let c = Elaborator.term_from_string prg "c" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let n0'' = Elaborator.term_from_string prg "n0''" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"le_trans" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term c induct_tac
+    >>> with_arbitrary_term [%term (c : nat)] induct_tac
     >>> intros_tac
     >>> try_ assumption_reasoning_tac
-    (* all subgoals are trivial except the last one *)
     >>= [
           with_repeat
             (with_first (with_proven [ "le_suc_suc" ] rewrite_asm_tac))
-          >> spec_asm_tac n0' >> spec_asm_tac n0''
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "le_suc_suc" ] rewrite_tac
           >> with_repeat mp_asm_tac >> assumption_tac;
-        ]
-  in
-  run_proof ~name:"le_trans" ~notrace:true goal proof;
+        ]);
   [%expect
     {|
     ========================================
@@ -1567,45 +1557,29 @@ let%expect_test "le_trans" =
     |}]
 
 let%expect_test "le_lt_trans" =
-  let prg =
-    {|
-    variable a b c n0' n0'' : nat
-    theorem le_lt_trans:
-        forall λa. forall λb. forall λc.
-            imp (nat_le a b) (imp (nat_lt b c) (nat_lt a c))
-
-    term a : a
-    term b : b
-    term c : c
-    term n0' : n0'
-    term n0'' : n0''
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_le a b ==> (nat_lt b c ==> nat_lt a c))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let c = Elaborator.term_from_string prg "c" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let n0'' = Elaborator.term_from_string prg "n0''" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"le_lt_trans" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term c induct_tac
+    >>> with_arbitrary_term [%term (c : nat)] induct_tac
     >>> intros_tac
     >>> try_ assumption_reasoning_tac
-    (* all subgoals are trivial except the last one *)
     >>= [
           with_repeat
             (with_first
                (with_proven [ "le_suc_suc"; "lt_suc_suc" ] rewrite_asm_tac))
-          >> spec_asm_tac n0' >> spec_asm_tac n0''
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "lt_suc_suc" ] rewrite_tac
           >> with_repeat mp_asm_tac >> assumption_tac;
-        ]
-  in
-  run_proof ~name:"le_lt_trans" ~notrace:true goal proof;
+        ]);
   [%expect
     {|
     ========================================
@@ -1616,46 +1590,29 @@ let%expect_test "le_lt_trans" =
     |}]
 
 let%expect_test "lt_le_trans" =
-  let prg =
-    {|
-    variable a b c n0' n0'' : nat
-    theorem lt_le_trans:
-        forall λa. forall λb. forall λc.
-            imp (nat_lt a b) (imp (nat_le b c) (nat_lt a c))
-
-    term a : a
-    term b : b
-    term c : c
-    term n0' : n0'
-    term n0'' : n0''
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_lt a b ==> (nat_le b c ==> nat_lt a c))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let c = Elaborator.term_from_string prg "c" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let n0'' = Elaborator.term_from_string prg "n0''" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"lt_le_trans" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term c induct_tac
+    >>> with_arbitrary_term [%term (c : nat)] induct_tac
     >>> intros_tac
     >>> try_ assumption_reasoning_tac
-    (* all subgoals are trivial except the last one *)
     >>= [
           with_proven [ "lt_suc_suc" ] rewrite_tac
           >> with_repeat
                (with_first
                   (with_proven [ "lt_suc_suc"; "le_suc_suc" ] rewrite_asm_tac))
-          >> spec_asm_tac n0' >> spec_asm_tac n0'' >> with_repeat mp_asm_tac
-          >> assumption_tac;
-        ]
-  in
-
-  run_proof ~name:"lt_le_trans" ~notrace:true goal proof;
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> spec_asm_tac [%term (n0'' : nat)]
+          >> with_repeat mp_asm_tac >> assumption_tac;
+        ]);
   [%expect
     {|
     ========================================
@@ -1666,32 +1623,22 @@ let%expect_test "lt_le_trans" =
     |}]
 
 let%expect_test "le_antisym" =
-  let prg =
-    {|
-    variable a b n0': nat
-    theorem le_antisym:
-        forall λa. forall λb.
-            imp (nat_le a b) (imp (nat_le b a) (eq a b))
-    term a : a 
-    term b : b
-    term n0' : n0'
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) ->
+            nat_le a b ==> (nat_le b a ==> ((a : nat) = b)))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"le_antisym" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> intros_tac
     >>> try_ assumption_reasoning_tac
     >> with_proven [ "eq_cong" ] apply_thm_tac
     >> with_repeat (with_first (with_proven [ "le_suc_suc" ] rewrite_asm_tac))
-    >> spec_asm_tac n0' >> with_repeat mp_asm_tac >> assumption_tac
-  in
-  run_proof ~name:"le_antisym" ~notrace:true goal proof;
+    >> spec_asm_tac [%term (n0' : nat)]
+    >> with_repeat mp_asm_tac >> assumption_tac);
   [%expect
     {|
     ========================================
@@ -1704,33 +1651,21 @@ let%expect_test "le_antisym" =
 (* (* ===== Group 6: Subtraction properties ===== *) *)
 
 let%expect_test "le_weaken_suc" =
-  let prg =
-    {|
-    variable a b n0' : nat
-    theorem le_weaken_suc :
-        forall λa. forall λb.
-            imp (nat_le a b) (nat_le a (suc b))
-    term a : a
-    term b : b
-    term n0' : n0'
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> nat_le a b ==> nat_le a (suc b))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"le_weaken_suc" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> try_ intros_tac
     >>> try_ assumption_reasoning_tac
     >> with_proven [ "le_suc_suc" ] rewrite_tac
-    >> spec_asm_tac n0'
+    >> spec_asm_tac [%term (n0' : nat)]
     >> with_repeat (with_first (with_proven [ "le_suc_suc" ] rewrite_asm_tac))
-    >> with_first mp_asm_tac >> assume_tac
-  in
-  run_proof ~name:"le_weaken_suc" ~notrace:true goal proof;
+    >> with_first mp_asm_tac >> assume_tac);
   [%expect
     {|
     ========================================
@@ -1741,33 +1676,21 @@ let%expect_test "le_weaken_suc" =
     |}]
 
 let%expect_test "lt_weaken_suc" =
-  let prg =
-    {|
-    variable a b n0' : nat
-    theorem lt_weaken_suc :
-        forall λa. forall λb.
-            imp (nat_lt a b) (nat_lt a (suc b))
-    term a : a
-    term b : b
-    term n0' : n0'
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> nat_lt a b ==> nat_lt a (suc b))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"lt_weaken_suc" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> try_ intros_tac
     >>> try_ assumption_reasoning_tac
     >> with_proven [ "lt_suc_suc" ] rewrite_tac
-    >> spec_asm_tac n0'
+    >> spec_asm_tac [%term (n0' : nat)]
     >> with_repeat (with_first (with_proven [ "lt_suc_suc" ] rewrite_asm_tac))
-    >> with_first mp_asm_tac >> assume_tac
-  in
-  run_proof ~name:"lt_weaken_suc" ~notrace:true goal proof;
+    >> with_first mp_asm_tac >> assume_tac);
   [%expect
     {|
     ========================================
@@ -1778,32 +1701,19 @@ let%expect_test "lt_weaken_suc" =
     |}]
 
 let%expect_test "sub_le" =
-  let prg =
-    {|
-    variable a b c n0' : nat
-    theorem sub_le:
-        forall λa. forall λb. nat_le (sub a b) a
-    term b : b
-    term a : a
-    term n0' : n0'
-  |}
+  let goal =
+    make_goal [%term forall (fun (a : nat) (b : nat) -> nat_le (sub a b) a)]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"sub_le" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> try_ intros_tac
     >>> try_ assumption_reasoning_tac
     >> with_proven [ "sub_suc_suc" ] rewrite_tac
-    >> spec_asm_tac n0'
+    >> spec_asm_tac [%term (n0' : nat)]
     >> with_proven [ "le_weaken_suc" ] apply_thm_tac
-    >> assumption_tac
-  in
-  run_proof ~name:"sub_le" ~notrace:true goal proof;
+    >> assumption_tac);
   [%expect
     {|
     ========================================
@@ -1814,29 +1724,16 @@ let%expect_test "sub_le" =
     |}]
 
 let%expect_test "sub_lt" =
-  let prg =
-    {|
-    variable a b a0 n0 : nat
-    theorem sub_lt:
-        forall λb. forall λa.
-            imp (nat_lt zero b)
-                (imp (nat_le b a)
-                    (nat_lt (sub a b) a))
-    term a : a
-    term b : b
-    term a0 : a0
-    term n0 : n0
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (b : nat) (a : nat) ->
+            nat_lt 0n b ==> (nat_le b a ==> nat_lt (sub a b) a))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let a0 = Elaborator.term_from_string prg "a0" in
-  let n0 = Elaborator.term_from_string prg "n0" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term b induct_tac
+  run_proof ~name:"sub_lt" ~notrace:true goal
+    (with_arbitrary_term [%term (b : nat)] induct_tac
     >>> intros_tac >> assumption_reasoning_tac
-    >> with_arbitrary_term a destruct_tac
+    >> with_arbitrary_term [%term (a : nat)] destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac
     >> with_first assumption_tac >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
@@ -1844,13 +1741,11 @@ let%expect_test "sub_lt" =
     >> with_first (with_assumptions rewrite_asm_tac)
     >> with_proven [ "sub_suc_suc" ] rewrite_tac
     >> with_first (with_proven [ "le_suc_suc" ] rewrite_asm_tac)
-    >> with_arbitrary_term n0 destruct_tac
+    >> with_arbitrary_term [%term (n0 : nat)] destruct_tac
     >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac
     >> with_proven [ "lt_weaken_suc" ] apply_thm_tac
-    >> spec_asm_tac a0 >> simp_asm_tac >> simp_tac >> with_repeat mp_asm_tac
-    >> assumption_tac
-  in
-  run_proof ~name:"sub_lt" ~notrace:true goal proof;
+    >> spec_asm_tac [%term (a0 : nat)]
+    >> simp_asm_tac >> simp_tac >> with_repeat mp_asm_tac >> assumption_tac);
   [%expect
     {|
     ========================================
@@ -1861,26 +1756,16 @@ let%expect_test "sub_lt" =
     |}]
 
 let%expect_test "sub_add_cancel" =
-  let prg =
-    {|
-    variable a b n0' : nat
-    theorem sub_add_cancel:
-        forall λa. forall λb.
-            imp (nat_le b a)
-                (eq (plus (sub a b) b) a)
-    term a : a
-    term b : b
-    term n0' : n0'
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) ->
+            nat_le b a ==> (plus (sub a b) b = a))]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"sub_add_cancel" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> try_ intros_tac
     >>> try_ assumption_reasoning_tac
     >>= [
@@ -1891,10 +1776,9 @@ let%expect_test "sub_add_cancel" =
           simp_asm_tac >> simp_tac
           >> with_proven [ "plus_suc" ] rewrite_tac
           >> with_proven [ "eq_cong" ] apply_thm_tac
-          >> spec_asm_tac n0' >> mp_asm_tac >> assumption_tac;
-        ]
-  in
-  run_proof ~name:"sub_add_cancel" ~notrace:true goal proof;
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> mp_asm_tac >> assumption_tac;
+        ]);
   [%expect
     {|
     ========================================
@@ -1907,20 +1791,10 @@ let%expect_test "sub_add_cancel" =
 (* (* ===== Group 8: Ordering and addition ===== *) *)
 
 let%expect_test "le_add_r" =
-  let prg =
-    {|
-    variable a b : nat
-    theorem le_add_r:
-        forall λa. forall λb. nat_le a (plus a b)
-  |}
+  let goal =
+    make_goal [%term forall (fun (a : nat) (b : nat) -> nat_le a (plus a b))]
   in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    induct_tac
-    >> with_no_automation_trace auto_dfs_tac
-    >> with_no_automation_trace auto_dfs_tac
-  in
-  run_proof ~name:"le_add_r" ~notrace:true goal proof;
+  run_proof ~name:"le_add_r" ~notrace:true goal nat_induct_auto_tac;
   [%expect
     {|
     ========================================
@@ -1933,38 +1807,26 @@ let%expect_test "le_add_r" =
 (* (* ===== Group 9: Totality ===== *) *)
 
 let%expect_test "lt_total" =
-  let prg =
-    {|
-    variable a b n0' : nat
-    theorem lt_total:
-        forall λa. forall λb.
-            \/ (nat_lt a b) (nat_le b a)
-    term a : a
-    term b : b
-    term n0' : n0'
-  |}
+  let goal =
+    make_goal
+      [%term forall (fun (a : nat) (b : nat) -> nat_lt a b || nat_le b a)]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"lt_total" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> try_ intros_tac
     >>= [
           right_tac >> simp_tac;
           left_tac >> simp_tac;
           right_tac >> simp_tac;
-          spec_asm_tac n0' >> elim_disj_asm_tac >> left_tac
+          spec_asm_tac [%term (n0' : nat)]
+          >> elim_disj_asm_tac >> left_tac
           >> with_proven [ "lt_suc_suc" ] rewrite_tac
           >> assumption_tac >> right_tac
           >> with_proven [ "le_suc_suc" ] rewrite_tac
           >> assumption_tac;
-        ]
-  in
-  run_proof ~name:"lt_total" ~notrace:true goal proof;
+        ]);
   [%expect
     {|
     ========================================
@@ -1975,40 +1837,26 @@ let%expect_test "lt_total" =
     |}]
 
 let%expect_test "le_total" =
-  let prg =
-    {|
-
-    variable a b n0' : nat
-    theorem le_total:
-        forall λa. forall λb.
-            \/ (nat_le a b) (nat_le b a)
-
-    term a : a
-    term b : b
-    term n0' : n0'
-  |}
+  let goal =
+    make_goal
+      [%term forall (fun (a : nat) (b : nat) -> nat_le a b || nat_le b a)]
   in
-  let a = Elaborator.term_from_string prg "a" in
-  let b = Elaborator.term_from_string prg "b" in
-  let n0' = Elaborator.term_from_string prg "n0'" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    with_arbitrary_term a induct_tac
+  run_proof ~name:"le_total" ~notrace:true goal
+    (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
-    >>> with_arbitrary_term b induct_tac
+    >>> with_arbitrary_term [%term (b : nat)] induct_tac
     >>> try_ intros_tac
     >>= [
           right_tac >> simp_tac;
           left_tac >> simp_tac;
           right_tac >> simp_tac;
-          spec_asm_tac n0' >> elim_disj_asm_tac >> left_tac
+          spec_asm_tac [%term (n0' : nat)]
+          >> elim_disj_asm_tac >> left_tac
           >> with_proven [ "le_suc_suc" ] rewrite_tac
           >> assumption_tac >> right_tac
           >> with_proven [ "le_suc_suc" ] rewrite_tac
           >> assumption_tac;
-        ]
-  in
-  run_proof ~name:"le_total" ~notrace:true goal proof;
+        ]);
   [%expect
     {|
     ========================================
@@ -2019,55 +1867,35 @@ let%expect_test "le_total" =
     |}]
 
 let%expect_test "div fuel sufficient" =
-  let prg =
-    {|
-    variable a b x n n0 : nat
-
-    variable n a b x x' : nat
-    theorem div_fuel_sufficient :
-        forall λn.
-            forall λa.
-                forall λb.
-                    imp (nat_lt zero b)
-                        (imp (nat_lt a n)
-                            (exists λx.
-                                (eq (div_aux n a b) (some x))))
-    term a : a
-    term b : b
-    term x : suc x
-    term sucx' : suc x'
-    term subab : sub a b
-
-    term l1: nat_lt (sub a b) a
-    term l2: nat_lt (sub a b) n0
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (n : nat) (a : nat) (b : nat) ->
+            nat_lt 0n b
+            ==> (nat_lt a n ==> exists (fun (x : nat) -> div_aux n a b = some x)))]
   in
-
-  let b = Elaborator.term_from_string prg "b" in
-  let sucx' = Elaborator.term_from_string prg "sucx'" in
-  let l1 = Elaborator.term_from_string prg "l1" in
-  let l2 = Elaborator.term_from_string prg "l2" in
-  let subab = Elaborator.term_from_string prg "subab" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
-    >> simp_tac >> cond_tac >> simp_tac
+  run_proof ~name:"div_fuel_sufficient" ~notrace:true goal
+    (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
+   >> simp_tac >> cond_tac >> simp_tac
     >> with_arbitrary_term NatTheory.n0 exists_tac
     >> refl_tac >> simp_tac
     >> with_first (with_proven [ "lt_suc_le" ] rewrite_asm_tac)
     >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
-    >> (with_arbitrary_term l1 assert_tac
+    >> (with_arbitrary_term
+          [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)]
+          assert_tac
        >> with_proven [ "sub_lt" ] apply_thm_tac
        >> with_first assumption_tac >> with_first assumption_tac)
-    >> (with_arbitrary_term l2 assert_tac
+    >> (with_arbitrary_term
+          [%term nat_lt (sub (a : nat) (b : nat)) (n0 : nat)]
+          assert_tac
        >> with_proven [ "lt_le_trans" ] apply_thm_tac
        >> with_first assumption_tac >> with_first assumption_tac)
-    >> spec_asm_tac subab >> spec_asm_tac b >> with_repeat mp_asm_tac
-    >> elim_exists_asm_tac >> simp_tac
-    >> with_arbitrary_term sucx' exists_tac
-    >> simp_tac
-  in
-  run_proof ~name:"div_fuel_sufficient" ~notrace:true goal proof;
+    >> spec_asm_tac [%term sub (a : nat) (b : nat)]
+    >> spec_asm_tac [%term (b : nat)]
+    >> with_repeat mp_asm_tac >> elim_exists_asm_tac >> simp_tac
+    >> with_arbitrary_term [%term suc (x' : nat)] exists_tac
+    >> simp_tac);
   [%expect
     {|
     ========================================
@@ -2078,35 +1906,15 @@ let%expect_test "div fuel sufficient" =
     |}]
 
 let%expect_test "div unfold" =
-  let prg =
-    {|
-  variable a b r x x' : nat
-
-  theorem div_unfold:
-    forall λa. forall λb.
-        imp (nat_lt zero b)
-            (eq (div a b)
-                (COND (nat_lt a b)
-                      zero
-                      (suc (div (sub a b) b))))
-
-
-    term l1: nat_lt (sub a b) a
-    term l2 : exists (λx'. eq (div_aux a (sub a b) b) (some x'))
-    term l3 : exists (λx. eq (div_aux (suc (sub a b)) (sub a b) b) (some x))
-    term l4 : eq (div_aux (plus (suc (sub a b)) (sub a (suc (sub a b)))) (sub a b) b) (some x)
-    term arith : eq (plus (sub a (suc (sub a b))) (suc (sub a b))) a
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) ->
+            nat_lt 0n b
+            ==> (div a b = if nat_lt a b then 0n else suc (div (sub a b) b)))]
   in
-
-  let l1 = Elaborator.term_from_string prg "l1" in
-  let l2 = Elaborator.term_from_string prg "l2" in
-  let l3 = Elaborator.term_from_string prg "l3" in
-  let l4 = Elaborator.term_from_string prg "l4" in
-  let arith = Elaborator.term_from_string prg "arith" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    intros_tac
+  run_proof ~name:"div_unfold" ~notrace:true goal
+    (intros_tac
     >> with_definition [ "div" ] rewrite_tac
     >> beta_tac
     >> with_first (with_definition [ "div_aux" ] rewrite_tac)
@@ -2114,10 +1922,16 @@ let%expect_test "div unfold" =
     >> with_repeat @@ with_assumptions rewrite_tac
     >> with_repeat @@ with_proven [ "cond_false" ] rewrite_tac
     >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
-    >> with_arbitrary_term l1 assert_tac
+    >> with_arbitrary_term
+         [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)]
+         assert_tac
     >> with_proven [ "sub_lt" ] apply_thm_tac
     >> with_first assumption_tac >> with_first assumption_tac
-    >> with_arbitrary_term l2 assert_tac
+    >> with_arbitrary_term
+         [%term
+           exists (fun (x' : nat) ->
+               div_aux (a : nat) (sub (a : nat) (b : nat)) (b : nat) = some x')]
+         assert_tac
     >> with_proven [ "div_fuel_sufficient" ] apply_thm_tac
     >> with_first assumption_tac >> with_first assumption_tac
     >> elim_exists_asm_tac
@@ -2126,15 +1940,38 @@ let%expect_test "div unfold" =
     >> beta_tac
     >> with_first (with_definition [ "option_match" ] rewrite_tac)
     >> beta_tac
-    >> with_arbitrary_term l3 assert_tac
+    >> with_arbitrary_term
+         [%term
+           exists (fun (x : nat) ->
+               div_aux
+                 (suc (sub (a : nat) (b : nat)))
+                 (sub (a : nat) (b : nat))
+                 (b : nat)
+               = some x)]
+         assert_tac
     >> with_proven [ "div_fuel_sufficient" ] apply_thm_tac
     >> with_first assumption_tac
     >> with_proven [ "lt_suc_self" ] rewrite_tac
     >> truth_tac >> elim_exists_asm_tac
-    >> with_arbitrary_term l4 assert_tac
+    >> with_arbitrary_term
+         [%term
+           div_aux
+             (plus
+                (suc (sub (a : nat) (b : nat)))
+                (sub (a : nat) (suc (sub (a : nat) (b : nat)))))
+             (sub (a : nat) (b : nat))
+             (b : nat)
+           = some (x : nat)]
+         assert_tac
     >> with_proven [ "div_fuel_irrel" ] apply_thm_tac
     >> with_first assumption_tac
-    >> with_arbitrary_term arith assert_tac
+    >> with_arbitrary_term
+         [%term
+           plus
+             (sub (a : nat) (suc (sub (a : nat) (b : nat))))
+             (suc (sub (a : nat) (b : nat)))
+           = (a : nat)]
+         assert_tac
     >> with_proven [ "sub_add_cancel" ] apply_thm_tac
     >> with_proven [ "le_lt_suc" ] rewrite_tac
     >> with_proven [ "lt_suc_suc" ] rewrite_tac
@@ -2149,9 +1986,7 @@ let%expect_test "div unfold" =
     >> with_definition [ "div" ] rewrite_tac
     >> beta_tac
     >> with_assumptions rewrite_tac
-    >> simp_tac
-  in
-  run_proof ~name:"div_unfold" ~notrace:true goal proof;
+    >> simp_tac);
   [%expect
     {|
     ========================================
@@ -2162,21 +1997,12 @@ let%expect_test "div unfold" =
     |}]
 
 let%expect_test "merge test" =
-  let prg =
-    {|
-    variable xs ys : list nat
-
-    theorem merge_test:
-        eq 
-            (merge_aux (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))
-                (cons (suc (suc zero)) (cons (suc (suc (suc (suc zero)))) nil))
-                (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))))
-
-            (some (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) (cons (suc (suc (suc (suc zero)))) nil))))))
-  |}
+  let goal =
+    make_goal
+      [%term
+        merge_aux 9n (cons 2n (cons 4n nil)) (cons 1n (cons 2n (cons 3n nil)))
+        = some (cons 1n (cons 2n (cons 2n (cons 3n (cons 4n nil)))))]
   in
-
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let compute =
     try_
       (with_repeat
@@ -2194,72 +2020,46 @@ let%expect_test "merge test" =
     >> try_ refl_tac
   in
   let proof = with_repeat compute in
-  run_proof ~notrace:true goal proof;
+  run_proof ~pretty:true ~notrace:true goal proof;
   [%expect
     {|
     ========================================
-    merge_aux (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))) (cons (suc (suc zero)) (cons (suc (suc (suc (suc zero)))) nil)) (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) = some (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) (cons (suc (suc (suc (suc zero)))) nil)))))
+    merge_aux 9 [2, 4] [1, 2, 3] = some [1, 2, 2, 3, 4]
 
     Proof Complete!
     with fuel: 828
     |}]
 
 let%expect_test "merge fuel irrel" =
-  let prg =
-    {|
-      variable fuel additional n0 a0' a0  : nat
-      variable xs ys x a1 a1' a0'' wit: list nat
-      variable m : option (list nat)
-
-      theorem div_fuel_irrel:
-        forall λfuel. forall λadditional. 
-            forall λxs. forall λys. forall λx.
-            imp (eq (merge_aux fuel xs ys) (some x))
-                (eq (merge_aux (plus fuel additional) xs ys) (some x))
-      term fuel : fuel
-      term xs : xs 
-      term ys : ys 
-      term m: merge_aux n0 a1 (cons a0' a1')
-      term n : (merge_aux n0 (cons a0 a1) a1')
-      term consa : cons a0' a1'
-      term consa2 : cons a0 a1
-      term a0'' : a0''
-      term a1 : a1
-      term a1' : a1'
-      term additional : additional
-      term wit : wit
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall
+          (fun
+            (fuel : nat)
+            (additional : nat)
+            (xs : nat list)
+            (ys : nat list)
+            (x : nat list)
+          ->
+            merge_aux fuel xs ys = some x
+            ==> (merge_aux (plus fuel additional) xs ys = some x))]
   in
-
-  (* let rw_def r = with_first (with_definition [r] rewrite_tac) >> try_ (with_repeat beta_tac) in *)
-  (* let rw_thm r = with_first (with_proven [r] rewrite_tac) in *)
-  let fuel = Elaborator.term_from_string prg "fuel" in
-  let a0'' = Elaborator.term_from_string prg "a0''" in
-  let additional = Elaborator.term_from_string prg "additional" in
-  let a1 = Elaborator.term_from_string prg "a1" in
-  let a1' = Elaborator.term_from_string prg "a1'" in
-  let consa = Elaborator.term_from_string prg "consa" in
-  let consa2 = Elaborator.term_from_string prg "consa2" in
-  let m = Elaborator.term_from_string prg "m" in
-  let n = Elaborator.term_from_string prg "n" in
-  let xs = Elaborator.term_from_string prg "xs" in
-  let ys = Elaborator.term_from_string prg "ys" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let rw_asm =
     with_first (with_assumptions rewrite_tac)
     >> with_first (with_assumptions rewrite_asm_tac)
   in
-  let proof =
-    with_arbitrary_term fuel induct_tac
+  run_proof ~name:"merge_fuel_irrel" ~notrace:true goal
+    (with_arbitrary_term [%term (fuel : nat)] induct_tac
     >> intros_tac >> simp_asm_tac
     >> with_rules OptionTheory.option_def.distinct rewrite_asm_tac
     >> false_elim_tac >> intros_tac
-    >> with_arbitrary_term xs destruct_tac
+    >> with_arbitrary_term [%term (xs : nat list)] destruct_tac
     >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac
     >> elim_exists_asm_tac
     >> with_proven [ "add_suc_l" ] rewrite_tac
     >> rw_asm
-    >> with_arbitrary_term ys destruct_tac
+    >> with_arbitrary_term [%term (ys : nat list)] destruct_tac
     >> elim_disj_asm_tac
     >> with_first (with_definition [ "merge_aux" ] rewrite_tac)
     >> beta_tac
@@ -2273,22 +2073,38 @@ let%expect_test "merge fuel irrel" =
     >> beta_asm_tac >> simp_tac >> simp_asm_tac >> cond_tac >> rw_asm
     >> with_proven [ "cond_true" ] rewrite_tac
     >> with_proven [ "cond_true" ] rewrite_asm_tac
-    >> with_arbitrary_term m destruct_tac
+    >> with_arbitrary_term
+         [%term
+           merge_aux
+             (n0 : nat)
+             (a1 : nat list)
+             (cons (a0' : nat) (a1' : nat list))]
+         destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
     >> with_first (with_rules OptionTheory.option_def.distinct rewrite_asm_tac)
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
-    >> spec_asm_tac additional >> spec_asm_tac a1 >> spec_asm_tac consa
-    >> spec_asm_tac a0'' >> with_repeat mp_asm_tac >> simp_tac >> simp_tac
+    >> spec_asm_tac [%term (additional : nat)]
+    >> spec_asm_tac [%term (a1 : nat list)]
+    >> spec_asm_tac [%term cons (a0' : nat) (a1' : nat list)]
+    >> spec_asm_tac [%term (a0'' : nat list)]
+    >> with_repeat mp_asm_tac >> simp_tac >> simp_tac
     >> with_first (with_assumptions rewrite_asm_tac)
     >> simp_asm_tac
-    >> with_arbitrary_term n destruct_tac
+    >> with_arbitrary_term
+         [%term
+           merge_aux
+             (n0 : nat)
+             (cons (a0 : nat) (a1 : nat list))
+             (a1' : nat list)]
+         destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
     >> with_first (with_rules OptionTheory.option_def.distinct rewrite_asm_tac)
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
-    >> spec_asm_tac additional >> spec_asm_tac consa2 >> spec_asm_tac a1'
-    >> spec_asm_tac a0'' >> with_repeat mp_asm_tac >> simp_tac
-  in
-  run_proof ~name:"merge_fuel_irrel" ~notrace:true goal proof;
+    >> spec_asm_tac [%term (additional : nat)]
+    >> spec_asm_tac [%term cons (a0 : nat) (a1 : nat list)]
+    >> spec_asm_tac [%term (a1' : nat list)]
+    >> spec_asm_tac [%term (a0'' : nat list)]
+    >> with_repeat mp_asm_tac >> simp_tac);
   [%expect
     {|
     ========================================
@@ -2299,51 +2115,25 @@ let%expect_test "merge fuel irrel" =
     |}]
 
 let%expect_test "merge fuel sufficient" =
-  let prg =
-    {|
-    variable fuel a0 a0': nat
-    variable xs ys x a1 a1' x' : list nat
-    
-    theorem merge_fuel_sufficient :
-        forall λfuel.
-            forall λxs. forall λys.
-                        imp (nat_lt (plus (length xs) (length ys)) fuel)
-                            (exists λx.
-                                (eq (merge_aux fuel xs ys) (some x)))
-    term xs : xs
-    term ys : ys
-    term consa01 :  (cons a0 a1) 
-    term consa01' :  (cons a0' a1') 
-    term a1 : a1
-    term a1' : a1'
-    term x : x
-    term wit : (cons a0 x')
-    term wit2 :  (cons a0' x')
-
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (fuel : nat) (xs : nat list) (ys : nat list) ->
+            nat_lt (plus (length xs) (length ys)) fuel
+            ==> exists (fun (x : nat list) -> merge_aux fuel xs ys = some x))]
   in
-
-  let xs = Elaborator.term_from_string prg "xs" in
-  let ys = Elaborator.term_from_string prg "ys" in
-  let wit = Elaborator.term_from_string prg "wit" in
-  let wit2 = Elaborator.term_from_string prg "wit2" in
-  let a1 = Elaborator.term_from_string prg "a1" in
-  let a1' = Elaborator.term_from_string prg "a1'" in
-  let consa01 = Elaborator.term_from_string prg "consa01" in
-  let consa01' = Elaborator.term_from_string prg "consa01'" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
-    >> simp_tac
-    >> with_arbitrary_term xs destruct_tac
+  run_proof ~name:"merge_fuel_sufficient" ~notrace:true goal
+    (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
+   >> simp_tac
+    >> with_arbitrary_term [%term (xs : nat list)] destruct_tac
     >> elim_disj_asm_tac >> simp_tac
-    >> with_arbitrary_term ys exists_tac
+    >> with_arbitrary_term [%term (ys : nat list)] exists_tac
     >> refl_tac
     >> with_repeat elim_exists_asm_tac
     >> simp_tac
-    >> with_arbitrary_term ys destruct_tac
+    >> with_arbitrary_term [%term (ys : nat list)] destruct_tac
     >> elim_disj_asm_tac >> simp_tac
-    >> with_arbitrary_term consa01 exists_tac
+    >> with_arbitrary_term [%term cons (a0 : nat) (a1 : nat list)] exists_tac
     >> refl_tac
     >> with_repeat elim_exists_asm_tac
     >> simp_tac >> cond_tac >> simp_tac
@@ -2352,9 +2142,10 @@ let%expect_test "merge fuel sufficient" =
     >> with_first (with_definition [ "length" ] rewrite_asm_tac)
     >> with_proven [ "add_suc_l" ] rewrite_asm_tac
     >> with_proven [ "lt_suc_suc" ] rewrite_asm_tac
-    >> spec_asm_tac a1 >> spec_asm_tac consa01' >> mp_asm_tac
-    >> elim_exists_asm_tac >> simp_tac
-    >> with_arbitrary_term wit exists_tac
+    >> spec_asm_tac [%term (a1 : nat list)]
+    >> spec_asm_tac [%term cons (a0' : nat) (a1' : nat list)]
+    >> mp_asm_tac >> elim_exists_asm_tac >> simp_tac
+    >> with_arbitrary_term [%term cons (a0 : nat) (x' : nat list)] exists_tac
     >> refl_tac >> simp_tac
     >> with_first (with_assumptions rewrite_asm_tac)
     >> with_first (with_assumptions rewrite_asm_tac)
@@ -2363,12 +2154,11 @@ let%expect_test "merge fuel sufficient" =
     >> with_proven [ "add_suc_l" ] rewrite_asm_tac
     >> with_proven [ "plus_comm" ] rewrite_asm_tac
     >> with_proven [ "lt_suc_suc" ] rewrite_asm_tac
-    >> spec_asm_tac consa01 >> spec_asm_tac a1' >> mp_asm_tac
-    >> elim_exists_asm_tac >> simp_tac
-    >> with_arbitrary_term wit2 exists_tac
-    >> refl_tac
-  in
-  run_proof ~name:"merge_fuel_sufficient" ~notrace:true goal proof;
+    >> spec_asm_tac [%term cons (a0 : nat) (a1 : nat list)]
+    >> spec_asm_tac [%term (a1' : nat list)]
+    >> mp_asm_tac >> elim_exists_asm_tac >> simp_tac
+    >> with_arbitrary_term [%term cons (a0' : nat) (x' : nat list)] exists_tac
+    >> refl_tac);
   [%expect
     {|
     ========================================
@@ -2392,41 +2182,20 @@ what we want
 
  *)
 let%expect_test "merge unfolding lemma" =
-  let prg =
-    {|
-  variable fuel : nat
-  variable h y' a0 a0' : nat
-  variable xs ys x t ys' a1 a1' witness : list nat
-
-  theorem merge_unfold:
-    forall λxs. forall λys.
-            (eq (merge xs ys)
-                (list_match xs
-                    (ys)
-                    (λh. λt. 
-                        (list_match ys
-                            (cons h t)
-                            (λy'. λys'.
-                                COND (nat_lt h y')
-                                    (cons h (merge t (cons y' ys')))
-                                    (cons y' (merge (cons h t) ys')))))))
-    term xs : xs
-    term ys : ys
-    term suf : exists (λx. eq  (merge_aux (suc (plus (length a1') (suc (length a1)))) a1' (cons a0 a1)) (some x))
-    term suf2 : exists (λx. eq  (merge_aux (suc (plus (length a1') (suc (length a1)))) (cons a0' a1') a1) (some x))
-
-    |}
+  let goal =
+    make_goal
+      [%term
+        forall (fun (xs : nat list) (ys : nat list) ->
+            merge xs ys
+            = list_match xs ys (fun (h : nat) (t : nat list) ->
+                list_match ys (cons h t) (fun (y' : nat) (ys' : nat list) ->
+                    if nat_lt h y' then cons h (merge t (cons y' ys'))
+                    else cons y' (merge (cons h t) ys'))))]
   in
-
-  let xs = Elaborator.term_from_string prg "xs" in
-  let suf = Elaborator.term_from_string prg "suf" in
-  let suf2 = Elaborator.term_from_string prg "suf2" in
-  let ys = Elaborator.term_from_string prg "ys" in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof =
-    intros_tac
-    >> with_arbitrary_term xs destruct_tac
-    >> with_arbitrary_term ys destruct_tac
+  run_proof ~name:"merge_unfold" ~notrace:true goal
+    (intros_tac
+    >> with_arbitrary_term [%term (xs : nat list)] destruct_tac
+    >> with_arbitrary_term [%term (ys : nat list)] destruct_tac
     >> with_repeat elim_disj_asm_tac
     >> simp_tac
     >> with_repeat elim_exists_asm_tac
@@ -2441,7 +2210,18 @@ let%expect_test "merge unfolding lemma" =
     >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
     >> cond_tac
     >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> with_arbitrary_term suf assert_tac
+    >> with_arbitrary_term
+         [%term
+           exists (fun (x : nat list) ->
+               merge_aux
+                 (suc
+                    (plus
+                       (length (a1' : nat list))
+                       (suc (length (a1 : nat list)))))
+                 (a1' : nat list)
+                 (cons (a0 : nat) (a1 : nat list))
+               = some x)]
+         assert_tac
     >> with_proven [ "merge_fuel_sufficient" ] apply_thm_tac
     >> simp_tac >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
@@ -2452,7 +2232,18 @@ let%expect_test "merge unfolding lemma" =
     >> with_first (with_assumptions rewrite_tac)
     >> simp_tac
     >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> with_arbitrary_term suf2 assert_tac
+    >> with_arbitrary_term
+         [%term
+           exists (fun (x : nat list) ->
+               merge_aux
+                 (suc
+                    (plus
+                       (length (a1' : nat list))
+                       (suc (length (a1 : nat list)))))
+                 (cons (a0' : nat) (a1' : nat list))
+                 (a1 : nat list)
+               = some x)]
+         assert_tac
     >> with_proven [ "merge_fuel_sufficient" ] apply_thm_tac
     >> simp_tac
     >> with_proven [ "plus_suc" ] rewrite_tac
@@ -2467,9 +2258,7 @@ let%expect_test "merge unfolding lemma" =
     >> with_first (with_proven [ "plus_suc" ] rewrite_tac)
     >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
     >> with_first (with_assumptions rewrite_tac)
-    >> simp_tac
-  in
-  run_proof ~name:"merge_unfold" ~notrace:true goal proof;
+    >> simp_tac);
   [%expect
     {|
     ========================================
@@ -2481,14 +2270,6 @@ let%expect_test "merge unfolding lemma" =
 
 (* sort [3,1,2] = [1,2,3] *)
 let%expect_test "merge sort [3,1,2] = [1,2,3]" =
-  let prg =
-    {|
-    theorem isort_test : eq
-      (merge_sort_aux (suc (suc (suc (suc (suc ( suc (suc (suc zero)))))))) (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))))
-      (some (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))))
-  |}
-  in
-
   let rw_def r =
     with_first (with_definition [ r ] rewrite_tac)
     >> try_ (with_repeat beta_tac)
@@ -2507,8 +2288,15 @@ let%expect_test "merge sort [3,1,2] = [1,2,3]" =
       "div_unfold";
     ]
   in
-  let proof =
-    rw_def "merge_sort_aux" >> simp_tac ~exclude
+
+  let goal =
+    make_goal
+      [%term
+        merge_sort_aux 8n (cons 3n (cons 1n (cons 2n nil)))
+        = some (cons 1n (cons 2n (cons 3n nil)))]
+  in
+  run_proof ~pretty:true ~notrace:true goal
+    (rw_def "merge_sort_aux" >> simp_tac ~exclude
     >> with_repeat @@ rw_def "div"
     >> with_repeat @@ rw_def "div_aux"
     >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude
@@ -2520,11 +2308,7 @@ let%expect_test "merge sort [3,1,2] = [1,2,3]" =
     >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude
     >> rw_thm "merge_unfold" >> simp_tac ~exclude >> rw_thm "merge_unfold"
     >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude
-    >> rw_thm "merge_unfold" >> simp_tac ~exclude
-  in
-
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  run_proof ~pretty:true ~notrace:true goal proof;
+    >> rw_thm "merge_unfold" >> simp_tac ~exclude);
   [%expect
     {|
     ========================================
@@ -2535,36 +2319,23 @@ let%expect_test "merge sort [3,1,2] = [1,2,3]" =
     |}]
 
 let%expect_test "length take" =
-  let prg =
-    {|
-    variable n : nat
-    variable xs n1 : list nat
-
-    theorem length_take :
-        forall λn. forall λxs.
-            eq (length (take n xs)) (COND (nat_lt n (length xs)) n (length xs))
-
-    theorem length_drop :
-    forall λn. forall λxs.
-        eq (length (drop n xs)) (sub (length xs) n)
-
-    term n : n
-    term xs : xs
-    term n1 : n1
-  |}
-  in
-
-  let n = Elaborator.term_from_string prg "n" in
-  let n1 = Elaborator.term_from_string prg "n1" in
-  let xs = Elaborator.term_from_string prg "xs" in
+  let n = [%term (n : nat)] in
+  let n1 = [%term (n1 : nat list)] in
+  let xs = [%term (xs : nat list)] in
   let gtake =
-    Elaborator.named_goal_from_string prg "length_take" |> Result.get_ok
+    make_goal
+      [%term
+        forall (fun (n : nat) (xs : nat list) ->
+            length (take n xs) = if nat_lt n (length xs) then n else length xs)]
   in
   let gdrop =
-    Elaborator.named_goal_from_string prg "length_drop" |> Result.get_ok
+    make_goal
+      [%term
+        forall (fun (n : nat) (xs : nat list) ->
+            length (drop n xs) = sub (length xs) n)]
   in
-  let proof =
-    with_arbitrary_term n induct_tac
+  run_proof ~name:"length_take" ~notrace:true gtake
+    (with_arbitrary_term n induct_tac
     >>> try_ intros_tac
     >>> with_arbitrary_term xs induct_tac
     >>> try_ intros_tac
@@ -2578,10 +2349,23 @@ let%expect_test "length take" =
     >> spec_asm_tac n1
     >> with_assumptions rewrite_tac
     >> with_first (with_proven [ "lt_suc_suc" ] rewrite_tac)
-    >> cond_tac >> simp_tac >> simp_tac
-  in
-  run_proof ~name:"length_take" ~notrace:true gtake proof;
-  run_proof ~name:"length_drop" ~notrace:true gdrop proof;
+    >> cond_tac >> simp_tac >> simp_tac);
+  run_proof ~name:"length_drop" ~notrace:true gdrop
+    (with_arbitrary_term n induct_tac
+    >>> try_ intros_tac
+    >>> with_arbitrary_term xs induct_tac
+    >>> try_ intros_tac
+    >>> try_ assumption_reasoning_tac
+    >> with_repeat
+         (with_first (with_definition [ "take"; "length" ] rewrite_tac))
+    >> beta_tac
+    >> with_repeat (with_first (with_definition [ "list_match" ] rewrite_tac))
+    >> beta_tac
+    >> with_first (with_definition [ "length" ] rewrite_tac)
+    >> spec_asm_tac n1
+    >> with_assumptions rewrite_tac
+    >> with_first (with_proven [ "lt_suc_suc" ] rewrite_tac)
+    >> cond_tac >> simp_tac >> simp_tac);
   [%expect
     {|
     ========================================
@@ -2597,80 +2381,56 @@ let%expect_test "length take" =
     |}]
 
 let%expect_test "div pos and lt" =
-  let prg =
-    {|
-
-    variable n m k n0 a0 n0' : nat
-
-    theorem div_pos :
-        forall λn.
-            imp (nat_lt (suc zero) n)
-                (nat_lt zero (div n (suc (suc zero))))
-
-    theorem div_le : 
-        forall λn.
-        forall λk.
-            forall λm.
-            imp (nat_lt zero m) 
-                (imp
-                    (nat_le k n)
-                    (nat_le (div k m) n)
-                )
-
-    theorem div_lt :
-        forall λn.
-            imp (nat_lt (suc zero) n)
-                (nat_lt (div n (suc (suc zero))) n)
-    term n : n
-    term m : m
-    term n0 : n0
-    term a0 : a0
-    term n0' : n0'
-
-    term ltkm : nat_lt k m
-    term subkm : sub k m
-    term subkmlen0 : nat_le (sub k m) n0
-    term subltkmk : nat_lt (sub k m) k
-    term subltkm_sucn0: nat_lt (sub k m) (suc n0)
-
-    term div_unfld : (eq (div (suc n0) (suc (suc zero)))
-                        (COND (nat_lt (suc n0) (suc (suc zero)))
-                              zero
-                              (suc (div (sub (suc n0) (suc (suc zero))) (suc (suc zero))))))
-
-    term div_unfld2 : (eq (div (suc (suc a0)) (suc (suc zero)))
-                        (COND (nat_lt (suc (suc a0)) (suc (suc zero)))
-                              zero
-                              (suc (div (sub (suc (suc a0)) (suc (suc zero))) (suc (suc zero))))))
-
-    term div_unfld3 : (eq (div k m)
-                        (COND (nat_lt k m)
-                              zero
-                              (suc (div (sub k m) m))))
-
-
-  |}
+  let n = [%term (n : nat)] in
+  let m = [%term (m : nat)] in
+  let ltkm = [%term nat_lt (k : nat) (m : nat)] in
+  let subkm = [%term sub (k : nat) (m : nat)] in
+  let subkmlen0 = [%term nat_le (sub (k : nat) (m : nat)) (n0 : nat)] in
+  let subltkmk = [%term nat_lt (sub (k : nat) (m : nat)) (k : nat)] in
+  let subltkm_sucn0 =
+    [%term nat_lt (sub (k : nat) (m : nat)) (suc (n0 : nat))]
   in
 
-  let n = Elaborator.term_from_string prg "n" in
-  let m = Elaborator.term_from_string prg "m" in
-  let ltkm = Elaborator.term_from_string prg "ltkm" in
-  let subkm = Elaborator.term_from_string prg "subkm" in
-  let subkmlen0 = Elaborator.term_from_string prg "subkmlen0" in
-  let subltkmk = Elaborator.term_from_string prg "subltkmk" in
-  let subltkm_sucn0 = Elaborator.term_from_string prg "subltkm_sucn0" in
+  let n0 = [%term (n0 : nat)] in
+  let a0 = [%term (a0 : nat)] in
+  let div_unfld =
+    [%term
+      div (suc (n0 : nat)) 2n
+      =
+      if nat_lt (suc (n0 : nat)) 2n then 0n
+      else suc (div (sub (suc (n0 : nat)) 2n) 2n)]
+  in
+  let div_unfld2 =
+    [%term
+      div (suc (suc (a0 : nat))) 2n
+      =
+      if nat_lt (suc (suc (a0 : nat))) 2n then 0n
+      else suc (div (sub (suc (suc (a0 : nat))) 2n) 2n)]
+  in
+  let div_unfld3 =
+    [%term
+      div (k : nat) (m : nat)
+      =
+      if nat_lt (k : nat) (m : nat) then 0n
+      else suc (div (sub (k : nat) (m : nat)) (m : nat))]
+  in
+  let gpos =
+    make_goal
+      [%term forall (fun (n : nat) -> nat_lt 1n n ==> nat_lt 0n (div n 2n))]
+  in
+  let gle =
+    make_goal
+      [%term
+        forall (fun (n : nat) (k : nat) (m : nat) ->
+            nat_lt 0n m ==> (nat_le k n ==> nat_le (div k m) n))]
+  in
+  let glt =
+    make_goal
+      [%term forall (fun (n : nat) -> nat_lt 1n n ==> nat_lt (div n 2n) n)]
+  in
 
-  let n0 = Elaborator.term_from_string prg "n0" in
-  let a0 = Elaborator.term_from_string prg "a0" in
-  let div_unfld = Elaborator.term_from_string prg "div_unfld" in
-  let div_unfld2 = Elaborator.term_from_string prg "div_unfld2" in
-  let div_unfld3 = Elaborator.term_from_string prg "div_unfld3" in
-  let gpos = Elaborator.named_goal_from_string prg "div_pos" |> Result.get_ok in
-  let gle = Elaborator.named_goal_from_string prg "div_le" |> Result.get_ok in
-  let glt = Elaborator.named_goal_from_string prg "div_lt" |> Result.get_ok in
-
-  let proof =
-    with_arbitrary_term n induct_tac
+  run_proof ~name:"div_pos" ~notrace:true gpos
+    (with_arbitrary_term n induct_tac
     >>> intros_tac
     >>> try_ assumption_reasoning_tac
     >> with_arbitrary_term div_unfld assert_tac
@@ -2683,12 +2443,10 @@ let%expect_test "div pos and lt" =
     >> simp_asm_tac >> false_elim_tac
     >> with_assumptions rewrite_tac
     >> with_proven [ "cond_false" ] rewrite_tac
-    >> simp_tac ~exclude:[ "div" ]
-  in
-  run_proof ~name:"div_pos" ~notrace:true gpos proof;
+    >> simp_tac ~exclude:[ "div" ]);
 
-  let proof =
-    with_arbitrary_term n induct_tac
+  run_proof ~name:"div_le" ~notrace:true gle
+    (with_arbitrary_term n induct_tac
     >> intros_tac
     >> with_first (with_proven [ "le_zero_eq" ] apply_thm_asm_tac)
     >> simp_tac
@@ -2720,12 +2478,10 @@ let%expect_test "div pos and lt" =
          (with_proven [ "lt_suc_le" ]
             (with_info_trace (with_flip_rules rewrite_tac)))
     >> with_first assumption_tac >> spec_asm_tac subkm >> spec_asm_tac m
-    >> with_repeat mp_asm_tac >> with_first assumption_tac
-  in
-  run_proof ~name:"div_le" ~notrace:true gle proof;
+    >> with_repeat mp_asm_tac >> with_first assumption_tac);
 
-  let proof =
-    with_arbitrary_term n induct_tac
+  run_proof ~pretty:true ~name:"div_lt" ~notrace:true glt
+    (with_arbitrary_term n induct_tac
     >> intros_tac >> assumption_reasoning_tac >> intros_tac
     >> with_arbitrary_term n0 destruct_tac
     >> elim_disj_asm_tac >> simp_tac
@@ -2755,9 +2511,7 @@ let%expect_test "div pos and lt" =
     >> simp_tac ~exclude:[ "nat_lt"; "div" ]
     >> with_repeat (with_assumptions (with_flip_rules (with_first rewrite_tac)))
     >> with_proven [ "div_le" ] apply_thm_tac
-    >> simp_tac >> simp_tac
-  in
-  run_proof ~pretty:true ~name:"div_lt" ~notrace:true glt proof;
+    >> simp_tac >> simp_tac);
   [%expect
     {|
     ========================================
@@ -2775,27 +2529,6 @@ let%expect_test "div pos and lt" =
 
     Proof Complete!
     with fuel: 564
-    |}]
-
-let%expect_test "template" =
-  let prg =
-    {|
-    variable P : bool
-
-    theorem p_true_intro : forall λP. imp P (eq P T)
-  |}
-  in
-
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
-  let proof = intros_tac >> eq_true_elim_tac >> assumption_tac in
-  run_proof ~name:"eq_true_intro" ~notrace:true goal proof;
-  [%expect
-    {|
-    ========================================
-    ∀P. P ==> P = T
-
-    Proof Complete!
-    with fuel: 8
     |}]
 
 let%expect_test "merge sort sufficient" =
@@ -2876,19 +2609,14 @@ let%expect_test "merge sort sufficient" =
     |}]
 
 let%expect_test "merge sort fuel irrel" =
-  let prg =
-    {|
-    variable fuel additional : nat
-    variable xs x : list nat 
-
-    theorem merge_sort_fuel_irrel :
-        forall λfuel. forall λadditional. forall λxs. forall λx.
-            imp (eq (merge_sort_aux fuel xs) (some x))
-                (eq (merge_sort_aux (plus fuel additional) xs) (some x))
-  |}
+  let goal =
+    make_goal
+      [%term
+        forall
+          (fun (fuel : nat) (additional : nat) (xs : nat list) (x : nat list) ->
+            merge_sort_aux fuel xs = some x
+            ==> (merge_sort_aux (plus fuel additional) xs = some x))]
   in
-
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof = sorry_tac in
   (*TODO: finish this one*)
   run_proof ~notrace:true goal proof;
