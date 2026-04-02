@@ -671,3 +671,67 @@ let%expect_test "inductive: tree in [%%term]" =
   let t = [%term Node (1n, Leaf, Leaf)] in
   print_endline (Printing.pretty_print_hol_term ~pretty:true t);
   [%expect {| Node 1 Leaf Leaf |}]
+
+(* === match expressions === *)
+
+let%expect_test "match: nullary constructors only (color)" =
+  let t =
+    [%term match (x : color) with Red -> 0n | Green -> 1n | Blue -> 2n]
+  in
+  print_endline (Printing.pretty_print_hol_term ~pretty:true t);
+  [%expect {| match_color x 0 1 2 |}]
+
+let%expect_test "match: constructor with args (nat)" =
+  let t = [%term fun (n : nat) -> match n with Zero -> Zero | Suc n' -> n'] in
+  print_endline (Printing.pretty_print_hol_term t);
+  [%expect {| λn. match_nat n Zero (λn'. n') |}]
+
+let%expect_test "match: multi-arg constructor (tree)" =
+  let t =
+    [%term
+      fun (t : nat tree) -> match t with Leaf -> 0n | Node (v, l, r) -> v]
+  in
+  print_endline (Printing.pretty_print_hol_term ~pretty:true t);
+  [%expect {| λt. match_tree t 0 (λv. λl. λr. v) |}]
+
+let%expect_test "match: scoped variable from lambda" =
+  let t =
+    [%term
+      fun (n : nat) (m : nat) -> match n with Zero -> m | Suc n' -> plus n' m]
+  in
+  print_endline (Printing.pretty_print_hol_term t);
+  [%expect {| λn. λm. match_nat n m (λn'. plus n' m) |}]
+
+let%expect_test "match: annotated scrutinee" =
+  let t =
+    [%term match (x : color) with Red -> true | Green -> false | Blue -> true]
+  in
+  print_endline (Printing.pretty_print_hol_term t);
+  [%expect {| match_color x T F T |}]
+
+let%expect_test "match: list with multi-arg constructor" =
+  let t =
+    [%term
+      fun (xs : nat list) -> match xs with Nil -> 0n | Cons (x, rest) -> x]
+  in
+  print_endline (Printing.pretty_print_hol_term ~pretty:true t);
+  [%expect {| λxs. match_list xs 0 (λx. λrest. x) |}]
+
+let%expect_test "match: wildcard pattern" =
+  let t =
+    [%term
+      fun (xs : nat list) -> match xs with Nil -> 0n | Cons (_, rest) -> 1n]
+  in
+  print_endline (Printing.pretty_print_hol_term ~pretty:true t);
+  [%expect {| λxs. match_list xs 0 (λ_wild_768. λrest. 1) |}]
+
+let%expect_test "match: nested match in body" =
+  let t =
+    [%term
+      fun (n : nat) ->
+        match n with
+        | Zero -> 0n
+        | Suc n' -> ( match (n' : nat) with Zero -> 1n | Suc _ -> 2n)]
+  in
+  print_endline (Printing.pretty_print_hol_term ~pretty:true t);
+  [%expect {| λn. match_nat n 0 (λn'. match_nat n' 1 (λ_wild_796. 2)) |}]

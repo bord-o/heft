@@ -1,5 +1,7 @@
 open Ppxlib
 
+type var_info = Annotated of core_type | Runtime of string * string option
+
 let fresh_id =
   let counter = ref 0 in
   fun prefix ->
@@ -93,13 +95,16 @@ let rec translate_expr ~loc ~env (input : expression) =
   (* Bare identifier → check env for variable, otherwise HOL constant *)
   | Pexp_ident { txt = Lident name; _ } -> (
       match List.assoc_opt name env with
-      | Some core_type ->
+      | Some (Annotated core_type) ->
           let ty_var, ty_expr = translate_type ~loc core_type in
           mk_bind ~loc ty_expr ty_var
             (A.eapply (A.evar "Result.ok")
                [
                  A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ];
                ])
+      | Some (Runtime (rt_var, _)) ->
+          A.eapply (A.evar "Result.ok")
+            [ A.eapply (A.evar "make_var") [ A.estring name; A.evar rt_var ] ]
       | None -> A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ])
   (* Lambda: fun (x : ty) (y : ty) -> body *)
   | Pexp_function _ -> (
@@ -190,6 +195,8 @@ let rec translate_expr ~loc ~env (input : expression) =
           (expr, app_var))
         (cond_const, func_var) all_args
       |> fst
+  (* Match expression → match_<type> scrutinee handler1 handler2 ... *)
+  | Pexp_match (scrutinee, cases) -> translate_match ~loc ~env scrutinee cases
   (* Application *)
   | Pexp_apply (func, args) -> translate_apply ~loc ~env func args
   | _ -> Location.raise_errorf ~loc "unsupported expression in [%%term]"
@@ -200,7 +207,7 @@ and translate_lambda ~loc ~env pats body =
   | [] -> translate_expr ~loc ~env body
   | pat :: rest ->
       let name, core_type = extract_pat_binding pat in
-      let env = (name, core_type) :: env in
+      let env = (name, Annotated core_type) :: env in
       let ty_var, ty_expr = translate_type ~loc core_type in
       let var_expr =
         A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
@@ -281,7 +288,7 @@ and translate_quantifier_params ~loc ~env ~quant pats body =
   | [] -> translate_expr ~loc ~env body
   | pat :: rest ->
       let name, core_type = extract_pat_binding pat in
-      let env = (name, core_type) :: env in
+      let env = (name, Annotated core_type) :: env in
       let ty_var, ty_expr = translate_type ~loc core_type in
       let var_expr =
         A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
@@ -315,6 +322,139 @@ and translate_binary_pure ~loc ~env ~fn lhs rhs =
     (mk_bind ~loc r_expr r_var
        (A.eapply (A.evar "Result.ok")
           [ A.eapply (A.evar fn) [ A.evar l_var; A.evar r_var ] ]))
+
+and translate_match ~loc ~env scrutinee cases =
+  let (module A) = Ast_builder.make loc in
+  let type_name = extract_match_type_name ~loc ~env scrutinee in
+  let match_fn_name = "match_" ^ type_name in
+  let match_expr =
+    A.eapply (A.evar "make_const") [ A.estring match_fn_name; A.elist [] ]
+  in
+  let scr_expr = translate_expr ~loc ~env scrutinee in
+  let handler_exprs = List.map (translate_match_case ~loc ~env) cases in
+  let all_args = scr_expr :: handler_exprs in
+  let func_var = fresh_id "mfn" in
+  List.fold_left
+    (fun (acc_expr, acc_var) arg_expr ->
+      let arg_var = fresh_id "marg" in
+      let app_var = fresh_id "mapp" in
+      let expr =
+        mk_bind ~loc acc_expr acc_var
+          (mk_bind ~loc arg_expr arg_var
+             (A.eapply
+                (A.evar "Heft.Rewrite.smart_make_app")
+                [ A.evar acc_var; A.evar arg_var ]))
+      in
+      (expr, app_var))
+    (match_expr, func_var) all_args
+  |> fst
+
+and extract_match_type_name ~loc:_ ~env scrutinee =
+  let extract_from_core_type ct =
+    match ct.ptyp_desc with
+    | Ptyp_constr ({ txt = Lident name; _ }, _) -> name
+    | _ ->
+        Location.raise_errorf ~loc:ct.ptyp_loc
+          "cannot determine inductive type from this type"
+  in
+  match scrutinee.pexp_desc with
+  | Pexp_constraint (_, ct) -> extract_from_core_type ct
+  | Pexp_ident { txt = Lident name; _ } -> (
+      match List.assoc_opt name env with
+      | Some (Annotated ct) -> extract_from_core_type ct
+      | Some (Runtime (_, Some tyname)) -> tyname
+      | _ ->
+          Location.raise_errorf ~loc:scrutinee.pexp_loc
+            "match scrutinee type unknown; add a type annotation or use a \
+             bound variable")
+  | _ ->
+      Location.raise_errorf ~loc:scrutinee.pexp_loc
+        "match scrutinee must have a type annotation or be a bound variable"
+
+and translate_match_case ~loc ~env case =
+  let (module A) = Ast_builder.make loc in
+  match case.pc_lhs.ppat_desc with
+  | Ppat_construct ({ txt = Lident _con_name; _ }, None) ->
+      translate_expr ~loc ~env case.pc_rhs
+  | Ppat_construct ({ txt = Lident con_name; _ }, Some (_, pat_arg)) ->
+      let pat_vars = extract_match_pattern_vars pat_arg in
+      if pat_vars = [] then translate_expr ~loc ~env case.pc_rhs
+      else
+        let atys_var = fresh_id "atys" in
+        let var_data =
+          List.mapi
+            (fun i name ->
+              let ty_v = fresh_id "pty" in
+              let pv = fresh_id "pv" in
+              (name, i, ty_v, pv))
+            pat_vars
+        in
+        let env' =
+          List.fold_left
+            (fun env (name, _, ty_v, _) -> (name, Runtime (ty_v, None)) :: env)
+            env var_data
+        in
+        let body_expr = translate_expr ~loc ~env:env' case.pc_rhs in
+        let body_v = fresh_id "mbody" in
+        let lambda_chain, _ =
+          List.fold_right
+            (fun (_, _, _, pv) (inner_expr, inner_var) ->
+              let lam_v = fresh_id "mlam" in
+              let expr =
+                mk_bind ~loc inner_expr inner_var
+                  (A.eapply (A.evar "make_lam") [ A.evar pv; A.evar inner_var ])
+              in
+              (expr, lam_v))
+            var_data (body_expr, body_v)
+        in
+        let with_pvs =
+          List.fold_right
+            (fun (name, _, ty_v, pv) acc ->
+              A.pexp_let Nonrecursive
+                [
+                  A.value_binding ~pat:(A.pvar pv)
+                    ~expr:
+                      (A.eapply (A.evar "make_var")
+                         [ A.estring name; A.evar ty_v ]);
+                ]
+                acc)
+            var_data lambda_chain
+        in
+        let with_tys =
+          List.fold_right
+            (fun (_, i, ty_v, _) acc ->
+              A.pexp_let Nonrecursive
+                [
+                  A.value_binding ~pat:(A.pvar ty_v)
+                    ~expr:
+                      (A.eapply (A.evar "List.nth")
+                         [ A.evar atys_var; A.eint i ]);
+                ]
+                acc)
+            var_data with_pvs
+        in
+        A.pexp_let Nonrecursive
+          [
+            A.value_binding ~pat:(A.pvar atys_var)
+              ~expr:
+                (A.eapply
+                   (A.evar "Heft.Printing.constructor_arg_types")
+                   [ A.estring con_name ]);
+          ]
+          with_tys
+  | _ ->
+      Location.raise_errorf ~loc:case.pc_lhs.ppat_loc
+        "unsupported pattern in match"
+
+and extract_match_pattern_vars pat =
+  match pat.ppat_desc with
+  | Ppat_var { txt = name; _ } -> [ name ]
+  | Ppat_any -> [ fresh_id "wild" ]
+  | Ppat_tuple pats -> List.concat_map extract_match_pattern_vars pats
+  | Ppat_constraint (inner, _) -> extract_match_pattern_vars inner
+  | _ ->
+      Location.raise_errorf ~loc:pat.ppat_loc
+        "unsupported pattern variable in match"
 
 let translate ~(loc : location) ~(path : label) (input : expression) =
   let (module A) = Ast_builder.make loc in

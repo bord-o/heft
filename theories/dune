@@ -2,5 +2,5 @@
  (name heft_theories)
  (public_name heft.theories)
  (preprocess
-   (pps ppx_heft))
+  (pps ppx_heft))
  (libraries heft heft.ppx_heft))

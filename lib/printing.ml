@@ -245,6 +245,16 @@ let print_error = function
       Printf.sprintf "NoRewriteMatch: rule %s does not match %s" (fmt_thm rule)
         (fmt_term tm)
 
+let constructor_arg_types name =
+  match get_const_term_type name with
+  | Some ty ->
+      let rec get_args = function
+        | TyCon ("fun", [ arg; rest ]) -> arg :: get_args rest
+        | _ -> []
+      in
+      get_args ty
+  | None -> failwith ("Unknown constructor: " ^ name)
+
 let unwrap_term = function
   | Ok (t : term) -> t
   | Error e -> failwith (print_error e)
