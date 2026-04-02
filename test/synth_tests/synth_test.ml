@@ -9,14 +9,14 @@ let%expect_test "synth goal setup" =
   let prg =
     {|
     vartype a 
-    variable nil_case: nat
+    variable Nil_case: nat
     variable g : list a -> nat
 
     theorem synthesize_length:
-        (exists λnil_case.
+        (exists λNil_case.
             (imp
-                (eq (g nil) (nil_case))
-                (eq (g nil) (zero))
+                (eq (g Nil) (Nil_case))
+                (eq (g Nil) (Zero))
             )
         )
 
@@ -32,7 +32,7 @@ let%expect_test "synth goal setup" =
   [%expect
     {|
     ========================================
-    ∃nil_case. g nil = nil_case ==> g nil = zero
+    ∃Nil_case. g Nil = Nil_case ==> g Nil = Zero
 
     Proof Complete!
     with fuel: 21
@@ -44,20 +44,20 @@ let%expect_test "synth goal setup full" =
   let prg =
     {|
     vartype a 
-    variable nil_case : nat
+    variable Nil_case : nat
     variable cons_case : a -> list a -> nat -> nat
     variable g : list a -> nat
     variable x : a
     variable y : a
     variable xs : list a
     theorem synthesize_length:
-        (exists (λnil_case.
+        (exists (λNil_case.
             (exists (λcons_case.
-                (imp (eq (g nil) nil_case)
-                (imp (forall (λx. (forall (λxs. (eq (g (cons x xs)) (cons_case x xs (g xs)))))))
+                (imp (eq (g Nil) Nil_case)
+                (imp (forall (λx. (forall (λxs. (eq (g (Cons x xs)) (cons_case x xs (g xs)))))))
                     (/\
-                        (eq (g (cons x nil)) (suc zero))
-                        (eq (g (cons x (cons y nil))) (suc (suc zero))))
+                        (eq (g (Cons x Nil)) (Suc Zero))
+                        (eq (g (Cons x (Cons y Nil))) (Suc (Suc Zero))))
                 ))
             ))
         ))
@@ -96,7 +96,7 @@ let%expect_test "synth goal setup full" =
       refl_tac >>
       refl_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀x. ∀xs. g (cons x xs) = cons_case x xs (g xs)) ==> g (cons x nil) = suc zero ∧ g (cons x (cons y nil)) = suc (suc zero)
+    ∃Nil_case. ∃cons_case. g Nil = Nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
 
     Proof Complete!
     with fuel: 84
@@ -131,26 +131,26 @@ let%expect_test "depth 0 yields nothing" =
 (* Nat constructors                                                         *)
 (* ======================================================================= *)
 
-let%expect_test "nat depth 1: only zero" =
+let%expect_test "nat depth 1: only Zero" =
   let open Theories.NatTheory in
   enumerate [] nat_ty 1 |> print_terms;
-  [%expect {| zero |}]
+  [%expect {| Zero |}]
 
-let%expect_test "nat depth 2: zero and suc zero" =
+let%expect_test "nat depth 2: Zero and Suc Zero" =
   let open Theories.NatTheory in
   enumerate [] nat_ty 2 |> print_terms;
   [%expect {|
-    zero
-    (suc zero)
+    Zero
+    (Suc Zero)
   |}]
 
 let%expect_test "nat depth 3: no beta-redexes" =
   let open Theories.NatTheory in
   enumerate [] nat_ty 3 |> print_terms;
   [%expect {|
-    zero
-    (suc zero)
-    (suc (suc zero))
+    Zero
+    (Suc Zero)
+    (Suc (Suc Zero))
   |}]
 
 (* ======================================================================= *)
@@ -162,22 +162,22 @@ let%expect_test "context variable returned at depth 1" =
   enumerate [ ("n", nat_ty) ] nat_ty 1 |> print_terms;
   [%expect {|
     n
-    zero
+    Zero
   |}]
 
 let%expect_test "wrong type variable not returned" =
   let open Theories.NatTheory in
   enumerate [ ("b", bool_ty) ] nat_ty 1 |> print_terms;
-  [%expect {| zero |}]
+  [%expect {| Zero |}]
 
 let%expect_test "context var plus constructors at depth 2" =
   let open Theories.NatTheory in
   enumerate [ ("n", nat_ty) ] nat_ty 2 |> print_terms;
   [%expect {|
     n
-    zero
-    (suc n)
-    (suc zero)
+    Zero
+    (Suc n)
+    (Suc Zero)
   |}]
 
 let%expect_test "two nat vars at depth 1" =
@@ -186,20 +186,20 @@ let%expect_test "two nat vars at depth 1" =
   [%expect {|
     x
     y
-    zero
+    Zero
   |}]
 
 (* ======================================================================= *)
 (* List constructors                                                        *)
 (* ======================================================================= *)
 
-let%expect_test "list nat depth 1: only nil" =
+let%expect_test "list nat depth 1: only Nil" =
   let open Theories.NatTheory in
   let open Theories.ListTheory in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   enumerate [] list_nat 1 |> print_terms;
-  [%expect {| nil |}]
+  [%expect {| Nil |}]
 
 let%expect_test "list nat depth 2" =
   let open Theories.NatTheory in
@@ -208,8 +208,8 @@ let%expect_test "list nat depth 2" =
   let list_nat = TyCon ("list", [ nat_ty ]) in
   enumerate [] list_nat 2 |> print_terms;
   [%expect {|
-    nil
-    ((cons zero) nil)
+    Nil
+    ((Cons Zero) Nil)
   |}]
 
 let%expect_test "list nat depth 3" =
@@ -223,34 +223,34 @@ let%expect_test "list nat depth 3" =
   [%expect
     {|
     5 terms
-    nil
-    ((cons zero) nil)
-    ((cons zero) ((cons zero) nil))
-    ((cons (suc zero)) nil)
-    ((cons (suc zero)) ((cons zero) nil))
+    Nil
+    ((Cons Zero) Nil)
+    ((Cons Zero) ((Cons Zero) Nil))
+    ((Cons (Suc Zero)) Nil)
+    ((Cons (Suc Zero)) ((Cons Zero) Nil))
     |}]
 
 (* ======================================================================= *)
 (* Lambda abstractions                                                      *)
 (* ======================================================================= *)
 
-let%expect_test "nat -> nat depth 2: identity and const zero" =
+let%expect_test "nat -> nat depth 2: identity and const Zero" =
   let open Theories.NatTheory in
   enumerate [] (make_fun_ty nat_ty nat_ty) 2 |> print_terms;
   [%expect {|
     (λn. n)
-    (λn. zero)
+    (λn. Zero)
   |}]
 
-let%expect_test "nat -> nat depth 3: includes suc" =
+let%expect_test "nat -> nat depth 3: includes Suc" =
   let open Theories.NatTheory in
   enumerate [] (make_fun_ty nat_ty nat_ty) 3 |> print_terms;
   [%expect
     {|
     (λn. n)
-    (λn. zero)
-    (λn. (suc n))
-    (λn. (suc zero))
+    (λn. Zero)
+    (λn. (Suc n))
+    (λn. (Suc Zero))
   |}]
 
 let%expect_test "bool -> bool depth 2: only identity" =
@@ -276,9 +276,9 @@ let%expect_test "pair nat bool depth 2 with T F extras" =
   let pair_ty = TyCon ("pair", [ nat_ty; bool_ty ]) in
   enumerate ~extra:extras [] pair_ty 2 |> print_terms;
   [%expect {|
-    ((pair zero) F)
-    ((pair zero) T)
-  |}]
+    ((Pair Zero) F)
+    ((Pair Zero) T)
+    |}]
 
 let%expect_test "pair nat bool depth 3 with T F extras" =
   let open Theories.NatTheory in
@@ -291,11 +291,11 @@ let%expect_test "pair nat bool depth 3 with T F extras" =
   [%expect
     {|
     4 terms
-    ((pair zero) F)
-    ((pair zero) T)
-    ((pair (suc zero)) F)
-    ((pair (suc zero)) T)
-  |}]
+    ((Pair Zero) F)
+    ((Pair Zero) T)
+    ((Pair (Suc Zero)) F)
+    ((Pair (Suc Zero)) T)
+    |}]
 
 (* ======================================================================= *)
 (* Extra constants: curried functions                                       *)
@@ -309,23 +309,23 @@ let%expect_test "plus as extra: nat terms at depth 3" =
   print_terms terms;
   [%expect
     {|
-    zero
-    (suc zero)
-    (suc (suc zero))
-    ((plus zero) zero)
-    ((plus zero) (suc zero))
-    ((plus (suc zero)) zero)
+    Zero
+    (Suc Zero)
+    (Suc (Suc Zero))
+    ((plus Zero) Zero)
+    ((plus Zero) (Suc Zero))
+    ((plus (Suc Zero)) Zero)
     |}]
 
-let%expect_test "suc as extra gives same results as constructor" =
+let%expect_test "Suc as extra gives same results as constructor" =
   let open Theories.NatTheory in
   let suc_ty = make_fun_ty nat_ty nat_ty in
-  let extras = [ ("suc", suc_ty) ] in
+  let extras = [ ("Suc", suc_ty) ] in
   let terms = enumerate ~extra:extras [] nat_ty 2 in
   print_terms terms;
   [%expect {|
-    zero
-    (suc zero)
+    Zero
+    (Suc Zero)
   |}]
 
 (* ======================================================================= *)
@@ -344,9 +344,9 @@ let%expect_test "append as extra: list nat depth 3 with context" =
   print_terms terms;
   [%expect {|
     xs
-    nil
-    ((cons zero) xs)
-    ((cons zero) nil)
+    Nil
+    ((Cons Zero) xs)
+    ((Cons Zero) Nil)
     |}]
 
 let%expect_test "length as extra: nat from list context" =
@@ -360,11 +360,11 @@ let%expect_test "length as extra: nat from list context" =
   let terms = enumerate ~extra:extras ctx nat_ty 2 in
   print_terms terms;
   [%expect {|
-    zero
+    Zero
+    (Suc Zero)
     (length xs)
-    (length nil)
-    (suc zero)
-  |}]
+    (length Nil)
+    |}]
 
 let%expect_test "reverse and append as extras" =
   let open Theories.NatTheory in
@@ -380,11 +380,11 @@ let%expect_test "reverse and append as extras" =
   [%expect
     {|
     xs
-    nil
+    Nil
     (reverse xs)
-    (reverse nil)
-    ((cons zero) xs)
-    ((cons zero) nil)
+    (reverse Nil)
+    ((Cons Zero) xs)
+    ((Cons Zero) Nil)
     |}]
 
 (* ======================================================================= *)
@@ -399,9 +399,9 @@ let%expect_test "partial application: plus as nat -> nat" =
   let terms = enumerate ~extra:extras [] fn_ty 2 in
   print_terms terms;
   [%expect {|
-    (plus zero)
+    (plus Zero)
     (λn. n)
-    (λn. zero)
+    (λn. Zero)
     |}]
 
 (* ======================================================================= *)
@@ -420,7 +420,7 @@ let%expect_test "higher order: (nat -> nat) -> nat -> nat depth 3" =
     3 terms
     (λf. f)
     (λf. (λn. n))
-    (λf. (λn. zero))
+    (λf. (λn. Zero))
     |}]
 
 (* ======================================================================= *)
@@ -557,9 +557,9 @@ let%expect_test "test cons case" =
   [%expect
     {|
     (λa. (λl. (λn. n)))
-    (λa. (λl. (λn. zero)))
-    (λa. (λl. (λn. (suc n))))
-    (λa. (λl. (λn. (suc zero))))
+    (λa. (λl. (λn. Zero)))
+    (λa. (λl. (λn. (Suc n))))
+    (λa. (λl. (λn. (Suc Zero))))
     |}]
 
 let%expect_test "synth goal enumerate" =
@@ -567,20 +567,20 @@ let%expect_test "synth goal enumerate" =
   let prg =
     {|
     vartype a 
-    variable nil_case : nat
+    variable Nil_case : nat
     variable cons_case : a -> list a -> nat -> nat
     variable g : list a -> nat
     variable x : a
     variable y : a
     variable xs : list a
     theorem synthesize_length:
-        (exists (λnil_case.
+        (exists (λNil_case.
             (exists (λcons_case.
-                (imp (eq (g nil) nil_case)
-                (imp (forall (λx. (forall (λxs. (eq (g (cons x xs)) (cons_case x xs (g xs)))))))
+                (imp (eq (g Nil) Nil_case)
+                (imp (forall (λx. (forall (λxs. (eq (g (Cons x xs)) (cons_case x xs (g xs)))))))
                     (/\
-                        (eq (g (cons x nil)) (suc zero))
-                        (eq (g (cons x (cons y nil))) (suc (suc zero))))
+                        (eq (g (Cons x Nil)) (Suc Zero))
+                        (eq (g (Cons x (Cons y Nil))) (Suc (Suc Zero))))
                 ))
             ))
         ))
@@ -609,8 +609,8 @@ let%expect_test "synth goal enumerate" =
       conj_tac >>
       refl_tac >>
       refl_tac
-    success with chosen term: λa. λl. λn. suc n
-    success with chosen term: zero
+    success with chosen term: λa. λl. λn. Suc n
+    success with chosen term: Zero
     Proof:
       exists_tac >>
       exists_tac >>
@@ -618,7 +618,7 @@ let%expect_test "synth goal enumerate" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀x. ∀xs. g (cons x xs) = cons_case x xs (g xs)) ==> g (cons x nil) = suc zero ∧ g (cons x (cons y nil)) = suc (suc zero)
+    ∃Nil_case. ∃cons_case. g Nil = Nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
 
     Proof Complete!
     with fuel: 1373
@@ -628,7 +628,7 @@ let%expect_test "synth append" =
   let prg =
     {|
     vartype a
-    variable nil_case : list a -> list a
+    variable Nil_case : list a -> list a
     variable cons_case : a -> list a -> list a -> list a
     variable g : list a -> list a -> list a
     variable x : a
@@ -636,13 +636,13 @@ let%expect_test "synth append" =
     variable xs : list a
     variable ys : list a
     theorem synthesize_append:
-        (exists (λnil_case.
+        (exists (λNil_case.
             (exists (λcons_case.
-                (imp (forall (λys. (eq (g nil ys) (nil_case ys))))
-                (imp (forall (λx. (forall (λxs. (forall (λys. (eq (g (cons x xs) ys) (cons_case x xs (g xs ys)))))))))
+                (imp (forall (λys. (eq (g Nil ys) (Nil_case ys))))
+                (imp (forall (λx. (forall (λxs. (forall (λys. (eq (g (Cons x xs) ys) (cons_case x xs (g xs ys)))))))))
                     (/\
-                        (eq (g nil (cons x nil)) (cons x nil))
-                        (eq (g (cons x nil) (cons y nil)) (cons x (cons y nil)))
+                        (eq (g Nil (Cons x Nil)) (Cons x Nil))
+                        (eq (g (Cons x Nil) (Cons y Nil)) (Cons x (Cons y Nil)))
                     )
                 ))
             ))
@@ -666,7 +666,7 @@ let%expect_test "synth append" =
       conj_tac >>
       refl_tac >>
       refl_tac
-    success with chosen term: λa. λl. λl0. cons a l0
+    success with chosen term: λa. λl. λl0. Cons a l0
     success with chosen term: λl. l
     Proof:
       exists_tac >>
@@ -675,7 +675,7 @@ let%expect_test "synth append" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. (∀ys. g nil ys = nil_case ys) ==> (∀x. ∀xs. ∀ys. g (cons x xs) ys = cons_case x xs (g xs ys)) ==> g nil (cons x nil) = cons x nil ∧ g (cons x nil) (cons y nil) = cons x (cons y nil)
+    ∃Nil_case. ∃cons_case. (∀ys. g Nil ys = Nil_case ys) ==> (∀x. ∀xs. ∀ys. g (Cons x xs) ys = cons_case x xs (g xs ys)) ==> g Nil (Cons x Nil) = Cons x Nil ∧ g (Cons x Nil) (Cons y Nil) = Cons x (Cons y Nil)
 
     Proof Complete!
     with fuel: 1375
@@ -692,23 +692,23 @@ let%expect_test "synth reverse" =
   let prg =
     {|
     vartype a
-    variable nil_case : list a
+    variable Nil_case : list a
     variable cons_case : a -> list a -> list a -> list a
     variable g : list a -> list a
     variable x : a
     variable y : a
     variable xs : list a
     theorem synthesize_reverse:
-        exists λnil_case.
+        exists λNil_case.
             exists λcons_case.
                 imp
-                    (eq (g nil) nil_case)
+                    (eq (g Nil) Nil_case)
                     (imp
                         (forall λx. forall λxs.
-                            eq (g (cons x xs)) (cons_case x xs (g xs)))
+                            eq (g (Cons x xs)) (cons_case x xs (g xs)))
                         (eq
-                            (g (cons x (cons y nil)))
-                            (cons y (cons x nil))))
+                            (g (Cons x (Cons y Nil)))
+                            (Cons y (Cons x Nil))))
   |}
   in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
@@ -725,14 +725,10 @@ let%expect_test "synth reverse" =
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
       beta_tac >>
       refl_tac
-    success with chosen term: λa. λl. λl0. append l0 (cons a nil)
-    success with chosen term: nil
+    success with chosen term: λa. λl. λl0. append l (Cons a Nil)
+    success with chosen term: Nil
     Proof:
       exists_tac >>
       exists_tac >>
@@ -740,10 +736,10 @@ let%expect_test "synth reverse" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀x. ∀xs. g (cons x xs) = cons_case x xs (g xs)) ==> g (cons x (cons y nil)) = cons y (cons x nil)
+    ∃Nil_case. ∃cons_case. g Nil = Nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x (Cons y Nil)) = Cons y (Cons x Nil)
 
     Proof Complete!
-    with fuel: 2463
+    with fuel: 2441
     |}]
 
 let%expect_test "synth mult" =
@@ -752,24 +748,24 @@ let%expect_test "synth mult" =
   let extras = [ ("plus", plus_ty) ] in
   let prg =
     {|
-    variable nil_case : nat -> nat
-    variable suc_case : nat -> nat -> nat
+    variable Nil_case : nat -> nat
+    variable Suc_case : nat -> nat -> nat
     variable g : nat -> nat -> nat
     variable m : nat
     variable n : nat
     theorem synthesize_mult:
-        exists λnil_case.
-            exists λsuc_case.
+        exists λNil_case.
+            exists λSuc_case.
                 imp
-                    (forall λn. eq (g zero n) (nil_case n))
+                    (forall λn. eq (g Zero n) (Nil_case n))
                     (imp
                         (forall λm. forall λn.
-                            eq (g (suc m) n) (suc_case n (g m n)))
+                            eq (g (Suc m) n) (Suc_case n (g m n)))
                         (/\
-                            (eq (g zero (suc (suc zero))) zero)
+                            (eq (g Zero (Suc (Suc Zero))) Zero)
                             (eq
-                                (g (suc (suc zero)) (suc (suc (suc zero))))
-                                (suc (suc (suc (suc (suc (suc zero)))))))))
+                                (g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))))
+                                (Suc (Suc (Suc (Suc (Suc (Suc Zero)))))))))
   |}
   in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
@@ -800,7 +796,7 @@ let%expect_test "synth mult" =
       refl_tac >>
       refl_tac
     success with chosen term: plus
-    success with chosen term: λn. zero
+    success with chosen term: λn. Zero
     Proof:
       exists_tac >>
       exists_tac >>
@@ -808,7 +804,7 @@ let%expect_test "synth mult" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃suc_case. (∀n. g zero n = nil_case n) ==> (∀m. ∀n. g (suc m) n = suc_case n (g m n)) ==> g zero (suc (suc zero)) = zero ∧ g (suc (suc zero)) (suc (suc (suc zero))) = suc (suc (suc (suc (suc (suc zero)))))
+    ∃Nil_case. ∃Suc_case. (∀n. g Zero n = Nil_case n) ==> (∀m. ∀n. g (Suc m) n = Suc_case n (g m n)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
     Proof Complete!
     with fuel: 572
@@ -822,22 +818,22 @@ let%expect_test "synth sum" =
   let extras = [ ("plus", plus_ty) ] in
   let prg =
     {|
-    variable nil_case : nat
+    variable Nil_case : nat
     variable cons_case : nat -> nat -> nat
     variable g : list nat -> nat
     variable x : nat
     variable xs : list nat
     theorem synthesize_sum:
-        exists λnil_case.
+        exists λNil_case.
             exists λcons_case.
                 imp
-                    (eq (g nil) nil_case)
+                    (eq (g Nil) Nil_case)
                     (imp
                         (forall λx. forall λxs.
-                            eq (g (cons x xs)) (cons_case x (g xs)))
+                            eq (g (Cons x xs)) (cons_case x (g xs)))
                         (eq
-                            (g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))))
-                            (suc (suc (suc (suc (suc (suc zero))))))))
+                            (g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))))
+                            (Suc (Suc (Suc (Suc (Suc (Suc Zero))))))))
   |}
   in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
@@ -867,7 +863,7 @@ let%expect_test "synth sum" =
       beta_tac >>
       refl_tac
     success with chosen term: plus
-    success with chosen term: zero
+    success with chosen term: Zero
     Proof:
       exists_tac >>
       exists_tac >>
@@ -875,7 +871,7 @@ let%expect_test "synth sum" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀x. ∀xs. g (cons x xs) = cons_case x (g xs)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) = suc (suc (suc (suc (suc (suc zero)))))
+    ∃Nil_case. ∃cons_case. g Nil = Nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x (g xs)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
     Proof Complete!
     with fuel: 99
@@ -935,8 +931,8 @@ let%expect_test "synth length via make_synthesis_goal" =
       conj_tac >>
       refl_tac >>
       refl_tac
-    success with chosen term: λn. λn0. suc n0
-    success with chosen term: zero
+    success with chosen term: λn. λn0. Suc n0
+    success with chosen term: Zero
     Proof:
       exists_tac >>
       exists_tac >>
@@ -944,7 +940,7 @@ let%expect_test "synth length via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc zero) nil) = suc zero ∧ g (cons (suc zero) (cons (suc (suc zero)) nil)) = suc (suc zero)
+    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) Nil) = Suc Zero ∧ g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)) = Suc (Suc Zero)
 
     Proof Complete!
     with fuel: 1353
@@ -988,7 +984,7 @@ let%expect_test "synth sum via make_synthesis_goal" =
       beta_tac >>
       refl_tac
     success with chosen term: plus
-    success with chosen term: zero
+    success with chosen term: Zero
     Proof:
       exists_tac >>
       exists_tac >>
@@ -996,7 +992,7 @@ let%expect_test "synth sum via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) = suc (suc (suc (suc (suc (suc zero)))))
+    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
     Proof Complete!
     with fuel: 99
@@ -1026,7 +1022,7 @@ let%expect_test "synth append via make_synthesis_goal" =
       rewrite_tac >>
       rewrite_tac >>
       refl_tac
-    success with chosen term: λn. λl. λl0. cons n l0
+    success with chosen term: λn. λl. λl0. Cons n l0
     success with chosen term: λl. l
     Proof:
       exists_tac >>
@@ -1035,7 +1031,7 @@ let%expect_test "synth append via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. (∀y0. g nil y0 = nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (cons c0 c1) y0 = cons_case c0 y0 (g c1 y0)) ==> g (cons (suc zero) nil) (cons (suc (suc zero)) nil) = cons (suc zero) (cons (suc (suc zero)) nil)
+    ∃Nil_case. ∃Cons_case. (∀y0. g Nil y0 = Nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (Cons c0 c1) y0 = Cons_case c0 y0 (g c1 y0)) ==> g (Cons (Suc Zero) Nil) (Cons (Suc (Suc Zero)) Nil) = Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)
 
     Proof Complete!
     with fuel: 385
@@ -1080,7 +1076,7 @@ let%expect_test "synth mult via make_synthesis_goal" =
       refl_tac >>
       refl_tac
     success with chosen term: plus
-    success with chosen term: λn. zero
+    success with chosen term: λn. Zero
     Proof:
       exists_tac >>
       exists_tac >>
@@ -1088,7 +1084,7 @@ let%expect_test "synth mult via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃zero_case. ∃suc_case. (∀y0. g zero y0 = zero_case y0) ==> (∀c0. ∀y0. g (suc c0) y0 = suc_case y0 (g c0 y0)) ==> g zero (suc (suc zero)) = zero ∧ g (suc (suc zero)) (suc (suc (suc zero))) = suc (suc (suc (suc (suc (suc zero)))))
+    ∃Zero_case. ∃Suc_case. (∀y0. g Zero y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
     Proof Complete!
     with fuel: 572
@@ -1126,8 +1122,8 @@ let%expect_test "synth reverse via make_synthesis_goal" =
       rewrite_tac >>
       beta_tac >>
       refl_tac
-    success with chosen term: λn. λl. append l (cons n nil)
-    success with chosen term: nil
+    success with chosen term: λn. λl. append l (Cons n Nil)
+    success with chosen term: Nil
     Proof:
       exists_tac >>
       exists_tac >>
@@ -1135,10 +1131,10 @@ let%expect_test "synth reverse via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc zero) (cons (suc (suc zero)) nil)) = cons (suc (suc zero)) (cons (suc zero) nil)
+    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)) = Cons (Suc (Suc Zero)) (Cons (Suc Zero) Nil)
 
     Proof Complete!
-    with fuel: 4198
+    with fuel: 4017
     |}]
 
 let%expect_test "synth stutter via make_synthesis_goal" =
@@ -1179,8 +1175,8 @@ let%expect_test "synth stutter via make_synthesis_goal" =
       rewrite_tac >>
       rewrite_tac >>
       refl_tac
-    success with chosen term: λn. λl. cons n (cons n l)
-    success with chosen term: nil
+    success with chosen term: λn. λl. Cons n (Cons n l)
+    success with chosen term: Nil
     Proof:
       exists_tac >>
       exists_tac >>
@@ -1188,7 +1184,7 @@ let%expect_test "synth stutter via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) = cons (suc zero) (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) (cons (suc (suc (suc zero))) nil)))))
+    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Cons (Suc Zero) (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc Zero))) Nil)))))
 
     Proof Complete!
     with fuel: 898
@@ -1211,7 +1207,7 @@ let%expect_test "synth map via make_synthesis_goal" =
   in
   let f_ty = make_fun_ty nat_ty nat_ty in
   let func_type = make_fun_ty list_nat (make_fun_ty f_ty list_nat) in
-  let suc_const = Result.get_ok (make_const "suc" []) in
+  let suc_const = Result.get_ok (make_const "Suc" []) in
   let test_cases =
     [
       ([ mk_list [ n 1; n 2; n 3 ]; suc_const ], mk_list [ n 2; n 3; n 4 ]);
@@ -1246,8 +1242,8 @@ let%expect_test "synth map via make_synthesis_goal" =
       conj_tac >>
       refl_tac >>
       refl_tac
-    success with chosen term: λn. λf. λl. cons (f n) l
-    success with chosen term: λf. nil
+    success with chosen term: λn. λf. λl. Cons (f n) l
+    success with chosen term: λf. Nil
     Proof:
       exists_tac >>
       exists_tac >>
@@ -1255,7 +1251,7 @@ let%expect_test "synth map via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. (∀y0. g nil y0 = nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (cons c0 c1) y0 = cons_case c0 y0 (g c1 y0)) ==> g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) suc = cons (suc (suc zero)) (cons (suc (suc (suc zero))) (cons (suc (suc (suc (suc zero)))) nil)) ∧ g (cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil))) (plus (suc (suc zero))) = cons (suc (suc (suc zero))) (cons (suc (suc (suc (suc zero)))) (cons (suc (suc (suc (suc (suc zero))))) nil))
+    ∃Nil_case. ∃Cons_case. (∀y0. g Nil y0 = Nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (Cons c0 c1) y0 = Cons_case c0 y0 (g c1 y0)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) Suc = Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc (Suc Zero)))) Nil)) ∧ g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) (plus (Suc (Suc Zero))) = Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc (Suc Zero)))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) Nil))
 
     Proof Complete!
     with fuel: 2134
@@ -1295,8 +1291,8 @@ let%expect_test "synth replicate via make_synthesis_goal" =
       rewrite_tac >>
       rewrite_tac >>
       refl_tac
-    success with chosen term: λn. λl. cons n l
-    success with chosen term: λn. nil
+    success with chosen term: λn. λl. Cons n l
+    success with chosen term: λn. Nil
     Proof:
       exists_tac >>
       exists_tac >>
@@ -1304,7 +1300,7 @@ let%expect_test "synth replicate via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃zero_case. ∃suc_case. (∀y0. g zero y0 = zero_case y0) ==> (∀c0. ∀y0. g (suc c0) y0 = suc_case y0 (g c0 y0)) ==> g (suc (suc (suc zero))) (suc (suc (suc (suc (suc zero))))) = cons (suc (suc (suc (suc (suc zero))))) (cons (suc (suc (suc (suc (suc zero))))) (cons (suc (suc (suc (suc (suc zero))))) nil))
+    ∃Zero_case. ∃Suc_case. (∀y0. g Zero y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc (Suc Zero))))) = Cons (Suc (Suc (Suc (Suc (Suc Zero))))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) Nil))
 
     Proof Complete!
     with fuel: 369
@@ -1368,7 +1364,7 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
     Result.get_ok
       (type_inst
          [ (make_vartype "a", nat_ty); (make_vartype "b", nat_ty) ]
-         (Result.get_ok (make_const "pair" [])))
+         (Result.get_ok (make_const "Pair" [])))
   in
   let mk_pair a b =
     Result.get_ok (make_app (Result.get_ok (make_app pair_const a)) b)
@@ -1451,7 +1447,7 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
       refl_tac >>
       refl_tac
     success with chosen term: λp. plus (plus (fst p) (snd p))
-    success with chosen term: zero
+    success with chosen term: Zero
     Proof:
       exists_tac >>
       exists_tac >>
@@ -1459,10 +1455,10 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (pair (suc zero) (suc (suc zero))) (cons (pair (suc (suc (suc zero))) (suc (suc (suc (suc zero))))) nil)) = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))) ∧ g (cons (pair (suc (suc (suc (suc (suc zero))))) zero) nil) = suc (suc (suc (suc (suc zero))))
+    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Pair (Suc Zero) (Suc (Suc Zero))) (Cons (Pair (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc Zero))))) Nil)) = Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc Zero))))))))) ∧ g (Cons (Pair (Suc (Suc (Suc (Suc (Suc Zero))))) Zero) Nil) = Suc (Suc (Suc (Suc (Suc Zero))))
 
     Proof Complete!
-    with fuel: 20292
+    with fuel: 24034
     |}]
 
 let%expect_test "synth insert via make_synthesis_goal" =
@@ -1582,7 +1578,7 @@ let%expect_test "synth isort via make_synthesis_goal" =
       refl_tac >>
       refl_tac
     success with chosen term: λn. λl. insert l n
-    success with chosen term: nil
+    success with chosen term: Nil
     Proof:
       exists_tac >>
       exists_tac >>
@@ -1590,7 +1586,7 @@ let%expect_test "synth isort via make_synthesis_goal" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃nil_case. ∃cons_case. g nil = nil_case ==> (∀c0. ∀c1. g (cons c0 c1) = cons_case c0 (g c1)) ==> g (cons (suc (suc (suc zero))) (cons (suc zero) (cons (suc (suc zero)) nil))) = cons (suc zero) (cons (suc (suc zero)) (cons (suc (suc (suc zero))) nil)) ∧ g nil = nil
+    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc (Suc (Suc Zero))) (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil))) = Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil)) ∧ g Nil = Nil
 
     Proof Complete!
     with fuel: 10581

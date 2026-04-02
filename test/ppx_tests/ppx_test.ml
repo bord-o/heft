@@ -9,28 +9,28 @@ let%expect_test "variable with type annotation" =
   [%expect {| test:(nat list) |}]
 
 let%expect_test "constant" =
-  let (t : term) = [%term zero] in
+  let (t : term) = [%term Zero] in
   let s = Printing.pretty_print_hol_term ~with_type:true t in
   print_endline s;
-  [%expect {| zero:nat |}]
+  [%expect {| Zero:nat |}]
 
-let%expect_test "application: suc zero" =
-  let (t : term) = [%term suc zero] in
+let%expect_test "application: Suc Zero" =
+  let (t : term) = [%term Suc Zero] in
   let s = Printing.pretty_print_hol_term ~with_type:true t in
   print_endline s;
-  [%expect {| suc:(nat -> nat) zero:nat |}]
+  [%expect {| Suc:(nat -> nat) Zero:nat |}]
 
-let%expect_test "nested application: plus zero zero" =
-  let (t : term) = [%term plus zero zero] in
+let%expect_test "nested application: plus Zero Zero" =
+  let (t : term) = [%term plus Zero Zero] in
   let s = Printing.pretty_print_hol_term ~with_type:true t in
   print_endline s;
-  [%expect {| plus:(nat -> (nat -> nat)) zero:nat zero:nat |}]
+  [%expect {| plus:(nat -> (nat -> nat)) Zero:nat Zero:nat |}]
 
-let%expect_test "application with variable: suc (n : nat)" =
-  let (t : term) = [%term suc (n : nat)] in
+let%expect_test "application with variable: Suc (n : nat)" =
+  let (t : term) = [%term Suc (n : nat)] in
   let s = Printing.pretty_print_hol_term ~with_type:true t in
   print_endline s;
-  [%expect {| suc:(nat -> nat) n:nat |}]
+  [%expect {| Suc:(nat -> nat) n:nat |}]
 
 let%expect_test "lambda: fun (x : nat) -> x" =
   let (t : term) = [%term fun (x : nat) -> (x : nat)] in
@@ -52,11 +52,11 @@ let%expect_test "equality: (x : nat) = (y : nat)" =
 
 let%expect_test "forall with equality" =
   let (t : term) =
-    [%term forall (fun (n : nat) -> plus zero (n : nat) = (n : nat))]
+    [%term forall (fun (n : nat) -> plus Zero (n : nat) = (n : nat))]
   in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| ∀n. plus zero n = n |}]
+  [%expect {| ∀n. plus Zero n = n |}]
 
 let%expect_test "negation" =
   let (t : term) = [%term not (x : bool)] in
@@ -91,13 +91,13 @@ let%expect_test "three-argument application" =
   [%expect {| nat_lt n m |}]
 
 let%expect_test "nested application in argument position" =
-  let (t : term) = [%term suc (suc zero)] in
+  let (t : term) = [%term Suc (Suc Zero)] in
   let s = Printing.pretty_print_hol_term ~pretty:true t in
   print_endline s;
   [%expect {| 2 |}]
 
-let%expect_test "deeply nested suc" =
-  let (t : term) = [%term suc (suc (suc zero))] in
+let%expect_test "deeply nested Suc" =
+  let (t : term) = [%term Suc (Suc (Suc Zero))] in
   let s = Printing.pretty_print_hol_term ~pretty:true t in
   print_endline s;
   [%expect {| 3 |}]
@@ -109,18 +109,18 @@ let%expect_test "application of constant to variable" =
   [%expect {| plus n m |}]
 
 let%expect_test "application mixing constants and variables" =
-  let (t : term) = [%term plus (suc (n : nat)) zero] in
+  let (t : term) = [%term plus (Suc (n : nat)) Zero] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| plus (suc n) zero |}]
+  [%expect {| plus (Suc n) Zero |}]
 
 (* === Lambda edge cases === *)
 
 let%expect_test "lambda with application body" =
-  let (t : term) = [%term fun (x : nat) -> suc (x : nat)] in
+  let (t : term) = [%term fun (x : nat) -> Suc (x : nat)] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| λx. suc x |}]
+  [%expect {| λx. Suc x |}]
 
 let%expect_test "lambda with arrow type parameter" =
   let (t : term) = [%term fun (f : nat -> nat) -> (f : nat -> nat)] in
@@ -139,10 +139,10 @@ let%expect_test "multivariable lambda" =
 (* === Quantifier edge cases === *)
 
 let%expect_test "exists" =
-  let (t : term) = [%term exists (fun (x : nat) -> (x : nat) = zero)] in
+  let (t : term) = [%term exists (fun (x : nat) -> (x : nat) = Zero)] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| ∃x. x = zero |}]
+  [%expect {| ∃x. x = Zero |}]
 
 let%expect_test "nested forall" =
   let (t : term) =
@@ -224,49 +224,49 @@ let%expect_test "nested parameterized type" =
 (* === Equality edge cases === *)
 
 let%expect_test "equality of applications" =
-  let (t : term) = [%term suc (n : nat) = suc (m : nat)] in
+  let (t : term) = [%term Suc (n : nat) = Suc (m : nat)] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| suc n = suc m |}]
+  [%expect {| Suc n = Suc m |}]
 
-let%expect_test "equality of zero" =
-  let (t : term) = [%term zero = zero] in
+let%expect_test "equality of Zero" =
+  let (t : term) = [%term Zero = Zero] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| zero = zero |}]
+  [%expect {| Zero = Zero |}]
 
 (* === Realistic theorem-like terms === *)
 
 let%expect_test "induction-style: base case statement" =
-  let (t : term) = [%term plus zero (n : nat) = (n : nat)] in
+  let (t : term) = [%term plus Zero (n : nat) = (n : nat)] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| plus zero n = n |}]
+  [%expect {| plus Zero n = n |}]
 
 let%expect_test "induction-style: step case statement" =
   let (t : term) =
-    [%term plus (suc (n : nat)) (m : nat) = suc (plus (n : nat) (m : nat))]
+    [%term plus (Suc (n : nat)) (m : nat) = Suc (plus (n : nat) (m : nat))]
   in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| plus (suc n) m = suc (plus n m) |}]
+  [%expect {| plus (Suc n) m = Suc (plus n m) |}]
 
 let%expect_test "full universally quantified theorem" =
   let (t : term) =
     [%term
       forall (fun (n : nat) ->
           forall (fun (m : nat) ->
-              plus (suc (n : nat)) (m : nat) = suc (plus (n : nat) (m : nat))))]
+              plus (Suc (n : nat)) (m : nat) = Suc (plus (n : nat) (m : nat))))]
   in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| ∀n. ∀m. plus (suc n) m = suc (plus n m) |}]
+  [%expect {| ∀n. ∀m. plus (Suc n) m = Suc (plus n m) |}]
 
 let%expect_test "exists with application" =
-  let (t : term) = [%term exists (fun (n : nat) -> suc (n : nat) = zero)] in
+  let (t : term) = [%term exists (fun (n : nat) -> Suc (n : nat) = Zero)] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| ∃n. suc n = zero |}]
+  [%expect {| ∃n. Suc n = Zero |}]
 
 let%expect_test "mixed quantifiers" =
   let (t : term) =
@@ -384,7 +384,7 @@ let%expect_test "nat literal in application" =
   [%expect {| plus 2 3 |}]
 
 let%expect_test "nat literal in equality" =
-  let (t : term) = [%term suc 2n = 3n] in
+  let (t : term) = [%term Suc 2n = 3n] in
   let s = Printing.pretty_print_hol_term ~pretty:true t in
   print_endline s;
   [%expect {| 3 = 3 |}]
@@ -400,10 +400,10 @@ let%expect_test "nat literal in forall" =
 (* === Binder-scoped variables (no repeated annotations) === *)
 
 let%expect_test "forall: bare variables from binder" =
-  let (t : term) = [%term forall (fun (n : nat) -> plus zero n = n)] in
+  let (t : term) = [%term forall (fun (n : nat) -> plus Zero n = n)] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| ∀n. plus zero n = n |}]
+  [%expect {| ∀n. plus Zero n = n |}]
 
 let%expect_test "forall: multi-param bare variables" =
   let (t : term) =
@@ -416,16 +416,16 @@ let%expect_test "forall: multi-param bare variables" =
   [%expect {| ∀x. ∀y. ∀z. plus x (plus y z) = plus (plus x y) z |}]
 
 let%expect_test "exists: bare variable from binder" =
-  let (t : term) = [%term exists (fun (x : nat) -> suc x = zero)] in
+  let (t : term) = [%term exists (fun (x : nat) -> Suc x = Zero)] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| ∃x. suc x = zero |}]
+  [%expect {| ∃x. Suc x = Zero |}]
 
 let%expect_test "lambda: bare variable from binder" =
-  let (t : term) = [%term fun (x : nat) -> suc x] in
+  let (t : term) = [%term fun (x : nat) -> Suc x] in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| λx. suc x |}]
+  [%expect {| λx. Suc x |}]
 
 let%expect_test "lambda: multi-param bare variables" =
   let (t : term) = [%term fun (x : nat) (y : nat) -> plus x y] in
@@ -441,13 +441,13 @@ let%expect_test "nested quantifiers: inner uses outer binder" =
   print_endline s;
   [%expect {| ∀x. ∃y. x = y |}]
 
-let%expect_test "realistic: plus_suc theorem" =
+let%expect_test "realistic: plus_Suc theorem" =
   let (t : term) =
-    [%term forall (fun (n : nat) (m : nat) -> plus (suc n) m = suc (plus n m))]
+    [%term forall (fun (n : nat) (m : nat) -> plus (Suc n) m = Suc (plus n m))]
   in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| ∀n. ∀m. plus (suc n) m = suc (plus n m) |}]
+  [%expect {| ∀n. ∀m. plus (Suc n) m = Suc (plus n m) |}]
 
 let%expect_test "realistic: plus_comm" =
   let (t : term) =
@@ -478,17 +478,17 @@ let%expect_test "if/then/else with binder scoping" =
 (* === Polymorphic instantiation === *)
 
 let%expect_test "polymorphic constant applied to monomorphic arg" =
-  let (t : term) = [%term cons (x : nat) nil] in
+  let (t : term) = [%term Cons ((x : nat), Nil)] in
   let s = Printing.pretty_print_hol_term ~with_type:true t in
   print_endline s;
-  [%expect {| cons:(nat -> ((nat list) -> (nat list))) x:nat nil:(nat list) |}]
+  [%expect {| Cons:(nat -> ((nat list) -> (nat list))) x:nat Nil:(nat list) |}]
 
-let%expect_test "equality with polymorphic nil instantiates both sides" =
-  let (t : term) = [%term nil = cons (x : nat) nil] in
+let%expect_test "equality with polymorphic Nil instantiates both sides" =
+  let (t : term) = [%term Nil = Cons ((x : nat), Nil)] in
   let s = Printing.pretty_print_hol_term ~with_type:true t in
   print_endline s;
   [%expect
-    {| nil:(nat list) = cons:(nat -> ((nat list) -> (nat list))) x:nat nil:(nat list) |}]
+    {| Nil:(nat list) = Cons:(nat -> ((nat list) -> (nat list))) x:nat Nil:(nat list) |}]
 
 let%expect_test "polymorphic equality: both sides same type after instantiation"
     =
@@ -503,8 +503,8 @@ let%expect_test "polymorphic app in forall with binder scoping" =
   let (t : term) =
     [%term
       forall (fun (x : nat) (xs : nat list) ->
-          length (cons x xs) = suc (length xs))]
+          length (Cons (x, xs)) = Suc (length xs))]
   in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
-  [%expect {| ∀x. ∀xs. length (cons x xs) = suc (length xs) |}]
+  [%expect {| ∀x. ∀xs. length (Cons x xs) = Suc (length xs) |}]

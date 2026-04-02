@@ -28,16 +28,16 @@ let get_prec = function
   | App _ -> PrecApp
   | Lam _ -> PrecQuant
 
-(* Try to read a term as a nat numeral: suc (suc ... zero) -> Some n *)
+(* Try to read a term as a nat numeral: Suc (Suc ... Zero) -> Some n *)
 let rec read_nat = function
-  | Const ("zero", _) -> Some 0
-  | App (Const ("suc", _), t) -> Option.map (fun n -> n + 1) (read_nat t)
+  | Const ("Zero", _) -> Some 0
+  | App (Const ("Suc", _), t) -> Option.map (fun n -> n + 1) (read_nat t)
   | _ -> None
 
 (* Try to read a term as a list: cons x (cons y ... nil) -> Some [x; y; ...] *)
 let rec read_list = function
-  | Const ("nil", _) -> Some []
-  | App (App (Const ("cons", _), x), rest) ->
+  | Const ("Nil", _) -> Some []
+  | App (App (Const ("Cons", _), x), rest) ->
       Option.map (fun xs -> x :: xs) (read_list rest)
   | _ -> None
 

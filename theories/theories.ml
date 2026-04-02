@@ -192,21 +192,21 @@ module OptionTheory = struct
 
     vartype a
     inductive option :=
-        | none : option a
-        | some : a -> option a
+        | None : option a
+        | Some : a -> option a
 
     vartype b
     variable none_case : b
     variable some_case : a -> b
 
     def option_match : option a -> b -> (a -> b) -> b
-        | none => λnone_case. λsome_case. none_case
-        | some x => λnone_case. λsome_case. some_case x
+        | None => λnone_case. λsome_case. none_case
+        | Some x => λnone_case. λsome_case. some_case x
 
     variable x y : a
     def default : option a -> a -> a
-        | none => λx. x
-        | some y => λx. y
+        | None => λx. x
+        | Some y => λx. y
   |}
 
   let _ =
@@ -254,70 +254,70 @@ module NatTheory = struct
     vartype a
 
     inductive nat :=
-        | zero : nat
-        | suc : nat -> nat
+        | Zero : nat
+        | Suc : nat -> nat
 
     variable o m n : nat
 
     def plus : nat -> nat -> nat 
-        | zero => λn. n
-        | suc m => λn. suc (plus m n)
+        | Zero => λn. n
+        | Suc m => λn. Suc (plus m n)
 
     def pred : nat ->  nat
-        | zero => zero
-        | suc m => m
+        | Zero => Zero
+        | Suc m => m
 
     def minus' : nat -> nat -> nat
-        | zero    => λm. m
-        | suc n => λm. pred (minus' n m)
+        | Zero    => λm. m
+        | Suc n => λm. pred (minus' n m)
 
     def minus : nat -> nat -> nat
         | m => (flip minus') m
 
     def mult : nat -> nat -> nat
-        | zero => λn. zero
-        | suc n => λm. plus n (mult n m)
+        | Zero => λn. Zero
+        | Suc n => λm. plus n (mult n m)
     
     def is_zero : nat -> bool
-        | zero => T
-        | suc n => F 
+        | Zero => T
+        | Suc n => F 
         
     variable z : a
     variable s : nat -> a
 
     def nat_match : nat -> a -> (nat -> a) -> a
-        | zero => λz. λs. z
-        | suc n => λz. λs. s n    
+        | Zero => λz. λs. z
+        | Suc n => λz. λs. s n    
 
     variable k : nat
     def nat_le : nat -> nat -> bool
-        | zero => λn. T
-        | suc m => λn. nat_match n F (λk. nat_le m k)
+        | Zero => λn. T
+        | Suc m => λn. nat_match n F (λk. nat_le m k)
 
     variable a b r : nat
 
     def nat_lt : nat -> nat -> bool
-        | zero => λn. nat_match n F (λk. T)
-        | suc m => λn. nat_match n F (λk. nat_lt m k)
+        | Zero => λn. nat_match n F (λk. T)
+        | Suc m => λn. nat_match n F (λk. nat_lt m k)
 
 
     def sub : nat -> nat -> nat
-        | zero => λn. zero
-        | suc m => λn. nat_match n (suc m) (λk. sub m k)
+        | Zero => λn. Zero
+        | Suc m => λn. nat_match n (Suc m) (λk. sub m k)
 
     def div_aux : nat -> nat -> nat -> option nat
-        | zero => λa. λb. none
-        | suc n => λa. λb.
+        | Zero => λa. λb. None
+        | Suc n => λa. λb.
             COND (nat_lt a b)
-                 (some zero)
+                 (Some Zero)
                  (option_match (div_aux n (sub a b) b)
-                    none
-                    (λr. some (suc r)))
+                    None
+                    (λr. Some (Suc r)))
 
     variable x : nat
     def div : nat -> nat -> nat
         | a => λb.
-            option_match (div_aux (suc a) a b) zero (λx. x)
+            option_match (div_aux (Suc a) a b) Zero (λx. x)
   |}
 
   let _ =
@@ -327,8 +327,8 @@ module NatTheory = struct
 
   let nat_ty = make_type "nat" [] |> Result.get_ok
   let nat_def = Hashtbl.find the_inductives "nat"
-  let zero = make_const "zero" [] |> Result.get_ok
-  let suc = make_const "suc" [] |> Result.get_ok
+  let zero = make_const "Zero" [] |> Result.get_ok
+  let suc = make_const "Suc" [] |> Result.get_ok
   let rec nat_of_int n = if n <= 0 then zero else App (suc, nat_of_int (n - 1))
   let n0 = zero
   let n1 = nat_of_int 1
@@ -356,20 +356,20 @@ module PairTheory = struct
     {|
     vartype a b
     inductive pair := 
-        | pair : a -> b -> pair a b
+        | Pair : a -> b -> pair a b
 
     variable l : a
     variable r : b
     variable p : pair a b
 
     def fst : pair a b -> a
-        | pair l r => l
+        | Pair l r => l
 
     def snd : pair a b -> b
-        | pair l r => r
+        | Pair l r => r
 
     variable x y : a
-    theorem fst_snd_eq: imp (eq x y) (eq (fst (pair x y)) (snd (pair x y)))
+    theorem fst_snd_eq: imp (eq x y) (eq (fst (Pair x y)) (snd (Pair x y)))
 
   |}
 
@@ -388,49 +388,49 @@ module ListTheory = struct
     vartype a
 
     inductive list :=
-        | nil : list a
-        | cons : a -> list a -> list a
+        | Nil : list a
+        | Cons : a -> list a -> list a
 
     variable l l' xs : list a
     variable x : a
 
     def length : list a -> nat 
-        | nil => zero
-        | cons x xs =>
-            suc (length xs)
+        | Nil => Zero
+        | Cons x xs =>
+            Suc (length xs)
 
     def append : list a -> list a -> list a
-        | nil => λxs. xs
-        | cons x xs =>
-            λl'. cons x (append xs l')
+        | Nil => λxs. xs
+        | Cons x xs =>
+            λl'. Cons x (append xs l')
 
     def reverse  : list a -> list a
-        | nil => nil
-        | cons x xs => append (reverse xs) (cons x nil)
+        | Nil => Nil
+        | Cons x xs => append (reverse xs) (Cons x Nil)
 
     variable n : nat
     def insert : list nat -> nat -> list nat
-        | nil => λn. cons n nil
-        | cons x xs => λn. (COND (nat_le x n) (cons x (insert xs n)) (cons n (cons x xs)))
+        | Nil => λn. Cons n Nil
+        | Cons x xs => λn. (COND (nat_le x n) (Cons x (insert xs n)) (Cons n (Cons x xs)))
 
     variable h : nat
     variable t : list nat
     def isort : list nat -> list nat
-        | nil => nil
-        | cons h t => insert (isort t) h
+        | Nil => Nil
+        | Cons h t => insert (isort t) h
 
     vartype b
     variable nil_case : b
     variable cons_case : a -> list a -> b
     def list_match: list a -> b -> (a -> list a -> b) -> b
-        | nil => λnil_case. λcons_case. nil_case
-        | cons x xs => λnil_case. λcons_case. cons_case x xs
+        | Nil => λnil_case. λcons_case. nil_case
+        | Cons x xs => λnil_case. λcons_case. cons_case x xs
 
     variable xs' : list nat
     variable x' : nat
     def sorted : list nat -> bool
-        | nil => T 
-        | cons h t => 
+        | Nil => T 
+        | Cons h t => 
             (∧
                 (list_match t T (λx'. λxs'. (nat_le h x')))
                 (sorted t))
@@ -439,65 +439,65 @@ module ListTheory = struct
     variable xs ys ys' zs : list nat
 
     def merge_aux : nat -> list nat -> list nat -> option (list nat)
-      | zero => λxs. λys. none
-      | suc n => λxs. λys. 
+      | Zero => λxs. λys. None
+      | Suc n => λxs. λys.
         list_match xs
-            (some ys)
-            (λh. λt. 
+            (Some ys)
+            (λh. λt.
                 (list_match ys
-                    (some (cons h t))
+                    (Some (Cons h t))
                     (λy'. λys'.
                         COND (nat_lt h y')
-                            (option_match (merge_aux n t (cons y' ys'))
-                                    (none)
-                                    (λzs. some (cons h zs)))
-                            (option_match (merge_aux n (cons h t) ys')
-                                    (none)
-                                    (λzs. some (cons y' zs))))))
+                            (option_match (merge_aux n t (Cons y' ys'))
+                                    (None)
+                                    (λzs. Some (Cons h zs)))
+                            (option_match (merge_aux n (Cons h t) ys')
+                                    (None)
+                                    (λzs. Some (Cons y' zs))))))
 
     def merge : list nat -> list nat -> list nat
         | xs =>
             λys. 
-                option_match (merge_aux (suc (plus (length xs) (length ys))) xs ys)
-                    nil 
+                option_match (merge_aux (Suc (plus (length xs) (length ys))) xs ys)
+                    Nil 
                     (λzs. zs)
 
     def take : nat -> list nat -> list nat
-        | zero => λxs. nil
-        | suc n => λxs.
+        | Zero => λxs. Nil
+        | Suc n => λxs.
             list_match xs
-                (nil)
-                (λh. λt. cons h (take n t))
+                (Nil)
+                (λh. λt. Cons h (take n t))
 
     def drop : nat -> list nat -> list nat
-        | zero => λxs. xs
-        | suc n => λxs.
+        | Zero => λxs. xs
+        | Suc n => λxs.
             list_match xs
-                (nil)
+                (Nil)
                 (λh. λt. drop n t)
     
     variable half_length n : nat
     variable left right : list nat
 
     def merge_sort_aux : nat -> list nat -> option (list nat)
-        | zero => λxs. none
-        | suc n => λxs.
-            COND (nat_le (length xs) (suc zero))
-                (some xs)
-                ((λhalf_length. 
+        | Zero => λxs. None
+        | Suc n => λxs.
+            COND (nat_le (length xs) (Suc Zero))
+                (Some xs)
+                ((λhalf_length.
                     option_match (merge_sort_aux n (take half_length xs))
-                        (none)
-                        (λleft. 
+                        (None)
+                        (λleft.
                             option_match (merge_sort_aux n (drop half_length xs))
-                                (none)
-                                (λright. some (merge left right))
+                                (None)
+                                (λright. Some (merge left right))
                         )
-                ) (div (length xs) (suc (suc zero))))
+                ) (div (length xs) (Suc (Suc Zero))))
 
     def merge_sort : list nat -> list nat
         | xs => 
-            option_match (merge_sort_aux (suc (length xs)) xs)
-                nil
+            option_match (merge_sort_aux (Suc (length xs)) xs)
+                Nil
                 (λzs. zs)
 
     |}
@@ -508,8 +508,8 @@ module ListTheory = struct
     | Error e -> failwith @@ Printing.print_error e
 
   let list_def = Hashtbl.find the_inductives "list"
-  let nil = make_const "nil" [] |> Result.get_ok
-  let cons = make_const "cons" [] |> Result.get_ok
+  let nil = make_const "Nil" [] |> Result.get_ok
+  let cons = make_const "Cons" [] |> Result.get_ok
   let length = make_const "length" [] |> Result.get_ok
   let append = make_const "append" [] |> Result.get_ok
   let reverse = make_const "reverse" [] |> Result.get_ok

@@ -1057,7 +1057,7 @@ let%expect_test "rewrite_basic" =
   [%expect
     {|
     ========================================
-    ∀x. plus zero x = x
+    ∀x. plus Zero x = x
 
     Proof Complete!
     with fuel: 20

@@ -113,6 +113,33 @@ let rec translate_expr ~loc ~env (input : expression) =
       A.eapply (A.evar "make_const") [ A.estring "T"; A.elist [] ]
   | Pexp_construct ({ txt = Lident "false"; _ }, None) ->
       A.eapply (A.evar "make_const") [ A.estring "F"; A.elist [] ]
+  (* Nullary constructor → HOL constant *)
+  | Pexp_construct ({ txt = Lident name; _ }, None) ->
+      A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
+  (* Constructor with arguments → HOL constant applied to args *)
+  | Pexp_construct ({ txt = Lident name; _ }, Some arg) ->
+      let args =
+        match arg.pexp_desc with Pexp_tuple args -> args | _ -> [ arg ]
+      in
+      let const_expr =
+        A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
+      in
+      let func_var = fresh_id "app" in
+      List.fold_left
+        (fun (acc_expr, acc_var) arg_expr ->
+          let translated = translate_expr ~loc ~env arg_expr in
+          let arg_var = fresh_id "arg" in
+          let app_var = fresh_id "app" in
+          let expr =
+            mk_bind ~loc acc_expr acc_var
+              (mk_bind ~loc translated arg_var
+                 (A.eapply
+                    (A.evar "Heft.Rewrite.smart_make_app")
+                    [ A.evar acc_var; A.evar arg_var ]))
+          in
+          (expr, app_var))
+        (const_expr, func_var) args
+      |> fst
   (* Nat literals: 0n, 1n, 2n, ... → zero, suc zero, suc (suc zero), ... *)
   | Pexp_constant (Pconst_integer (s, Some 'n')) ->
       let n =
@@ -123,7 +150,7 @@ let rec translate_expr ~loc ~env (input : expression) =
               "nat literal must be a non-negative integer"
       in
       let zero =
-        A.eapply (A.evar "make_const") [ A.estring "zero"; A.elist [] ]
+        A.eapply (A.evar "make_const") [ A.estring "Zero"; A.elist [] ]
       in
       let rec wrap k acc =
         if k = 0 then acc
@@ -134,7 +161,7 @@ let rec translate_expr ~loc ~env (input : expression) =
             (mk_bind ~loc acc acc_var
                (mk_bind ~loc
                   (A.eapply (A.evar "make_const")
-                     [ A.estring "suc"; A.elist [] ])
+                     [ A.estring "Suc"; A.elist [] ])
                   suc_var
                   (A.eapply
                      (A.evar "Heft.Rewrite.smart_make_app")
