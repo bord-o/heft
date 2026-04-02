@@ -357,18 +357,17 @@ let smart_make_app f x =
       | _ -> Error (`MakeAppTypesDontAgree (fty, xty)))
 
 let smart_make_eq l r =
-  match safe_make_eq l r with
-  | Ok eq -> Ok eq
-  | Error _ -> (
-      let lty = match type_of_term l with Ok t -> t | Error _ -> TyVar "?" in
-      let rty = match type_of_term r with Ok t -> t | Error _ -> TyVar "?" in
-      match type_match [] lty rty with
-      | Some tysub ->
-          let l' = term_type_subst tysub l in
-          safe_make_eq l' r
-      | None -> (
-          match type_match [] rty lty with
-          | Some tysub ->
-              let r' = term_type_subst tysub r in
-              safe_make_eq l r'
-          | None -> Error (`MakeAppTypesDontAgree (lty, rty))))
+  let lty = match type_of_term l with Ok t -> t | Error _ -> TyVar "?" in
+  let rty = match type_of_term r with Ok t -> t | Error _ -> TyVar "?" in
+  if lty = rty then safe_make_eq l r
+  else
+    match type_match [] lty rty with
+    | Some tysub ->
+        let l' = term_type_subst tysub l in
+        safe_make_eq l' r
+    | None -> (
+        match type_match [] rty lty with
+        | Some tysub ->
+            let r' = term_type_subst tysub r in
+            safe_make_eq l r'
+        | None -> Error (`MakeAppTypesDontAgree (lty, rty)))

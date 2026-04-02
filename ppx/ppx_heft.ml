@@ -156,7 +156,8 @@ let rec translate_expr ~loc ~env (input : expression) =
           let expr =
             mk_bind ~loc acc_expr acc_var
               (mk_bind ~loc arg_expr arg_var
-                 (A.eapply (A.evar "Heft.Rewrite.smart_make_app")
+                 (A.eapply
+                    (A.evar "Heft.Rewrite.smart_make_app")
                     [ A.evar acc_var; A.evar arg_var ]))
           in
           (expr, app_var))

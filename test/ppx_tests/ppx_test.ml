@@ -469,8 +469,42 @@ let%expect_test "if/then/else with binder scoping" =
   let (t : term) =
     [%term
       forall (fun (b : bool) (x : nat) (y : nat) ->
-          (if b then x else y) = (if not b then y else x))]
+          (if b then x else y) = if not b then y else x)]
   in
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
   [%expect {| ∀b. ∀x. ∀y. COND b x y = COND ¬b y x |}]
+
+(* === Polymorphic instantiation === *)
+
+let%expect_test "polymorphic constant applied to monomorphic arg" =
+  let (t : term) = [%term cons (x : nat) nil] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| cons:(nat -> ((nat list) -> (nat list))) x:nat nil:(nat list) |}]
+
+let%expect_test "equality with polymorphic nil instantiates both sides" =
+  let (t : term) = [%term nil = cons (x : nat) nil] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect
+    {| nil:(nat list) = cons:(nat -> ((nat list) -> (nat list))) x:nat nil:(nat list) |}]
+
+let%expect_test "polymorphic equality: both sides same type after instantiation"
+    =
+  let (t : term) =
+    [%term forall (fun (xs : nat list) -> length xs = length xs)]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀xs. length xs = length xs |}]
+
+let%expect_test "polymorphic app in forall with binder scoping" =
+  let (t : term) =
+    [%term
+      forall (fun (x : nat) (xs : nat list) ->
+          length (cons x xs) = suc (length xs))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀x. ∀xs. length (cons x xs) = suc (length xs) |}]
