@@ -187,13 +187,12 @@ module BoolTheory = struct
 end
 
 module OptionTheory = struct
+  [%%inductive type 'a option = None | Some of 'a]
+
   let prg =
     {|
 
     vartype a
-    inductive option :=
-        | None : option a
-        | Some : a -> option a
 
     vartype b
     variable none_case : b
@@ -249,13 +248,12 @@ module FunctionTheory = struct
 end
 
 module NatTheory = struct
+  [%%inductive type nat = Zero | Suc of nat]
+
   let prg =
     {|
     vartype a
 
-    inductive nat :=
-        | Zero : nat
-        | Suc : nat -> nat
 
     variable o m n : nat
 
@@ -352,11 +350,11 @@ module NatTheory = struct
 end
 
 module PairTheory = struct
+  [%%inductive type ('a, 'b) pair = Pair of 'a * 'b]
+
   let prg =
     {|
     vartype a b
-    inductive pair := 
-        | Pair : a -> b -> pair a b
 
     variable l : a
     variable r : b
@@ -383,13 +381,11 @@ module ListTheory = struct
   let list_ty = TyCon ("list", [ a ])
   let list_a = TyCon ("list", [ a ])
 
+  [%%inductive type 'a list = Nil | Cons of 'a * 'a list]
+
   let prg =
     {|
     vartype a
-
-    inductive list :=
-        | Nil : list a
-        | Cons : a -> list a -> list a
 
     variable l l' xs : list a
     variable x : a
