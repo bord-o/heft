@@ -8,7 +8,7 @@ let print_bool_result b = print_endline (string_of_bool b)
 let print_induction_thm def =
   match def with
   | Ok d -> print_endline (Printing.pretty_print_thm d.induction)
-  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+  | Error e -> print_endline ("Error: " ^ Printing.print_error e)
 
 let nat_ty = TyCon ("nat", [])
 let int_ty = TyCon ("int", [])
@@ -283,7 +283,7 @@ let%expect_test "reject_non_positive" =
   (match result with
   | Error (`NotPositive _) -> print_endline "Correctly rejected non-positive"
   | Error e ->
-      print_endline ("Wrong error: " ^ show_kernel_error (e :> kernel_error))
+      print_endline ("Wrong error: " ^ Printing.print_error e)
   | Ok _ -> print_endline "ERROR: Should have been rejected!");
   [%expect {| Correctly rejected non-positive |}]
 
@@ -296,7 +296,7 @@ let%expect_test "reject_no_base_case" =
   (match result with
   | Error (`NoBaseCase _) -> print_endline "Correctly rejected no base case"
   | Error e ->
-      print_endline ("Wrong error: " ^ show_kernel_error (e :> kernel_error))
+      print_endline ("Wrong error: " ^ Printing.print_error e)
   | Ok _ -> print_endline "ERROR: Should have been rejected!");
   [%expect {| Correctly rejected no base case |}]
 
@@ -327,7 +327,7 @@ let%expect_test "three_variant_induction" =
 let print_recursion_thm def =
   match def with
   | Ok d -> print_endline (Printing.pretty_print_thm d.recursion)
-  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+  | Error e -> print_endline ("Error: " ^ Printing.print_error e)
 
 (* Test 1: Simple monomorphic type - nat *)
 let%expect_test "nat_recursion" =
@@ -430,7 +430,7 @@ let print_distinct_thms def =
       List.iter
         (fun thm -> print_endline (Printing.pretty_print_thm thm))
         d.distinct
-  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+  | Error e -> print_endline ("Error: " ^ Printing.print_error e)
 
 (* Test 1: Two constructors - nat *)
 let%expect_test "nat_distinctness" =
@@ -530,7 +530,7 @@ let print_injective_thms def =
       List.iter
         (fun thm -> print_endline (Printing.pretty_print_thm thm))
         d.injective
-  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+  | Error e -> print_endline ("Error: " ^ Printing.print_error e)
 
 (* Test 5: One constructor with one arg - nat *)
 let%expect_test "nat_injectivity" =
@@ -603,7 +603,7 @@ let%expect_test "no_injectivity" =
 let print_exhaustiveness_thm def =
   match def with
   | Ok d -> print_endline (Printing.pretty_print_thm d.exhaustiveness)
-  | Error e -> print_endline ("Error: " ^ show_kernel_error e)
+  | Error e -> print_endline ("Error: " ^ Printing.print_error e)
 
 let%expect_test "nat_exhaustiveness" =
   let () = reset () |> Result.get_ok in

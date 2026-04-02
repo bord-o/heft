@@ -28,6 +28,7 @@ type inductive_def = {
   distinct : thm list;
   injective : thm list;
   exhaustiveness : thm;
+  match_function : thm;
 }
 [@@deriving show { with_path = false }]
 

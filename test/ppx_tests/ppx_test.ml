@@ -508,3 +508,160 @@ let%expect_test "polymorphic app in forall with binder scoping" =
   let s = Printing.pretty_print_hol_term t in
   print_endline s;
   [%expect {| ∀x. ∀xs. length (Cons x xs) = Suc (length xs) |}]
+
+(* === [%%inductive] === *)
+
+[%%inductive
+type color =
+  | Red
+  | Green
+  | Blue]
+
+let%expect_test "inductive: color constructors" =
+  let r = Printing.unwrap_term (make_const "Red" []) in
+  let g = Printing.unwrap_term (make_const "Green" []) in
+  let b = Printing.unwrap_term (make_const "Blue" []) in
+  print_endline (Printing.pretty_print_hol_term r);
+  print_endline (Printing.pretty_print_hol_term g);
+  print_endline (Printing.pretty_print_hol_term b);
+  [%expect {|
+    Red
+    Green
+    Blue |}]
+
+let%expect_test "inductive: color in [%%term]" =
+  let t = [%term Red] in
+  print_endline (Printing.pretty_print_hol_term t);
+  [%expect {| Red |}]
+
+let color_def = Hashtbl.find the_inductives "color"
+
+let%expect_test "inductive: color type" =
+  print_endline (show_hol_type color_def.ty);
+  [%expect {| (TyCon ("color", [])) |}]
+
+let%expect_test "inductive: color induction" =
+  print_endline (Printing.pretty_print_thm color_def.induction);
+  [%expect {|
+    ========================================
+    ∀P. P Red ==> P Green ==> P Blue ==> ∀x. P x
+    |}]
+
+let%expect_test "inductive: color recursion" =
+  print_endline (Printing.pretty_print_thm color_def.recursion);
+  [%expect {|
+    ========================================
+    ∀Red_case. ∀Green_case. ∀Blue_case. ∃g. g Red = Red_case ∧ g Green = Green_case ∧ g Blue = Blue_case
+    |}]
+
+let%expect_test "inductive: color distinctness" =
+  List.iter
+    (fun thm -> print_endline (Printing.pretty_print_thm thm))
+    color_def.distinct;
+  [%expect {|
+    ========================================
+    Green = Blue = F
+    ========================================
+    Red = Blue = F
+    ========================================
+    Red = Green = F
+    |}]
+
+let%expect_test "inductive: color injectivity (none expected)" =
+  print_endline (string_of_int (List.length color_def.injective));
+  [%expect {| 0 |}]
+
+let%expect_test "inductive: color exhaustiveness" =
+  print_endline (Printing.pretty_print_thm color_def.exhaustiveness);
+  [%expect {|
+    ========================================
+    ∀x. x = Red ∨ x = Green ∨ x = Blue
+    |}]
+
+let%expect_test "inductive: match_color defined" =
+  print_endline (Printing.pretty_print_thm color_def.match_function);
+  [%expect {|
+    ========================================
+    match_color Red = (λh0. λh1. λh2. h0) ∧ match_color Green = (λh0. λh1. λh2. h1) ∧ match_color Blue = (λh0. λh1. λh2. h2)
+    |}]
+
+let%expect_test "inductive: match_color type" =
+  let cm = Printing.unwrap_term (make_const "match_color" []) in
+  print_endline (Printing.pretty_print_hol_term ~with_type:true cm);
+  [%expect {| match_color:(color -> (r -> (r -> (r -> r)))) |}]
+
+[%%inductive
+type 'a tree =
+  | Leaf
+  | Node of 'a * 'a tree * 'a tree]
+
+let%expect_test "inductive: tree constructors" =
+  let leaf = Printing.unwrap_term (make_const "Leaf" []) in
+  let node = Printing.unwrap_term (make_const "Node" []) in
+  print_endline (Printing.pretty_print_hol_term ~with_type:true leaf);
+  print_endline (Printing.pretty_print_hol_term ~with_type:true node);
+  [%expect {|
+    Leaf:(a tree)
+    Node:(a -> ((a tree) -> ((a tree) -> (a tree)))) |}]
+
+let tree_def = Hashtbl.find the_inductives "tree"
+
+let%expect_test "inductive: tree type" =
+  print_endline (show_hol_type tree_def.ty);
+  [%expect {| (TyCon ("tree", [(TyVar "a")])) |}]
+
+let%expect_test "inductive: tree induction" =
+  print_endline (Printing.pretty_print_thm tree_def.induction);
+  [%expect {|
+    ========================================
+    ∀P. P Leaf ==> (∀n0. ∀n1. ∀n2. P n1 ==> P n2 ==> P (Node n0 n1 n2)) ==> ∀x. P x
+    |}]
+
+let%expect_test "inductive: tree recursion" =
+  print_endline (Printing.pretty_print_thm tree_def.recursion);
+  [%expect {|
+    ========================================
+    ∀Leaf_case. ∀Node_case. ∃g. g Leaf = Leaf_case ∧ (∀x0. ∀x1. ∀x2. g (Node x0 x1 x2) = Node_case x0 x1 x2 (g x1) (g x2))
+    |}]
+
+let%expect_test "inductive: tree distinctness" =
+  List.iter
+    (fun thm -> print_endline (Printing.pretty_print_thm thm))
+    tree_def.distinct;
+  [%expect {|
+    ========================================
+    ∀y0. ∀y1. ∀y2. Leaf = Node y0 y1 y2 = F
+    |}]
+
+let%expect_test "inductive: tree injectivity" =
+  List.iter
+    (fun thm -> print_endline (Printing.pretty_print_thm thm))
+    tree_def.injective;
+  [%expect {|
+    ========================================
+    ∀x0. ∀x1. ∀x2. ∀y0. ∀y1. ∀y2. Node x0 x1 x2 = Node y0 y1 y2 ==> x0 = y0 ∧ x1 = y1 ∧ x2 = y2
+    |}]
+
+let%expect_test "inductive: tree exhaustiveness" =
+  print_endline (Printing.pretty_print_thm tree_def.exhaustiveness);
+  [%expect {|
+    ========================================
+    ∀x. x = Leaf ∨ (∃a0. ∃a1. ∃a2. x = Node a0 a1 a2)
+    |}]
+
+let%expect_test "inductive: match_tree theorem" =
+  print_endline (Printing.pretty_print_thm tree_def.match_function);
+  [%expect {|
+    ========================================
+    match_tree Leaf = (λh0. λh1. h0) ∧ (∀x0. ∀x1. ∀x2. match_tree (Node x0 x1 x2) = (λh0. λh1. h1 x0 x1 x2))
+    |}]
+
+let%expect_test "inductive: match_tree type" =
+  let tm = Printing.unwrap_term (make_const "match_tree" []) in
+  print_endline (Printing.pretty_print_hol_term ~with_type:true tm);
+  [%expect {| match_tree:((a tree) -> (r -> ((a -> ((a tree) -> ((a tree) -> r))) -> r))) |}]
+
+let%expect_test "inductive: tree in [%%term]" =
+  let t = [%term Node (1n, Leaf, Leaf)] in
+  print_endline (Printing.pretty_print_hol_term ~pretty:true t);
+  [%expect {| Node 1 Leaf Leaf |}]

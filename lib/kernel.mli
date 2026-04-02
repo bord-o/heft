@@ -40,6 +40,7 @@ type inductive_def = {
   distinct : thm list;
   injective : thm list;
   exhaustiveness : thm;
+  match_function : thm;
 }
 
 val pp_inductive_def :

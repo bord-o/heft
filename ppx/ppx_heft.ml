@@ -322,11 +322,113 @@ let translate ~(loc : location) ~(path : label) (input : expression) =
   let inner = translate_expr ~loc ~env:[] input in
   A.eapply (A.evar "Heft.Printing.unwrap_term") [ inner ]
 
-let extension =
+let rec translate_type_raw ~loc ct =
+  let (module A) = Ast_builder.make loc in
+  match ct.ptyp_desc with
+  | Ptyp_constr ({ txt = Lident name; _ }, []) ->
+      A.pexp_construct { txt = Lident "TyCon"; loc }
+        (Some (A.pexp_tuple [ A.estring name; A.elist [] ]))
+  | Ptyp_constr ({ txt = Lident name; _ }, args) ->
+      let arg_exprs = List.map (translate_type_raw ~loc) args in
+      A.pexp_construct { txt = Lident "TyCon"; loc }
+        (Some (A.pexp_tuple [ A.estring name; A.elist arg_exprs ]))
+  | Ptyp_arrow (_, l, r) ->
+      let le = translate_type_raw ~loc l in
+      let re = translate_type_raw ~loc r in
+      A.pexp_construct { txt = Lident "TyCon"; loc }
+        (Some (A.pexp_tuple [ A.estring "fun"; A.elist [ le; re ] ]))
+  | Ptyp_var name ->
+      A.pexp_construct { txt = Lident "TyVar"; loc } (Some (A.estring name))
+  | _ ->
+      Location.raise_errorf ~loc:ct.ptyp_loc "unsupported type in [%%%%inductive]"
+
+let translate_inductive ~(loc : location) ~(path : label)
+    (payload : structure_item list) =
+  let (module A) = Ast_builder.make loc in
+  let _ = path in
+  let type_decl =
+    match payload with
+    | [ { pstr_desc = Pstr_type (_, [ td ]); _ } ] -> td
+    | _ ->
+        Location.raise_errorf ~loc
+          "[%%%%inductive] expects a single type declaration"
+  in
+  let type_name = type_decl.ptype_name.txt in
+  let type_params =
+    List.map
+      (fun (ct, _) ->
+        match ct.ptyp_desc with
+        | Ptyp_var name -> A.estring name
+        | _ ->
+            Location.raise_errorf ~loc:ct.ptyp_loc
+              "type parameter must be a type variable")
+      type_decl.ptype_params
+  in
+  let constructors =
+    match type_decl.ptype_kind with
+    | Ptype_variant cds -> cds
+    | _ -> Location.raise_errorf ~loc "[%%%%inductive] expects a variant type"
+  in
+  let spec_exprs =
+    List.map
+      (fun (cd : constructor_declaration) ->
+        let name = cd.pcd_name.txt in
+        let arg_types =
+          match cd.pcd_args with
+          | Pcstr_tuple cts -> List.map (translate_type_raw ~loc) cts
+          | _ ->
+              Location.raise_errorf ~loc:cd.pcd_name.loc
+                "unsupported constructor argument form"
+        in
+        A.pexp_record
+          [
+            ({ txt = Ldot (Lident "Kernel", "name"); loc }, A.estring name);
+            ( { txt = Ldot (Lident "Kernel", "arg_types"); loc },
+              A.elist arg_types );
+          ]
+          None)
+      constructors
+  in
+  let define_expr =
+    A.eapply (A.evar "Heft.Inductive.define_inductive")
+      [ A.estring type_name; A.elist type_params; A.elist spec_exprs ]
+  in
+  let body =
+    A.pexp_match define_expr
+      [
+        A.case
+          ~lhs:
+            (A.ppat_construct { txt = Lident "Ok"; loc } (Some (A.pvar "_")))
+          ~guard:None
+          ~rhs:(A.pexp_construct { txt = Lident "()" ; loc } None);
+        A.case
+          ~lhs:
+            (A.ppat_construct { txt = Lident "Error"; loc }
+               (Some (A.pvar "e")))
+          ~guard:None
+          ~rhs:
+            (A.eapply (A.evar "failwith")
+               [
+                 A.eapply (A.evar "Heft.Printing.print_error") [ A.evar "e" ];
+               ]);
+      ]
+  in
+  A.pstr_eval body []
+
+let term_extension =
   Extension.declare "term" Extension.Context.expression
     Ast_pattern.(single_expr_payload __)
     translate
 
+let inductive_extension =
+  Extension.declare "inductive" Extension.Context.structure_item
+    Ast_pattern.(pstr __)
+    translate_inductive
+
 let () =
-  Driver.register_transformation "term"
-    ~rules:[ Context_free.Rule.extension extension ]
+  Driver.register_transformation "heft_ppx"
+    ~rules:
+      [
+        Context_free.Rule.extension term_extension;
+        Context_free.Rule.extension inductive_extension;
+      ]

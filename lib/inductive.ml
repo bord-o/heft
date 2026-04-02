@@ -325,6 +325,80 @@ let make_exhaustiveness_thm (ty : hol_type)
   let theorem = make_forall x body in
   new_axiom theorem
 
+let new_specification name ex_thm =
+  let concl_tm = concl ex_thm in
+  let* exists_var, body = destruct_exists concl_tm in
+  let var_type = type_of_var exists_var in
+  let* () = new_constant name var_type in
+  let new_const = Const (name, var_type) in
+  let* defining_property = vsubst [ (new_const, exists_var) ] body in
+  let* thm = new_axiom defining_property in
+  Hashtbl.add the_specifications name thm;
+  Rules.add_def name thm;
+  Ok thm
+
+let rec get_fun_arg_types = function
+  | TyCon ("fun", [ arg; rest ]) -> arg :: get_fun_arg_types rest
+  | _ -> []
+
+let make_match_function tyname ty constructors recursion =
+  let func_name = "match_" ^ tyname in
+  let result_ty = TyVar "r" in
+  let constructor_info =
+    List.map
+      (fun (_, term) ->
+        match term with Const (_, cty) -> get_fun_arg_types cty | _ -> [])
+      constructors
+  in
+  let handler_types =
+    List.map
+      (fun arg_tys ->
+        List.fold_right (fun at acc -> make_fun_ty at acc) arg_tys result_ty)
+      constructor_info
+  in
+  let return_type =
+    List.fold_right (fun ht acc -> make_fun_ty ht acc) handler_types result_ty
+  in
+  let handler_vars =
+    List.mapi (fun i ht -> Var ("h" ^ string_of_int i, ht)) handler_types
+  in
+  let case_terms =
+    List.mapi
+      (fun i arg_tys ->
+        let arg_vars =
+          List.mapi (fun j t -> Var ("a" ^ string_of_int j, t)) arg_tys
+        in
+        let rec_count = List.length (List.filter (fun t -> t = ty) arg_tys) in
+        let rec_vars =
+          List.init rec_count (fun j ->
+              Var ("r" ^ string_of_int j, return_type))
+        in
+        let body =
+          List.fold_left
+            (fun acc arg -> Result.get_ok (make_app acc arg))
+            (List.nth handler_vars i)
+            arg_vars
+        in
+        let with_handlers =
+          List.fold_right
+            (fun hv acc -> Result.get_ok (make_lam hv acc))
+            handler_vars body
+        in
+        let with_recs =
+          List.fold_right
+            (fun rv acc -> Result.get_ok (make_lam rv acc))
+            rec_vars with_handlers
+        in
+        List.fold_right
+          (fun av acc -> Result.get_ok (make_lam av acc))
+          arg_vars with_recs)
+      constructor_info
+  in
+  let type_inst = [ (make_vartype "r", return_type) ] in
+  let* typed_recursion_thm = inst_type type_inst recursion in
+  let* instantiated_thm = specs case_terms typed_recursion_thm in
+  new_specification func_name instantiated_thm
+
 let define_inductive tyname params (constructors : constructor_spec list) =
   let* () =
     match Hashtbl.find_opt the_type_constants tyname with
@@ -384,6 +458,10 @@ let define_inductive tyname params (constructors : constructor_spec list) =
 
   let* exhaustiveness = make_exhaustiveness_thm ty constructors in
 
+  let* match_function =
+    make_match_function tyname ty constructor_terms recursion
+  in
+
   let def =
     {
       ty;
@@ -393,6 +471,7 @@ let define_inductive tyname params (constructors : constructor_spec list) =
       distinct;
       injective;
       exhaustiveness;
+      match_function;
     }
   in
   Hashtbl.add the_inductives tyname def;
@@ -402,18 +481,6 @@ let pp_thm th = print_newline @@ print_endline @@ Printing.pretty_print_thm th
 
 let pp_term trm =
   print_newline @@ print_endline @@ Printing.pretty_print_hol_term trm
-
-let new_specification name ex_thm =
-  let concl_tm = concl ex_thm in
-  let* exists_var, body = destruct_exists concl_tm in
-  let var_type = type_of_var exists_var in
-  let* () = new_constant name var_type in
-  let new_const = Const (name, var_type) in
-  let* defining_property = vsubst [ (new_const, exists_var) ] body in
-  let* thm = new_axiom defining_property in
-  Hashtbl.add the_specifications name thm;
-  Rules.add_def name thm;
-  Ok thm
 
 (* Extract the inductive type being recursed on from branch terms *)
 let rec find_inductive_type_in_term = function

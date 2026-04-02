@@ -248,3 +248,11 @@ let print_error = function
 let unwrap_term = function
   | Ok (t : term) -> t
   | Error e -> failwith (print_error e)
+
+let unwrap_type = function
+  | Ok (t : hol_type) -> t
+  | Error e -> failwith (print_error e)
+
+let unwrap_thm = function
+  | Ok (t : thm) -> t
+  | Error e -> failwith (print_error e)
