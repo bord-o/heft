@@ -1934,7 +1934,7 @@ let%expect_test "div unfold" =
     >> with_first (with_assumptions rewrite_tac)
     >> with_first (with_definition [ "match_option" ] rewrite_tac)
     >> beta_tac
-    >> with_first (with_definition [ "option_match" ] rewrite_tac)
+    >> with_first (with_definition [ "match_option" ] rewrite_tac)
     >> beta_tac
     >> with_arbitrary_term
          [%term
@@ -2006,13 +2006,7 @@ let%expect_test "merge test" =
       (with_repeat
          (with_first
             (with_definition
-               [
-                 "list_match";
-                 "nat_lt";
-                 "nat_match";
-                 "match_nat";
-                 "option_match";
-               ]
+               [ "match_list"; "match_option"; "nat_lt"; "match_nat" ]
                rewrite_tac)))
     >> try_ (with_repeat beta_tac)
     >> try_
@@ -2115,7 +2109,7 @@ let%expect_test "merge fuel irrel" =
     ∀x. ∀additional. ∀xs. ∀ys. ∀x. merge_aux x xs ys = Some x ==> merge_aux (plus x additional) xs ys = Some x
 
     Proof Complete!
-    with fuel: 640
+    with fuel: 660
     |}]
 
 let%expect_test "merge fuel sufficient" =
@@ -2171,7 +2165,7 @@ let%expect_test "merge fuel sufficient" =
     ∀x. ∀xs. ∀ys. nat_lt (plus (length xs) (length ys)) x ==> ∃x. merge_aux x xs ys = Some x
 
     Proof Complete!
-    with fuel: 404
+    with fuel: 424
     |}]
 
 (*
@@ -2179,7 +2173,7 @@ what we want
     def merge : list nat -> list nat -> list nat
         | Nil => λys. ys
         | Cons h t =>
-            list_match ys
+            match_list ys
                 (Cons h t)
                 (λy'. λys'. 
                     COND (nat_lt h 'y)
@@ -2193,8 +2187,8 @@ let%expect_test "merge unfolding lemma" =
       [%term
         forall (fun (xs : nat list) (ys : nat list) ->
             merge xs ys
-            = list_match xs ys (fun (h : nat) (t : nat list) ->
-                list_match ys
+            = match_list xs ys (fun (h : nat) (t : nat list) ->
+                match_list ys
                   (Cons (h, t))
                   (fun (y' : nat) (ys' : nat list) ->
                     if nat_lt h y' then Cons (h, merge t (Cons (y', ys')))
@@ -2270,10 +2264,10 @@ let%expect_test "merge unfolding lemma" =
   [%expect
     {|
     ========================================
-    ∀xs. ∀ys. merge xs ys = list_match xs ys (λh. λt. list_match ys (Cons h t) (λy'. λys'. COND (nat_lt h y') (Cons h (merge t (Cons y' ys'))) (Cons y' (merge (Cons h t) ys'))))
+    ∀xs. ∀ys. merge xs ys = match_list xs ys (λh. λt. match_list ys (Cons h t) (λy'. λys'. COND (nat_lt h y') (Cons h (merge t (Cons y' ys'))) (Cons y' (merge (Cons h t) ys'))))
 
     Proof Complete!
-    with fuel: 1197
+    with fuel: 1212
     |}]
 
 (* sort [3,1,2] = [1,2,3] *)
@@ -2351,7 +2345,7 @@ let%expect_test "length take" =
     >> with_repeat
          (with_first (with_definition [ "take"; "length" ] rewrite_tac))
     >> beta_tac
-    >> with_repeat (with_first (with_definition [ "list_match" ] rewrite_tac))
+    >> with_repeat (with_first (with_definition [ "match_list" ] rewrite_tac))
     >> beta_tac
     >> with_first (with_definition [ "length" ] rewrite_tac)
     >> spec_asm_tac n1
@@ -2367,7 +2361,7 @@ let%expect_test "length take" =
     >> with_repeat
          (with_first (with_definition [ "take"; "length" ] rewrite_tac))
     >> beta_tac
-    >> with_repeat (with_first (with_definition [ "list_match" ] rewrite_tac))
+    >> with_repeat (with_first (with_definition [ "match_list" ] rewrite_tac))
     >> beta_tac
     >> with_first (with_definition [ "length" ] rewrite_tac)
     >> spec_asm_tac n1

@@ -941,13 +941,7 @@ let translate_primrec ~(loc : location) ~(path : label)
               (fun (_, _, _, _, rv, r_ident) -> (r_ident, Prebuilt rv))
               pv_data
           @ List.map
-              (fun (name, ct, _, ty_v, _pv) ->
-                let tyname =
-                  match ct.ptyp_desc with
-                  | Ptyp_constr ({ txt = Lident tn; _ }, _) -> Some tn
-                  | _ -> None
-                in
-                (name, Runtime (ty_v, tyname)))
+              (fun (name, ct, _, _ty_v, _pv) -> (name, Annotated ct))
               nrp_data
         in
         (* Translate preprocessed body *)

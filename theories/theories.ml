@@ -186,27 +186,6 @@ module OptionTheory = struct
   let%def default (opt : 'a option) (value : 'a) : 'a =
     match opt with None -> value | Some v' -> v'
 
-  let prg =
-    {|
-
-    vartype a
-
-    vartype b
-    variable none_case : b
-    variable some_case : a -> b
-
-    def option_match : option a -> b -> (a -> b) -> b
-        | None => λnone_case. λsome_case. none_case
-        | Some x => λnone_case. λsome_case. some_case x
-
-    variable x y : a
-  |}
-
-  let _ =
-    match Elaborator.elaborate_string prg with
-    | Ok v -> v
-    | Error e -> failwith @@ Printing.print_error e
-
   let option_def = Hashtbl.find the_inductives "option"
 end
 
@@ -268,29 +247,8 @@ module NatTheory = struct
           | None -> None
           | Some r -> Some (Suc r))
 
-  let prg =
-    {|
-    vartype a
-    variable o m n : nat
-
-    variable z : a
-    variable s : nat -> a
-
-    variable k : nat
-
-    variable a b r : nat
-
-
-    variable x : nat
-    def div : nat -> nat -> nat
-        | a => λb.
-            option_match (div_aux (Suc a) a b) Zero (λx. x)
-  |}
-
-  let _ =
-    match Elaborator.elaborate_string prg with
-    | Ok v -> v
-    | Error e -> failwith @@ Printing.print_error e
+  let%def div (a : nat) (b : nat) : nat =
+    match (div_aux (Suc a) a b : nat option) with None -> Zero | Some x -> x
 
   let nat_ty = make_type "nat" [] |> Result.get_ok
   let nat_def = Hashtbl.find the_inductives "nat"
@@ -336,125 +294,100 @@ module ListTheory = struct
 
   [%%inductive type 'a list = Nil | Cons of 'a * 'a list]
 
-  let prg =
-    {|
-    vartype a
+  let%primrec length (l : 'a list) : nat =
+    match l with Nil -> Zero | Cons (x, xs) -> Suc (length xs)
 
-    variable l l' xs : list a
-    variable x : a
+  let _ = length
 
-    def length : list a -> nat 
-        | Nil => Zero
-        | Cons x xs =>
-            Suc (length xs)
+  let%primrec append (xs : 'a list) (ys : 'a list) : 'a list =
+    match xs with Nil -> ys | Cons (z, zs) -> Cons (z, append zs ys)
 
-    def append : list a -> list a -> list a
-        | Nil => λxs. xs
-        | Cons x xs =>
-            λl'. Cons x (append xs l')
+  let _ = append
 
-    def reverse  : list a -> list a
-        | Nil => Nil
-        | Cons x xs => append (reverse xs) (Cons x Nil)
+  let%primrec reverse (l : 'a list) : 'a list =
+    match l with
+    | Nil -> Nil
+    | Cons (x, xs) -> append (reverse xs) (Cons (x, Nil))
 
-    variable n : nat
-    def insert : list nat -> nat -> list nat
-        | Nil => λn. Cons n Nil
-        | Cons x xs => λn. (COND (nat_le x n) (Cons x (insert xs n)) (Cons n (Cons x xs)))
+  let _ = reverse
 
-    variable h : nat
-    variable t : list nat
-    def isort : list nat -> list nat
-        | Nil => Nil
-        | Cons h t => insert (isort t) h
+  let%primrec insert (l : nat list) (n : nat) : nat list =
+    match l with
+    | Nil -> Cons (n, Nil)
+    | Cons (x, xs) ->
+        if nat_le x n then Cons (x, insert xs n) else Cons (n, Cons (x, xs))
 
-    vartype b
-    variable nil_case : b
-    variable cons_case : a -> list a -> b
-    def list_match: list a -> b -> (a -> list a -> b) -> b
-        | Nil => λnil_case. λcons_case. nil_case
-        | Cons x xs => λnil_case. λcons_case. cons_case x xs
+  let%primrec isort (l : nat list) : nat list =
+    match l with Nil -> Nil | Cons (x, xs) -> insert (isort xs) x
 
-    variable xs' : list nat
-    variable x' : nat
-    def sorted : list nat -> bool
-        | Nil => T 
-        | Cons h t => 
-            (∧
-                (list_match t T (λx'. λxs'. (nat_le h x')))
-                (sorted t))
+  let%primrec sorted (l : nat list) : bool =
+    match l with
+    | Nil -> true
+    | Cons (x, xs) ->
+        (match (xs : nat list) with Nil -> true | Cons (y, ys) -> nat_le x y)
+        && sorted xs
 
-    variable n y' : nat
-    variable xs ys ys' zs : list nat
+  let%primrec take (n : nat) (l : nat list) : nat list =
+    match n with
+    | Zero -> Nil
+    | Suc n' -> (
+        match l with Nil -> Nil | Cons (x, xs) -> Cons (x, take n' xs))
 
-    def merge_aux : nat -> list nat -> list nat -> option (list nat)
-      | Zero => λxs. λys. None
-      | Suc n => λxs. λys.
-        list_match xs
-            (Some ys)
-            (λh. λt.
-                (list_match ys
-                    (Some (Cons h t))
-                    (λy'. λys'.
-                        COND (nat_lt h y')
-                            (option_match (merge_aux n t (Cons y' ys'))
-                                    (None)
-                                    (λzs. Some (Cons h zs)))
-                            (option_match (merge_aux n (Cons h t) ys')
-                                    (None)
-                                    (λzs. Some (Cons y' zs))))))
+  let%primrec drop (n : nat) (l : nat list) : nat list =
+    match n with
+    | Zero -> l
+    | Suc n' -> ( match l with Nil -> Nil | Cons (x, xs) -> drop n' xs)
 
-    def merge : list nat -> list nat -> list nat
-        | xs =>
-            λys. 
-                option_match (merge_aux (Suc (plus (length xs) (length ys))) xs ys)
-                    Nil 
-                    (λzs. zs)
+  let%primrec merge_aux (fuel : nat) (xs : nat list) (ys : nat list) :
+      nat list option =
+    match fuel with
+    | Zero -> None
+    | Suc left -> (
+        match xs with
+        | None -> Some ys
+        | Cons (h, t) -> (
+            match ys with
+            | Nil -> Some (Cons (h, t))
+            | Cons (y', ys') -> (
+                if nat_lt h y' then
+                  match (merge_aux left t ys : nat list option) with
+                  | None -> None
+                  | Some zs -> Some (Cons (h, zs))
+                else
+                  match (merge_aux left xs ys' : nat list option) with
+                  | None -> None
+                  | Some zs -> Some (Cons (y', zs)))))
 
-    def take : nat -> list nat -> list nat
-        | Zero => λxs. Nil
-        | Suc n => λxs.
-            list_match xs
-                (Nil)
-                (λh. λt. Cons h (take n t))
+  let%def merge (xs : nat list) (ys : nat list) : nat list =
+    match
+      (merge_aux (Suc (plus (length xs) (length ys))) xs ys : nat list option)
+    with
+    | None -> Nil
+    | Some z -> z
 
-    def drop : nat -> list nat -> list nat
-        | Zero => λxs. xs
-        | Suc n => λxs.
-            list_match xs
-                (Nil)
-                (λh. λt. drop n t)
-    
-    variable half_length n : nat
-    variable left right : list nat
+  let%primrec merge_sort_aux (fuel : nat) (xs : nat list) : nat list option =
+    match fuel with
+    | Zero -> None
+    | Suc left ->
+        if nat_le (length xs) 1n then Some xs
+        else
+          (fun (half_length : nat) ->
+            match
+              (merge_sort_aux left (take half_length xs) : nat list option)
+            with
+            | None -> None
+            | Some left -> (
+                match
+                  (merge_sort_aux left (drop half_length xs) : nat list option)
+                with
+                | None -> None
+                | Some right -> Some (merge left right)))
+            (div (length xs) 2n)
 
-    def merge_sort_aux : nat -> list nat -> option (list nat)
-        | Zero => λxs. None
-        | Suc n => λxs.
-            COND (nat_le (length xs) (Suc Zero))
-                (Some xs)
-                ((λhalf_length.
-                    option_match (merge_sort_aux n (take half_length xs))
-                        (None)
-                        (λleft.
-                            option_match (merge_sort_aux n (drop half_length xs))
-                                (None)
-                                (λright. Some (merge left right))
-                        )
-                ) (div (length xs) (Suc (Suc Zero))))
-
-    def merge_sort : list nat -> list nat
-        | xs => 
-            option_match (merge_sort_aux (Suc (length xs)) xs)
-                Nil
-                (λzs. zs)
-
-    |}
-
-  let _ =
-    match Elaborator.elaborate_string prg with
-    | Ok v -> v
-    | Error e -> failwith @@ Printing.print_error e
+  let%def merge_sort (xs : nat list) : nat list =
+    match (merge_sort_aux (Suc (length xs)) xs : nat list option) with
+    | None -> Nil
+    | Some z -> z
 
   let list_def = Hashtbl.find the_inductives "list"
   let nil = make_const "Nil" [] |> Result.get_ok
