@@ -245,6 +245,10 @@ let print_error = function
       Printf.sprintf "NoRewriteMatch: rule %s does not match %s" (fmt_thm rule)
         (fmt_term tm)
 
+let rec leaf_type = function
+  | TyCon ("fun", [ _; rest ]) -> leaf_type rest
+  | ty -> ty
+
 let constructor_arg_types ?(tysub = []) name =
   match get_const_term_type name with
   | Some ty ->

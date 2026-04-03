@@ -1932,7 +1932,7 @@ let%expect_test "div unfold" =
     >> with_first assumption_tac >> with_first assumption_tac
     >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
-    >> with_first (with_definition [ "option_match" ] rewrite_tac)
+    >> with_first (with_definition [ "match_option" ] rewrite_tac)
     >> beta_tac
     >> with_first (with_definition [ "option_match" ] rewrite_tac)
     >> beta_tac

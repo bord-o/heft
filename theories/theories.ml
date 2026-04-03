@@ -246,27 +246,27 @@ module NatTheory = struct
   let%primrec nat_le (n : nat) (m : nat) : bool =
     match n with
     | Zero -> true
-    | Suc n' -> ( match (m : nat) with Zero -> false | Suc k -> nat_le n' k)
+    | Suc n' -> ( match m with Zero -> false | Suc k -> nat_le n' k)
 
   let%primrec nat_lt (n : nat) (m : nat) : bool =
     match n with
-    | Zero -> ( match (m : nat) with Zero -> false | Suc k -> true)
-    | Suc n' -> ( match (m : nat) with Zero -> false | Suc k -> nat_lt n' k)
+    | Zero -> ( match m with Zero -> false | Suc k -> true)
+    | Suc n' -> ( match m with Zero -> false | Suc k -> nat_lt n' k)
 
   let%primrec sub (n : nat) (m : nat) : nat =
     match n with
     | Zero -> Zero
-    | Suc n' -> ( match (m : nat) with Zero -> Suc n' | Suc k -> sub n' k)
+    | Suc n' -> ( match m with Zero -> Suc n' | Suc k -> sub n' k)
 
-  (* let%primrec div_aux (fuel : nat) (a : nat) (b : nat) : nat option = *)
-  (*   match fuel with *)
-  (*   | Zero -> None *)
-  (*   | Suc left -> ( *)
-  (*       if nat_lt a b then Some Zero *)
-  (*       else *)
-  (*         match (div_aux left (sub a b) b : nat option) with *)
-  (*         | None -> None *)
-  (*         | Some r -> Some (Suc r)) *)
+  let%primrec div_aux (fuel : nat) (a : nat) (b : nat) : nat option =
+    match fuel with
+    | Zero -> None
+    | Suc left -> (
+        if nat_lt a b then Some Zero
+        else
+          match (div_aux left (sub a b) b : nat option) with
+          | None -> None
+          | Some r -> Some (Suc r))
 
   let prg =
     {|
@@ -280,14 +280,6 @@ module NatTheory = struct
 
     variable a b r : nat
 
-    def div_aux : nat -> nat -> nat -> option nat
-        | Zero => λa. λb. None
-        | Suc n => λa. λb.
-            COND (nat_lt a b)
-                 (Some Zero)
-                 (option_match (div_aux n (sub a b) b)
-                    None
-                    (λr. Some (Suc r)))
 
     variable x : nat
     def div : nat -> nat -> nat

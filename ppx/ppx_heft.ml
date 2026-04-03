@@ -85,6 +85,28 @@ let extract_pat_binding pat =
       Location.raise_errorf ~loc:pat.ppat_loc
         "parameter must have a type annotation: (x : ty)"
 
+let rec translate_type_raw ~loc ct =
+  let (module A) = Ast_builder.make loc in
+  match ct.ptyp_desc with
+  | Ptyp_constr ({ txt = Lident name; _ }, []) ->
+      A.pexp_construct
+        { txt = Lident "TyCon"; loc }
+        (Some (A.pexp_tuple [ A.estring name; A.elist [] ]))
+  | Ptyp_constr ({ txt = Lident name; _ }, args) ->
+      let arg_exprs = List.map (translate_type_raw ~loc) args in
+      A.pexp_construct
+        { txt = Lident "TyCon"; loc }
+        (Some (A.pexp_tuple [ A.estring name; A.elist arg_exprs ]))
+  | Ptyp_arrow (_, l, r) ->
+      let le = translate_type_raw ~loc l in
+      let re = translate_type_raw ~loc r in
+      A.pexp_construct
+        { txt = Lident "TyCon"; loc }
+        (Some (A.pexp_tuple [ A.estring "fun"; A.elist [ le; re ] ]))
+  | Ptyp_var name ->
+      A.pexp_construct { txt = Lident "TyVar"; loc } (Some (A.estring name))
+  | _ -> Location.raise_errorf ~loc:ct.ptyp_loc "unsupported type in [%%%%term]"
+
 let rec translate_expr ~loc ~env (input : expression) =
   let (module A) = Ast_builder.make loc in
   match input.pexp_desc with
@@ -95,6 +117,9 @@ let rec translate_expr ~loc ~env (input : expression) =
       mk_bind ~loc ty_expr ty_var
         (A.eapply (A.evar "Result.ok")
            [ A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ] ])
+  (* General type annotation on arbitrary expression: (expr : ty) *)
+  | Pexp_constraint (inner_expr, _core_type) ->
+      translate_expr ~loc ~env inner_expr
   (* Bare identifier → check env for variable, otherwise HOL constant *)
   | Pexp_ident { txt = Lident name; _ } -> (
       match List.assoc_opt name env with
@@ -330,34 +355,71 @@ and translate_binary_pure ~loc ~env ~fn lhs rhs =
 
 and translate_match ~loc ~env scrutinee cases =
   let (module A) = Ast_builder.make loc in
-  let type_name = extract_match_type_name ~loc ~env scrutinee in
+  let type_name, scr_ct_opt = extract_match_type_info ~loc ~env scrutinee in
   let match_fn_name = "match_" ^ type_name in
   let match_expr =
     A.eapply (A.evar "make_const") [ A.estring match_fn_name; A.elist [] ]
   in
   let scr_expr = translate_expr ~loc ~env scrutinee in
-  let handler_exprs = List.map (translate_match_case ~loc ~env) cases in
+  (* Compute tysub at runtime for polymorphic types *)
+  let tysub_var = fresh_id "mtsub" in
+  let tysub_expr =
+    match scr_ct_opt with
+    | Some ct ->
+        let scr_ty_expr = translate_type_raw ~loc ct in
+        A.pexp_match
+          (A.eapply
+             (A.evar "Heft.Rewrite.type_match")
+             [
+               A.elist [];
+               A.pexp_field
+                 (A.eapply (A.evar "Hashtbl.find")
+                    [ A.evar "Kernel.the_inductives"; A.estring type_name ])
+                 { txt = Lident "ty"; loc };
+               scr_ty_expr;
+             ])
+          [
+            A.case
+              ~lhs:
+                (A.ppat_construct
+                   { txt = Lident "Some"; loc }
+                   (Some (A.pvar "_msub")))
+              ~guard:None ~rhs:(A.evar "_msub");
+            A.case
+              ~lhs:(A.ppat_construct { txt = Lident "None"; loc } None)
+              ~guard:None ~rhs:(A.elist []);
+          ]
+    | None -> A.elist []
+  in
+  let handler_exprs =
+    List.map (translate_match_case ~loc ~env ~tysub_var) cases
+  in
   let all_args = scr_expr :: handler_exprs in
   let func_var = fresh_id "mfn" in
-  List.fold_left
-    (fun (acc_expr, acc_var) arg_expr ->
-      let arg_var = fresh_id "marg" in
-      let app_var = fresh_id "mapp" in
-      let expr =
-        mk_bind ~loc acc_expr acc_var
-          (mk_bind ~loc arg_expr arg_var
-             (A.eapply
-                (A.evar "Heft.Rewrite.smart_make_app")
-                [ A.evar acc_var; A.evar arg_var ]))
-      in
-      (expr, app_var))
-    (match_expr, func_var) all_args
-  |> fst
+  let app_chain =
+    List.fold_left
+      (fun (acc_expr, acc_var) arg_expr ->
+        let arg_var = fresh_id "marg" in
+        let app_var = fresh_id "mapp" in
+        let expr =
+          mk_bind ~loc acc_expr acc_var
+            (mk_bind ~loc arg_expr arg_var
+               (A.eapply
+                  (A.evar "Heft.Rewrite.smart_make_app")
+                  [ A.evar acc_var; A.evar arg_var ]))
+        in
+        (expr, app_var))
+      (match_expr, func_var) all_args
+    |> fst
+  in
+  A.pexp_let Nonrecursive
+    [ A.value_binding ~pat:(A.pvar tysub_var) ~expr:tysub_expr ]
+    app_chain
 
-and extract_match_type_name ~loc:_ ~env scrutinee =
+and extract_match_type_info ~loc:_ ~env scrutinee =
   let extract_from_core_type ct =
     match ct.ptyp_desc with
-    | Ptyp_constr ({ txt = Lident name; _ }, _) -> name
+    | Ptyp_constr ({ txt = Lident name; _ }, _) -> (name, Some ct)
     | _ ->
         Location.raise_errorf ~loc:ct.ptyp_loc
           "cannot determine inductive type from this type"
@@ -367,7 +429,7 @@ and extract_match_type_name ~loc:_ ~env scrutinee =
   | Pexp_ident { txt = Lident name; _ } -> (
       match List.assoc_opt name env with
       | Some (Annotated ct) -> extract_from_core_type ct
-      | Some (Runtime (_, Some tyname)) -> tyname
+      | Some (Runtime (_, Some tyname)) -> (tyname, None)
       | _ ->
           Location.raise_errorf ~loc:scrutinee.pexp_loc
             "match scrutinee type unknown; add a type annotation or use a \
@@ -376,7 +438,7 @@ and extract_match_type_name ~loc:_ ~env scrutinee =
       Location.raise_errorf ~loc:scrutinee.pexp_loc
         "match scrutinee must have a type annotation or be a bound variable"
 
-and translate_match_case ~loc ~env case =
+and translate_match_case ~loc ~env ~tysub_var case =
   let (module A) = Ast_builder.make loc in
   match case.pc_lhs.ppat_desc with
   | Ppat_construct ({ txt = Lident _con_name; _ }, None) ->
@@ -442,9 +504,18 @@ and translate_match_case ~loc ~env case =
           [
             A.value_binding ~pat:(A.pvar atys_var)
               ~expr:
-                (A.eapply
-                   (A.evar "Heft.Printing.constructor_arg_types")
-                   [ A.estring con_name ]);
+                {
+                  pexp_desc =
+                    Pexp_apply
+                      ( A.evar "Heft.Printing.constructor_arg_types",
+                        [
+                          (Labelled "tysub", A.evar tysub_var);
+                          (Nolabel, A.estring con_name);
+                        ] );
+                  pexp_loc = loc;
+                  pexp_loc_stack = [];
+                  pexp_attributes = [];
+                };
           ]
           with_tys
   | _ ->
@@ -466,30 +537,6 @@ let translate ~(loc : location) ~(path : label) (input : expression) =
   let _ = path in
   let inner = translate_expr ~loc ~env:[] input in
   A.eapply (A.evar "Heft.Printing.unwrap_term") [ inner ]
-
-let rec translate_type_raw ~loc ct =
-  let (module A) = Ast_builder.make loc in
-  match ct.ptyp_desc with
-  | Ptyp_constr ({ txt = Lident name; _ }, []) ->
-      A.pexp_construct
-        { txt = Lident "TyCon"; loc }
-        (Some (A.pexp_tuple [ A.estring name; A.elist [] ]))
-  | Ptyp_constr ({ txt = Lident name; _ }, args) ->
-      let arg_exprs = List.map (translate_type_raw ~loc) args in
-      A.pexp_construct
-        { txt = Lident "TyCon"; loc }
-        (Some (A.pexp_tuple [ A.estring name; A.elist arg_exprs ]))
-  | Ptyp_arrow (_, l, r) ->
-      let le = translate_type_raw ~loc l in
-      let re = translate_type_raw ~loc r in
-      A.pexp_construct
-        { txt = Lident "TyCon"; loc }
-        (Some (A.pexp_tuple [ A.estring "fun"; A.elist [ le; re ] ]))
-  | Ptyp_var name ->
-      A.pexp_construct { txt = Lident "TyVar"; loc } (Some (A.estring name))
-  | _ ->
-      Location.raise_errorf ~loc:ct.ptyp_loc
-        "unsupported type in [%%%%inductive]"
 
 let translate_inductive ~(loc : location) ~(path : label)
     (payload : structure_item list) =
@@ -752,6 +799,8 @@ let rec replace_rec_calls fn_name rec_map expr =
           Pexp_match
             (go scr, List.map (fun c -> { c with pc_rhs = go c.pc_rhs }) cases);
       }
+  | Pexp_constraint (inner, ct) ->
+      { expr with pexp_desc = Pexp_constraint (go inner, ct) }
   | Pexp_function (params, constr, Pfunction_body body) ->
       {
         expr with
@@ -825,8 +874,8 @@ let translate_primrec ~(loc : location) ~(path : label)
       "[%%%%primrec] recursion on non-first parameter not yet supported";
   let _scr_ct = snd (List.nth param_bindings 0) in
   let non_rec_params = List.filteri (fun i _ -> i <> 0) param_bindings in
-  let ind_type_name =
-    extract_match_type_name ~loc:scrutinee.pexp_loc
+  let ind_type_name, _ =
+    extract_match_type_info ~loc:scrutinee.pexp_loc
       ~env:(List.map (fun (n, ct) -> (n, Annotated ct)) param_bindings)
       scrutinee
   in
@@ -891,7 +940,15 @@ let translate_primrec ~(loc : location) ~(path : label)
           @ List.map
               (fun (_, _, _, _, rv, r_ident) -> (r_ident, Prebuilt rv))
               pv_data
-          @ List.map (fun (name, _, _, _, pv) -> (name, Prebuilt pv)) nrp_data
+          @ List.map
+              (fun (name, ct, _, ty_v, _pv) ->
+                let tyname =
+                  match ct.ptyp_desc with
+                  | Ptyp_constr ({ txt = Lident tn; _ }, _) -> Some tn
+                  | _ -> None
+                in
+                (name, Runtime (ty_v, tyname)))
+              nrp_data
         in
         (* Translate preprocessed body *)
         let body_expr = translate_expr ~loc ~env preprocessed_body in
@@ -901,44 +958,108 @@ let translate_primrec ~(loc : location) ~(path : label)
         let ret_ty_v = fresh_id "retty" in
         let atys_v = fresh_id "pratys" in
         (* Build the case term construction *)
+        (* Instantiate type variables in body (e.g., None : a option → None : nat option) *)
+        let body_inst_v = fresh_id "prbinst" in
+        let body_inst_expr =
+          A.pexp_match
+            (A.eapply (A.evar "Kernel.type_of_term") [ A.evar body_v ])
+            [
+              A.case
+                ~lhs:
+                  (A.ppat_construct { txt = Lident "Ok"; loc }
+                     (Some (A.pvar "_bty")))
+                ~guard:None
+                ~rhs:
+                  (A.pexp_let Nonrecursive
+                     [
+                       A.value_binding ~pat:(A.pvar "_leaf")
+                         ~expr:
+                           (A.eapply
+                              (A.evar "Heft.Printing.leaf_type")
+                              [ A.evar "_bty" ]);
+                     ]
+                     (A.pexp_match
+                        (A.eapply
+                           (A.evar "Heft.Rewrite.type_match")
+                           [
+                             A.elist [];
+                             A.evar "_leaf";
+                             A.eapply
+                               (A.evar "Heft.Printing.leaf_type")
+                               [ A.evar ret_ty_v ];
+                           ])
+                        [
+                          A.case
+                            ~lhs:
+                              (A.ppat_construct
+                                 { txt = Lident "Some"; loc }
+                                 (Some (A.pvar "_bsub")))
+                            ~guard:None
+                            ~rhs:
+                              (A.eapply
+                                 (A.evar "Heft.Rewrite.term_type_subst")
+                                 [ A.evar "_bsub"; A.evar body_v ]);
+                          A.case
+                            ~lhs:
+                              (A.ppat_construct
+                                 { txt = Lident "None"; loc }
+                                 None)
+                            ~guard:None ~rhs:(A.evar body_v);
+                        ]));
+              A.case
+                ~lhs:
+                  (A.ppat_construct
+                     { txt = Lident "Error"; loc }
+                     (Some (A.pvar "_")))
+                ~guard:None ~rhs:(A.evar body_v);
+            ]
+        in
         let inner =
           mk_bind ~loc body_expr body_v
-            (A.eapply (A.evar "Result.ok")
+            (A.pexp_let Nonrecursive
                [
-                 A.eapply
-                   (A.evar "Heft.Printing.wrap_case_lambdas")
-                   [
-                     A.elist
-                       (List.map (fun (_, _, _, pv, _, _) -> A.evar pv) pv_data);
-                     A.eapply (A.evar "List.map")
-                       [
-                         A.evar "snd";
-                         {
-                           pexp_desc =
-                             Pexp_apply
-                               ( A.evar "Heft.Printing.primrec_rec_info",
-                                 [
-                                   (Labelled "tysub", A.evar tysub_v);
-                                   (Nolabel, A.estring con_name);
-                                   (Nolabel, A.evar ind_ty_v);
-                                   (Nolabel, A.evar ret_ty_v);
-                                   ( Nolabel,
-                                     A.elist
-                                       (List.map
-                                          (fun (name, _, _, _, _, _) ->
-                                            A.estring name)
-                                          pv_data) );
-                                 ] );
-                           pexp_loc = loc;
-                           pexp_loc_stack = [];
-                           pexp_attributes = [];
-                         };
-                       ];
-                     A.elist
-                       (List.map (fun (_, _, _, _, pv) -> A.evar pv) nrp_data);
-                     A.evar body_v;
-                   ];
-               ])
+                 A.value_binding ~pat:(A.pvar body_inst_v) ~expr:body_inst_expr;
+               ]
+               (A.eapply (A.evar "Result.ok")
+                  [
+                    A.eapply
+                      (A.evar "Heft.Printing.wrap_case_lambdas")
+                      [
+                        A.elist
+                          (List.map
+                             (fun (_, _, _, pv, _, _) -> A.evar pv)
+                             pv_data);
+                        A.eapply (A.evar "List.map")
+                          [
+                            A.evar "snd";
+                            {
+                              pexp_desc =
+                                Pexp_apply
+                                  ( A.evar "Heft.Printing.primrec_rec_info",
+                                    [
+                                      (Labelled "tysub", A.evar tysub_v);
+                                      (Nolabel, A.estring con_name);
+                                      (Nolabel, A.evar ind_ty_v);
+                                      (Nolabel, A.evar ret_ty_v);
+                                      ( Nolabel,
+                                        A.elist
+                                          (List.map
+                                             (fun (name, _, _, _, _, _) ->
+                                               A.estring name)
+                                             pv_data) );
+                                    ] );
+                              pexp_loc = loc;
+                              pexp_loc_stack = [];
+                              pexp_attributes = [];
+                            };
+                          ];
+                        A.elist
+                          (List.map
+                             (fun (_, _, _, _, pv) -> A.evar pv)
+                             nrp_data);
+                        A.evar body_inst_v;
+                      ];
+                  ]))
         in
         (* Wrap with r var creation *)
         let with_rvs =
