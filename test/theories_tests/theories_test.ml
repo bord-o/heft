@@ -2006,7 +2006,13 @@ let%expect_test "merge test" =
       (with_repeat
          (with_first
             (with_definition
-               [ "list_match"; "nat_lt"; "nat_match"; "option_match" ]
+               [
+                 "list_match";
+                 "nat_lt";
+                 "nat_match";
+                 "match_nat";
+                 "option_match";
+               ]
                rewrite_tac)))
     >> try_ (with_repeat beta_tac)
     >> try_
@@ -2502,7 +2508,7 @@ let%expect_test "div pos and lt" =
          (with_nth_term 0 (with_definition [ "nat_lt" ] rewrite_asm_tac))
     >> beta_asm_tac
     >> with_first
-         (with_nth_term 0 (with_definition [ "nat_match" ] rewrite_asm_tac))
+         (with_nth_term 0 (with_definition [ "match_nat" ] rewrite_asm_tac))
     >> try_ beta_asm_tac
     >> with_first
          (with_nth_term 0 (with_proven [ "cond_false" ] rewrite_asm_tac))

@@ -245,15 +245,34 @@ let print_error = function
       Printf.sprintf "NoRewriteMatch: rule %s does not match %s" (fmt_thm rule)
         (fmt_term tm)
 
-let constructor_arg_types name =
+let constructor_arg_types ?(tysub = []) name =
   match get_const_term_type name with
   | Some ty ->
       let rec get_args = function
         | TyCon ("fun", [ arg; rest ]) -> arg :: get_args rest
         | _ -> []
       in
-      get_args ty
+      let args = get_args ty in
+      if tysub = [] then args else List.map (type_substitution tysub) args
   | None -> failwith ("Unknown constructor: " ^ name)
+
+let primrec_rec_info ?(tysub = []) con_name ind_ty ret_ty pat_var_names =
+  let arg_tys = constructor_arg_types ~tysub con_name in
+  let combined = List.combine pat_var_names arg_tys in
+  List.filter_map
+    (fun (name, ty) ->
+      if ty = ind_ty then Some (name, make_var ("_r_" ^ name) ret_ty) else None)
+    combined
+
+let wrap_case_lambdas pat_vars r_var_terms non_rec_vars body =
+  let lam v acc =
+    match make_lam v acc with
+    | Ok l -> l
+    | Error _ -> failwith "wrap_case_lambdas"
+  in
+  let term = List.fold_right lam non_rec_vars body in
+  let term = List.fold_right lam r_var_terms term in
+  List.fold_right lam pat_vars term
 
 let unwrap_term = function
   | Ok (t : term) -> t

@@ -224,54 +224,61 @@ module NatTheory = struct
 
   let%def pred (n : nat) : nat = match n with Zero -> Zero | Suc m -> m
 
+  let%primrec plus (n : nat) (m : nat) : nat =
+    match n with Zero -> m | Suc n' -> Suc (plus n' m)
+
+  let _ = plus
+
+  let%primrec minus' (n : nat) (m : nat) : nat =
+    match n with Zero -> m | Suc n' -> pred (minus' n' m)
+
+  let%def minus (n : nat) : nat -> nat = (flip minus') n
+
+  let%primrec mult (n : nat) (m : nat) : nat =
+    match n with Zero -> Zero | Suc n' -> plus m (mult n' m)
+
+  let%primrec nat_match (n : nat) (zero_case : 'a) (suc_case : nat -> 'a) : 'a =
+    match n with Zero -> zero_case | Suc n' -> suc_case n'
+
+  let%def is_zero (n : nat) : bool =
+    match n with Zero -> true | Suc n' -> false
+
+  let%primrec nat_le (n : nat) (m : nat) : bool =
+    match n with
+    | Zero -> true
+    | Suc n' -> ( match (m : nat) with Zero -> false | Suc k -> nat_le n' k)
+
+  let%primrec nat_lt (n : nat) (m : nat) : bool =
+    match n with
+    | Zero -> ( match (m : nat) with Zero -> false | Suc k -> true)
+    | Suc n' -> ( match (m : nat) with Zero -> false | Suc k -> nat_lt n' k)
+
+  let%primrec sub (n : nat) (m : nat) : nat =
+    match n with
+    | Zero -> Zero
+    | Suc n' -> ( match (m : nat) with Zero -> Suc n' | Suc k -> sub n' k)
+
+  (* let%primrec div_aux (fuel : nat) (a : nat) (b : nat) : nat option = *)
+  (*   match fuel with *)
+  (*   | Zero -> None *)
+  (*   | Suc left -> ( *)
+  (*       if nat_lt a b then Some Zero *)
+  (*       else *)
+  (*         match (div_aux left (sub a b) b : nat option) with *)
+  (*         | None -> None *)
+  (*         | Some r -> Some (Suc r)) *)
+
   let prg =
     {|
     vartype a
-
-
     variable o m n : nat
 
-    def plus : nat -> nat -> nat 
-        | Zero => λn. n
-        | Suc m => λn. Suc (plus m n)
-
-    def minus' : nat -> nat -> nat
-        | Zero    => λm. m
-        | Suc n => λm. pred (minus' n m)
-
-    def minus : nat -> nat -> nat
-        | m => (flip minus') m
-
-    def mult : nat -> nat -> nat
-        | Zero => λn. Zero
-        | Suc n => λm. plus n (mult n m)
-    
-    def is_zero : nat -> bool
-        | Zero => T
-        | Suc n => F 
-        
     variable z : a
     variable s : nat -> a
 
-    def nat_match : nat -> a -> (nat -> a) -> a
-        | Zero => λz. λs. z
-        | Suc n => λz. λs. s n    
-
     variable k : nat
-    def nat_le : nat -> nat -> bool
-        | Zero => λn. T
-        | Suc m => λn. nat_match n F (λk. nat_le m k)
 
     variable a b r : nat
-
-    def nat_lt : nat -> nat -> bool
-        | Zero => λn. nat_match n F (λk. T)
-        | Suc m => λn. nat_match n F (λk. nat_lt m k)
-
-
-    def sub : nat -> nat -> nat
-        | Zero => λn. Zero
-        | Suc m => λn. nat_match n (Suc m) (λk. sub m k)
 
     def div_aux : nat -> nat -> nat -> option nat
         | Zero => λa. λb. None

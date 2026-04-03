@@ -773,3 +773,47 @@ let%expect_test "def: definition with match body" =
     ========================================
     apply_color = (λc. λr. λg. λb. match_color c r g b)
     |}]
+
+(* === Primrec definitions === *)
+
+let%primrec my_plus (n : nat) (m : nat) : nat =
+  match n with Zero -> m | Suc n' -> Suc (my_plus n' m)
+
+let%expect_test "primrec: my_plus defined" =
+  print_endline (Printing.pretty_print_thm my_plus);
+  [%expect
+    {|
+    ========================================
+    my_plus Zero = (λm. m) ∧ (∀x0. my_plus (Suc x0) = (λm. Suc (my_plus x0 m)))
+    |}]
+
+let%expect_test "primrec: my_plus usable in term" =
+  let t = [%term my_plus 2n 3n] in
+  print_endline (Printing.pretty_print_hol_term ~pretty:true t);
+  [%expect {| my_plus 2 3 |}]
+
+(* Non-recursive primrec: case analysis on color *)
+let%primrec color_to_nat (c : color) : nat =
+  match c with Red -> Zero | Green -> Suc Zero | Blue -> Suc (Suc Zero)
+
+let%expect_test "primrec: color_to_nat (non-recursive)" =
+  print_endline (Printing.pretty_print_thm color_to_nat);
+  [%expect
+    {|
+    ========================================
+    color_to_nat Red = Zero ∧ color_to_nat Green = Suc Zero ∧ color_to_nat Blue = Suc (Suc Zero)
+    |}]
+
+(* Tree size: polymorphic type with recursion *)
+let%primrec tree_size (t : nat tree) : nat =
+  match t with
+  | Leaf -> Zero
+  | Node (_, l, r) -> Suc (my_plus (tree_size l) (tree_size r))
+
+let%expect_test "primrec: tree_size (polymorphic, recursive)" =
+  print_endline (Printing.pretty_print_thm tree_size);
+  [%expect
+    {|
+    ========================================
+    tree_size Leaf = Zero ∧ (∀x0. ∀x1. ∀x2. tree_size (Node x0 x1 x2) = Suc (my_plus (tree_size x1) (tree_size x2)))
+    |}]

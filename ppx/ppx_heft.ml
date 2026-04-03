@@ -1,6 +1,9 @@
 open Ppxlib
 
-type var_info = Annotated of core_type | Runtime of string * string option
+type var_info =
+  | Annotated of core_type
+  | Runtime of string * string option
+  | Prebuilt of string
 
 let fresh_id =
   let counter = ref 0 in
@@ -105,6 +108,8 @@ let rec translate_expr ~loc ~env (input : expression) =
       | Some (Runtime (rt_var, _)) ->
           A.eapply (A.evar "Result.ok")
             [ A.eapply (A.evar "make_var") [ A.estring name; A.evar rt_var ] ]
+      | Some (Prebuilt ocaml_var) ->
+          A.eapply (A.evar "Result.ok") [ A.evar ocaml_var ]
       | None -> A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ])
   (* Lambda: fun (x : ty) (y : ty) -> body *)
   | Pexp_function _ -> (
@@ -680,6 +685,436 @@ let translate_def ~(loc : location) ~(path : label)
   A.pstr_value Nonrecursive
     [ A.value_binding ~pat:(A.pvar fn_name) ~expr:unwrapped ]
 
+(* Replace recursive calls in body AST: fn_name arg rest... → r_arg rest...
+   rec_map: (pattern_var_name, replacement_ident) list *)
+let rec replace_rec_calls fn_name rec_map expr =
+  let go = replace_rec_calls fn_name rec_map in
+  match expr.pexp_desc with
+  | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident fn; _ }; _ }, args)
+    when fn = fn_name -> (
+      match args with
+      | (_, { pexp_desc = Pexp_ident { txt = Lident arg_name; _ }; _ }) :: rest
+        -> (
+          match List.assoc_opt arg_name rec_map with
+          | Some r_name ->
+              let r_ident =
+                {
+                  expr with
+                  pexp_desc =
+                    Pexp_ident { txt = Lident r_name; loc = expr.pexp_loc };
+                }
+              in
+              if rest = [] then r_ident
+              else
+                {
+                  expr with
+                  pexp_desc =
+                    Pexp_apply (r_ident, List.map (fun (l, e) -> (l, go e)) rest);
+                }
+          | None ->
+              {
+                expr with
+                pexp_desc =
+                  Pexp_apply
+                    ( {
+                        expr with
+                        pexp_desc =
+                          Pexp_ident { txt = Lident fn; loc = expr.pexp_loc };
+                      },
+                      List.map (fun (l, e) -> (l, go e)) args );
+              })
+      | _ ->
+          {
+            expr with
+            pexp_desc =
+              Pexp_apply
+                ( {
+                    expr with
+                    pexp_desc =
+                      Pexp_ident { txt = Lident fn; loc = expr.pexp_loc };
+                  },
+                  List.map (fun (l, e) -> (l, go e)) args );
+          })
+  | Pexp_apply (f, args) ->
+      {
+        expr with
+        pexp_desc = Pexp_apply (go f, List.map (fun (l, e) -> (l, go e)) args);
+      }
+  | Pexp_construct (lid, Some arg) ->
+      { expr with pexp_desc = Pexp_construct (lid, Some (go arg)) }
+  | Pexp_tuple es -> { expr with pexp_desc = Pexp_tuple (List.map go es) }
+  | Pexp_ifthenelse (c, t, Some e) ->
+      { expr with pexp_desc = Pexp_ifthenelse (go c, go t, Some (go e)) }
+  | Pexp_match (scr, cases) ->
+      {
+        expr with
+        pexp_desc =
+          Pexp_match
+            (go scr, List.map (fun c -> { c with pc_rhs = go c.pc_rhs }) cases);
+      }
+  | Pexp_function (params, constr, Pfunction_body body) ->
+      {
+        expr with
+        pexp_desc = Pexp_function (params, constr, Pfunction_body (go body));
+      }
+  | _ -> expr
+
+let translate_primrec ~(loc : location) ~(path : label)
+    (payload : structure_item list) =
+  let (module A) = Ast_builder.make loc in
+  let _ = path in
+  let vb =
+    match payload with
+    | [ { pstr_desc = Pstr_value (Nonrecursive, [ vb ]); _ } ] -> vb
+    | _ ->
+        Location.raise_errorf ~loc "[%%%%primrec] expects a single let binding"
+  in
+  let fn_name =
+    match vb.pvb_pat.ppat_desc with
+    | Ppat_var { txt = name; _ } -> name
+    | _ ->
+        Location.raise_errorf ~loc:vb.pvb_pat.ppat_loc
+          "[%%%%primrec] expects a simple function name"
+  in
+  let params, ret_type_opt, match_body = extract_def_parts vb.pvb_expr in
+  let ret_type =
+    match ret_type_opt with
+    | Some ct -> ct
+    | None ->
+        Location.raise_errorf ~loc
+          "[%%%%primrec] requires a return type annotation"
+  in
+  if params = [] then
+    Location.raise_errorf ~loc "[%%%%primrec] requires at least one parameter";
+  let param_bindings =
+    List.map
+      (fun pat ->
+        match pat.ppat_desc with
+        | Ppat_constraint ({ ppat_desc = Ppat_var { txt = name; _ }; _ }, ct) ->
+            (name, ct)
+        | _ ->
+            Location.raise_errorf ~loc:pat.ppat_loc
+              "[%%%%primrec] parameters must be annotated: (x : ty)")
+      params
+  in
+  (* The body must be a match expression *)
+  let scrutinee, cases =
+    match match_body.pexp_desc with
+    | Pexp_match (scr, cases) -> (scr, cases)
+    | _ ->
+        Location.raise_errorf ~loc:match_body.pexp_loc
+          "[%%%%primrec] body must be a match expression"
+  in
+  (* The scrutinee must be a parameter (first param expected) *)
+  let scr_name =
+    match scrutinee.pexp_desc with
+    | Pexp_ident { txt = Lident name; _ } -> name
+    | _ ->
+        Location.raise_errorf ~loc:scrutinee.pexp_loc
+          "[%%%%primrec] match scrutinee must be a parameter name"
+  in
+  let scr_param_idx =
+    match List.find_index (fun (name, _) -> name = scr_name) param_bindings with
+    | Some i -> i
+    | None ->
+        Location.raise_errorf ~loc:scrutinee.pexp_loc
+          "[%%%%primrec] match scrutinee must be one of the parameters"
+  in
+  if scr_param_idx <> 0 then
+    Location.raise_errorf ~loc:scrutinee.pexp_loc
+      "[%%%%primrec] recursion on non-first parameter not yet supported";
+  let _scr_ct = snd (List.nth param_bindings 0) in
+  let non_rec_params = List.filteri (fun i _ -> i <> 0) param_bindings in
+  let ind_type_name =
+    extract_match_type_name ~loc:scrutinee.pexp_loc
+      ~env:(List.map (fun (n, ct) -> (n, Annotated ct)) param_bindings)
+      scrutinee
+  in
+  (* Build the inductive type expression (raw, for runtime comparison) *)
+  let ind_ty_expr = translate_type_raw ~loc _scr_ct in
+  (* Build the expanded return type: non_rec_param_types -> ret_type *)
+  let expanded_ret_type_expr =
+    List.fold_right
+      (fun (_, ct) acc ->
+        A.eapply (A.evar "make_fun_ty") [ translate_type_raw ~loc ct; acc ])
+      non_rec_params
+      (translate_type_raw ~loc ret_type)
+  in
+  (* Build the scrutinee type for tysub computation *)
+  let scr_type_expr = translate_type_raw ~loc _scr_ct in
+  (* Build non-rec param variables at runtime *)
+  let nrp_data =
+    List.mapi
+      (fun i (name, ct) ->
+        let ty_v = fresh_id "nrpty" in
+        let pv = fresh_id "nrpv" in
+        (name, ct, i, ty_v, pv))
+      non_rec_params
+  in
+  let tysub_v = fresh_id "tysub" in
+  (* For each case, build a case term expression *)
+  let case_exprs =
+    List.map
+      (fun case ->
+        let con_name, pat_vars =
+          match case.pc_lhs.ppat_desc with
+          | Ppat_construct ({ txt = Lident cn; _ }, None) -> (cn, [])
+          | Ppat_construct ({ txt = Lident cn; _ }, Some (_, pat_arg)) ->
+              (cn, extract_match_pattern_vars pat_arg)
+          | _ ->
+              Location.raise_errorf ~loc:case.pc_lhs.ppat_loc
+                "[%%%%primrec] unsupported pattern"
+        in
+        let n_pvars = List.length pat_vars in
+        (* Generate OCaml names for pattern var types, HOL vars, and r vars *)
+        let pv_data =
+          List.mapi
+            (fun i name ->
+              let pty = fresh_id "prpty" in
+              let pv = fresh_id "prpv" in
+              let rv = fresh_id "prrv" in
+              let r_ident = "_r_" ^ name in
+              (name, i, pty, pv, rv, r_ident))
+            pat_vars
+        in
+        (* Build rec_map for AST preprocessing: pat_var_name → r_ident *)
+        let rec_map =
+          List.map (fun (name, _, _, _, _, r_ident) -> (name, r_ident)) pv_data
+        in
+        (* Preprocess body to replace recursive calls *)
+        let preprocessed_body = replace_rec_calls fn_name rec_map case.pc_rhs in
+        (* Build env for body translation *)
+        let env =
+          List.map
+            (fun (name, _, pty, _, _, _) -> (name, Runtime (pty, None)))
+            pv_data
+          @ List.map
+              (fun (_, _, _, _, rv, r_ident) -> (r_ident, Prebuilt rv))
+              pv_data
+          @ List.map (fun (name, _, _, _, pv) -> (name, Prebuilt pv)) nrp_data
+        in
+        (* Translate preprocessed body *)
+        let body_expr = translate_expr ~loc ~env preprocessed_body in
+        let body_v = fresh_id "prbody" in
+        (* Generate runtime code *)
+        let ind_ty_v = fresh_id "indty" in
+        let ret_ty_v = fresh_id "retty" in
+        let atys_v = fresh_id "pratys" in
+        (* Build the case term construction *)
+        let inner =
+          mk_bind ~loc body_expr body_v
+            (A.eapply (A.evar "Result.ok")
+               [
+                 A.eapply
+                   (A.evar "Heft.Printing.wrap_case_lambdas")
+                   [
+                     A.elist
+                       (List.map (fun (_, _, _, pv, _, _) -> A.evar pv) pv_data);
+                     A.eapply (A.evar "List.map")
+                       [
+                         A.evar "snd";
+                         {
+                           pexp_desc =
+                             Pexp_apply
+                               ( A.evar "Heft.Printing.primrec_rec_info",
+                                 [
+                                   (Labelled "tysub", A.evar tysub_v);
+                                   (Nolabel, A.estring con_name);
+                                   (Nolabel, A.evar ind_ty_v);
+                                   (Nolabel, A.evar ret_ty_v);
+                                   ( Nolabel,
+                                     A.elist
+                                       (List.map
+                                          (fun (name, _, _, _, _, _) ->
+                                            A.estring name)
+                                          pv_data) );
+                                 ] );
+                           pexp_loc = loc;
+                           pexp_loc_stack = [];
+                           pexp_attributes = [];
+                         };
+                       ];
+                     A.elist
+                       (List.map (fun (_, _, _, _, pv) -> A.evar pv) nrp_data);
+                     A.evar body_v;
+                   ];
+               ])
+        in
+        (* Wrap with r var creation *)
+        let with_rvs =
+          if n_pvars = 0 then inner
+          else
+            A.pexp_let Nonrecursive
+              (List.map
+                 (fun (name, _, _, _, rv, _) ->
+                   A.value_binding ~pat:(A.pvar rv)
+                     ~expr:
+                       (A.eapply (A.evar "make_var")
+                          [ A.estring ("_r_" ^ name); A.evar ret_ty_v ]))
+                 pv_data)
+              inner
+        in
+        (* Wrap with pattern var creation *)
+        let with_pvs =
+          if n_pvars = 0 then with_rvs
+          else
+            A.pexp_let Nonrecursive
+              (List.map
+                 (fun (name, _, pty, pv, _, _) ->
+                   A.value_binding ~pat:(A.pvar pv)
+                     ~expr:
+                       (A.eapply (A.evar "make_var")
+                          [ A.estring name; A.evar pty ]))
+                 pv_data)
+              with_rvs
+        in
+        (* Wrap with type lookups *)
+        let with_tys =
+          if n_pvars = 0 then with_pvs
+          else
+            A.pexp_let Nonrecursive
+              (List.mapi
+                 (fun i (_, _, pty, _, _, _) ->
+                   A.value_binding ~pat:(A.pvar pty)
+                     ~expr:
+                       (A.eapply (A.evar "List.nth")
+                          [ A.evar atys_v; A.eint i ]))
+                 pv_data)
+              with_pvs
+        in
+        let with_atys =
+          if n_pvars = 0 then with_tys
+          else
+            A.pexp_let Nonrecursive
+              [
+                A.value_binding ~pat:(A.pvar atys_v)
+                  ~expr:
+                    {
+                      pexp_desc =
+                        Pexp_apply
+                          ( A.evar "Heft.Printing.constructor_arg_types",
+                            [
+                              (Labelled "tysub", A.evar tysub_v);
+                              (Nolabel, A.estring con_name);
+                            ] );
+                      pexp_loc = loc;
+                      pexp_loc_stack = [];
+                      pexp_attributes = [];
+                    };
+              ]
+              with_tys
+        in
+        (* Wrap with ret_ty and ind_ty *)
+        A.pexp_let Nonrecursive
+          [
+            A.value_binding ~pat:(A.pvar ind_ty_v) ~expr:ind_ty_expr;
+            A.value_binding ~pat:(A.pvar ret_ty_v) ~expr:expanded_ret_type_expr;
+          ]
+          with_atys)
+      cases
+  in
+  (* Unwrap each case term from Result *)
+  let case_vars =
+    List.mapi (fun i _ -> fresh_id (Printf.sprintf "case%d" i)) cases
+  in
+  (* nrp bindings are generated inline in the final expression *)
+  (* Build the define_recursive_function call *)
+  let ret_ty_outer = fresh_id "retty" in
+  let define_call =
+    A.eapply
+      (A.evar "Heft.Inductive.define_recursive_function")
+      [
+        A.pexp_construct { txt = Lident "~tysub"; loc } (Some (A.evar tysub_v));
+        A.estring fn_name;
+        A.evar ret_ty_outer;
+        A.estring ind_type_name;
+        A.elist (List.map A.evar case_vars);
+      ]
+  in
+  (* Hmm, labeled arguments don't work this way with eapply.
+     Let me use a different approach for the optional tysub arg *)
+  ignore define_call;
+  let define_call =
+    {
+      pexp_desc =
+        Pexp_apply
+          ( A.evar "Heft.Inductive.define_recursive_function",
+            [
+              (Labelled "tysub", A.evar tysub_v);
+              (Nolabel, A.estring fn_name);
+              (Nolabel, A.evar ret_ty_outer);
+              (Nolabel, A.estring ind_type_name);
+              (Nolabel, A.elist (List.map A.evar case_vars));
+            ] );
+      pexp_loc = loc;
+      pexp_loc_stack = [];
+      pexp_attributes = [];
+    }
+  in
+  (* Chain: non-rec param lets, then case term bindings, then define call *)
+  let case_chain =
+    List.fold_right
+      (fun (cv, ce) acc -> mk_bind ~loc ce cv acc)
+      (List.combine case_vars case_exprs)
+      define_call
+  in
+  (* Wrap nrp bindings sequentially (each pv depends on its ty_v) *)
+  let with_nrp =
+    List.fold_right
+      (fun (name, ct, _, ty_v, pv) acc ->
+        A.pexp_let Nonrecursive
+          [
+            A.value_binding ~pat:(A.pvar ty_v)
+              ~expr:(translate_type_raw ~loc ct);
+          ]
+          (A.pexp_let Nonrecursive
+             [
+               A.value_binding ~pat:(A.pvar pv)
+                 ~expr:
+                   (A.eapply (A.evar "make_var")
+                      [ A.estring name; A.evar ty_v ]);
+             ]
+             acc))
+      nrp_data case_chain
+  in
+  let inner =
+    A.pexp_let Nonrecursive
+      [
+        A.value_binding ~pat:(A.pvar tysub_v)
+          ~expr:
+            (A.pexp_match
+               (A.eapply
+                  (A.evar "Heft.Rewrite.type_match")
+                  [
+                    A.elist [];
+                    A.pexp_field
+                      (A.eapply (A.evar "Hashtbl.find")
+                         [
+                           A.evar "Kernel.the_inductives";
+                           A.estring ind_type_name;
+                         ])
+                      { txt = Lident "ty"; loc };
+                    scr_type_expr;
+                  ])
+               [
+                 A.case
+                   ~lhs:
+                     (A.ppat_construct
+                        { txt = Lident "Some"; loc }
+                        (Some (A.pvar "_sub")))
+                   ~guard:None ~rhs:(A.evar "_sub");
+                 A.case
+                   ~lhs:(A.ppat_construct { txt = Lident "None"; loc } None)
+                   ~guard:None ~rhs:(A.elist []);
+               ]);
+        A.value_binding ~pat:(A.pvar ret_ty_outer) ~expr:expanded_ret_type_expr;
+      ]
+      with_nrp
+  in
+  let unwrapped = A.eapply (A.evar "Heft.Printing.unwrap_thm") [ inner ] in
+  A.pstr_value Nonrecursive
+    [ A.value_binding ~pat:(A.pvar fn_name) ~expr:unwrapped ]
+
 let term_extension =
   Extension.declare "term" Extension.Context.expression
     Ast_pattern.(single_expr_payload __)
@@ -695,6 +1130,11 @@ let def_extension =
     Ast_pattern.(pstr __)
     translate_def
 
+let primrec_extension =
+  Extension.declare "primrec" Extension.Context.structure_item
+    Ast_pattern.(pstr __)
+    translate_primrec
+
 let () =
   Driver.register_transformation "heft_ppx"
     ~rules:
@@ -702,4 +1142,5 @@ let () =
         Context_free.Rule.extension term_extension;
         Context_free.Rule.extension inductive_extension;
         Context_free.Rule.extension def_extension;
+        Context_free.Rule.extension primrec_extension;
       ]
