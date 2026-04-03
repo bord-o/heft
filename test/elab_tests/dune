@@ -1,6 +1,0 @@
-(library
- (name elab_tests)
- (libraries heft)
- (inline_tests)
- (preprocess
-  (pps ppx_expect)))
