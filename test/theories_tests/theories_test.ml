@@ -406,7 +406,7 @@ let%expect_test "test defining with elab" =
     ∀x. ∀y. x = y ==> fst (Pair x y) = snd (Pair x y)
 
     Proof Complete!
-    with fuel: 48
+    with fuel: 58
     |}]
 
 let%expect_test "test minus" =
@@ -419,7 +419,7 @@ let%expect_test "test minus" =
     pred 3 = 2
 
     Proof Complete!
-    with fuel: 12
+    with fuel: 31
     |}]
 
 let%expect_test "test minus 2" =
@@ -432,7 +432,7 @@ let%expect_test "test minus 2" =
     minus 4 3 = 1
 
     Proof Complete!
-    with fuel: 66
+    with fuel: 102
     |}]
 
 let%expect_test "n - 0 = n" =
@@ -468,7 +468,7 @@ let%expect_test "minus Suc right" =
     ∀x. ∀m. minus x (Suc m) = pred (minus x m)
 
     Proof Complete!
-    with fuel: 178
+    with fuel: 208
     |}]
 
 (* (Suc n) - (Suc m) = n - m *)
@@ -492,7 +492,7 @@ let%expect_test "minus Suc Suc" =
     ∀n. ∀x. minus (Suc n) (Suc x) = minus n x
 
     Proof Complete!
-    with fuel: 81
+    with fuel: 93
     |}]
 
 let%expect_test "n - n = z" =
@@ -541,7 +541,7 @@ let%expect_test "pred twice" =
     twice pred (Suc (Suc Zero)) = Zero
 
     Proof Complete!
-    with fuel: 29
+    with fuel: 48
     |}]
 
 let%expect_test "flip f" =
@@ -717,7 +717,7 @@ let%expect_test "minus Zero left" =
     ∀x. minus Zero x = Zero
 
     Proof Complete!
-    with fuel: 127
+    with fuel: 139
     |}]
 
 let%expect_test "sub eq minus" =
@@ -787,7 +787,7 @@ let%expect_test "bool eq" =
     eqb T F = F
 
     Proof Complete!
-    with fuel: 36
+    with fuel: 34
     |}]
 
 let%expect_test "bool cases tac" =

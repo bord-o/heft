@@ -173,21 +173,18 @@ let select_eq =
   make_exn thm
 
 module BoolTheory = struct
-  let prg =
-    {|
-    variable a b : bool
-    def eqb : bool -> bool -> bool 
-        |  a => COND a (λb. COND b T F) (λb. COND b F T)
+  let%def eqb (a : bool) (b : bool) : bool =
+    if a then if b then true else false else if b then false else true
 
-    def andb : bool -> bool -> bool
-        | a => COND a (λb. COND b T F) (λb. COND b F F)
-  |}
-
-  let _ = Elaborator.goals_from_string prg
+  let%def andb (a : bool) (b : bool) : bool =
+    if a then if b then true else false else if b then false else false
 end
 
 module OptionTheory = struct
   [%%inductive type 'a option = None | Some of 'a]
+
+  let%def default (opt : 'a option) (value : 'a) : 'a =
+    match opt with None -> value | Some v' -> v'
 
   let prg =
     {|
@@ -203,9 +200,6 @@ module OptionTheory = struct
         | Some x => λnone_case. λsome_case. some_case x
 
     variable x y : a
-    def default : option a -> a -> a
-        | None => λx. x
-        | Some y => λx. y
   |}
 
   let _ =
@@ -217,38 +211,18 @@ module OptionTheory = struct
 end
 
 module FunctionTheory = struct
-  let prg =
-    {|
+  let%def twice (f : 'a -> 'a) (arg : 'a) : 'a = f (f arg)
+  let%def flip (f : 'a -> 'b -> 'c) (x : 'b) (y : 'a) : 'c = f y x
+  let%def const (value : 'a) : 'b -> 'a = fun (x : 'b) -> value
 
-    vartype a
-    vartype b
-    vartype c
-    variable x a : a
-    variable b : b
-    variable g : (c -> a)
-
-    def twice : (a -> a) -> a -> a
-        | f => λx. f (f x)
-
-    def flip : (a -> b -> c) -> b -> a -> c
-        | f => λb. λa. f a b
-
-    def const : a -> b -> a
-        | x => λb. x
-
-    def compose : (a -> b) -> (c -> a) -> c -> b 
-        | f => λg. λx. f (g x)
-
-  |}
-
-  let _ =
-    match Elaborator.elaborate_string prg with
-    | Ok v -> v
-    | Error e -> failwith @@ Printing.print_error e
+  let%def compose (f : 'a -> 'b) (g : 'c -> 'a) : 'c -> 'b =
+   fun (x : 'c) -> f (g x)
 end
 
 module NatTheory = struct
   [%%inductive type nat = Zero | Suc of nat]
+
+  let%def pred (n : nat) : nat = match n with Zero -> Zero | Suc m -> m
 
   let prg =
     {|
@@ -260,10 +234,6 @@ module NatTheory = struct
     def plus : nat -> nat -> nat 
         | Zero => λn. n
         | Suc m => λn. Suc (plus m n)
-
-    def pred : nat ->  nat
-        | Zero => Zero
-        | Suc m => m
 
     def minus' : nat -> nat -> nat
         | Zero    => λm. m
@@ -354,26 +324,9 @@ module PairTheory = struct
 
   let%def fst (x : ('a, 'b) pair) : 'a = match x with Pair (l, r) -> l
   let () = Rules.add_simp "fst" fst
-  (* let _ = fst *)
-
-  let prg =
-    {|
-    vartype a b
-
-    variable l : a
-    variable r : b
-    variable p : pair a b
-
-    def snd : pair a b -> b
-        | Pair l r => r
-
-    variable x y : a
-    theorem fst_snd_eq: imp (eq x y) (eq (fst (Pair x y)) (snd (Pair x y)))
-
-  |}
-
-  let _ = Elaborator.goals_from_string prg
   let fst = make_const "fst" [] |> Result.get_ok
+  let%def snd (x : ('a, 'b) pair) : 'a = match x with Pair (l, r) -> r
+  let () = Rules.add_simp "snd" snd
   let snd = make_const "snd" [] |> Result.get_ok
 end
 

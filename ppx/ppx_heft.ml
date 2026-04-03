@@ -663,10 +663,18 @@ let translate_def ~(loc : location) ~(path : label)
             A.eapply (A.evar "make_var") [ A.estring fn_name; A.evar full_ty_v ]
           in
           let eq_v = fresh_id "defeq" in
+          let def_thm_v = fresh_id "defthm" in
           mk_bind ~loc
             (A.eapply (A.evar "safe_make_eq") [ def_var; A.evar lam_v ])
             eq_v
-            (A.eapply (A.evar "new_basic_definition") [ A.evar eq_v ])))
+            (mk_bind ~loc
+               (A.eapply (A.evar "new_basic_definition") [ A.evar eq_v ])
+               def_thm_v
+               (A.pexp_sequence
+                  (A.eapply
+                     (A.evar "Heft.Rules.add_def")
+                     [ A.estring fn_name; A.evar def_thm_v ])
+                  (A.eapply (A.evar "Result.ok") [ A.evar def_thm_v ])))))
   in
   let unwrapped = A.eapply (A.evar "Heft.Printing.unwrap_thm") [ def_expr ] in
   A.pstr_value Nonrecursive
