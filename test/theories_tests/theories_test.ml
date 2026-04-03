@@ -406,7 +406,7 @@ let%expect_test "test defining with elab" =
     ∀x. ∀y. x = y ==> fst (Pair x y) = snd (Pair x y)
 
     Proof Complete!
-    with fuel: 29
+    with fuel: 48
     |}]
 
 let%expect_test "test minus" =

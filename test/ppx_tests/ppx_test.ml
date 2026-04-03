@@ -735,3 +735,41 @@ let%expect_test "match: nested match in body" =
   in
   print_endline (Printing.pretty_print_hol_term ~pretty:true t);
   [%expect {| λn. match_nat n 0 (λn'. match_nat n' 1 (λ_wild_796. 2)) |}]
+
+(* === let%def === *)
+
+let%def double (n : nat) : nat = plus n n
+
+let%expect_test "def: double defined" =
+  print_endline (Printing.pretty_print_thm double);
+  [%expect
+    {|
+    ========================================
+    double = (λn. plus n n)
+    |}]
+
+let%expect_test "def: double usable in term" =
+  let t = [%term double 3n] in
+  print_endline (Printing.pretty_print_hol_term ~pretty:true t);
+  [%expect {| double 3 |}]
+
+let%def const_fn (x : nat) (y : nat) : nat = x
+
+let%expect_test "def: multi-param definition" =
+  print_endline (Printing.pretty_print_thm const_fn);
+  [%expect
+    {|
+    ========================================
+    const_fn = (λx. λy. x)
+    |}]
+
+let%def apply_color (c : color) (r : nat) (g : nat) (b : nat) : nat =
+  match c with Red -> r | Green -> g | Blue -> b
+
+let%expect_test "def: definition with match body" =
+  print_endline (Printing.pretty_print_thm apply_color);
+  [%expect
+    {|
+    ========================================
+    apply_color = (λc. λr. λg. λb. match_color c r g b)
+    |}]

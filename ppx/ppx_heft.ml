@@ -556,6 +556,122 @@ let translate_inductive ~(loc : location) ~(path : label)
   in
   A.pstr_eval body []
 
+let extract_def_parts expr =
+  let rec go acc expr =
+    match expr.pexp_desc with
+    | Pexp_function (params, constraint_opt, Pfunction_body body) ->
+        let pats =
+          List.filter_map
+            (fun (p : function_param) ->
+              match p.pparam_desc with
+              | Pparam_val (Nolabel, None, pat) -> Some pat
+              | _ -> None)
+            params
+        in
+        let ret_ct =
+          match constraint_opt with
+          | Some (Pconstraint ct) -> Some ct
+          | _ -> None
+        in
+        if List.length pats = List.length params && pats <> [] then
+          match ret_ct with
+          | Some _ -> (acc @ pats, ret_ct, body)
+          | None -> go (acc @ pats) body
+        else (acc, ret_ct, expr)
+    | _ -> (acc, None, expr)
+  in
+  go [] expr
+
+let translate_def ~(loc : location) ~(path : label)
+    (payload : structure_item list) =
+  let (module A) = Ast_builder.make loc in
+  let _ = path in
+  let vb =
+    match payload with
+    | [ { pstr_desc = Pstr_value (Nonrecursive, [ vb ]); _ } ] -> vb
+    | _ ->
+        Location.raise_errorf ~loc
+          "[%%%%def] expects a single non-recursive let binding"
+  in
+  let fn_name =
+    match vb.pvb_pat.ppat_desc with
+    | Ppat_var { txt = name; _ } -> name
+    | _ ->
+        Location.raise_errorf ~loc:vb.pvb_pat.ppat_loc
+          "[%%%%def] expects a simple function name"
+  in
+  let params, ret_type_opt, body = extract_def_parts vb.pvb_expr in
+  let ret_type =
+    match ret_type_opt with
+    | Some ct -> ct
+    | None ->
+        Location.raise_errorf ~loc "[%%%%def] requires a return type annotation"
+  in
+  if params = [] then
+    Location.raise_errorf ~loc "[%%%%def] requires at least one parameter";
+  let param_bindings =
+    List.map
+      (fun pat ->
+        match pat.ppat_desc with
+        | Ppat_constraint ({ ppat_desc = Ppat_var { txt = name; _ }; _ }, ct) ->
+            (name, ct)
+        | _ ->
+            Location.raise_errorf ~loc:pat.ppat_loc
+              "[%%%%def] parameters must be annotated: (x : ty)")
+      params
+  in
+  (* Build the full type: arg1 -> arg2 -> ... -> ret *)
+  let full_type_expr =
+    List.fold_right
+      (fun (_, ct) acc ->
+        let arg_e = translate_type_raw ~loc ct in
+        let acc_e = acc in
+        A.eapply (A.evar "make_fun_ty") [ arg_e; acc_e ])
+      param_bindings
+      (translate_type_raw ~loc ret_type)
+  in
+  (* Build the env for body translation *)
+  let env = List.map (fun (name, ct) -> (name, Annotated ct)) param_bindings in
+  (* Translate body *)
+  let body_expr = translate_expr ~loc ~env body in
+  (* Build lambdas wrapping the body, from inside out *)
+  let body_v = fresh_id "defbody" in
+  let lambda_chain, _ =
+    List.fold_right
+      (fun (name, ct) (inner_expr, inner_var) ->
+        let ty_v, ty_e = translate_type ~loc ct in
+        let lam_v = fresh_id "deflam" in
+        let var_expr =
+          A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_v ]
+        in
+        let expr =
+          mk_bind ~loc ty_e ty_v
+            (mk_bind ~loc inner_expr inner_var
+               (A.eapply (A.evar "make_lam") [ var_expr; A.evar inner_var ]))
+        in
+        (expr, lam_v))
+      param_bindings (body_expr, body_v)
+  in
+  let lam_v = fresh_id "deflam" in
+  (* Build: Var(fn_name, full_type) = lambda_term, then new_basic_definition *)
+  let full_ty_v = fresh_id "defty" in
+  let def_expr =
+    A.pexp_let Nonrecursive
+      [ A.value_binding ~pat:(A.pvar full_ty_v) ~expr:full_type_expr ]
+      (mk_bind ~loc lambda_chain lam_v
+         (let def_var =
+            A.eapply (A.evar "make_var") [ A.estring fn_name; A.evar full_ty_v ]
+          in
+          let eq_v = fresh_id "defeq" in
+          mk_bind ~loc
+            (A.eapply (A.evar "safe_make_eq") [ def_var; A.evar lam_v ])
+            eq_v
+            (A.eapply (A.evar "new_basic_definition") [ A.evar eq_v ])))
+  in
+  let unwrapped = A.eapply (A.evar "Heft.Printing.unwrap_thm") [ def_expr ] in
+  A.pstr_value Nonrecursive
+    [ A.value_binding ~pat:(A.pvar fn_name) ~expr:unwrapped ]
+
 let term_extension =
   Extension.declare "term" Extension.Context.expression
     Ast_pattern.(single_expr_payload __)
@@ -566,10 +682,16 @@ let inductive_extension =
     Ast_pattern.(pstr __)
     translate_inductive
 
+let def_extension =
+  Extension.declare "def" Extension.Context.structure_item
+    Ast_pattern.(pstr __)
+    translate_def
+
 let () =
   Driver.register_transformation "heft_ppx"
     ~rules:
       [
         Context_free.Rule.extension term_extension;
         Context_free.Rule.extension inductive_extension;
+        Context_free.Rule.extension def_extension;
       ]

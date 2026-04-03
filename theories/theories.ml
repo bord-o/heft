@@ -352,6 +352,10 @@ end
 module PairTheory = struct
   [%%inductive type ('a, 'b) pair = Pair of 'a * 'b]
 
+  let%def fst (x : ('a, 'b) pair) : 'a = match x with Pair (l, r) -> l
+  let () = Rules.add_simp "fst" fst
+  (* let _ = fst *)
+
   let prg =
     {|
     vartype a b
@@ -359,9 +363,6 @@ module PairTheory = struct
     variable l : a
     variable r : b
     variable p : pair a b
-
-    def fst : pair a b -> a
-        | Pair l r => l
 
     def snd : pair a b -> b
         | Pair l r => r
