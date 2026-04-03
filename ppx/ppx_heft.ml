@@ -148,6 +148,35 @@ let rec translate_expr ~loc ~env (input : expression) =
       A.eapply (A.evar "make_const") [ A.estring "T"; A.elist [] ]
   | Pexp_construct ({ txt = Lident "false"; _ }, None) ->
       A.eapply (A.evar "make_const") [ A.estring "F"; A.elist [] ]
+  (* [] → Nil *)
+  | Pexp_construct ({ txt = Lident "[]"; _ }, None) ->
+      A.eapply (A.evar "make_const") [ A.estring "Nil"; A.elist [] ]
+  (* x :: xs → Cons x xs *)
+  | Pexp_construct ({ txt = Lident "::"; _ }, Some arg) ->
+      let hd, tl =
+        match arg.pexp_desc with
+        | Pexp_tuple [ hd; tl ] -> (hd, tl)
+        | _ -> Location.raise_errorf ~loc "malformed :: expression"
+      in
+      let const_expr =
+        A.eapply (A.evar "make_const") [ A.estring "Cons"; A.elist [] ]
+      in
+      let func_var = fresh_id "app" in
+      List.fold_left
+        (fun (acc_expr, acc_var) arg_expr ->
+          let translated = translate_expr ~loc ~env arg_expr in
+          let arg_var = fresh_id "arg" in
+          let app_var = fresh_id "app" in
+          let expr =
+            mk_bind ~loc acc_expr acc_var
+              (mk_bind ~loc translated arg_var
+                 (A.eapply
+                    (A.evar "Heft.Rewrite.smart_make_app")
+                    [ A.evar acc_var; A.evar arg_var ]))
+          in
+          (expr, app_var))
+        (const_expr, func_var) [ hd; tl ]
+      |> fst
   (* Nullary constructor → HOL constant *)
   | Pexp_construct ({ txt = Lident name; _ }, None) ->
       A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
@@ -438,12 +467,19 @@ and extract_match_type_info ~loc:_ ~env scrutinee =
       Location.raise_errorf ~loc:scrutinee.pexp_loc
         "match scrutinee must have a type annotation or be a bound variable"
 
+and normalize_con_name = function
+  | "[]" -> "Nil"
+  | "::" -> "Cons"
+  | name -> name
+
 and translate_match_case ~loc ~env ~tysub_var case =
   let (module A) = Ast_builder.make loc in
   match case.pc_lhs.ppat_desc with
-  | Ppat_construct ({ txt = Lident _con_name; _ }, None) ->
+  | Ppat_construct ({ txt = Lident name; _ }, None) ->
+      ignore (normalize_con_name name);
       translate_expr ~loc ~env case.pc_rhs
-  | Ppat_construct ({ txt = Lident con_name; _ }, Some (_, pat_arg)) ->
+  | Ppat_construct ({ txt = Lident name; _ }, Some (_, pat_arg)) ->
+      let con_name = normalize_con_name name in
       let pat_vars = extract_match_pattern_vars pat_arg in
       if pat_vars = [] then translate_expr ~loc ~env case.pc_rhs
       else
@@ -907,9 +943,10 @@ let translate_primrec ~(loc : location) ~(path : label)
       (fun case ->
         let con_name, pat_vars =
           match case.pc_lhs.ppat_desc with
-          | Ppat_construct ({ txt = Lident cn; _ }, None) -> (cn, [])
+          | Ppat_construct ({ txt = Lident cn; _ }, None) ->
+              (normalize_con_name cn, [])
           | Ppat_construct ({ txt = Lident cn; _ }, Some (_, pat_arg)) ->
-              (cn, extract_match_pattern_vars pat_arg)
+              (normalize_con_name cn, extract_match_pattern_vars pat_arg)
           | _ ->
               Location.raise_errorf ~loc:case.pc_lhs.ppat_loc
                 "[%%%%primrec] unsupported pattern"

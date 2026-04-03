@@ -397,6 +397,26 @@ let%expect_test "nat literal in forall" =
   print_endline s;
   [%expect {| ∀n. plus n 0 = n |}]
 
+(* === List syntax === *)
+
+let%expect_test "empty list" =
+  let (t : term) = [%term []] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| Nil |}]
+
+let%expect_test "list literal" =
+  let (t : term) = [%term [ 1n; 2n; 3n ]] in
+  let s = Printing.pretty_print_hol_term ~pretty:true t in
+  print_endline s;
+  [%expect {| [1, 2, 3] |}]
+
+let%expect_test "cons operator" =
+  let (t : term) = [%term (x : nat) :: (xs : nat list)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| Cons x xs |}]
+
 (* === Binder-scoped variables (no repeated annotations) === *)
 
 let%expect_test "forall: bare variables from binder" =
@@ -723,7 +743,7 @@ let%expect_test "match: wildcard pattern" =
       fun (xs : nat list) -> match xs with Nil -> 0n | Cons (_, rest) -> 1n]
   in
   print_endline (Printing.pretty_print_hol_term ~pretty:true t);
-  [%expect {| λxs. match_list xs 0 (λ_wild_775. λrest. 1) |}]
+  [%expect {| λxs. match_list xs 0 (λ_wild_810. λrest. 1) |}]
 
 let%expect_test "match: nested match in body" =
   let t =
@@ -734,7 +754,7 @@ let%expect_test "match: nested match in body" =
         | Suc n' -> ( match (n' : nat) with Zero -> 1n | Suc _ -> 2n)]
   in
   print_endline (Printing.pretty_print_hol_term ~pretty:true t);
-  [%expect {| λn. match_nat n 0 (λn'. match_nat n' 1 (λ_wild_805. 2)) |}]
+  [%expect {| λn. match_nat n 0 (λn'. match_nat n' 1 (λ_wild_840. 2)) |}]
 
 (* === let%def === *)
 

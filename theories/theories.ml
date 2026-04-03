@@ -313,9 +313,8 @@ module ListTheory = struct
 
   let%primrec insert (l : nat list) (n : nat) : nat list =
     match l with
-    | Nil -> Cons (n, Nil)
-    | Cons (x, xs) ->
-        if nat_le x n then Cons (x, insert xs n) else Cons (n, Cons (x, xs))
+    | [] -> Cons (n, Nil)
+    | x :: xs -> if nat_le x n then x :: insert xs n else n :: x :: xs
 
   let%primrec isort (l : nat list) : nat list =
     match l with Nil -> Nil | Cons (x, xs) -> insert (isort xs) x
