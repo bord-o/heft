@@ -305,9 +305,7 @@ module ListTheory = struct
   let _ = append
 
   let%primrec reverse (l : 'a list) : 'a list =
-    match l with
-    | Nil -> Nil
-    | Cons (x, xs) -> append (reverse xs) (Cons (x, Nil))
+    match l with Nil -> Nil | Cons (x, xs) -> append (reverse xs) [ x ]
 
   let _ = reverse
 

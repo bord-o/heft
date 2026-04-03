@@ -1,38 +1,30 @@
 open Heft
+open Derived
 open Kernel
 open Tactic
 open Synth
 open Heft_theories
 
 let%expect_test "synth goal setup" =
-  let open Theories.NatTheory in
-  let prg =
-    {|
-    vartype a 
-    variable Nil_case: nat
-    variable g : list a -> nat
-
-    theorem synthesize_length:
-        (exists λNil_case.
-            (imp
-                (eq (g Nil) (Nil_case))
-                (eq (g Nil) (Zero))
-            )
-        )
-
-  |}
+  let goal =
+    make_goal
+      [%term
+        exists (fun (nil_case : nat) ->
+            (g : 'a list -> nat) []
+            = nil_case
+            ==> ((g : 'a list -> nat) [] = Zero))]
   in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
 
   let proof =
-    with_arbitrary_term zero exists_tac >> intro_tac >> simp_tac ~with_asms:true
+    with_arbitrary_term [%term 0n] exists_tac
+    >> intro_tac >> simp_tac ~with_asms:true
   in
 
   run_proof goal proof;
   [%expect
     {|
     ========================================
-    ∃Nil_case. g Nil = Nil_case ==> g Nil = Zero
+    ∃nil_case. g Nil = nil_case ==> g Nil = Zero
 
     Proof Complete!
     with fuel: 21
@@ -41,30 +33,19 @@ let%expect_test "synth goal setup" =
 let%expect_test "synth goal setup full" =
   let open Theories.NatTheory in
   let open Theories.ListTheory in
-  let prg =
-    {|
-    vartype a 
-    variable Nil_case : nat
-    variable cons_case : a -> list a -> nat -> nat
-    variable g : list a -> nat
-    variable x : a
-    variable y : a
-    variable xs : list a
-    theorem synthesize_length:
-        (exists (λNil_case.
-            (exists (λcons_case.
-                (imp (eq (g Nil) Nil_case)
-                (imp (forall (λx. (forall (λxs. (eq (g (Cons x xs)) (cons_case x xs (g xs)))))))
-                    (/\
-                        (eq (g (Cons x Nil)) (Suc Zero))
-                        (eq (g (Cons x (Cons y Nil))) (Suc (Suc Zero))))
-                ))
-            ))
-        ))
-  |}
+  let goal =
+    make_goal
+      [%term
+        exists
+          (fun (nil_case : nat) (cons_case : 'a -> 'a list -> nat -> nat) ->
+            (g : 'a list -> nat) []
+            = nil_case
+            ==> (forall (fun (x : 'a) (xs : 'a list) ->
+                     (g : 'a list -> nat) (x :: xs)
+                     = cons_case x xs ((g : 'a list -> nat) xs))
+                ==> ((g : 'a list -> nat) [ (x : 'a) ] = 1n
+                    && (g : 'a list -> nat) [ (x : 'a); (y : 'a) ] = 2n)))]
   in
-
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
 
   let a_v = Var ("a", a) in
   let b_v = Var ("b", TyCon ("list", [ a ])) in
@@ -96,7 +77,7 @@ let%expect_test "synth goal setup full" =
       refl_tac >>
       refl_tac
     ========================================
-    ∃Nil_case. ∃cons_case. g Nil = Nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
+    ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
 
     Proof Complete!
     with fuel: 84
