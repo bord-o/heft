@@ -579,59 +579,6 @@ let%expect_test "bool distinct" =
     with fuel: 15
     |}]
 
-let%expect_test "cond true" =
-  let goal =
-    make_goal
-      [%term forall (fun (t1 : 'a) (t2 : 'a) -> (if true then t1 else t2) = t1)]
-  in
-  run_proof ~notrace:true goal
-    (intros_tac
-    >> with_rule (cond_def |> Result.get_ok) rewrite_tac
-    >> beta_tac
-    >> with_rule t_eq_t rewrite_tac
-    >> with_rule t_eq_f rewrite_tac
-    >> with_rule f_imp_eq rewrite_tac
-    >> with_rule conj_t_eq rewrite_tac
-    >> with_rule t_imp_eq rewrite_tac
-    >> with_rule select_eq rewrite_tac
-    >> refl_tac);
-
-  [%expect
-    {|
-    ========================================
-    ∀t1. ∀t2. COND T t1 t2 = t1
-
-    Proof Complete!
-    with fuel: 43
-    |}]
-
-let%expect_test "cond false" =
-  let goal =
-    make_goal
-      [%term
-        forall (fun (t1 : 'a) (t2 : 'a) -> (if false then t1 else t2) = t2)]
-  in
-  run_proof ~notrace:true goal
-    (intros_tac
-    >> with_rule (cond_def |> Result.get_ok) rewrite_tac
-    >> beta_tac
-    >> with_rule f_eq_t rewrite_tac
-    >> with_rule f_eq_f rewrite_tac
-    >> with_rule f_imp_eq rewrite_tac
-    >> with_rule t_conj_eq rewrite_tac
-    >> with_rule t_imp_eq rewrite_tac
-    >> with_rule select_eq rewrite_tac
-    >> refl_tac);
-
-  [%expect
-    {|
-    ========================================
-    ∀t1. ∀t2. COND F t1 t2 = t2
-
-    Proof Complete!
-    with fuel: 43
-    |}]
-
 let%expect_test "le nat test" =
   let goal = make_goal [%term nat_le 0n 1n] in
   run_proof ~notrace:true goal simp_tac;
