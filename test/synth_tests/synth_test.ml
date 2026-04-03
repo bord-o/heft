@@ -544,34 +544,20 @@ let%expect_test "test cons case" =
     |}]
 
 let%expect_test "synth goal enumerate" =
-  (* let open Theories.NatTheory in *)
-  let prg =
-    {|
-    vartype a 
-    variable Nil_case : nat
-    variable cons_case : a -> list a -> nat -> nat
-    variable g : list a -> nat
-    variable x : a
-    variable y : a
-    variable xs : list a
-    theorem synthesize_length:
-        (exists (λNil_case.
-            (exists (λcons_case.
-                (imp (eq (g Nil) Nil_case)
-                (imp (forall (λx. (forall (λxs. (eq (g (Cons x xs)) (cons_case x xs (g xs)))))))
-                    (/\
-                        (eq (g (Cons x Nil)) (Suc Zero))
-                        (eq (g (Cons x (Cons y Nil))) (Suc (Suc Zero))))
-                ))
-            ))
-        ))
-  |}
+  let goal =
+    make_goal
+      [%term
+        exists
+          (fun (nil_case : nat) (cons_case : 'a -> 'a list -> nat -> nat) ->
+            (g : 'a list -> nat) []
+            = nil_case
+            ==> (forall (fun (x : 'a) (xs : 'a list) ->
+                     (g : 'a list -> nat) (x :: xs)
+                     = cons_case x xs ((g : 'a list -> nat) xs))
+                ==> ((g : 'a list -> nat) [ (x : 'a) ] = 1n
+                    && (g : 'a list -> nat) [ (x : 'a); (y : 'a) ] = 2n)))]
   in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
 
-  (* let cons_case_ty = *)
-  (*   make_fun_ty a (make_fun_ty list_a (make_fun_ty nat_ty nat_ty)) *)
-  (* in *)
   let proof =
     with_best_first
       (try_ (with_synthetic_term 5 (with_info_trace exists_tac))
@@ -599,38 +585,34 @@ let%expect_test "synth goal enumerate" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃Nil_case. ∃cons_case. g Nil = Nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
+    ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
 
     Proof Complete!
     with fuel: 1373
     |}]
 
 let%expect_test "synth append" =
-  let prg =
-    {|
-    vartype a
-    variable Nil_case : list a -> list a
-    variable cons_case : a -> list a -> list a -> list a
-    variable g : list a -> list a -> list a
-    variable x : a
-    variable y : a
-    variable xs : list a
-    variable ys : list a
-    theorem synthesize_append:
-        (exists (λNil_case.
-            (exists (λcons_case.
-                (imp (forall (λys. (eq (g Nil ys) (Nil_case ys))))
-                (imp (forall (λx. (forall (λxs. (forall (λys. (eq (g (Cons x xs) ys) (cons_case x xs (g xs ys)))))))))
-                    (/\
-                        (eq (g Nil (Cons x Nil)) (Cons x Nil))
-                        (eq (g (Cons x Nil) (Cons y Nil)) (Cons x (Cons y Nil)))
-                    )
-                ))
-            ))
-        ))
-  |}
+  let goal =
+    make_goal
+      [%term
+        exists
+          (fun
+            (nil_case : 'a list -> 'a list)
+            (cons_case : 'a -> 'a list -> 'a list -> 'a list)
+          ->
+            forall (fun (ys : 'a list) ->
+                (g : 'a list -> 'a list -> 'a list) [] ys = nil_case ys)
+            ==> (forall (fun (x : 'a) (xs : 'a list) (ys : 'a list) ->
+                     (g : 'a list -> 'a list -> 'a list) (x :: xs) ys
+                     = cons_case x xs
+                         ((g : 'a list -> 'a list -> 'a list) xs ys))
+                ==> ((g : 'a list -> 'a list -> 'a list) [] [ (x : 'a) ]
+                     = [ (x : 'a) ]
+                    && (g : 'a list -> 'a list -> 'a list)
+                         [ (x : 'a) ]
+                         [ (y : 'a) ]
+                       = [ (x : 'a); (y : 'a) ])))]
   in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
     with_best_first
       (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
@@ -656,7 +638,7 @@ let%expect_test "synth append" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃Nil_case. ∃cons_case. (∀ys. g Nil ys = Nil_case ys) ==> (∀x. ∀xs. ∀ys. g (Cons x xs) ys = cons_case x xs (g xs ys)) ==> g Nil (Cons x Nil) = Cons x Nil ∧ g (Cons x Nil) (Cons y Nil) = Cons x (Cons y Nil)
+    ∃nil_case. ∃cons_case. (∀ys. g Nil ys = nil_case ys) ==> (∀x. ∀xs. ∀ys. g (Cons x xs) ys = cons_case x xs (g xs ys)) ==> g Nil (Cons x Nil) = Cons x Nil ∧ g (Cons x Nil) (Cons y Nil) = Cons x (Cons y Nil)
 
     Proof Complete!
     with fuel: 1375
@@ -670,29 +652,22 @@ let%expect_test "synth reverse" =
   let append_ty = make_fun_ty list_a (make_fun_ty list_a list_a) in
   let extra = [ ("append", append_ty) ] in
 
-  let prg =
-    {|
-    vartype a
-    variable Nil_case : list a
-    variable cons_case : a -> list a -> list a -> list a
-    variable g : list a -> list a
-    variable x : a
-    variable y : a
-    variable xs : list a
-    theorem synthesize_reverse:
-        exists λNil_case.
-            exists λcons_case.
-                imp
-                    (eq (g Nil) Nil_case)
-                    (imp
-                        (forall λx. forall λxs.
-                            eq (g (Cons x xs)) (cons_case x xs (g xs)))
-                        (eq
-                            (g (Cons x (Cons y Nil)))
-                            (Cons y (Cons x Nil))))
-  |}
+  let goal =
+    make_goal
+      [%term
+        exists
+          (fun
+            (nil_case : 'a list)
+            (cons_case : 'a -> 'a list -> 'a list -> 'a list)
+          ->
+            (g : 'a list -> 'a list) []
+            = nil_case
+            ==> (forall (fun (x : 'a) (xs : 'a list) ->
+                     (g : 'a list -> 'a list) (x :: xs)
+                     = cons_case x xs ((g : 'a list -> 'a list) xs))
+                ==> ((g : 'a list -> 'a list) [ (x : 'a); (y : 'a) ]
+                    = [ (y : 'a); (x : 'a) ])))]
   in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
     with_best_first
       (try_ (with_synthetic_term ~extra 2 (with_info_trace exists_tac))
@@ -717,7 +692,7 @@ let%expect_test "synth reverse" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃Nil_case. ∃cons_case. g Nil = Nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x (Cons y Nil)) = Cons y (Cons x Nil)
+    ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x (Cons y Nil)) = Cons y (Cons x Nil)
 
     Proof Complete!
     with fuel: 2441
@@ -727,29 +702,18 @@ let%expect_test "synth mult" =
   let open Theories.NatTheory in
   let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
   let extras = [ ("plus", plus_ty) ] in
-  let prg =
-    {|
-    variable Nil_case : nat -> nat
-    variable Suc_case : nat -> nat -> nat
-    variable g : nat -> nat -> nat
-    variable m : nat
-    variable n : nat
-    theorem synthesize_mult:
-        exists λNil_case.
-            exists λSuc_case.
-                imp
-                    (forall λn. eq (g Zero n) (Nil_case n))
-                    (imp
-                        (forall λm. forall λn.
-                            eq (g (Suc m) n) (Suc_case n (g m n)))
-                        (/\
-                            (eq (g Zero (Suc (Suc Zero))) Zero)
-                            (eq
-                                (g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))))
-                                (Suc (Suc (Suc (Suc (Suc (Suc Zero)))))))))
-  |}
+  let goal =
+    make_goal
+      [%term
+        exists (fun (nil_case : nat -> nat) (suc_case : nat -> nat -> nat) ->
+            forall (fun (n : nat) ->
+                (g : nat -> nat -> nat) Zero n = nil_case n)
+            ==> (forall (fun (m : nat) (n : nat) ->
+                     (g : nat -> nat -> nat) (Suc m) n
+                     = suc_case n ((g : nat -> nat -> nat) m n))
+                ==> ((g : nat -> nat -> nat) 0n 2n = 0n
+                    && (g : nat -> nat -> nat) 2n 3n = 6n)))]
   in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
     with_best_first
       (try_ (with_synthetic_term ~extra:extras 3 (with_info_trace exists_tac))
@@ -785,7 +749,7 @@ let%expect_test "synth mult" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃Nil_case. ∃Suc_case. (∀n. g Zero n = Nil_case n) ==> (∀m. ∀n. g (Suc m) n = Suc_case n (g m n)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
+    ∃nil_case. ∃suc_case. (∀n. g Zero n = nil_case n) ==> (∀m. ∀n. g (Suc m) n = suc_case n (g m n)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
     Proof Complete!
     with fuel: 572
@@ -797,27 +761,17 @@ let%expect_test "synth sum" =
   let _ = list_def in
   let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
   let extras = [ ("plus", plus_ty) ] in
-  let prg =
-    {|
-    variable Nil_case : nat
-    variable cons_case : nat -> nat -> nat
-    variable g : list nat -> nat
-    variable x : nat
-    variable xs : list nat
-    theorem synthesize_sum:
-        exists λNil_case.
-            exists λcons_case.
-                imp
-                    (eq (g Nil) Nil_case)
-                    (imp
-                        (forall λx. forall λxs.
-                            eq (g (Cons x xs)) (cons_case x (g xs)))
-                        (eq
-                            (g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))))
-                            (Suc (Suc (Suc (Suc (Suc (Suc Zero))))))))
-  |}
+  let goal =
+    make_goal
+      [%term
+        exists (fun (nil_case : nat) (cons_case : nat -> nat -> nat) ->
+            (g : nat list -> nat) []
+            = nil_case
+            ==> (forall (fun (x : nat) (xs : nat list) ->
+                     (g : nat list -> nat) ((x : nat) :: xs)
+                     = cons_case x ((g : nat list -> nat) xs))
+                ==> ((g : nat list -> nat) [ 1n; 2n; 3n ] = 6n)))]
   in
-  let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
     with_best_first
       (try_ (with_synthetic_term ~extra:extras 5 (with_info_trace exists_tac))
@@ -852,7 +806,7 @@ let%expect_test "synth sum" =
       intro_tac >>
       auto_dfs_tac
     ========================================
-    ∃Nil_case. ∃cons_case. g Nil = Nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x (g xs)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
+    ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x (g xs)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
     Proof Complete!
     with fuel: 99
