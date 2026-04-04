@@ -1546,8 +1546,7 @@ let with_definition (names : string list) : tactic_combinator =
         | None ->
             trace_error (Printf.sprintf "Couldn't find def with name %s\n" n);
             fail ()
-        | Some rule -> Rewrite.rules_of_def rule)
-    |> List.filter_map Result.to_option
+        | Some rules -> rules)
     |> List.flatten
   in
   fun tac goal ->
@@ -1594,9 +1593,7 @@ let simp_tac ?(exclude = []) ?(with_asms = true) : tactic =
     |> List.map snd
   in
   let rules =
-    definitions |> List.append add |> List.append simps
-    |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
-    |> List.flatten
+    definitions |> List.append [ add ] |> List.append simps |> List.flatten
   in
 
   let with_rw = if with_asms then with_rules_and_assumptions else with_rules in
@@ -1650,9 +1647,8 @@ let simp_asm_tac ?(exclude = []) ?(with_asms = true) ?(add = []) : tactic =
     |> List.map snd
   in
   let rules =
-    definitions |> List.append extra |> List.append simps |> List.append add
-    |> List.filter_map (fun d -> Result.to_option @@ rules_of_def d)
-    |> List.flatten
+    definitions |> List.append [ extra ] |> List.append simps
+    |> List.append [ add ] |> List.flatten
   in
 
   let with_rw = if with_asms then with_rules_and_assumptions else with_rules in

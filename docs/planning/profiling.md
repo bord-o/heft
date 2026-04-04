@@ -97,4 +97,17 @@ Benchmark 1: dune exe heft --rel
 
 This shows a ton of our time (>50%) is spent on formatting. We need a good way to control this, as you only really want the proof you're actively working on to give this information
 
+Ultimately I'll trade out the mutable reference for either using the prove function as a source of truth through an effect handler, or maybe something else
+
 ## Deduplicate rules_from_def in simplifiers
+
+after
+`
+bordo@brick:~/Git/heft $ hyperfine 'dune exe heft --rel' --warmup 1
+Benchmark 1: dune exe heft --rel
+  Time (mean ± σ):      1.267 s ±  0.007 s    [User: 0.971 s, System: 0.297 s]
+  Range (min … max):    1.257 s …  1.278 s    10 runs
+`
+
+Another huge win
+
