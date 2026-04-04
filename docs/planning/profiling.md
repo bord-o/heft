@@ -85,4 +85,16 @@ Strange that this isn't faster, I'll just keep what I have and revisit this afte
 
 ## Quieting printing functions
 
+Lets make a global reference to control accumulation of unused formatting during search and when proofs complete
+
+after
+`
+bordo@brick:~/Git/heft $ hyperfine 'dune exe heft --rel'
+Benchmark 1: dune exe heft --rel
+  Time (mean ± σ):      2.935 s ±  0.045 s    [User: 2.630 s, System: 0.303 s]
+  Range (min … max):    2.870 s …  2.996 s    10 runs
+`
+
+This shows a ton of our time (>50%) is spent on formatting. We need a good way to control this, as you only really want the proof you're actively working on to give this information
+
 ## Deduplicate rules_from_def in simplifiers

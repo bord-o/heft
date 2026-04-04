@@ -280,10 +280,8 @@ module PairTheory = struct
   [%%inductive type ('a, 'b) pair = Pair of 'a * 'b]
 
   let%def fst (x : ('a, 'b) pair) : 'a = match x with Pair (l, r) -> l
-  let () = Rules.add_simp "fst" fst
   let fst = make_const "fst" [] |> Result.get_ok
   let%def snd (x : ('a, 'b) pair) : 'a = match x with Pair (l, r) -> r
-  let () = Rules.add_simp "snd" snd
   let snd = make_const "snd" [] |> Result.get_ok
 end
 

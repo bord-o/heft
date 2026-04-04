@@ -14,3 +14,7 @@ let add_def name thm = definitions := (name, thm) :: !definitions
 let add_proven name thm = proven := (name, thm) :: !proven
 let get_proven name = List.assoc_opt name !proven
 let get_def name = List.assoc_opt name !definitions
+
+(* TODO: 
+    make rule bases of type (string * thm list) list ref so that we can preprocess conjunctions and foralls to avoid doing it at the tactic site
+ *)

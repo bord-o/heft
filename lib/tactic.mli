@@ -196,6 +196,8 @@ val choose_unknowns : 'a list -> 'a
 val rank_terms : Kernel.term list -> Kernel.term list
 (** Requests a ranking/sorting of terms by some heuristic *)
 
+val quiet_all : bool ref
+
 val return_thm :
   ?from:string ->
   ( 'a,

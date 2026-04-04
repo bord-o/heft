@@ -155,13 +155,14 @@ let choose_theorems gs = perform (Choose (Theorem gs))
 let choose_tactics gs = perform (Choose (Tactic gs))
 let choose_unknowns gs = perform (Choose (Unknown gs))
 let rank_terms ts = perform (Rank (Term ts))
+let quiet_all = ref false
 
 let return_thm ?(from = "unknown") = function
   | Ok thm ->
-      perform (Trace (Proof, from));
+      if !quiet_all then () else perform (Trace (Proof, from));
       thm
   | Error e ->
-      trace_error @@ print_error e;
+      if !quiet_all then fail () else trace_error @@ print_error e;
       fail ()
 
 (* let noop_tac : tactic = fun goal -> perform (Subgoal goal) *)
@@ -1690,6 +1691,7 @@ let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
 
 let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
     ?(quiet = false) goal tac =
+  let quiet = quiet || !quiet_all in
   let fuel_count = ref 0 in
   let limit = ref 1_000_000 in
   let wrapped =

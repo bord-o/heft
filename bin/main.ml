@@ -5,6 +5,8 @@ open Tactic
 open Heft_theories
 open Theories
 
+let () = Tactic.quiet_all := true
+
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> true)] in
   run_proof ~notrace:true goal (intros_tac >> truth_tac)
