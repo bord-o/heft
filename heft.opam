@@ -19,6 +19,7 @@ depends: [
   "ocamlformat"
   "sedlex"
   "ppxlib"
+  "ppx_compare"
   "odoc" {with-doc}
 ]
 build: [

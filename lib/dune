@@ -1,6 +1,6 @@
 (library
  (name heft)
  (public_name heft)
- (libraries ppx_deriving multicont sedlex)
+ (libraries ppx_deriving multicont sedlex ppx_compare)
  (preprocess
-  (pps ppx_deriving.show sedlex.ppx)))
+  (pps ppx_deriving.show ppx_deriving.eq ppx_deriving.ord ppx_compare sedlex.ppx)))

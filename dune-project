@@ -19,7 +19,7 @@
  (name heft)
  (synopsis "Interactive theorem proving with algebraic effects.")
  (description "Applying algebraic effects to a HOL tactic system for composable tactics and ergonomic proof search.")
- (depends ocaml ppx_deriving ppx_expect multicont ocamlformat sedlex ppxlib)
+ (depends ocaml ppx_deriving ppx_expect multicont ocamlformat sedlex ppxlib ppx_compare)
  (tags
   ("proof assistant" "formal verification" effects)))
 

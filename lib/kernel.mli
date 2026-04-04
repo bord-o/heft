@@ -211,7 +211,7 @@ val safe_make_eq :
 val destruct_eq :
   term -> (term * term, [> `CantDestructEquality of term ]) result
 
-val alpha_compare_var : ('a * 'a) list -> 'a -> 'a -> int
+val alpha_compare_var : (term * term) list -> term -> term -> int
 val alpha_compare : (term * term) list -> term -> term -> int
 val alphaorder : term -> term -> int
 val term_union : term list -> term list -> term list
@@ -308,8 +308,6 @@ val new_axiom :
     | `NewAxiomNotAProp of term
     | `UnexpectedLambdaForm of term ] )
   result
-
-val subset : 'a list -> 'a list -> bool
 
 val new_basic_definition :
   term ->

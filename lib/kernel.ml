@@ -4,18 +4,19 @@
 
     Explicit inductive definitions are the only kernel extension, in order to
     avoid lots of manual derivation *)
+open Ppx_compare_lib.Builtin
 
 type hol_type = TyVar of string | TyCon of string * hol_type list
-[@@deriving show { with_path = false }]
+[@@deriving equal, compare, show { with_path = false }]
 
 type term =
   | Var of string * hol_type
   | Const of string * hol_type
   | App of term * term
   | Lam of term * term
-[@@deriving show { with_path = false }]
+[@@deriving equal, compare, show { with_path = false }]
 
-type thm = Sequent of term list * term [@@deriving show { with_path = false }]
+type thm = Sequent of term list * term [@@deriving equal, compare, show { with_path = false }]
 
 type constructor_spec = { name : string; arg_types : hol_type list }
 [@@deriving show { with_path = false }]
@@ -123,7 +124,7 @@ let is_vartype = function TyVar _ -> true | _ -> false
 let rec type_vars = function
   | TyCon (_, args) ->
       List.fold_left (fun acc a -> acc @ type_vars a) [] args
-      |> List.sort_uniq compare
+      |> List.sort_uniq compare_hol_type
   | TyVar _ as tv -> [ tv ]
 
 let rec type_substitution (type_consts : (hol_type * hol_type) list)
@@ -177,7 +178,7 @@ let make_app f a =
   let* fty = type_of_term f in
   let* aty = type_of_term a in
   match fty with
-  | TyCon ("fun", [ ty; _ ]) when compare ty aty = 0 -> Ok (App (f, a))
+  | TyCon ("fun", [ ty; _ ]) when equal_hol_type ty aty  -> Ok (App (f, a))
   | _ -> Error (`MakeAppTypesDontAgree (fty, aty))
 
 let destruct_var = function
@@ -201,15 +202,15 @@ let rec frees = function
   | Const (_, _) -> []
   | Lam (bv, bod) ->
       let body_frees = frees bod in
-      List.filter (( <> ) bv) body_frees
+      List.filter (fun bf ->  not (equal_term bf bv)) body_frees
   | App (s, t) ->
       let t_frees = frees t in
       let s_frees = frees s in
-      List.append s_frees t_frees |> List.sort_uniq compare
+      List.append s_frees t_frees |> List.sort_uniq compare_term
 
 let frees_in_list terms =
   let rec aux acc = function [] -> acc | x :: xs -> aux (acc @ frees x) xs in
-  aux [] terms |> List.sort_uniq compare
+  aux [] terms |> List.sort_uniq compare_term
 
 let rec all_frees_within acc = function
   | Var (_, _) as tm -> List.mem tm acc
@@ -219,9 +220,9 @@ let rec all_frees_within acc = function
 
 let rec var_free_in v tm =
   match tm with
-  | Lam (bv, bod) -> v <> bv && var_free_in v bod
+  | Lam (bv, bod) -> not (equal_term v  bv) && var_free_in v bod
   | App (s, t) -> var_free_in v s || var_free_in v t
-  | _ -> compare tm v = 0
+  | _ -> equal_term tm v
 
 let rec type_vars_in_term tm =
   match tm with
@@ -230,10 +231,10 @@ let rec type_vars_in_term tm =
   | App (s, t) ->
       let* sty = type_vars_in_term s in
       let* tty = type_vars_in_term t in
-      Ok (sty @ tty |> List.sort_uniq compare)
+      Ok (sty @ tty |> List.sort_uniq compare_hol_type)
   | Lam (Var (_, ty), t) ->
       let* tty = type_vars_in_term t in
-      Ok (type_vars ty @ tty |> List.sort_uniq compare)
+      Ok (type_vars ty @ tty |> List.sort_uniq compare_hol_type)
   | Lam (_, _) as tm -> Error (`UnexpectedLambdaForm tm)
 
 let rec variant avoid v =
@@ -252,7 +253,7 @@ let is_valid_subst_pair (replacement, target) =
   match target with
   | Var (_, target_ty) -> (
       match type_of_term replacement with
-      | Ok replacement_ty -> compare replacement_ty target_ty = 0
+      | Ok replacement_ty -> equal_hol_type replacement_ty target_ty 
       | Error _ -> false)
   | _ -> false
 
@@ -310,7 +311,7 @@ let type_inst tyin tm =
         let ty' = type_substitution tyin ty in
         let term' = if ty' == ty then term else Var (name, ty') in
         let lookup_result = rev_assoc_default term' env ~default:term in
-        if compare lookup_result term = 0 then Ok term'
+        if equal_term lookup_result term  then Ok term'
         else Error (`Clash term')
     | Const (name, ty) ->
         let ty' = type_substitution tyin ty in
@@ -361,10 +362,10 @@ let destruct_eq tm =
 
 let rec alpha_compare_var env x1 x2 =
   match env with
-  | [] -> compare x1 x2
+  | [] -> compare_term x1 x2
   | (t1, t2) :: oenv ->
-      if compare x1 t1 = 0 then if compare x2 t2 = 0 then 0 else -1
-      else if compare x2 t2 = 0 then 1
+      if equal_term x1 t1  then if equal_term x2 t2 then 0 else -1
+      else if equal_term x2 t2  then 1
       else alpha_compare_var oenv x1 x2
 
 let rec alpha_compare env tm1 tm2 =
@@ -372,12 +373,12 @@ let rec alpha_compare env tm1 tm2 =
   else
     match (tm1, tm2) with
     | Var (_x1, _ty1), Var (_x2, _ty2) -> alpha_compare_var env tm1 tm2
-    | Const (_x1, _ty1), Const (_x2, _ty2) -> compare tm1 tm2
+    | Const (_x1, _ty1), Const (_x2, _ty2) -> compare_term tm1 tm2
     | App (s1, t1), App (s2, t2) ->
         let c = alpha_compare env s1 s2 in
         if c <> 0 then c else alpha_compare env t1 t2
     | Lam ((Var (_, ty1) as x1), t1), Lam ((Var (_, ty2) as x2), t2) ->
-        let c = compare ty1 ty2 in
+        let c = compare_hol_type ty1 ty2 in
         if c <> 0 then c else alpha_compare ((x1, x2) :: env) t1 t2
     | Const (_, _), _ -> -1
     | _, Const (_, _) -> 1
@@ -439,7 +440,7 @@ let mk_comb (Sequent (asl1, c1) as th1) (Sequent (asl2, c2) as th2) =
       match tr1 with
       | TyCon ("fun", [ ty; _ ]) ->
           let* tr2 = type_of_term r2 in
-          if compare ty tr2 = 0 then
+          if equal_hol_type ty tr2  then
             let* lr_eq = safe_make_eq (App (l1, l2)) (App (r1, r2)) in
             Ok (Sequent (term_union asl1 asl2, lr_eq))
           else Error (`TypesDontAgree (ty, tr2))
@@ -458,14 +459,14 @@ let lam v (Sequent (asl, c) as th) =
   | _ -> Error (`LamRuleCantApply (v, th))
 
 let beta = function
-  | App (Lam (v, bod), arg) as tm when compare arg v = 0 ->
+  | App (Lam (v, bod), arg) as tm when equal_term arg v  ->
       let* b = safe_make_eq tm bod in
       Ok (Sequent ([], b))
   | tm -> Error (`NotTrivialBetaRedex tm)
 
 let assume tm =
   let* tty = type_of_term tm in
-  if compare tty bool_ty = 0 then Ok (Sequent ([ tm ], tm))
+  if equal_hol_type tty bool_ty  then Ok (Sequent ([ tm ], tm))
   else Error (`NotAProposition tm)
 
 let eq_mp (Sequent (asl1, eq) as th1) (Sequent (asl2, c) as th2) =
@@ -511,14 +512,14 @@ let inst theta (Sequent (asl, c)) =
 
 let new_axiom tm =
   let* tty = type_of_term tm in
-  if compare tty bool_ty = 0 then (
+  if equal_hol_type tty bool_ty  then (
     let th = Sequent ([], tm) in
     the_axioms := th :: !the_axioms;
     Ok th)
   else Error (`NewAxiomNotAProp tm)
 
 let subset l1 l2 =
-  l1 |> List.for_all @@ fun elem -> l2 |> List.exists (( = ) elem)
+  l1 |> List.for_all @@ fun elem -> l2 |> List.exists (( equal_hol_type  elem))
 
 let new_basic_definition tm =
   match tm with
@@ -569,7 +570,7 @@ let new_basic_type_definition tyname (absname, repname) (Sequent (asl, c)) =
            "new_basic_type_definition: Predicate is not closed")
     else
       let* p_tyvars = type_vars_in_term p in
-      let tyvars = List.sort compare p_tyvars in
+      let tyvars = List.sort compare_hol_type p_tyvars in
       let* () = new_type tyname (List.length tyvars) in
       let aty = TyCon (tyname, tyvars) in
       let* rty = type_of_term x in
