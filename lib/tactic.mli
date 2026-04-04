@@ -141,6 +141,7 @@ type _ Effect.t +=
   | Rank : 'a rankable -> 'a list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
+  | Quiet : bool Effect.t
   | Burn : (string * cost) -> unit Effect.t
   | Rules : Kernel.thm list Effect.t
 
@@ -195,8 +196,6 @@ val choose_unknowns : 'a list -> 'a
 
 val rank_terms : Kernel.term list -> Kernel.term list
 (** Requests a ranking/sorting of terms by some heuristic *)
-
-val quiet_all : bool ref
 
 val return_thm :
   ?from:string ->
@@ -425,7 +424,7 @@ val elim_exists_asm_tac : tactic
 
 (** {1 Proof Runner} *)
 
-val prove : ?name:string -> goal -> tactic -> proof_state
+val prove : ?quiet:bool -> ?name:string -> goal -> tactic -> proof_state
 (** The main effect handler that runs a tactic on a goal. Provides default
     interpretations for all effects: printing traces, taking first choices,
     ignoring fuel costs, etc. Returns [Complete thm] on success or

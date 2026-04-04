@@ -5,11 +5,9 @@ open Tactic
 open Heft_theories
 open Theories
 
-let () = Tactic.quiet_all := true
-
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> true)] in
-  run_proof ~notrace:true goal (intros_tac >> truth_tac)
+  run_proof ~quiet:true ~notrace:true goal (intros_tac >> truth_tac)
 
 let () =
   let goal =
@@ -19,17 +17,17 @@ let () =
     make_goal
       (make_forall p (make_imp p (Result.get_ok (safe_make_eq p t_const))))
   in
-  run_proof ~name:"eq_true_intro" ~notrace:true goal
+  run_proof ~quiet:true ~name:"eq_true_intro" ~notrace:true goal
     (intros_tac >> eq_true_elim_tac >> assumption_tac)
 
 let () =
   let goal = make_goal [%term forall (fun (x : nat) -> plus x Zero = x)] in
-  run_proof ~name:"plus_x_Zero" goal
+  run_proof ~quiet:true ~name:"plus_x_Zero" goal
     (induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac)
 
 let () =
   let goal = make_goal [%term plus 2n 3n = 5n] in
-  run_proof ~pretty:true goal simp_tac
+  run_proof ~quiet:true ~pretty:true goal simp_tac
 
 let () =
   let goal =
@@ -38,7 +36,7 @@ let () =
         forall (fun (x : nat) (y : nat) (z : nat) ->
             plus x (plus y z) = plus (plus x y) z)]
   in
-  run_proof ~name:"plus_assoc" goal
+  run_proof ~quiet:true ~name:"plus_assoc" goal
     (with_term x induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac)
 
 let () =
@@ -46,7 +44,7 @@ let () =
     make_goal
       [%term forall (fun (x : nat) (y : nat) -> Suc x = Suc y ==> (x = y))]
   in
-  run_proof ~name:"Suc_inj" goal
+  run_proof ~quiet:true ~name:"Suc_inj" goal
     (intros_tac
     >> (apply_thm_tac |> with_rules NatTheory.nat_def.injective)
     >> assumption_tac)
@@ -58,7 +56,7 @@ let () =
       [%term
         forall (fun (x : nat) (y : nat) -> plus x (Suc y) = Suc (plus x y))]
   in
-  run_proof ~name:"plus_Suc" goal
+  run_proof ~quiet:true ~name:"plus_Suc" goal
     (induct_tac >> gen_tac >> simp_tac >> intros_tac >> simp_tac)
 
 let () =
@@ -66,7 +64,7 @@ let () =
     make_goal
       [%term forall (fun (x : nat) (y : nat) -> x = y ==> (Suc x = Suc y))]
   in
-  run_proof ~name:"Suc_inj_rev" goal
+  run_proof ~quiet:true ~name:"Suc_inj_rev" goal
     (intros_tac >> (rewrite_tac |> with_assumptions) >> refl_tac)
 
 (* Commutativity: plus x y = plus y x *)
@@ -74,7 +72,7 @@ let () =
   let goal =
     make_goal [%term forall (fun (x : nat) (y : nat) -> plus x y = plus y x)]
   in
-  run_proof ~name:"plus_comm" goal
+  run_proof ~quiet:true ~name:"plus_comm" goal
     (induct_tac >> gen_tac >> simp_tac
     >> with_first (with_proven [ "plus_x_Zero" ] rewrite_tac)
     >> refl_tac >> intros_tac >> simp_tac >> sym_tac
@@ -87,7 +85,7 @@ let () =
         forall (fun (x : nat) (y : nat) (z : nat) ->
             plus x y = plus x z ==> (y = z))]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (induct_tac >> simp_tac >> intros_tac >> assumption_tac >> intros_tac
    >> simp_asm_tac
     >> with_first (with_proven [ "Suc_inj" ] apply_thm_asm_tac)
@@ -101,7 +99,7 @@ let () =
         forall (fun (x : nat) (y : nat) (z : nat) ->
             plus y x = plus z x ==> (y = z))]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (induct_tac >> gen_tac
     >> with_proven [ "plus_x_Zero" ] simp_tac
     >> intros_tac >> assumption_tac >> intros_tac
@@ -117,7 +115,7 @@ let () =
     make_goal
       [%term forall (fun (xs : 'a list) -> xs = Nil ==> (length xs = Zero))]
   in
-  run_proof goal (intros_tac >> simp_tac ~with_asms:true)
+  run_proof ~quiet:true goal (intros_tac >> simp_tac ~with_asms:true)
 
 (* length xs = Zero ==> xs = Nil *)
 let () =
@@ -125,7 +123,7 @@ let () =
     make_goal
       [%term forall (fun (xs : 'a list) -> length xs = Zero ==> (xs = Nil))]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
    >> sym_asm_tac
     >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
@@ -135,7 +133,7 @@ let () =
   let goal =
     make_goal [%term forall (fun (xs : 'a list) -> append Nil xs = xs)]
   in
-  run_proof goal (intros_tac >> simp_tac)
+  run_proof ~quiet:true goal (intros_tac >> simp_tac)
 
 let () =
   let goal =
@@ -144,13 +142,13 @@ let () =
         forall (fun (x : 'a) (xs : 'a list) (ys : 'a list) ->
             append (Cons (x, xs)) ys = Cons (x, append xs ys))]
   in
-  run_proof ~name:"append_cons" goal (intros_tac >> simp_tac)
+  run_proof ~quiet:true ~name:"append_cons" goal (intros_tac >> simp_tac)
 
 let () =
   let goal =
     make_goal [%term forall (fun (xs : 'a list) -> append xs Nil = xs)]
   in
-  run_proof ~name:"append_xs_Nil" goal
+  run_proof ~quiet:true ~name:"append_xs_Nil" goal
     (induct_tac >> simp_tac >> intros_tac
     >> with_proven [ "append_cons" ] rewrite_tac
     >> with_proven [ "append_cons" ] simp_tac)
@@ -162,7 +160,7 @@ let () =
         forall (fun (xs : 'a list) (ys : 'a list) (zs : 'a list) ->
             append (append xs ys) zs = append xs (append ys zs))]
   in
-  run_proof ~name:"append_assoc" goal
+  run_proof ~quiet:true ~name:"append_assoc" goal
     (induct_tac
     >>= [
           with_no_automation_trace auto_dfs_tac;
@@ -176,7 +174,7 @@ let () =
         forall (fun (xs : 'a list) (ys : 'a list) (zs : 'a list) ->
             length (append xs ys) = plus (length xs) (length ys))]
   in
-  run_proof ~name:"append_length" goal
+  run_proof ~quiet:true ~name:"append_length" goal
     (induct_tac
     >> with_no_automation_trace auto_dfs_tac
     >> with_no_automation_trace auto_dfs_tac)
@@ -186,7 +184,7 @@ let () =
     make_goal
       [%term forall (fun (x : 'a list) -> length (reverse x) = length x)]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (induct_tac >> simp_tac >> intros_tac
     >> with_proven [ "append_length" ] simp_tac
     >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
@@ -199,7 +197,7 @@ let () =
         forall (fun (xs : 'a list) (ys : 'a list) ->
             reverse (append xs ys) = append (reverse ys) (reverse xs))]
   in
-  run_proof ~name:"append_reverse" goal
+  run_proof ~quiet:true ~name:"append_reverse" goal
     (induct_tac >> intros_tac
     >> with_proven [ "append_xs_Nil" ] simp_tac
     >> intros_tac >> simp_tac
@@ -209,7 +207,7 @@ let () =
   let goal =
     make_goal [%term forall (fun (xs : 'a list) -> reverse (reverse xs) = xs)]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (induct_tac >> simp_tac >> intros_tac
     >> with_proven [ "append_reverse" ] simp_tac)
 
@@ -220,19 +218,19 @@ let () =
         forall (fun (x : 'a) (y : 'a) ->
             x = y ==> (fst (Pair (x, y)) = snd (Pair (x, y))))]
   in
-  run_proof goal (intros_tac >> simp_tac)
+  run_proof ~quiet:true goal (intros_tac >> simp_tac)
 
 let () =
   let goal = make_goal [%term pred 3n = 2n] in
-  run_proof ~pretty:true goal simp_tac
+  run_proof ~quiet:true ~pretty:true goal simp_tac
 
 let () =
   let goal = make_goal [%term minus 4n 3n = 1n] in
-  run_proof ~pretty:true goal simp_tac
+  run_proof ~quiet:true ~pretty:true goal simp_tac
 
 let () =
   let goal = make_goal [%term forall (fun (n : nat) -> minus n Zero = n)] in
-  run_proof ~name:"minus_Zero" goal
+  run_proof ~quiet:true ~name:"minus_Zero" goal
     (induct_tac
     >> with_no_automation_trace auto_dfs_tac
     >> with_no_automation_trace auto_dfs_tac)
@@ -244,7 +242,7 @@ let () =
       [%term
         forall (fun (n : nat) (m : nat) -> minus n (Suc m) = pred (minus n m))]
   in
-  run_proof ~name:"minus_Suc_right" goal
+  run_proof ~quiet:true ~name:"minus_Suc_right" goal
     (induct_tac
     >> with_proven [ "minus_Zero" ] (with_no_automation_trace auto_dfs_tac)
     >> with_no_automation_trace auto_dfs_tac)
@@ -256,7 +254,7 @@ let () =
       [%term
         forall (fun (n : nat) (m : nat) -> minus (Suc n) (Suc m) = minus n m)]
   in
-  run_proof ~name:"minus_Suc_Suc" goal
+  run_proof ~quiet:true ~name:"minus_Suc_Suc" goal
     (gen_tac >> induct_tac
     >> with_proven [ "minus_Zero" ] simp_tac
     >> intros_tac
@@ -267,7 +265,7 @@ let () =
 
 let () =
   let goal = make_goal [%term forall (fun (n : nat) -> minus n n = Zero)] in
-  run_proof ~name:"minus_self" goal
+  run_proof ~quiet:true ~name:"minus_self" goal
     (induct_tac >> simp_tac >> intros_tac
     >> with_proven [ "minus_Suc_Suc" ] simp_tac
     >> simp_asm_tac ~with_asms:false)
@@ -276,7 +274,7 @@ let () =
   let goal =
     make_goal [%term forall (fun (x : nat) (n : nat) -> minus (plus x n) n = x)]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (gen_tac >> induct_tac
     >> with_proven [ "plus_x_Zero"; "minus_Zero" ] simp_tac
     >> intros_tac
@@ -286,7 +284,7 @@ let () =
 
 let () =
   let goal = make_goal [%term twice pred 2n = 0n] in
-  run_proof goal simp_tac
+  run_proof ~quiet:true goal simp_tac
 
 let () =
   let goal =
@@ -295,44 +293,44 @@ let () =
         forall (fun (f : 'a -> 'b -> 'c) (x : 'a) (y : 'b) ->
             flip f y x = f x y)]
   in
-  run_proof ~name:"flip_f" goal (intros_tac >> simp_tac)
+  run_proof ~quiet:true ~name:"flip_f" goal (intros_tac >> simp_tac)
 
 let () =
   let goal = make_goal [%term not (true = false)] in
   let t = true_def |> Result.get_ok in
-  run_proof goal
+  run_proof ~quiet:true goal
     (neg_intro_tac
     >> with_assumptions (with_flip_rules rewrite_tac)
     >> with_rule t rewrite_tac >> refl_tac)
 
 let () =
   let goal = make_goal [%term nat_le 0n 1n] in
-  run_proof ~notrace:true goal simp_tac
+  run_proof ~quiet:true ~notrace:true goal simp_tac
 
 let () =
   let goal = make_goal [%term not (nat_le 3n 1n)] in
-  run_proof ~pretty:true ~notrace:true goal
+  run_proof ~quiet:true ~pretty:true ~notrace:true goal
     (simp_tac >> neg_intro_tac >> assumption_tac)
 
 (* insert 3 into [] = [3] *)
 let () =
   let goal = make_goal [%term insert Nil 3n = Cons (3n, Nil)] in
-  run_proof ~pretty:true ~notrace:true goal simp_tac
+  run_proof ~quiet:true ~pretty:true ~notrace:true goal simp_tac
 
 (* insert 2 into [1] = [1, 2] *)
 let () =
   let goal =
     make_goal [%term insert (Cons (1n, Nil)) 2n = Cons (1n, Cons (2n, Nil))]
   in
-  run_proof ~pretty:true ~notrace:true goal simp_tac
+  run_proof ~quiet:true ~pretty:true ~notrace:true goal simp_tac
 
 let () =
   let goal = make_goal [%term sub 4n 3n = 1n] in
-  run_proof ~pretty:true goal simp_tac
+  run_proof ~quiet:true ~pretty:true goal simp_tac
 
 let () =
   let goal = make_goal [%term forall (fun (x : nat) -> minus 0n x = 0n)] in
-  run_proof ~name:"minus_Zero_left" goal
+  run_proof ~quiet:true ~name:"minus_Zero_left" goal
     (induct_tac >> simp_tac >> intros_tac
     >> simp_asm_tac ~with_asms:false
     >> simp_tac ~with_asms:false
@@ -343,7 +341,7 @@ let () =
   let goal =
     make_goal [%term forall (fun (x : nat) (n : nat) -> sub x n = minus x n)]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (induct_tac
     >>= [
           with_proven [ "minus_Zero_left" ] simp_tac >>> gen_tac >>> refl_tac;
@@ -359,7 +357,7 @@ let () =
 (* isort [] = [] *)
 let () =
   let goal = make_goal [%term isort Nil = Nil] in
-  run_proof goal simp_tac
+  run_proof ~quiet:true goal simp_tac
 
 (* isort [3,1,2] = [1,2,3] *)
 let () =
@@ -369,18 +367,18 @@ let () =
         isort (Cons (3n, Cons (1n, Cons (2n, Nil))))
         = Cons (1n, Cons (2n, Cons (3n, Nil)))]
   in
-  run_proof ~pretty:true goal simp_tac
+  run_proof ~quiet:true ~pretty:true goal simp_tac
 
 let () =
   let goal = make_goal [%term eqb true false = false] in
-  run_proof goal simp_tac
+  run_proof ~quiet:true goal simp_tac
 
 let () =
   let goal =
     make_goal [%term forall (fun (b : bool) -> b = true || b = false)]
   in
 
-  run_proof ~name:"bool_cases_test" goal
+  run_proof ~quiet:true ~name:"bool_cases_test" goal
     (cases_tac >>= [ left_tac >> refl_tac; right_tac >> refl_tac ])
 
 let () =
@@ -390,7 +388,7 @@ let () =
         forall (fun (m : nat) (n : nat) ->
             nat_le m n = false ==> (nat_le n m = true))]
   in
-  run_proof ~name:"nat_le_flip" goal
+  run_proof ~quiet:true ~name:"nat_le_flip" goal
     (induct_tac
     >>= [
           gen_tac >> intro_tac
@@ -411,7 +409,7 @@ let () =
         forall (fun (l : nat list) (n : nat) ->
             sorted l ==> sorted (insert l n))]
   in
-  run_proof ~name:"sort_correct_lemma" goal
+  run_proof ~quiet:true ~name:"sort_correct_lemma" goal
     (induct_tac >>> (intros_tac >> simp_tac)
     >>= [
           conj_tac >>> truth_tac;
@@ -451,7 +449,7 @@ let () =
   let goal =
     make_goal [%term forall (fun (l : nat list) -> sorted (isort l))]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (induct_tac >> simp_tac >> intros_tac >> simp_tac
     >> with_proven [ "sort_correct_lemma" ] apply_thm_tac
     >> assumption_tac)
@@ -463,7 +461,7 @@ let () =
         forall (fun (o : 'a option) ->
             (not (o = None)) ==> exists (fun (x : 'a) -> o = Some x))]
   in
-  run_proof goal
+  run_proof ~quiet:true goal
     (intros_tac
     >> with_arbitrary_term [%term (o : 'a option)] destruct_tac
     >> elim_disj_asm_tac >> neg_elim_tac >> elim_exists_asm_tac
@@ -477,7 +475,7 @@ let () =
         forall (fun (n : nat) (m : nat) (a : nat) (b : nat) (x : nat) ->
             div_aux n a b = Some x ==> (div_aux (plus n m) a b = Some x))]
   in
-  run_proof ~name:"div_fuel_irrel" ~notrace:true goal
+  run_proof ~quiet:true ~name:"div_fuel_irrel" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac
     >> with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac
     >> false_elim_tac >> intros_tac
@@ -510,7 +508,7 @@ let () =
         forall (fun (b : nat) ->
             nat_lt 0n b ==> exists (fun (x : nat) -> b = Suc x))]
   in
-  run_proof ~simp:true ~name:"lt_Zero_Suc" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"lt_Zero_Suc" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
     >> with_arbitrary_term n0 exists_tac
     >> refl_tac)
@@ -525,14 +523,14 @@ let () =
     make_goal
       [%term forall (fun (x : nat) (b : nat) -> b = Suc x ==> nat_lt 0n b)]
   in
-  run_proof ~simp:true ~name:"Suc_lt_Zero" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"Suc_lt_Zero" ~notrace:true goal
     nat_induct_auto_tac
 
 let () =
   let goal =
     make_goal [%term forall (fun (a : nat) -> nat_lt a Zero = false)]
   in
-  run_proof ~simp:true ~name:"lt_Zero_false" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"lt_Zero_false" ~notrace:true goal
     nat_induct_auto_tac
 
 let () =
@@ -540,7 +538,8 @@ let () =
     make_goal
       [%term forall (fun (a : nat) (b : nat) -> nat_lt a (plus a (Suc b)))]
   in
-  run_proof ~name:"lt_add_Suc_r" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~name:"lt_add_Suc_r" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal =
@@ -549,7 +548,8 @@ let () =
         forall (fun (a : nat) (b : nat) (c : nat) ->
             nat_lt (plus a b) (plus a c) = nat_lt b c)]
   in
-  run_proof ~name:"add_lt_cancel_l" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~name:"add_lt_cancel_l" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal =
@@ -558,31 +558,34 @@ let () =
         forall (fun (a : nat) (b : nat) (c : nat) ->
             nat_le (plus a b) (plus a c) = nat_le b c)]
   in
-  run_proof ~name:"add_le_cancel_l" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~name:"add_le_cancel_l" ~notrace:true goal
+    nat_induct_auto_tac
 
 (* ===== Group 1: Basic computation rules ===== *)
 
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> sub a 0n = a)] in
-  run_proof ~simp:true ~name:"sub_Zero_r" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"sub_Zero_r" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal =
     make_goal
       [%term forall (fun (a : nat) (b : nat) -> sub (Suc a) (Suc b) = sub a b)]
   in
-  run_proof ~simp:true ~name:"sub_Suc_Suc" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"sub_Suc_Suc" ~notrace:true goal
     nat_induct_auto_tac
 
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> sub Zero a = 0n)] in
-  run_proof ~simp:true ~name:"sub_Zero_l" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"sub_Zero_l" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal =
     make_goal [%term forall (fun (a : nat) -> nat_lt 0n (Suc a) = true)]
   in
-  run_proof ~simp:true ~name:"lt_Zero_Suc" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"lt_Zero_Suc" ~notrace:true goal
     nat_induct_auto_tac
 
 let () =
@@ -591,18 +594,21 @@ let () =
       [%term
         forall (fun (a : nat) (b : nat) -> nat_lt (Suc a) (Suc b) = nat_lt a b)]
   in
-  run_proof ~simp:true ~name:"lt_Suc_Suc" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"lt_Suc_Suc" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal =
     make_goal [%term forall (fun (a : nat) -> nat_le a 0n ==> (a = 0n))]
   in
-  run_proof ~simp:true ~name:"le_Zero_eq" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"le_Zero_eq" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> nat_le 0n a = true)] in
 
-  run_proof ~simp:true ~name:"le_Zero_l" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"le_Zero_l" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal =
@@ -611,32 +617,38 @@ let () =
         forall (fun (a : nat) (b : nat) -> nat_le (Suc a) (Suc b) = nat_le a b)]
   in
 
-  run_proof ~simp:true ~name:"le_Suc_Suc" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"le_Suc_Suc" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal =
     make_goal [%term forall (fun (a : nat) -> nat_le (Suc a) Zero = false)]
   in
-  run_proof ~simp:true ~name:"le_Zero_r" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"le_Zero_r" ~notrace:true goal
+    nat_induct_auto_tac
 
 (* ===== Group 2: Reflexivity and basic identity ===== *)
 
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> nat_lt a a = false)] in
-  run_proof ~simp:true ~name:"lt_irrefl" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"lt_irrefl" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> nat_le a a = true)] in
-  run_proof ~simp:true ~name:"le_refl" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"le_refl" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> sub a a = 0n)] in
 
-  run_proof ~simp:true ~name:"sub_self" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"sub_self" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> plus 0n a = a)] in
-  run_proof ~simp:true ~name:"add_Zero_l" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"add_Zero_l" ~notrace:true goal
+    nat_induct_auto_tac
 
 let () =
   let goal =
@@ -644,7 +656,8 @@ let () =
       [%term
         forall (fun (a : nat) (b : nat) -> plus (Suc a) b = Suc (plus a b))]
   in
-  run_proof ~simp:true ~name:"add_Suc_l" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~simp:true ~name:"add_Suc_l" ~notrace:true goal
+    nat_induct_auto_tac
 
 (* ===== Group 3: Successor relationships ===== *)
 
@@ -652,14 +665,14 @@ let () =
   let goal =
     make_goal [%term forall (fun (a : nat) -> nat_lt a (Suc a) = true)]
   in
-  run_proof ~simp:true ~name:"lt_Suc_self" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"lt_Suc_self" ~notrace:true goal
     nat_induct_auto_tac
 
 let () =
   let goal =
     make_goal [%term forall (fun (a : nat) -> nat_le a (Suc a) = true)]
   in
-  run_proof ~simp:true ~name:"le_Suc_self" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"le_Suc_self" ~notrace:true goal
     nat_induct_auto_tac
 
 let () =
@@ -668,7 +681,7 @@ let () =
       [%term forall (fun (a : nat) (b : nat) -> nat_lt a (Suc b) = nat_le a b)]
   in
 
-  run_proof ~simp:true ~name:"lt_Suc_le" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"lt_Suc_le" ~notrace:true goal
     (induct_tac
     >> with_no_automation_trace auto_dfs_tac
     >> intros_tac >> simp_tac
@@ -680,7 +693,7 @@ let () =
     make_goal
       [%term forall (fun (a : nat) (b : nat) -> nat_le a b = nat_lt a (Suc b))]
   in
-  run_proof ~name:"le_lt_Suc" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~name:"le_lt_Suc" ~notrace:true goal nat_induct_auto_tac
 
 (* (* ===== Group 4: Connection between lt and le ===== *) *)
 let () =
@@ -690,7 +703,7 @@ let () =
         forall (fun (a : nat) (b : nat) -> nat_lt a b = false = nat_le b a)]
   in
 
-  run_proof ~simp:true ~name:"not_lt_is_le" ~notrace:true goal
+  run_proof ~quiet:true ~simp:true ~name:"not_lt_is_le" ~notrace:true goal
     (induct_tac >> induct_tac >> simp_tac >> eq_true_elim_tac >> refl_tac
    >> intros_tac >> simp_tac >> eq_false_elim_tac >> neg_intro_tac
    >> sym_asm_tac
@@ -701,29 +714,29 @@ let () =
     >> elim_exists_asm_tac >> simp_tac)
 
 let () =
-  run_proof ~simp:true ~name:"eq_true_false"
+  run_proof ~quiet:true ~simp:true ~name:"eq_true_false"
     (make_goal [%term true = false = false])
     (eq_false_elim_tac >> neg_intro_tac
     >> with_assumptions @@ with_flip_rules rewrite_tac
     >> truth_tac);
-  run_proof ~simp:true ~name:"eq_false_false"
+  run_proof ~quiet:true ~simp:true ~name:"eq_false_false"
     (make_goal [%term false = false = true])
     (eq_true_elim_tac >> refl_tac);
-  run_proof ~simp:true ~name:"eq_true_true"
+  run_proof ~quiet:true ~simp:true ~name:"eq_true_true"
     (make_goal [%term true = true = false])
     (eq_true_elim_tac >> refl_tac);
-  run_proof ~simp:true ~name:"eq_false_true"
+  run_proof ~quiet:true ~simp:true ~name:"eq_false_true"
     (make_goal [%term false = true = false])
     (eq_false_elim_tac >> neg_intro_tac >> simp_tac);
-  run_proof ~simp:true ~name:"neg_false_true"
+  run_proof ~quiet:true ~simp:true ~name:"neg_false_true"
     (make_goal [%term (not false) = true])
     (eq_true_elim_tac >> neg_intro_tac >> false_elim_tac);
-  run_proof ~simp:true ~name:"neg_true_false"
+  run_proof ~quiet:true ~simp:true ~name:"neg_true_false"
     (make_goal [%term (not true) = false])
     (eq_false_elim_tac
     >> with_arbitrary_term t assert_tac
     >> truth_tac >> neg_intro_tac >> neg_elim_tac);
-  run_proof ~name:"eq_cong"
+  run_proof ~quiet:true ~name:"eq_cong"
     (make_goal
        [%term
          forall (fun (f : 'a -> 'b) (x : 'a) (y : 'a) -> x = y ==> (f x = f y))])
@@ -735,7 +748,7 @@ let () =
       [%term
         forall (fun (a : nat) (b : nat) -> nat_le a b = false = nat_lt b a)]
   in
-  run_proof ~name:"not_le_is_lt" ~notrace:true goal
+  run_proof ~quiet:true ~name:"not_le_is_lt" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
     >> with_arbitrary_term [%term (b : nat)] destruct_tac
     >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac
@@ -747,7 +760,7 @@ let () =
     make_goal
       [%term forall (fun (a : nat) (b : nat) -> nat_lt a b ==> nat_le a b)]
   in
-  run_proof ~name:"lt_implies_le" ~notrace:true goal
+  run_proof ~quiet:true ~name:"lt_implies_le" ~notrace:true goal
     (induct_tac
     >> with_no_automation_trace auto_dfs_tac
     >> intros_tac >> simp_tac
@@ -775,7 +788,7 @@ let () =
         forall (fun (a : nat) (b : nat) (c : nat) ->
             nat_lt a b ==> (nat_lt b c ==> nat_lt a c))]
   in
-  run_proof ~name:"lt_trans" ~notrace:true goal
+  run_proof ~quiet:true ~name:"lt_trans" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -799,7 +812,7 @@ let () =
         forall (fun (a : nat) (b : nat) (c : nat) ->
             nat_le a b ==> (nat_le b c ==> nat_le a c))]
   in
-  run_proof ~name:"le_trans" ~notrace:true goal
+  run_proof ~quiet:true ~name:"le_trans" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -823,7 +836,7 @@ let () =
         forall (fun (a : nat) (b : nat) (c : nat) ->
             nat_le a b ==> (nat_lt b c ==> nat_lt a c))]
   in
-  run_proof ~name:"le_lt_trans" ~notrace:true goal
+  run_proof ~quiet:true ~name:"le_lt_trans" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -848,7 +861,7 @@ let () =
         forall (fun (a : nat) (b : nat) (c : nat) ->
             nat_lt a b ==> (nat_le b c ==> nat_lt a c))]
   in
-  run_proof ~name:"lt_le_trans" ~notrace:true goal
+  run_proof ~quiet:true ~name:"lt_le_trans" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -873,7 +886,7 @@ let () =
         forall (fun (a : nat) (b : nat) ->
             nat_le a b ==> (nat_le b a ==> ((a : nat) = b)))]
   in
-  run_proof ~name:"le_antisym" ~notrace:true goal
+  run_proof ~quiet:true ~name:"le_antisym" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -892,7 +905,7 @@ let () =
       [%term
         forall (fun (a : nat) (b : nat) -> nat_le a b ==> nat_le a (Suc b))]
   in
-  run_proof ~name:"le_weaken_Suc" ~notrace:true goal
+  run_proof ~quiet:true ~name:"le_weaken_Suc" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -909,7 +922,7 @@ let () =
       [%term
         forall (fun (a : nat) (b : nat) -> nat_lt a b ==> nat_lt a (Suc b))]
   in
-  run_proof ~name:"lt_weaken_Suc" ~notrace:true goal
+  run_proof ~quiet:true ~name:"lt_weaken_Suc" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -924,7 +937,7 @@ let () =
   let goal =
     make_goal [%term forall (fun (a : nat) (b : nat) -> nat_le (sub a b) a)]
   in
-  run_proof ~name:"sub_le" ~notrace:true goal
+  run_proof ~quiet:true ~name:"sub_le" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -942,7 +955,7 @@ let () =
         forall (fun (b : nat) (a : nat) ->
             nat_lt 0n b ==> (nat_le b a ==> nat_lt (sub a b) a))]
   in
-  run_proof ~name:"sub_lt" ~notrace:true goal
+  run_proof ~quiet:true ~name:"sub_lt" ~notrace:true goal
     (with_arbitrary_term [%term (b : nat)] induct_tac
     >>> intros_tac >> assumption_reasoning_tac
     >> with_arbitrary_term [%term (a : nat)] destruct_tac
@@ -966,7 +979,7 @@ let () =
         forall (fun (a : nat) (b : nat) ->
             nat_le b a ==> (plus (sub a b) b = a))]
   in
-  run_proof ~name:"sub_add_cancel" ~notrace:true goal
+  run_proof ~quiet:true ~name:"sub_add_cancel" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -990,7 +1003,7 @@ let () =
   let goal =
     make_goal [%term forall (fun (a : nat) (b : nat) -> nat_le a (plus a b))]
   in
-  run_proof ~name:"le_add_r" ~notrace:true goal nat_induct_auto_tac
+  run_proof ~quiet:true ~name:"le_add_r" ~notrace:true goal nat_induct_auto_tac
 
 (* (* ===== Group 9: Totality ===== *) *)
 
@@ -999,7 +1012,7 @@ let () =
     make_goal
       [%term forall (fun (a : nat) (b : nat) -> nat_lt a b || nat_le b a)]
   in
-  run_proof ~name:"lt_total" ~notrace:true goal
+  run_proof ~quiet:true ~name:"lt_total" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -1021,7 +1034,7 @@ let () =
     make_goal
       [%term forall (fun (a : nat) (b : nat) -> nat_le a b || nat_le b a)]
   in
-  run_proof ~name:"le_total" ~notrace:true goal
+  run_proof ~quiet:true ~name:"le_total" ~notrace:true goal
     (with_arbitrary_term [%term (a : nat)] induct_tac
     >>> intros_tac
     >>> with_arbitrary_term [%term (b : nat)] induct_tac
@@ -1046,7 +1059,7 @@ let () =
             nat_lt 0n b
             ==> (nat_lt a n ==> exists (fun (x : nat) -> div_aux n a b = Some x)))]
   in
-  run_proof ~name:"div_fuel_sufficient" ~notrace:true goal
+  run_proof ~quiet:true ~name:"div_fuel_sufficient" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
    >> simp_tac >> cond_tac >> simp_tac
     >> with_arbitrary_term NatTheory.n0 exists_tac
@@ -1077,7 +1090,7 @@ let () =
             nat_lt 0n b
             ==> (div a b = if nat_lt a b then 0n else Suc (div (sub a b) b)))]
   in
-  run_proof ~name:"div_unfold" ~notrace:true goal
+  run_proof ~quiet:true ~name:"div_unfold" ~notrace:true goal
     (intros_tac
     >> with_definition [ "div" ] rewrite_tac
     >> beta_tac
@@ -1178,7 +1191,7 @@ let () =
     >> try_ refl_tac
   in
   let proof = with_repeat compute in
-  run_proof ~pretty:true ~notrace:true goal proof
+  run_proof ~quiet:true ~pretty:true ~notrace:true goal proof
 
 let () =
   let goal =
@@ -1199,7 +1212,7 @@ let () =
     with_first (with_assumptions rewrite_tac)
     >> with_first (with_assumptions rewrite_asm_tac)
   in
-  run_proof ~name:"merge_fuel_irrel" ~notrace:true goal
+  run_proof ~quiet:true ~name:"merge_fuel_irrel" ~notrace:true goal
     (with_arbitrary_term [%term (fuel : nat)] induct_tac
     >> intros_tac >> simp_asm_tac
     >> with_rules OptionTheory.option_def.distinct rewrite_asm_tac
@@ -1264,7 +1277,7 @@ let () =
             nat_lt (plus (length xs) (length ys)) fuel
             ==> exists (fun (x : nat list) -> merge_aux fuel xs ys = Some x))]
   in
-  run_proof ~name:"merge_fuel_sufficient" ~notrace:true goal
+  run_proof ~quiet:true ~name:"merge_fuel_sufficient" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
    >> simp_tac
     >> with_arbitrary_term [%term (xs : nat list)] destruct_tac
@@ -1330,7 +1343,7 @@ let () =
                     if nat_lt h y' then Cons (h, merge t (Cons (y', ys')))
                     else Cons (y', merge (Cons (h, t)) ys'))))]
   in
-  run_proof ~name:"merge_unfold" ~notrace:true goal
+  run_proof ~quiet:true ~name:"merge_unfold" ~notrace:true goal
     (intros_tac
     >> with_arbitrary_term [%term (xs : nat list)] destruct_tac
     >> with_arbitrary_term [%term (ys : nat list)] destruct_tac
@@ -1425,7 +1438,7 @@ let () =
         merge_sort_aux 8n (Cons (3n, Cons (1n, Cons (2n, Nil))))
         = Some (Cons (1n, Cons (2n, Cons (3n, Nil))))]
   in
-  run_proof ~pretty:true ~notrace:true goal
+  run_proof ~quiet:true ~pretty:true ~notrace:true goal
     (rw_def "merge_sort_aux" >> simp_tac ~exclude
     >> with_repeat @@ rw_def "div"
     >> with_repeat @@ rw_def "div_aux"
@@ -1456,7 +1469,7 @@ let () =
         forall (fun (n : nat) (xs : nat list) ->
             length (drop n xs) = sub (length xs) n)]
   in
-  run_proof ~name:"length_take" ~notrace:true gtake
+  run_proof ~quiet:true ~name:"length_take" ~notrace:true gtake
     (with_arbitrary_term n induct_tac
     >>> try_ intros_tac
     >>> with_arbitrary_term xs induct_tac
@@ -1472,7 +1485,7 @@ let () =
     >> with_assumptions rewrite_tac
     >> with_first (with_proven [ "lt_Suc_Suc" ] rewrite_tac)
     >> cond_tac >> simp_tac >> simp_tac);
-  run_proof ~name:"length_drop" ~notrace:true gdrop
+  run_proof ~quiet:true ~name:"length_drop" ~notrace:true gdrop
     (with_arbitrary_term n induct_tac
     >>> try_ intros_tac
     >>> with_arbitrary_term xs induct_tac
@@ -1538,7 +1551,7 @@ let () =
       [%term forall (fun (n : nat) -> nat_lt 1n n ==> nat_lt (div n 2n) n)]
   in
 
-  run_proof ~name:"div_pos" ~notrace:true gpos
+  run_proof ~quiet:true ~name:"div_pos" ~notrace:true gpos
     (with_arbitrary_term n induct_tac
     >>> intros_tac
     >>> try_ assumption_reasoning_tac
@@ -1553,7 +1566,7 @@ let () =
     >> with_assumptions rewrite_tac
     >> with_proven [ "cond_false" ] rewrite_tac
     >> simp_tac ~exclude:[ "div" ]);
-  run_proof ~name:"div_le" ~notrace:true gle
+  run_proof ~quiet:true ~name:"div_le" ~notrace:true gle
     (with_arbitrary_term n induct_tac
     >> intros_tac
     >> with_first (with_proven [ "le_Zero_eq" ] apply_thm_asm_tac)
@@ -1587,7 +1600,7 @@ let () =
             (with_info_trace (with_flip_rules rewrite_tac)))
     >> with_first assumption_tac >> spec_asm_tac subkm >> spec_asm_tac m
     >> with_repeat mp_asm_tac >> with_first assumption_tac);
-  run_proof ~pretty:true ~name:"div_lt" ~notrace:true glt
+  run_proof ~quiet:true ~pretty:true ~name:"div_lt" ~notrace:true glt
     (with_arbitrary_term n induct_tac
     >> intros_tac >> assumption_reasoning_tac >> intros_tac
     >> with_arbitrary_term n0 destruct_tac
@@ -1629,7 +1642,8 @@ let () =
             ==> exists (fun (x : nat list) -> merge_sort_aux fuel xs = Some x))]
   in
 
-  run_proof ~name:"merge_sort_fuel_sufficient" ~pretty:true ~notrace:true goal
+  run_proof ~quiet:true ~name:"merge_sort_fuel_sufficient" ~pretty:true
+    ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
     >> with_first (with_definition [ "merge_sort_aux" ] rewrite_tac)
     >> beta_tac >> cond_tac
@@ -1700,7 +1714,7 @@ let () =
   in
   let proof = sorry_tac in
   (*TODO: finish this one*)
-  run_proof ~notrace:true goal proof
+  run_proof ~quiet:true ~notrace:true goal proof
 
 let () =
   let goal =
@@ -1717,7 +1731,7 @@ let () =
                   (merge_sort (drop half_length xs)))
                 (div (length xs) 2n))]
   in
-  run_proof ~pretty:false ~notrace:true goal
+  run_proof ~quiet:true ~pretty:false ~notrace:true goal
     (intros_tac
     >> with_definition [ "merge_sort" ] rewrite_tac
     >> beta_tac

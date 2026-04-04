@@ -111,3 +111,14 @@ Benchmark 1: dune exe heft --rel
 
 Another huge win
 
+after using an effect instead of mutable ref, we get this
+
+after
+`bordo@brick:~/Git/heft $ hyperfine 'dune exe heft --rel' --warmup 1
+Benchmark 1: dune exe heft --rel
+  Time (mean ± σ):      1.358 s ±  0.029 s    [User: 1.027 s, System: 0.330 s]
+  Range (min … max):    1.329 s …  1.397 s    10 runs
+`
+
+A bit of overhead added but I'm happy with this because it keeps away from global state, I might use an effect level cache for this type of thing in the future anyway
+

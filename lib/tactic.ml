@@ -90,6 +90,7 @@ type _ Effect.t +=
   | Rank : 'a rankable -> 'a list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
+  | Quiet : bool Effect.t
   | Burn : (string * cost) -> unit Effect.t
   | Rules : thm list Effect.t
 
@@ -155,14 +156,15 @@ let choose_theorems gs = perform (Choose (Theorem gs))
 let choose_tactics gs = perform (Choose (Tactic gs))
 let choose_unknowns gs = perform (Choose (Unknown gs))
 let rank_terms ts = perform (Rank (Term ts))
-let quiet_all = ref false
 
-let return_thm ?(from = "unknown") = function
+let return_thm ?(from = "unknown") res =
+  let quiet = perform Quiet in
+  match res with
   | Ok thm ->
-      if !quiet_all then () else perform (Trace (Proof, from));
+      if quiet then () else perform (Trace (Proof, from));
       thm
   | Error e ->
-      if !quiet_all then fail () else trace_error @@ print_error e;
+      if quiet then fail () else trace_error @@ print_error e;
       fail ()
 
 (* let noop_tac : tactic = fun goal -> perform (Subgoal goal) *)
@@ -1005,7 +1007,7 @@ let destruct_tac : tactic =
   in
   return_thm ~from:"destruct_tac" thm
 
-let prove ?(name = "") (goal : goal) (tactic : tactic) =
+let prove ?(quiet = false) ?(name = "") (goal : goal) (tactic : tactic) =
   match tactic goal with
   (* Burn is used for resource tracking/limiting *)
   | effect Burn _, k -> continue k ()
@@ -1015,6 +1017,9 @@ let prove ?(name = "") (goal : goal) (tactic : tactic) =
   | effect Trace (_, v), k ->
       print_endline v;
       continue k ()
+  (* While trace is used to decide how/when to report our traces, quiet is used
+      to keep them from happening in situations where we want maximumm performance *)
+  | effect Quiet, k -> continue k quiet
   (* Rank is used to sort terms by an undetermined heuristic *)
   | effect Rank (Term terms), k -> continue k terms
   (* This represents failure for any reason *)
@@ -1687,14 +1692,13 @@ let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
 
 let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
     ?(quiet = false) goal tac =
-  let quiet = quiet || !quiet_all in
   let fuel_count = ref 0 in
   let limit = ref 1_000_000 in
   let wrapped =
     (if notrace then with_no_trace ~show_proof:false else Fun.id)
     @@ (with_fuel_limit limit) (with_fuel_counter fuel_count tac)
   in
-  match prove ~name goal wrapped with
+  match prove ~quiet ~name goal wrapped with
   | Complete thm ->
       if simp then Rules.add_simp name thm;
       if not quiet then (
