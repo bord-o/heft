@@ -394,3 +394,8 @@ let%heft_goal plus_zero_right =
 ```
 
 There are still a few problems to solve here, like how to tell which terms should be variables vs constants for example, since PPX extensions are a purely syntactic transformation, and I don't know how acceptable it is to do things like type inference during the translation. For now I think I can get around this by just requiring all variables to have explicit annotation, matching HOL's internal representation. Also, I still need to think about other edge cases for HOL that could be difficult or confusing to represent as OCaml, subtypes for example.
+
+## Friday, April 3
+
+On my proof assistant, I've finally made the switch to a PPX-based approach to representing my HOL language, compared to the DSL I was using before. Moving to this approach allowed me to remove around 1000 lines of pretty complex elaboration logic, as well as make my definitions and theorems more easily representable, simply as writing OCaml with some restrictions.
+
