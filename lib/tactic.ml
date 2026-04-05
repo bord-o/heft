@@ -55,8 +55,7 @@ module Priority = struct
             | Safe n, Safe m -> compare m n
             | Unsafe n, Unsafe m -> compare m n)
         | _ -> 0)
-    | m1, m2 when m1 = m2 -> 0
-    | _ -> -1
+    | _ -> 0
 end
 
 module PriorityQueue = Pqueue.MakeMax (Priority)
