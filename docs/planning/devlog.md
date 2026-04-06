@@ -397,5 +397,67 @@ There are still a few problems to solve here, like how to tell which terms shoul
 
 ## Friday, April 3
 
-On my proof assistant, I've finally made the switch to a PPX-based approach to representing my HOL language, compared to the DSL I was using before. Moving to this approach allowed me to remove around 1000 lines of pretty complex elaboration logic, as well as make my definitions and theorems more easily representable, simply as writing OCaml with some restrictions.
+On my proof assistant, I've finally made the switch to a PPX-based approach to representing my HOL language, compared to the DSL I was using before. Moving to this approach allowed me to remove around 1000 lines of pretty complex elaboration logic, as well as make my definitions and theorems more easily representable, simply as writing OCaml with some restrictions. The new syntax looks like this.
 
+```ocaml
+
+(* Defining types*)
+[%%inductive 
+type nat = 
+    Zero 
+    | Suc of nat]
+
+
+(* Non-recursive definitions *)
+let%def pred (n : nat) : nat = match n with Zero -> Zero | Suc m -> m
+
+(* Structurally recursive definitions *)
+let%primrec plus (n : nat) (m : nat) : nat =
+match n with Zero -> m | Suc n' -> Suc (plus n' m)
+
+(* Proofs *)
+let goal =
+  make_goal
+    [%term forall (fun (xs : 'a list) -> length xs = Zero ==> (xs = Nil))]
+in
+run_proof goal
+  begin
+    induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
+    >> sym_asm_tac
+    >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
+    >> false_elim_tac
+  end;
+```
+
+The PPX takes a restricted set of syntactically valid OCaml code and transforms it into the equivalent HOL terms, with the addition of calling the inductive and function definition machinery at runtime.
+
+This cut down a lot of noise in my system, and I hope it makes the system more approachable, at least to those comfortable with OCaml.
+
+I still have plans for some dedicated proof syntax and for subtype definitions. Something like:
+
+```ocaml
+let%thm length_zero_imp_nil (xs : 'a list) =
+    length xs = Zero ==> (xs = Nil),
+    begin
+      induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
+      >> sym_asm_tac
+      >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
+      >> false_elim_tac
+    end [@simp] [@quiet]
+```
+
+Or maybe:
+
+```ocaml
+let%thm length_zero_imp_nil (xs : 'a list) =
+    length xs = Zero ==> (xs = Nil)
+and proof = 
+    begin
+      induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
+      >> sym_asm_tac
+      >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
+      >> false_elim_tac
+    end [@simp] [@quiet]
+```
+
+Where the [@simp] annotations are used in the run_proof call.
