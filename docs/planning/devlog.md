@@ -470,3 +470,4 @@ Now that I have some decent tooling for writing HOL terms and definitions, and a
 ### Finish merge_sort proofs
 ### Move theorems out of tests and into their respective modules
 ### Design Aesop-style proof search
+### Make it easier to specify what to rewrite and where

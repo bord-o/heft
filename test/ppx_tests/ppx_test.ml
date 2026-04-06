@@ -910,3 +910,33 @@ and proof =
 let%expect_test "let%thm underscore-prefixed name (no ~name to run_proof)" =
   ignore _unsaved;
   [%expect {||}]
+
+let%expect_test "let%thm inside expect_test" =
+  let%thm local_thm (n : nat) = plus n Zero = n
+  and proof =
+    begin
+      induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+    end
+    [@quiet]
+  in
+  let _, concl = local_thm in
+  Printf.printf "%s\n" (Printing.pretty_print_hol_term concl);
+  [%expect {| ∀n. plus n Zero = n |}]
+
+let%expect_test "let%thm with notrace inside expect_test" =
+  let%thm _notrace_thm (x : nat) = plus x Zero = x
+  and proof =
+    begin
+      induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+    end
+    [@notrace]
+  in
+  ignore _notrace_thm;
+  [%expect
+    {|
+    ========================================
+    ∀x. plus x Zero = x
+
+    Proof Complete!
+    with fuel: 53
+    |}]

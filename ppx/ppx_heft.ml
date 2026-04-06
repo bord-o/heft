@@ -1267,15 +1267,13 @@ let translate_primrec ~(loc : location) ~(path : label)
   A.pstr_value Nonrecursive
     [ A.value_binding ~pat:(A.pvar fn_name) ~expr:unwrapped ]
 
-let translate_thm ~(loc : location) ~(path : label)
-    (payload : structure_item list) =
+let thm_attrs = [ "simp"; "quiet"; "notrace" ]
+
+(* Shared core: given bindings, returns (thm_name, generated_expr).
+   For goal-only, the expr is make_goal(...).
+   For with-proof, the expr is let _goal = make_goal(...) in run_proof ...; _goal *)
+let translate_thm_bindings ~loc bindings =
   let (module A) = Ast_builder.make loc in
-  let _ = path in
-  let bindings =
-    match payload with
-    | [ { pstr_desc = Pstr_value (_, bindings); _ } ] -> bindings
-    | _ -> Location.raise_errorf ~loc "[%%%%thm] expects let bindings"
-  in
   let goal_binding = List.hd bindings in
   let thm_name =
     match goal_binding.pvb_pat.ppat_desc with
@@ -1284,7 +1282,6 @@ let translate_thm ~(loc : location) ~(path : label)
         Location.raise_errorf ~loc:goal_binding.pvb_pat.ppat_loc
           "[%%%%thm] expects a simple name"
   in
-  (* Extract typed parameters and body from the goal expression *)
   let params, body =
     match extract_fun_params_and_body goal_binding.pvb_expr with
     | Some (pats, body) -> (pats, body)
@@ -1301,11 +1298,8 @@ let translate_thm ~(loc : location) ~(path : label)
               "[%%%%thm] parameters must have type annotations: (x : ty)")
       params
   in
-  (* Build env for body translation *)
   let env = List.map (fun (name, ct) -> (name, Annotated ct)) param_bindings in
-  (* Translate body expression *)
   let body_expr = translate_expr ~loc ~env body in
-  (* Wrap in forall for each parameter, right to left *)
   let goal_term =
     List.fold_right
       (fun (name, ct) inner_expr ->
@@ -1326,67 +1320,84 @@ let translate_thm ~(loc : location) ~(path : label)
     A.eapply (A.evar "Heft.Printing.unwrap_term") [ goal_term ]
   in
   let save_name = not (String.length thm_name > 0 && thm_name.[0] = '_') in
-  match bindings with
-  | [ _ ] ->
-      (* Goal only — no proof *)
-      let make_goal_expr = A.eapply (A.evar "make_goal") [ unwrapped_goal ] in
-      A.pstr_value Nonrecursive
-        [ A.value_binding ~pat:(A.pvar thm_name) ~expr:make_goal_expr ]
-  | [ _; proof_binding ] ->
-      (* With proof *)
-      let proof_name =
-        match proof_binding.pvb_pat.ppat_desc with
-        | Ppat_var { txt = name; _ } -> name
-        | _ ->
-            Location.raise_errorf ~loc:proof_binding.pvb_pat.ppat_loc
-              "[%%%%thm] second binding must be named 'proof'"
-      in
-      if proof_name <> "proof" then
-        Location.raise_errorf ~loc:proof_binding.pvb_pat.ppat_loc
-          "[%%%%thm] second binding must be named 'proof', got '%s'" proof_name;
-      let tactic_expr = proof_binding.pvb_expr in
-      (* Check for [@simp] and [@quiet] attributes *)
-      let has_attr name expr =
-        List.exists
-          (fun (attr : attribute) -> attr.attr_name.txt = name)
-          expr.pexp_attributes
-      in
-      let has_simp = has_attr "simp" tactic_expr in
-      let has_quiet = has_attr "quiet" tactic_expr in
-      (* Strip our attributes from the tactic expression *)
-      let clean_tactic =
-        {
-          tactic_expr with
-          pexp_attributes =
-            List.filter
-              (fun (attr : attribute) ->
-                attr.attr_name.txt <> "simp" && attr.attr_name.txt <> "quiet")
-              tactic_expr.pexp_attributes;
-        }
-      in
-      (* Build run_proof call *)
-      let goal_var = fresh_id "goal" in
-      let bool_true = A.pexp_construct { txt = Lident "true"; loc } None in
-      let args =
-        (if save_name then [ (Labelled "name", A.estring thm_name) ] else [])
-        @ (if has_simp then [ (Labelled "simp", bool_true) ] else [])
-        @ (if has_quiet then [ (Labelled "quiet", bool_true) ] else [])
-        @ [ (Nolabel, A.evar goal_var); (Nolabel, clean_tactic) ]
-      in
-      let run_proof_expr = A.pexp_apply (A.evar "run_proof") args in
-      let full_expr =
+  let expr =
+    match bindings with
+    | [ _ ] -> A.eapply (A.evar "make_goal") [ unwrapped_goal ]
+    | [ _; proof_binding ] ->
+        let proof_name =
+          match proof_binding.pvb_pat.ppat_desc with
+          | Ppat_var { txt = name; _ } -> name
+          | _ ->
+              Location.raise_errorf ~loc:proof_binding.pvb_pat.ppat_loc
+                "[%%%%thm] second binding must be named 'proof'"
+        in
+        if proof_name <> "proof" then
+          Location.raise_errorf ~loc:proof_binding.pvb_pat.ppat_loc
+            "[%%%%thm] second binding must be named 'proof', got '%s'"
+            proof_name;
+        let tactic_expr = proof_binding.pvb_expr in
+        let has_attr name expr =
+          List.exists
+            (fun (attr : attribute) -> attr.attr_name.txt = name)
+            expr.pexp_attributes
+        in
+        let has_simp = has_attr "simp" tactic_expr in
+        let has_quiet = has_attr "quiet" tactic_expr in
+        let has_notrace = has_attr "notrace" tactic_expr in
+        let clean_tactic =
+          {
+            tactic_expr with
+            pexp_attributes =
+              List.filter
+                (fun (attr : attribute) ->
+                  not (List.mem attr.attr_name.txt thm_attrs))
+                tactic_expr.pexp_attributes;
+          }
+        in
+        let goal_var = fresh_id "goal" in
+        let bool_true = A.pexp_construct { txt = Lident "true"; loc } None in
+        let args =
+          (if save_name then [ (Labelled "name", A.estring thm_name) ] else [])
+          @ (if has_simp then [ (Labelled "simp", bool_true) ] else [])
+          @ (if has_quiet then [ (Labelled "quiet", bool_true) ] else [])
+          @ (if has_notrace then [ (Labelled "notrace", bool_true) ] else [])
+          @ [ (Nolabel, A.evar goal_var); (Nolabel, clean_tactic) ]
+        in
+        let run_proof_expr = A.pexp_apply (A.evar "run_proof") args in
         A.pexp_let Nonrecursive
           [
             A.value_binding ~pat:(A.pvar goal_var)
               ~expr:(A.eapply (A.evar "make_goal") [ unwrapped_goal ]);
           ]
           (A.pexp_sequence run_proof_expr (A.evar goal_var))
-      in
-      A.pstr_value Nonrecursive
-        [ A.value_binding ~pat:(A.pvar thm_name) ~expr:full_expr ]
-  | _ ->
-      Location.raise_errorf ~loc
-        "[%%%%thm] expects one or two bindings (goal, and optionally 'proof')"
+    | _ ->
+        Location.raise_errorf ~loc
+          "[%%%%thm] expects one or two bindings (goal, and optionally 'proof')"
+  in
+  (thm_name, expr)
+
+let translate_thm ~(loc : location) ~(path : label)
+    (payload : structure_item list) =
+  let (module A) = Ast_builder.make loc in
+  let _ = path in
+  let bindings =
+    match payload with
+    | [ { pstr_desc = Pstr_value (_, bindings); _ } ] -> bindings
+    | _ -> Location.raise_errorf ~loc "[%%%%thm] expects let bindings"
+  in
+  let thm_name, expr = translate_thm_bindings ~loc bindings in
+  A.pstr_value Nonrecursive [ A.value_binding ~pat:(A.pvar thm_name) ~expr ]
+
+let translate_thm_expr ~(loc : location) ~(path : label) (input : expression) =
+  let (module A) = Ast_builder.make loc in
+  let _ = path in
+  match input.pexp_desc with
+  | Pexp_let (_, bindings, body) ->
+      let thm_name, expr = translate_thm_bindings ~loc bindings in
+      A.pexp_let Nonrecursive
+        [ A.value_binding ~pat:(A.pvar thm_name) ~expr ]
+        body
+  | _ -> Location.raise_errorf ~loc "[%%%%thm] expects a let binding"
 
 let term_extension =
   Extension.declare "term" Extension.Context.expression
@@ -1413,6 +1424,11 @@ let thm_extension =
     Ast_pattern.(pstr __)
     translate_thm
 
+let thm_expr_extension =
+  Extension.declare "thm" Extension.Context.expression
+    Ast_pattern.(single_expr_payload __)
+    translate_thm_expr
+
 let () =
   Driver.register_transformation "heft_ppx"
     ~rules:
@@ -1422,4 +1438,5 @@ let () =
         Context_free.Rule.extension def_extension;
         Context_free.Rule.extension primrec_extension;
         Context_free.Rule.extension thm_extension;
+        Context_free.Rule.extension thm_expr_extension;
       ]

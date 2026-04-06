@@ -18,19 +18,17 @@ let%expect_test "template" =
     |}]
 
 let%expect_test "eq_true intro" =
-  let goal =
-    let bool_ty = Result.get_ok (make_type "bool" []) in
-    let p = make_var "P" bool_ty in
-    let t_const = Result.get_ok (make_const "T" []) in
-    make_goal
-      (make_forall p (make_imp p (Result.get_ok (safe_make_eq p t_const))))
+  let%thm eq_true_intro (p : bool) = p ==> (p = true)
+  and proof =
+    begin
+      intros_tac >> eq_true_elim_tac >> assumption_tac
+    end
   in
-  run_proof ~name:"eq_true_intro" ~notrace:true goal
-    (intros_tac >> eq_true_elim_tac >> assumption_tac);
+  ignore eq_true_intro;
   [%expect
     {|
     ========================================
-    ∀P. P ==> P = T
+    ∀p. p ==> p = T
 
     Proof Complete!
     with fuel: 8
@@ -1750,26 +1748,28 @@ let%expect_test "le_add_r" =
 (* (* ===== Group 9: Totality ===== *) *)
 
 let%expect_test "lt_total" =
-  let goal =
-    make_goal
-      [%term forall (fun (a : nat) (b : nat) -> nat_lt a b || nat_le b a)]
+  let%thm lt_total (a : nat) (b : nat) = nat_lt a b || nat_le b a
+  and proof =
+    begin
+      with_arbitrary_term [%term (a : nat)] induct_tac
+      >>> intros_tac
+      >>> with_arbitrary_term [%term (b : nat)] induct_tac
+      >>> try_ intros_tac
+      >>= [
+            right_tac >> simp_tac;
+            left_tac >> simp_tac;
+            right_tac >> simp_tac;
+            spec_asm_tac [%term (n0' : nat)]
+            >> elim_disj_asm_tac >> left_tac
+            >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
+            >> assumption_tac >> right_tac
+            >> with_proven [ "le_Suc_Suc" ] rewrite_tac
+            >> assumption_tac;
+          ]
+    end
+    [@notrace]
   in
-  run_proof ~name:"lt_total" ~notrace:true goal
-    (with_arbitrary_term [%term (a : nat)] induct_tac
-    >>> intros_tac
-    >>> with_arbitrary_term [%term (b : nat)] induct_tac
-    >>> try_ intros_tac
-    >>= [
-          right_tac >> simp_tac;
-          left_tac >> simp_tac;
-          right_tac >> simp_tac;
-          spec_asm_tac [%term (n0' : nat)]
-          >> elim_disj_asm_tac >> left_tac
-          >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
-          >> assumption_tac >> right_tac
-          >> with_proven [ "le_Suc_Suc" ] rewrite_tac
-          >> assumption_tac;
-        ]);
+  ignore lt_total;
   [%expect
     {|
     ========================================
