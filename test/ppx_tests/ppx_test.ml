@@ -797,6 +797,46 @@ let%expect_test "def: definition with match body" =
     apply_color = (λc. λr. λg. λb. match_color c r g b)
     |}]
 
+let%def my_zero : nat = Zero
+
+let%expect_test "def: constant (no params)" =
+  print_endline (Printing.pretty_print_thm my_zero);
+  [%expect
+    {|
+    ========================================
+    my_zero = Zero
+    |}]
+
+let%def my_true : bool = true
+
+let%expect_test "def: boolean constant" =
+  print_endline (Printing.pretty_print_thm my_true);
+  [%expect
+    {|
+    ========================================
+    my_true = T
+    |}]
+
+let%def my_pair : nat = plus (Suc Zero) (Suc Zero)
+
+let%expect_test "def: constant with application body" =
+  print_endline (Printing.pretty_print_thm my_pair);
+  [%expect
+    {|
+    ========================================
+    my_pair = plus (Suc Zero) (Suc Zero)
+    |}]
+
+let%def my_id : nat -> nat = fun (x : nat) -> x
+
+let%expect_test "def: constant with lambda body" =
+  print_endline (Printing.pretty_print_thm my_id);
+  [%expect
+    {|
+    ========================================
+    my_id = (λx. x)
+    |}]
+
 (* === Primrec definitions === *)
 
 let%primrec my_plus (n : nat) (m : nat) : nat =

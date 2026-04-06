@@ -686,17 +686,21 @@ let translate_def ~(loc : location) ~(path : label)
     | Ppat_var { txt = name; _ } -> name
     | _ ->
         Location.raise_errorf ~loc:vb.pvb_pat.ppat_loc
-          "[%%%%def] expects a simple function name"
+          "[%%%%def] expects a simple name"
+  in
+  let constraint_type =
+    match vb.pvb_constraint with
+    | Some (Pvc_constraint { locally_abstract_univars = _; typ }) -> Some typ
+    | _ -> None
   in
   let params, ret_type_opt, body = extract_def_parts vb.pvb_expr in
   let ret_type =
-    match ret_type_opt with
-    | Some ct -> ct
-    | None ->
-        Location.raise_errorf ~loc "[%%%%def] requires a return type annotation"
+    match (ret_type_opt, constraint_type) with
+    | Some ct, _ -> ct
+    | None, Some ct -> ct
+    | None, None ->
+        Location.raise_errorf ~loc "[%%%%def] requires a type annotation"
   in
-  if params = [] then
-    Location.raise_errorf ~loc "[%%%%def] requires at least one parameter";
   let param_bindings =
     List.map
       (fun pat ->
@@ -722,38 +726,42 @@ let translate_def ~(loc : location) ~(path : label)
   let env = List.map (fun (name, ct) -> (name, Annotated ct)) param_bindings in
   (* Translate body *)
   let body_expr = translate_expr ~loc ~env body in
-  (* Build lambdas wrapping the body, from inside out *)
-  let body_v = fresh_id "defbody" in
-  let lambda_chain, _ =
-    List.fold_right
-      (fun (name, ct) (inner_expr, inner_var) ->
-        let ty_v, ty_e = translate_type ~loc ct in
-        let lam_v = fresh_id "deflam" in
-        let var_expr =
-          A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_v ]
-        in
-        let expr =
-          mk_bind ~loc ty_e ty_v
-            (mk_bind ~loc inner_expr inner_var
-               (A.eapply (A.evar "make_lam") [ var_expr; A.evar inner_var ]))
-        in
-        (expr, lam_v))
-      param_bindings (body_expr, body_v)
+  (* Build the RHS term: either lambda-wrapped (function) or bare (constant) *)
+  let rhs_chain, rhs_v =
+    if param_bindings = [] then (body_expr, fresh_id "defbody")
+    else
+      let body_v = fresh_id "defbody" in
+      let chain, _ =
+        List.fold_right
+          (fun (name, ct) (inner_expr, inner_var) ->
+            let ty_v, ty_e = translate_type ~loc ct in
+            let lam_v = fresh_id "deflam" in
+            let var_expr =
+              A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_v ]
+            in
+            let expr =
+              mk_bind ~loc ty_e ty_v
+                (mk_bind ~loc inner_expr inner_var
+                   (A.eapply (A.evar "make_lam") [ var_expr; A.evar inner_var ]))
+            in
+            (expr, lam_v))
+          param_bindings (body_expr, body_v)
+      in
+      (chain, fresh_id "deflam")
   in
-  let lam_v = fresh_id "deflam" in
-  (* Build: Var(fn_name, full_type) = lambda_term, then new_basic_definition *)
+  (* Build: Var(fn_name, full_type) = rhs_term, then new_basic_definition *)
   let full_ty_v = fresh_id "defty" in
   let def_expr =
     A.pexp_let Nonrecursive
       [ A.value_binding ~pat:(A.pvar full_ty_v) ~expr:full_type_expr ]
-      (mk_bind ~loc lambda_chain lam_v
+      (mk_bind ~loc rhs_chain rhs_v
          (let def_var =
             A.eapply (A.evar "make_var") [ A.estring fn_name; A.evar full_ty_v ]
           in
           let eq_v = fresh_id "defeq" in
           let def_thm_v = fresh_id "defthm" in
           mk_bind ~loc
-            (A.eapply (A.evar "safe_make_eq") [ def_var; A.evar lam_v ])
+            (A.eapply (A.evar "safe_make_eq") [ def_var; A.evar rhs_v ])
             eq_v
             (mk_bind ~loc
                (A.eapply (A.evar "new_basic_definition") [ A.evar eq_v ])
