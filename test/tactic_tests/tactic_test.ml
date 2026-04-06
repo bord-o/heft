@@ -175,7 +175,7 @@ let%expect_test "basic9" =
     |}]
 
 let%expect_test "basic10" =
-  let open Theories.NatTheory in
+  let open Nats in
   let a = make_var "A" bool_ty in
   let x = make_var "x" nat_ty in
   let goal = ([], make_forall x (make_imp a a)) in
@@ -1002,7 +1002,7 @@ let%expect_test "dfs demorgans" =
     |}]
 
 let%expect_test "rewrite_basic" =
-  let nat_ty = Theories.NatTheory.nat_ty in
+  let nat_ty = Nats.nat_ty in
   let _ = new_constant "Zero" nat_ty in
   let _ = new_constant "One" nat_ty in
   let _ = new_constant "Two" nat_ty in
@@ -1038,7 +1038,7 @@ let%expect_test "rewrite_basic" =
     |}]
 
 let%expect_test "rewrite_basic" =
-  let open Theories.NatTheory in
+  let open Nats in
   let x = make_var "x" nat_ty in
   let zero_plus_x = make_plus zero x |> Result.get_ok in
   let goal = ([], make_forall x (Result.get_ok (safe_make_eq zero_plus_x x))) in
@@ -1077,7 +1077,7 @@ let%expect_test "exists_tac_bool" =
     |}]
 
 let%expect_test "exists_tac_refl" =
-  let open Theories.NatTheory in
+  let open Nats in
   let n = Var ("n", nat_ty) in
   let eq_nn = Result.get_ok (safe_make_eq n n) in
   let goal = ([], make_exists n eq_nn) in
@@ -1093,7 +1093,7 @@ let%expect_test "exists_tac_refl" =
     |}]
 
 let%expect_test "exists_tac_nested" =
-  let open Theories.NatTheory in
+  let open Nats in
   let m = Var ("m", nat_ty) in
   let n = Var ("n", nat_ty) in
   let eq_mn = Result.get_ok (safe_make_eq m n) in
@@ -1113,7 +1113,7 @@ let%expect_test "exists_tac_nested" =
     |}]
 
 let%expect_test "trans tac" =
-  let open Theories.NatTheory in
+  let open Nats in
   let m = Var ("m", nat_ty) in
   let n = Var ("n", nat_ty) in
   let o = Var ("o", nat_ty) in
@@ -1256,7 +1256,7 @@ let%expect_test "cases_tac bool forall conj" =
 
 let%expect_test "cases_tac inductive delegates to induct_tac" =
   (* ∀x:nat. x = x — cases on nat should delegate to induct_tac *)
-  let open Theories.NatTheory in
+  let open Nats in
   let x = make_var "x" nat_ty in
   let goal = ([], make_forall x (Result.get_ok (safe_make_eq x x))) in
   let proof =
@@ -1370,7 +1370,7 @@ let%expect_test "eq_true_asm_tac" =
     |}]
 
 let%expect_test "destruct_tac" =
-  let open Theories.NatTheory in
+  let open Nats in
   let n = make_var "n" nat_ty in
   let p = make_var "P" (TyCon ("fun", [ nat_ty; bool_ty ])) in
   let pn = Kernel.make_app p n |> Result.get_ok in

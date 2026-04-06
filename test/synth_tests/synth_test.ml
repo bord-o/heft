@@ -5,6 +5,13 @@ open Tactic
 open Synth
 open Heft_theories
 
+let () = Functions.init ()
+let () = Options.init ()
+let () = Lists.init ()
+let () = Nats.init ()
+let () = Conds.init ()
+let () = Pairs.init ()
+
 let%expect_test "synth goal setup" =
   let goal =
     make_goal
@@ -31,8 +38,8 @@ let%expect_test "synth goal setup" =
     |}]
 
 let%expect_test "synth goal setup full" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let goal =
     make_goal
       [%term
@@ -104,7 +111,7 @@ let print_count terms = Printf.printf "%d terms\n" (List.length terms)
 (* ======================================================================= *)
 
 let%expect_test "depth 0 yields nothing" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [] nat_ty 0 |> print_terms;
   [%expect {| (none) |}]
 
@@ -113,12 +120,12 @@ let%expect_test "depth 0 yields nothing" =
 (* ======================================================================= *)
 
 let%expect_test "nat depth 1: only Zero" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [] nat_ty 1 |> print_terms;
   [%expect {| Zero |}]
 
 let%expect_test "nat depth 2: Zero and Suc Zero" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [] nat_ty 2 |> print_terms;
   [%expect {|
     Zero
@@ -126,7 +133,7 @@ let%expect_test "nat depth 2: Zero and Suc Zero" =
   |}]
 
 let%expect_test "nat depth 3: no beta-redexes" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [] nat_ty 3 |> print_terms;
   [%expect {|
     Zero
@@ -139,7 +146,7 @@ let%expect_test "nat depth 3: no beta-redexes" =
 (* ======================================================================= *)
 
 let%expect_test "context variable returned at depth 1" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [ ("n", nat_ty) ] nat_ty 1 |> print_terms;
   [%expect {|
     n
@@ -147,12 +154,12 @@ let%expect_test "context variable returned at depth 1" =
   |}]
 
 let%expect_test "wrong type variable not returned" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [ ("b", bool_ty) ] nat_ty 1 |> print_terms;
   [%expect {| Zero |}]
 
 let%expect_test "context var plus constructors at depth 2" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [ ("n", nat_ty) ] nat_ty 2 |> print_terms;
   [%expect {|
     n
@@ -162,7 +169,7 @@ let%expect_test "context var plus constructors at depth 2" =
   |}]
 
 let%expect_test "two nat vars at depth 1" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [ ("x", nat_ty); ("y", nat_ty) ] nat_ty 1 |> print_terms;
   [%expect {|
     x
@@ -175,16 +182,16 @@ let%expect_test "two nat vars at depth 1" =
 (* ======================================================================= *)
 
 let%expect_test "list nat depth 1: only Nil" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   enumerate [] list_nat 1 |> print_terms;
   [%expect {| Nil |}]
 
 let%expect_test "list nat depth 2" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   enumerate [] list_nat 2 |> print_terms;
@@ -194,8 +201,8 @@ let%expect_test "list nat depth 2" =
   |}]
 
 let%expect_test "list nat depth 3" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let terms = enumerate [] list_nat 3 in
@@ -216,7 +223,7 @@ let%expect_test "list nat depth 3" =
 (* ======================================================================= *)
 
 let%expect_test "nat -> nat depth 2: identity and const Zero" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [] (make_fun_ty nat_ty nat_ty) 2 |> print_terms;
   [%expect {|
     (λn. n)
@@ -224,7 +231,7 @@ let%expect_test "nat -> nat depth 2: identity and const Zero" =
   |}]
 
 let%expect_test "nat -> nat depth 3: includes Suc" =
-  let open Theories.NatTheory in
+  let open Nats in
   enumerate [] (make_fun_ty nat_ty nat_ty) 3 |> print_terms;
   [%expect
     {|
@@ -251,8 +258,8 @@ let%expect_test "bool with T and F as extras" =
   |}]
 
 let%expect_test "pair nat bool depth 2 with T F extras" =
-  let open Theories.NatTheory in
-  let _ = Theories.ListTheory.list_def in
+  let open Nats in
+  let _ = Lists.list_def in
   let extras = [ ("T", bool_ty); ("F", bool_ty) ] in
   let pair_ty = TyCon ("pair", [ nat_ty; bool_ty ]) in
   enumerate ~extra:extras [] pair_ty 2 |> print_terms;
@@ -262,8 +269,8 @@ let%expect_test "pair nat bool depth 2 with T F extras" =
     |}]
 
 let%expect_test "pair nat bool depth 3 with T F extras" =
-  let open Theories.NatTheory in
-  let _ = Theories.ListTheory.list_def in
+  let open Nats in
+  let _ = Lists.list_def in
   let extras = [ ("T", bool_ty); ("F", bool_ty) ] in
   let pair_ty = TyCon ("pair", [ nat_ty; bool_ty ]) in
   let terms = enumerate ~extra:extras [] pair_ty 3 in
@@ -283,7 +290,7 @@ let%expect_test "pair nat bool depth 3 with T F extras" =
 (* ======================================================================= *)
 
 let%expect_test "plus as extra: nat terms at depth 3" =
-  let open Theories.NatTheory in
+  let open Nats in
   let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
   let extras = [ ("plus", plus_ty) ] in
   let terms = enumerate ~extra:extras [] nat_ty 3 in
@@ -299,7 +306,7 @@ let%expect_test "plus as extra: nat terms at depth 3" =
     |}]
 
 let%expect_test "Suc as extra gives same results as constructor" =
-  let open Theories.NatTheory in
+  let open Nats in
   let suc_ty = make_fun_ty nat_ty nat_ty in
   let extras = [ ("Suc", suc_ty) ] in
   let terms = enumerate ~extra:extras [] nat_ty 2 in
@@ -314,8 +321,8 @@ let%expect_test "Suc as extra gives same results as constructor" =
 (* ======================================================================= *)
 
 let%expect_test "append as extra: list nat depth 3 with context" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let append_ty = make_fun_ty list_nat (make_fun_ty list_nat list_nat) in
@@ -331,8 +338,8 @@ let%expect_test "append as extra: list nat depth 3 with context" =
     |}]
 
 let%expect_test "length as extra: nat from list context" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let length_ty = make_fun_ty list_nat nat_ty in
@@ -348,8 +355,8 @@ let%expect_test "length as extra: nat from list context" =
     |}]
 
 let%expect_test "reverse and append as extras" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let append_ty = make_fun_ty list_nat (make_fun_ty list_nat list_nat) in
@@ -373,7 +380,7 @@ let%expect_test "reverse and append as extras" =
 (* ======================================================================= *)
 
 let%expect_test "partial application: plus as nat -> nat" =
-  let open Theories.NatTheory in
+  let open Nats in
   let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
   let extras = [ ("plus", plus_ty) ] in
   let fn_ty = make_fun_ty nat_ty nat_ty in
@@ -390,7 +397,7 @@ let%expect_test "partial application: plus as nat -> nat" =
 (* ======================================================================= *)
 
 let%expect_test "higher order: (nat -> nat) -> nat -> nat depth 3" =
-  let open Theories.NatTheory in
+  let open Nats in
   let fn_ty = make_fun_ty nat_ty nat_ty in
   let hof_ty = make_fun_ty fn_ty (make_fun_ty nat_ty nat_ty) in
   let terms = enumerate [] hof_ty 3 in
@@ -409,7 +416,7 @@ let%expect_test "higher order: (nat -> nat) -> nat -> nat depth 3" =
 (* ======================================================================= *)
 
 let%expect_test "no beta-redexes in output at depth 3" =
-  let open Theories.NatTheory in
+  let open Nats in
   let terms = enumerate [] nat_ty 3 in
   let has_redex =
     List.exists
@@ -420,8 +427,8 @@ let%expect_test "no beta-redexes in output at depth 3" =
   [%expect {| contains beta-redex: false |}]
 
 let%expect_test "no beta-redexes in list output at depth 3" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let terms = enumerate [] list_nat 3 in
@@ -440,7 +447,7 @@ let%expect_test "no beta-redexes in list output at depth 3" =
 (* ======================================================================= *)
 
 let%expect_test "all nat terms well-typed" =
-  let open Theories.NatTheory in
+  let open Nats in
   let terms = enumerate [] nat_ty 3 in
   let all_ok =
     List.for_all
@@ -452,7 +459,7 @@ let%expect_test "all nat terms well-typed" =
   [%expect {| all well-typed: true |}]
 
 let%expect_test "all function terms well-typed" =
-  let open Theories.NatTheory in
+  let open Nats in
   let fn_ty = make_fun_ty nat_ty nat_ty in
   let terms = enumerate [] fn_ty 3 in
   let all_ok =
@@ -465,7 +472,7 @@ let%expect_test "all function terms well-typed" =
   [%expect {| all well-typed: true |}]
 
 let%expect_test "all extra-constant terms well-typed" =
-  let open Theories.NatTheory in
+  let open Nats in
   let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
   let extras = [ ("plus", plus_ty) ] in
   let terms = enumerate ~extra:extras [ ("n", nat_ty) ] nat_ty 3 in
@@ -483,7 +490,7 @@ let%expect_test "all extra-constant terms well-typed" =
 (* ======================================================================= *)
 
 let%expect_test "no duplicates in output" =
-  let open Theories.NatTheory in
+  let open Nats in
   let terms = enumerate [] nat_ty 4 in
   let unique = List.sort_uniq compare terms in
   Printf.printf "count: %d, unique: %d\n" (List.length terms)
@@ -495,7 +502,7 @@ let%expect_test "no duplicates in output" =
 (* ======================================================================= *)
 
 let%expect_test "nat term counts by depth" =
-  let open Theories.NatTheory in
+  let open Nats in
   for d = 0 to 5 do
     let n = List.length (enumerate [] nat_ty d) in
     Printf.printf "depth %d: %d terms\n" d n
@@ -511,7 +518,7 @@ let%expect_test "nat term counts by depth" =
   |}]
 
 let%expect_test "nat -> nat term counts by depth" =
-  let open Theories.NatTheory in
+  let open Nats in
   let fn_ty = make_fun_ty nat_ty nat_ty in
   for d = 0 to 4 do
     let n = List.length (enumerate [] fn_ty d) in
@@ -527,8 +534,8 @@ let%expect_test "nat -> nat term counts by depth" =
     |}]
 
 let%expect_test "test cons case" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let cons_case_ty =
     make_fun_ty a (make_fun_ty list_a (make_fun_ty nat_ty nat_ty))
   in
@@ -645,7 +652,7 @@ let%expect_test "synth append" =
     |}]
 
 let%expect_test "synth reverse" =
-  let open Theories.ListTheory in
+  let open Lists in
   let _ = list_def in
   let a = make_vartype "a" in
   let list_a = TyCon ("list", [ a ]) in
@@ -709,7 +716,7 @@ let%expect_test "synth reverse" =
     |}]
 
 let%expect_test "synth mult" =
-  let open Theories.NatTheory in
+  let open Nats in
   let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
   let extras = [ ("plus", plus_ty) ] in
   let goal =
@@ -766,8 +773,8 @@ let%expect_test "synth mult" =
     |}]
 
 let%expect_test "synth sum" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) in
   let extras = [ ("plus", plus_ty) ] in
@@ -822,19 +829,15 @@ let%expect_test "synth sum" =
     with fuel: 99
     |}]
 
-let nat_ty = Theories.NatTheory.nat_ty
-let zero = Theories.NatTheory.zero
-let suc = Theories.NatTheory.suc
-let n i = Theories.NatTheory.nat_of_int i
+let nat_ty = Nats.nat_ty
+let zero = Nats.zero
+let suc = Nats.suc
+let n i = Nats.nat_of_int i
 let list_nat = TyCon ("list", [ nat_ty ])
-
-let nil_nat =
-  Result.get_ok
-    (type_inst [ (make_vartype "a", nat_ty) ] Theories.ListTheory.nil)
+let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] Lists.nil)
 
 let cons_nat =
-  Result.get_ok
-    (type_inst [ (make_vartype "a", nat_ty) ] Theories.ListTheory.cons)
+  Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] Lists.cons)
 
 let mk_list elems =
   List.fold_right
@@ -1083,8 +1086,8 @@ let%expect_test "synth reverse via make_synthesis_goal" =
     |}]
 
 let%expect_test "synth stutter via make_synthesis_goal" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
@@ -1136,8 +1139,8 @@ let%expect_test "synth stutter via make_synthesis_goal" =
     |}]
 
 let%expect_test "synth map via make_synthesis_goal" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
@@ -1203,8 +1206,8 @@ let%expect_test "synth map via make_synthesis_goal" =
     |}]
 
 let%expect_test "synth replicate via make_synthesis_goal" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
@@ -1252,7 +1255,7 @@ let%expect_test "synth replicate via make_synthesis_goal" =
     |}]
 
 (* let%expect_test "synth fib_helper via make_synthesis_goal" = *)
-(*   let open Theories.NatTheory in *)
+(*   let open Nats in *)
 (*   let pair_nat_nat = TyCon ("pair", [ nat_ty; nat_ty ]) in *)
 (*   let pair_const = *)
 (*     Result.get_ok *)
@@ -1294,8 +1297,8 @@ let%expect_test "synth replicate via make_synthesis_goal" =
 (*   [%expect {| |}] *)
 
 let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let pair_nat_nat = TyCon ("pair", [ nat_ty; nat_ty ]) in
   let list_pair = TyCon ("list", [ pair_nat_nat ]) in
@@ -1415,8 +1418,8 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
     |}]
 
 let%expect_test "synth insert via make_synthesis_goal" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in
@@ -1458,8 +1461,8 @@ let%expect_test "synth insert via make_synthesis_goal" =
   [%expect {| |}]
 
 let%expect_test "synth isort via make_synthesis_goal" =
-  let open Theories.NatTheory in
-  let open Theories.ListTheory in
+  let open Nats in
+  let open Lists in
   let _ = list_def in
   let list_nat = TyCon ("list", [ nat_ty ]) in
   let nil_nat = Result.get_ok (type_inst [ (make_vartype "a", nat_ty) ] nil) in

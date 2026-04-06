@@ -1,0 +1,82 @@
+open Heft
+open Kernel
+open Result.Syntax
+
+let () = Functions.init ()
+let () = Options.init ()
+let init () = ()
+
+[%%inductive type nat = Zero | Suc of nat]
+
+let%def pred (n : nat) : nat = match n with Zero -> Zero | Suc m -> m
+
+let%primrec plus (n : nat) (m : nat) : nat =
+  match n with Zero -> m | Suc n' -> Suc (plus n' m)
+
+let _ = plus
+
+let%primrec minus' (n : nat) (m : nat) : nat =
+  match n with Zero -> m | Suc n' -> pred (minus' n' m)
+
+let%def minus (n : nat) : nat -> nat = (flip minus') n
+
+let%primrec mult (n : nat) (m : nat) : nat =
+  match n with Zero -> Zero | Suc n' -> plus m (mult n' m)
+
+let%primrec nat_match (n : nat) (zero_case : 'a) (suc_case : nat -> 'a) : 'a =
+  match n with Zero -> zero_case | Suc n' -> suc_case n'
+
+let%def is_zero (n : nat) : bool = match n with Zero -> true | Suc n' -> false
+
+let%primrec nat_le (n : nat) (m : nat) : bool =
+  match n with
+  | Zero -> true
+  | Suc n' -> ( match m with Zero -> false | Suc k -> nat_le n' k)
+
+let%primrec nat_lt (n : nat) (m : nat) : bool =
+  match n with
+  | Zero -> ( match m with Zero -> false | Suc k -> true)
+  | Suc n' -> ( match m with Zero -> false | Suc k -> nat_lt n' k)
+
+let%primrec sub (n : nat) (m : nat) : nat =
+  match n with
+  | Zero -> Zero
+  | Suc n' -> ( match m with Zero -> Suc n' | Suc k -> sub n' k)
+
+let%primrec div_aux (fuel : nat) (a : nat) (b : nat) : nat option =
+  match fuel with
+  | Zero -> None
+  | Suc left -> (
+      if nat_lt a b then Some Zero
+      else
+        match (div_aux left (sub a b) b : nat option) with
+        | None -> None
+        | Some r -> Some (Suc r))
+
+let%def div (a : nat) (b : nat) : nat =
+  match (div_aux (Suc a) a b : nat option) with None -> Zero | Some x -> x
+
+let nat_ty = make_type "nat" [] |> Result.get_ok
+let nat_def = Hashtbl.find the_inductives "nat"
+let zero = make_const "Zero" [] |> Result.get_ok
+let suc = make_const "Suc" [] |> Result.get_ok
+let rec nat_of_int n = if n <= 0 then zero else App (suc, nat_of_int (n - 1))
+let n0 = zero
+let n1 = nat_of_int 1
+let n2 = nat_of_int 2
+let n3 = nat_of_int 3
+let n4 = nat_of_int 4
+let n5 = nat_of_int 5
+let n6 = nat_of_int 6
+let n7 = nat_of_int 7
+let n8 = nat_of_int 8
+let n9 = nat_of_int 9
+let n10 = nat_of_int 10
+
+let plus =
+  let v = make_const "plus" [] in
+  match v with Ok t -> t | Error e -> failwith @@ Printing.print_error e
+
+let make_plus a b =
+  let* ab = make_app plus a in
+  make_app ab b

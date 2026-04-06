@@ -5,6 +5,13 @@ open Tactic
 open Heft_theories
 open Theories
 
+let () = Functions.init ()
+let () = Options.init ()
+let () = Lists.init ()
+let () = Nats.init ()
+let () = Conds.init ()
+let () = Pairs.init ()
+
 let () =
   let goal = make_goal [%term forall (fun (a : nat) -> true)] in
   run_proof ~quiet:true ~notrace:true goal (intros_tac >> truth_tac)
@@ -46,7 +53,7 @@ let () =
   in
   run_proof ~quiet:true ~name:"Suc_inj" goal
     (intros_tac
-    >> (apply_thm_tac |> with_rules NatTheory.nat_def.injective)
+    >> (apply_thm_tac |> with_rules Nats.nat_def.injective)
     >> assumption_tac)
 
 (* Lemma needed for commutativity: plus x (Suc y) = Suc (plus x y) *)
@@ -126,7 +133,7 @@ let () =
   run_proof ~quiet:true goal
     (induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
    >> sym_asm_tac
-    >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
+    >> with_first (with_rules Nats.nat_def.distinct rewrite_asm_tac)
     >> false_elim_tac)
 
 let () =
@@ -477,7 +484,7 @@ let () =
   in
   run_proof ~quiet:true ~name:"div_fuel_irrel" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac
-    >> with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac
+    >> with_rule (List.hd Options.option_def.distinct) rewrite_asm_tac
     >> false_elim_tac >> intros_tac
     >> with_first (with_definition [ "plus" ] rewrite_tac)
     >> beta_tac >> simp_tac >> simp_asm_tac
@@ -488,7 +495,7 @@ let () =
          destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
     >> with_first
-       @@ with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac
+       @@ with_rule (List.hd Options.option_def.distinct) rewrite_asm_tac
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac [%term (m : nat)]
     >> spec_asm_tac [%term sub (a : nat) (b : nat)]
@@ -1062,7 +1069,7 @@ let () =
   run_proof ~quiet:true ~name:"div_fuel_sufficient" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
    >> simp_tac >> cond_tac >> simp_tac
-    >> with_arbitrary_term NatTheory.n0 exists_tac
+    >> with_arbitrary_term Nats.n0 exists_tac
     >> refl_tac >> simp_tac
     >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
     >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
@@ -1156,9 +1163,7 @@ let () =
     >> with_nth_choice 0 @@ with_proven [ "plus_comm" ] rewrite_asm_tac
     >> with_first (with_assumptions rewrite_asm_tac)
     >> with_first (with_assumptions rewrite_asm_tac)
-    >> with_rule
-         (OptionTheory.option_def.injective |> List.hd)
-         apply_thm_asm_tac
+    >> with_rule (Options.option_def.injective |> List.hd) apply_thm_asm_tac
     >> with_nth_term 3 (with_assumptions rewrite_asm_tac)
     >> with_definition [ "div" ] rewrite_tac
     >> beta_tac
@@ -1215,7 +1220,7 @@ let () =
   run_proof ~quiet:true ~name:"merge_fuel_irrel" ~notrace:true goal
     (with_arbitrary_term [%term (fuel : nat)] induct_tac
     >> intros_tac >> simp_asm_tac
-    >> with_rules OptionTheory.option_def.distinct rewrite_asm_tac
+    >> with_rules Options.option_def.distinct rewrite_asm_tac
     >> false_elim_tac >> intros_tac
     >> with_arbitrary_term [%term (xs : nat list)] destruct_tac
     >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac
@@ -1244,7 +1249,7 @@ let () =
              (Cons ((a0' : nat), (a1' : nat list)))]
          destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
-    >> with_first (with_rules OptionTheory.option_def.distinct rewrite_asm_tac)
+    >> with_first (with_rules Options.option_def.distinct rewrite_asm_tac)
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac [%term (additional : nat)]
     >> spec_asm_tac [%term (a1 : nat list)]
@@ -1261,7 +1266,7 @@ let () =
              (a1' : nat list)]
          destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
-    >> with_first (with_rules OptionTheory.option_def.distinct rewrite_asm_tac)
+    >> with_first (with_rules Options.option_def.distinct rewrite_asm_tac)
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac [%term (additional : nat)]
     >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))]

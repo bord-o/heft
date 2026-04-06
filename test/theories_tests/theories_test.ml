@@ -3,7 +3,14 @@ open Kernel
 open Derived
 open Tactic
 open Heft_theories
-open Theories
+
+(* open Heft_theories.Functions *)
+let () = Functions.init ()
+let () = Options.init ()
+let () = Lists.init ()
+let () = Nats.init ()
+let () = Conds.init ()
+let () = Pairs.init ()
 
 let%expect_test "template" =
   let goal = make_goal [%term forall (fun (a : nat) -> true)] in
@@ -69,7 +76,8 @@ let%expect_test "plus assoc" =
             plus x (plus y z) = plus (plus x y) z)]
   in
   run_proof ~name:"plus_assoc" goal
-    (with_term x induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac);
+    (with_term [%term (x : nat)] induct_tac
+    >> intros_tac >> simp_tac >> intros_tac >> simp_tac);
   [%expect
     {|
     ========================================
@@ -86,7 +94,7 @@ let%expect_test "Suc injective" =
   in
   run_proof ~name:"Suc_inj" goal
     (intros_tac
-    >> (apply_thm_tac |> with_rules NatTheory.nat_def.injective)
+    >> (apply_thm_tac |> with_rules Nats.nat_def.injective)
     >> assumption_tac);
 
   [%expect
@@ -226,7 +234,7 @@ let%expect_test "length_Zero_implies_Nil" =
   run_proof goal
     (induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
    >> sym_asm_tac
-    >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
+    >> with_first (with_rules Nats.nat_def.distinct rewrite_asm_tac)
     >> false_elim_tac);
   [%expect
     {|
@@ -881,7 +889,7 @@ let%expect_test "div fuel irrel" =
   in
   run_proof ~name:"div_fuel_irrel" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac
-    >> with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac
+    >> with_rule (List.hd Options.option_def.distinct) rewrite_asm_tac
     >> false_elim_tac >> intros_tac
     >> with_first (with_definition [ "plus" ] rewrite_tac)
     >> beta_tac >> simp_tac >> simp_asm_tac
@@ -892,7 +900,7 @@ let%expect_test "div fuel irrel" =
          destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
     >> with_first
-       @@ with_rule (List.hd OptionTheory.option_def.distinct) rewrite_asm_tac
+       @@ with_rule (List.hd Options.option_def.distinct) rewrite_asm_tac
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac [%term (m : nat)]
     >> spec_asm_tac [%term sub (a : nat) (b : nat)]
@@ -1331,7 +1339,7 @@ let%expect_test "equality simp rules" =
   run_proof ~simp:true ~name:"neg_true_false"
     (make_goal [%term (not true) = false])
     (eq_false_elim_tac
-    >> with_arbitrary_term t assert_tac
+    >> with_arbitrary_term [%term true] assert_tac
     >> truth_tac >> neg_intro_tac >> neg_elim_tac);
   run_proof ~name:"eq_cong"
     (make_goal
@@ -1820,7 +1828,7 @@ let%expect_test "div fuel sufficient" =
   run_proof ~name:"div_fuel_sufficient" ~notrace:true goal
     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
    >> simp_tac >> cond_tac >> simp_tac
-    >> with_arbitrary_term NatTheory.n0 exists_tac
+    >> with_arbitrary_term Nats.n0 exists_tac
     >> refl_tac >> simp_tac
     >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
     >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
@@ -1922,9 +1930,7 @@ let%expect_test "div unfold" =
     >> with_nth_choice 0 @@ with_proven [ "plus_comm" ] rewrite_asm_tac
     >> with_first (with_assumptions rewrite_asm_tac)
     >> with_first (with_assumptions rewrite_asm_tac)
-    >> with_rule
-         (OptionTheory.option_def.injective |> List.hd)
-         apply_thm_asm_tac
+    >> with_rule (Options.option_def.injective |> List.hd) apply_thm_asm_tac
     >> with_nth_term 3 (with_assumptions rewrite_asm_tac)
     >> with_definition [ "div" ] rewrite_tac
     >> beta_tac
@@ -1997,7 +2003,7 @@ let%expect_test "merge fuel irrel" =
   run_proof ~name:"merge_fuel_irrel" ~notrace:true goal
     (with_arbitrary_term [%term (fuel : nat)] induct_tac
     >> intros_tac >> simp_asm_tac
-    >> with_rules OptionTheory.option_def.distinct rewrite_asm_tac
+    >> with_rules Options.option_def.distinct rewrite_asm_tac
     >> false_elim_tac >> intros_tac
     >> with_arbitrary_term [%term (xs : nat list)] destruct_tac
     >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac
@@ -2026,7 +2032,7 @@ let%expect_test "merge fuel irrel" =
              (Cons ((a0' : nat), (a1' : nat list)))]
          destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
-    >> with_first (with_rules OptionTheory.option_def.distinct rewrite_asm_tac)
+    >> with_first (with_rules Options.option_def.distinct rewrite_asm_tac)
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac [%term (additional : nat)]
     >> spec_asm_tac [%term (a1 : nat list)]
@@ -2043,7 +2049,7 @@ let%expect_test "merge fuel irrel" =
              (a1' : nat list)]
          destruct_tac
     >> elim_disj_asm_tac >> simp_asm_tac
-    >> with_first (with_rules OptionTheory.option_def.distinct rewrite_asm_tac)
+    >> with_first (with_rules Options.option_def.distinct rewrite_asm_tac)
     >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac [%term (additional : nat)]
     >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))]
