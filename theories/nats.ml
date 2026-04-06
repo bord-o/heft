@@ -1,6 +1,8 @@
 open Heft
 open Kernel
 open Result.Syntax
+open Derived
+open Tactic
 
 let () = Functions.init ()
 let () = Options.init ()
@@ -80,3 +82,18 @@ let plus =
 let make_plus a b =
   let* ab = make_app plus a in
   make_app ab b
+
+[@@@ocamlformat "disable"]
+let%thm plus_x_Zero (x : nat) = 
+    plus x Zero = x
+and proof =
+  begin
+    induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+  end [@quiet]
+
+let%thm plus_assoc (x : nat ) (y:nat) (z:nat) = 
+    plus x (plus y z) = plus (plus x y) z
+and proof =
+  begin
+    induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
+  end [@quiet]

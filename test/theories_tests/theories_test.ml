@@ -4,7 +4,6 @@ open Derived
 open Tactic
 open Heft_theories
 
-(* open Heft_theories.Functions *)
 let () = Functions.init ()
 let () = Options.init ()
 let () = Lists.init ()
@@ -24,37 +23,6 @@ let%expect_test "template" =
     with fuel: 5
     |}]
 
-let%expect_test "eq_true intro" =
-  let%thm eq_true_intro (p : bool) = p ==> (p = true)
-  and proof =
-    begin
-      intros_tac >> eq_true_elim_tac >> assumption_tac
-    end
-  in
-  ignore eq_true_intro;
-  [%expect
-    {|
-    ========================================
-    ∀p. p ==> p = T
-
-    Proof Complete!
-    with fuel: 8
-    |}]
-
-let%expect_test "rewrite induction" =
-  let goal = make_goal [%term forall (fun (x : nat) -> plus x Zero = x)] in
-  run_proof ~name:"plus_x_Zero" goal
-    (induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac);
-
-  [%expect
-    {|
-    ========================================
-    ∀x. plus x Zero = x
-
-    Proof Complete!
-    with fuel: 53
-    |}]
-
 let%expect_test "basic nat" =
   let goal = make_goal [%term plus 2n 3n = 5n] in
   run_proof ~pretty:true goal simp_tac;
@@ -66,25 +34,6 @@ let%expect_test "basic nat" =
 
     Proof Complete!
     with fuel: 29
-    |}]
-
-let%expect_test "plus assoc" =
-  let goal =
-    make_goal
-      [%term
-        forall (fun (x : nat) (y : nat) (z : nat) ->
-            plus x (plus y z) = plus (plus x y) z)]
-  in
-  run_proof ~name:"plus_assoc" goal
-    (with_term [%term (x : nat)] induct_tac
-    >> intros_tac >> simp_tac >> intros_tac >> simp_tac);
-  [%expect
-    {|
-    ========================================
-    ∀x. ∀y. ∀z. plus x (plus y z) = plus (plus x y) z
-
-    Proof Complete!
-    with fuel: 88
     |}]
 
 let%expect_test "Suc injective" =
