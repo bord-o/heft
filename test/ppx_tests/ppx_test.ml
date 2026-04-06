@@ -1,6 +1,9 @@
 open Heft
 open Kernel
 open Derived
+open Tactic
+open Heft_theories
+open Theories
 
 let%expect_test "variable with type annotation" =
   let (t : term) = [%term (test : nat list)] in
@@ -837,3 +840,73 @@ let%expect_test "primrec: tree_size (polymorphic, recursive)" =
     ========================================
     tree_size Leaf = Zero ∧ (∀x0. ∀x1. ∀x2. tree_size (Node x0 x1 x2) = Suc (my_plus (tree_size x1) (tree_size x2)))
     |}]
+
+(* === let%thm tests === *)
+
+let%thm thm_plus_x_zero (x : nat) = plus x Zero = x
+
+and proof =
+  begin
+    induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+  end
+  [@quiet]
+
+let%expect_test "let%thm with proof and quiet" =
+  ignore thm_plus_x_zero;
+  [%expect {||}]
+
+let%thm thm_goal_only (n : nat) = plus n Zero = n
+
+let%expect_test "let%thm goal only" =
+  let asms, concl = thm_goal_only in
+  assert (asms = []);
+  Printf.printf "%s\n" (Printing.pretty_print_hol_term concl);
+  [%expect {| ∀n. plus n Zero = n |}]
+
+let%thm thm_multi_arg (x : nat) (y : nat) = plus x y = plus y x
+
+and proof =
+  begin
+    with_term x induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
+  end
+  [@quiet]
+
+let%expect_test "let%thm multi-arg" =
+  ignore thm_multi_arg;
+  [%expect {||}]
+
+let%thm thm_no_params = plus 2n 3n = 5n
+
+and proof =
+  begin
+    simp_tac
+  end
+  [@quiet]
+
+let%expect_test "let%thm no params" =
+  ignore thm_no_params;
+  [%expect {||}]
+
+let%thm thm_poly (xs : 'a list) = length xs = length xs
+
+and proof =
+  begin
+    gen_tac >> refl_tac
+  end
+  [@quiet]
+
+let%expect_test "let%thm polymorphic" =
+  ignore thm_poly;
+  [%expect {||}]
+
+let%thm _unsaved (n : nat) = plus n Zero = n
+
+and proof =
+  begin
+    induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+  end
+  [@quiet]
+
+let%expect_test "let%thm underscore-prefixed name (no ~name to run_proof)" =
+  ignore _unsaved;
+  [%expect {||}]

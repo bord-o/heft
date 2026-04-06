@@ -461,3 +461,12 @@ and proof =
 ```
 
 Where the [@simp] annotations are used in the run_proof call.
+
+## Monday, April 6
+
+Now that I have some decent tooling for writing HOL terms and definitions, and a decent set of theorems to test against, I'm ready to switch gears and work on the core of the system more. There are a lot of improvements on the horizon so I've been thinking hard about how to prioritize them.
+
+### Cleaning up apply_* tactics
+### Finish merge_sort proofs
+### Move theorems out of tests and into their respective modules
+### Design Aesop-style proof search
