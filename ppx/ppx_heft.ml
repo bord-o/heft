@@ -1368,7 +1368,12 @@ let translate_thm_bindings ~loc bindings =
           (if save_name then [ (Labelled "name", A.estring thm_name) ] else [])
           @ (if has_simp then [ (Labelled "simp", bool_true) ] else [])
           @ (if has_quiet then [ (Labelled "quiet", bool_true) ] else [])
-          @ (if has_trace then [ (Labelled "notrace", A.pexp_construct { txt = Lident "false"; loc } None) ] else [])
+          @ (if has_trace then
+               [
+                 ( Labelled "notrace",
+                   A.pexp_construct { txt = Lident "false"; loc } None );
+               ]
+             else [])
           @ [ (Nolabel, A.evar goal_var); (Nolabel, clean_tactic) ]
         in
         let run_proof_expr = A.pexp_apply (A.evar "run_proof") args in
