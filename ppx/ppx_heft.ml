@@ -1275,7 +1275,7 @@ let translate_primrec ~(loc : location) ~(path : label)
   A.pstr_value Nonrecursive
     [ A.value_binding ~pat:(A.pvar fn_name) ~expr:unwrapped ]
 
-let thm_attrs = [ "simp"; "quiet"; "notrace" ]
+let thm_attrs = [ "simp"; "quiet"; "trace" ]
 
 (* Shared core: given bindings, returns (thm_name, generated_expr).
    For goal-only, the expr is make_goal(...).
@@ -1351,7 +1351,7 @@ let translate_thm_bindings ~loc bindings =
         in
         let has_simp = has_attr "simp" tactic_expr in
         let has_quiet = has_attr "quiet" tactic_expr in
-        let has_notrace = has_attr "notrace" tactic_expr in
+        let has_trace = has_attr "trace" tactic_expr in
         let clean_tactic =
           {
             tactic_expr with
@@ -1368,7 +1368,7 @@ let translate_thm_bindings ~loc bindings =
           (if save_name then [ (Labelled "name", A.estring thm_name) ] else [])
           @ (if has_simp then [ (Labelled "simp", bool_true) ] else [])
           @ (if has_quiet then [ (Labelled "quiet", bool_true) ] else [])
-          @ (if has_notrace then [ (Labelled "notrace", bool_true) ] else [])
+          @ (if has_trace then [ (Labelled "notrace", A.pexp_construct { txt = Lident "false"; loc } None) ] else [])
           @ [ (Nolabel, A.evar goal_var); (Nolabel, clean_tactic) ]
         in
         let run_proof_expr = A.pexp_apply (A.evar "run_proof") args in
