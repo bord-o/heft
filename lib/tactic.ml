@@ -202,15 +202,10 @@ let or_tac : tactic =
 let apply_asm_tac : tactic =
  fun (asms, concl) ->
   burn "apply_asm_tac" (Unsafe 4);
-  let rec collect_premises tm acc =
-    match destruct_imp tm with
-    | Ok (premise, rest) -> collect_premises rest (premise :: acc)
-    | Error _ -> (List.rev acc, tm)
-  in
   let matching =
     asms
     |> List.filter_map (fun asm ->
-        let prems, final_conc = collect_premises asm [] in
+        let prems, final_conc = collect_premises asm in
         if prems <> [] && final_conc = concl then Some (asm, prems) else None)
   in
   let choices = rank_terms (List.map fst matching) in
@@ -227,6 +222,29 @@ let apply_asm_tac : tactic =
   in
   return_thm ~from:"apply_asm_tac" thm
 
+let _apply_tac : tactic =
+ fun (asms, conc) ->
+  burn "apply_tac" (Unsafe 5);
+  (* To apply a thm, we need to chose a rule. It should be in the state it was proven in, not preprocessed in any way *)
+  let lemmas = perform Rules in
+  let chosen_thm = choose_theorems lemmas in
+  (* let stripped, foralls = strip_foralls_acc chosen_thm *)
+  let _premises, _final_conc = collect_premises (concl chosen_thm) in
+  (* we need to inspect the conclusion of our chosen_thm *)
+  (*
+    lets strip the foralls, but keep track of them
+    find the conclusion of the lemma
+    term match the conclusion against our current goal
+    if the match result count doesn't match the forall count we
+      know that we need to re-wrap something for the subgoal(s)
+      for now we just fail in that case
+    now we check if the lemma conclusion matches our goal.
+    if so we fire subgoals for the obligations of the lemma
+    with the subgoals solved we can solve the current goal
+  *)
+
+  fail ()
+
 let apply_thm_tac : tactic =
  fun (asms, conc) ->
   burn "apply_thm_tac" (Unsafe 5);
@@ -234,48 +252,31 @@ let apply_thm_tac : tactic =
   let chosen_thm = choose_theorems lemmas in
 
   let avoid = conc :: asms in
-  let rec strip_foralls_acc thm vars avoid =
-    match destruct_forall (concl thm) with
-    | Ok (var, _body) -> (
-        let fresh_var =
-          match variant avoid var with Ok v -> v | Error _ -> var
-        in
-        let thm' = Derived.spec fresh_var thm in
-        match thm' with
-        | Ok thm' ->
-            strip_foralls_acc thm' (fresh_var :: vars) (fresh_var :: avoid)
-        | Error _ -> (thm, List.rev vars))
-    | Error _ -> (thm, List.rev vars)
-  in
-  let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] avoid in
-
-  let rec collect_premises tm acc =
-    match destruct_imp tm with
-    | Ok (premise, rest) -> collect_premises rest (premise :: acc)
-    | Error _ -> (List.rev acc, tm)
-  in
-  let prems, final_conc = collect_premises (concl stripped_thm) [] in
-
-  let extend_env_from_asms env =
-    List.fold_left
-      (fun env prem ->
-        List.fold_left
-          (fun env asm ->
-            match Rewrite.term_match [] [] env prem asm with
-            | Some env' -> env'
-            | None -> env)
-          env asms)
-      env prems
-  in
-  let all_vars_bound env =
-    List.for_all
-      (fun v ->
-        let v_typed = Rewrite.term_type_subst env.type_sub v in
-        List.exists (fun (pat, _) -> alphaorder pat v_typed = 0) env.term_sub)
-      quant_vars
-  in
 
   let thm =
+    let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
+
+    let prems, final_conc = collect_premises (concl stripped_thm) in
+
+    let extend_env_from_asms env =
+      List.fold_left
+        (fun env prem ->
+          List.fold_left
+            (fun env asm ->
+              match Rewrite.term_match [] [] env prem asm with
+              | Some env' -> env'
+              | None -> env)
+            env asms)
+        env prems
+    in
+    let all_vars_bound env =
+      List.for_all
+        (fun v ->
+          let v_typed = Rewrite.term_type_subst env.type_sub v in
+          List.exists (fun (pat, _) -> alphaorder pat v_typed = 0) env.term_sub)
+        quant_vars
+    in
+
     match Rewrite.match_term final_conc conc with
     | Some env ->
         let env = extend_env_from_asms env in
@@ -287,7 +288,7 @@ let apply_thm_tac : tactic =
 
         if prems = [] then Ok fully_inst
         else
-          let inst_prems, _ = collect_premises (concl fully_inst) [] in
+          let inst_prems, _ = collect_premises (concl fully_inst) in
           List.fold_left
             (fun acc_thm prem ->
               let* acc = acc_thm in
@@ -306,22 +307,9 @@ let apply_thm_asm_tac : tactic =
   let chosen_asm = choose_terms asms in
 
   let avoid = conc :: asms in
-  let rec strip_foralls_acc thm vars avoid =
-    match destruct_forall (concl thm) with
-    | Ok (var, _body) -> (
-        let fresh_var =
-          match variant avoid var with Ok v -> v | Error _ -> var
-        in
-        let thm' = Derived.spec fresh_var thm in
-        match thm' with
-        | Ok thm' ->
-            strip_foralls_acc thm' (fresh_var :: vars) (fresh_var :: avoid)
-        | Error _ -> (thm, List.rev vars))
-    | Error _ -> (thm, List.rev vars)
-  in
-  let stripped_thm, quant_vars = strip_foralls_acc chosen_thm [] avoid in
 
   let thm =
+    let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
     match destruct_imp (concl stripped_thm) with
     | Ok (prem, _thm_conc) -> (
         match Rewrite.match_term prem chosen_asm with
@@ -884,13 +872,8 @@ let rec induct_tac : tactic =
 
         let* inst_induction = spec p typed_induction in
 
-        let rec collect_premises tm acc =
-          match destruct_imp tm with
-          | Ok (premise, rest) -> collect_premises rest (premise :: acc)
-          | Error _ -> (List.rev acc, tm)
-        in
         let cases, _conclusion =
-          collect_premises (Kernel.concl inst_induction) []
+          collect_premises (Kernel.concl inst_induction)
         in
 
         let solved =

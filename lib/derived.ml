@@ -337,6 +337,14 @@ let destruct_imp = function
   | App (App (Const ("==>", _), p), q) -> Ok (p, q)
   | tm -> Error (`NotAnImp tm)
 
+let collect_premises tm =
+  let rec aux tm acc =
+    match destruct_imp tm with
+    | Ok (premise, rest) -> aux rest (premise :: acc)
+    | Error _ -> (List.rev acc, tm)
+  in
+  aux tm []
+
 let destruct_disj = function
   | App (App (Const ("\\/", _), p), q) -> Ok (p, q)
   | tm -> Error (`NotADisj tm)
@@ -881,3 +889,15 @@ let bool_cases =
     gen b combined
   in
   match thm with Ok t -> t | Error _ -> failwith "bool_cases: proof failed"
+
+let rec strip_foralls_acc thm avoid =
+  let open Result in
+  let rec aux thm avoid vars =
+    match destruct_forall (concl thm) with
+    | Ok (var, _body) ->
+        let* fresh_var = variant avoid var in
+        let* thm' = spec fresh_var thm in
+        aux thm' (fresh_var :: avoid) (fresh_var :: vars)
+    | Error _ -> ok (thm, List.rev vars)
+  in
+  aux thm avoid []
