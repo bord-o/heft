@@ -1781,19 +1781,15 @@ let%expect_test "div fuel sufficient" =
     >> refl_tac >> simp_tac
     >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
     >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
-    >> (with_arbitrary_term
-          [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)]
-          assert_tac
-       >> with_proven [ "sub_lt" ] apply_thm_tac
-       >> with_first assumption_tac >> with_first assumption_tac)
-    >> (with_arbitrary_term
-          [%term nat_lt (sub (a : nat) (b : nat)) (n0 : nat)]
-          assert_tac
-       >> with_proven [ "lt_le_trans" ] apply_thm_tac
-       >> with_first assumption_tac >> with_first assumption_tac)
-    >> spec_asm_tac [%term sub (a : nat) (b : nat)]
-    >> spec_asm_tac [%term (b : nat)]
-    >> with_repeat mp_asm_tac >> elim_exists_asm_tac >> simp_tac
+    >> (with_first (with_proven [ "sub_lt" ] apply_asm_tac')
+       >> with_first (with_assumptions apply_asm_tac'))
+    >> (with_first (with_proven [ "lt_le_trans" ] apply_asm_tac')
+       >> with_nth_term 4 (with_assumptions apply_asm_tac'))
+    >> with_nth_term 2 (spec_asm_tac [%term sub (a : nat) (b : nat)])
+    >> with_nth_term 0 (spec_asm_tac [%term (b : nat)])
+    >> with_first (with_assumptions apply_asm_tac')
+    >> with_first (with_assumptions apply_asm_tac')
+    >> elim_exists_asm_tac >> simp_tac
     >> with_arbitrary_term [%term Suc (x' : nat)] exists_tac
     >> simp_tac);
   [%expect
@@ -1802,7 +1798,7 @@ let%expect_test "div fuel sufficient" =
     ∀x. ∀a. ∀b. nat_lt Zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = Some x'
 
     Proof Complete!
-    with fuel: 216
+    with fuel: 213
     |}]
 
 let%expect_test "div unfold" =

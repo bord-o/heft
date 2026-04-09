@@ -225,43 +225,53 @@ let apply_asm_tac : tactic =
 let apply_tac : tactic =
  fun (asms, conc) ->
   burn "apply_tac" (Unsafe 5);
-  (* To apply a thm, we need to chose a rule. It should be in the state it was proven in, not preprocessed in any way *)
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
-  (* TODO: Do I need to check if the chosen thm is an assumption? *)
-
+  let avoid = conc :: asms in
   let thm =
-    let* stripped, _foralls = strip_foralls_acc chosen_thm (conc :: asms) in
-    let premises, final_conc = collect_premises (concl chosen_thm) in
-    (* we need to inspect the conclusion of our chosen_thm *)
-
-    let _matched = Rewrite.match_term final_conc conc in
-    (* TODO: instantiate conclusion and hypotheses *)
-
-    let solved =
-      premises |> List.map (fun prem -> perform (Subgoal (asms, prem)))
-    in
-
-    List.fold_left
-      (fun acc sg ->
-        let* imp = acc in
-        let* step = mp imp sg in
-        Ok step)
-      (Ok stripped) solved
-    (* TODO: re-quantify stripped after discharging implication*)
+    let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
+    let premises, final_conc = collect_premises (concl stripped_thm) in
+    match Rewrite.match_term final_conc conc with
+    | None -> fail ()
+    | Some env ->
+        let* type_inst = inst_type env.type_sub stripped_thm in
+        let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
+        let* inst_thm = inst term_sub_flipped type_inst in
+        if premises = [] then Ok inst_thm
+        else
+          let inst_premises, _ = collect_premises (concl inst_thm) in
+          let typed_undetermined =
+            quant_vars
+            |> List.filter (fun v ->
+                let v_typed = Rewrite.term_type_subst env.type_sub v in
+                not
+                  (List.exists
+                     (fun (pat, _) -> alphaorder pat v_typed = 0)
+                     env.term_sub))
+            |> List.map (Rewrite.term_type_subst env.type_sub)
+          in
+          let subgoal_thms =
+            inst_premises
+            |> List.map (fun prem ->
+                let free_undet =
+                  List.filter (fun v -> var_free_in v prem) typed_undetermined
+                in
+                let subgoal_term = make_foralls free_undet prem in
+                let sg_thm = perform (Subgoal (asms, subgoal_term)) in
+                if free_undet = [] then sg_thm
+                else
+                  match specs free_undet sg_thm with
+                  | Ok thm -> thm
+                  | Error e ->
+                      trace_error (print_error e);
+                      fail ())
+          in
+          List.fold_left
+            (fun acc sg ->
+              let* imp = acc in
+              mp imp sg)
+            (Ok inst_thm) subgoal_thms
   in
-
-  (*
-    lets strip the foralls, but keep track of them
-    find the conclusion of the lemma
-    term match the conclusion against our current goal
-    if the match result count doesn't match the forall count we
-      know that we need to re-wrap something for the subgoal(s)
-      for now we just fail in that case
-    now we check if the lemma conclusion matches our goal.
-    if so we fire subgoals for the obligations of the lemma
-    with the subgoals solved we can solve the current goal
-  *)
   return_thm ~from:"apply_tac" thm
 
 let apply_thm_tac : tactic =
@@ -362,6 +372,61 @@ let apply_thm_asm_tac : tactic =
     | Error _ -> fail ()
   in
   return_thm ~from:"apply_thm_asm_tac" thm
+
+let apply_asm_tac' : tactic =
+ fun (asms, conc) ->
+  trace_info "running";
+  burn "apply_asm_tac'" (Unsafe 5);
+  let lemmas = perform Rules in
+  let chosen_thm = choose_theorems lemmas in
+  trace_info (Printing.pretty_print_thm chosen_thm);
+  let chosen_asm = choose_terms asms in
+  trace_info (Printing.pretty_print_hol_term chosen_asm);
+  let avoid = conc :: asms in
+  let thm =
+    let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
+    let premises, _final_conc = collect_premises (concl stripped_thm) in
+    if premises = [] then (
+      trace_info "no prems";
+      fail ());
+    let first_premise = List.hd premises in
+    match Rewrite.match_term first_premise chosen_asm with
+    | None ->
+        trace_info "match fail";
+        fail ()
+    | Some env ->
+        let* type_inst = inst_type env.type_sub stripped_thm in
+        let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
+        let* inst_thm = inst term_sub_flipped type_inst in
+        let inst_premises, inst_final = collect_premises (concl inst_thm) in
+        let remainder =
+          if List.length inst_premises = 1 then inst_final
+          else make_imps (List.tl inst_premises) inst_final
+        in
+        let typed_undetermined =
+          quant_vars
+          |> List.filter (fun v ->
+              let v_typed = Rewrite.term_type_subst env.type_sub v in
+              not
+                (List.exists
+                   (fun (pat, _) -> alphaorder pat v_typed = 0)
+                   env.term_sub))
+          |> List.map (Rewrite.term_type_subst env.type_sub)
+        in
+        let free_undet =
+          List.filter (fun v -> var_free_in v remainder) typed_undetermined
+        in
+        if List.exists (fun v -> var_free_in v chosen_asm) free_undet then
+          fail ();
+        let new_asm = make_foralls free_undet remainder in
+        let asms' = new_asm :: asms in
+        let sub_thm = perform (Subgoal (asms', conc)) in
+        let* asm_thm = assume chosen_asm in
+        let* remainder_thm = mp inst_thm asm_thm in
+        let* gen_thm = gens (List.rev free_undet) remainder_thm in
+        prove_hyp gen_thm sub_thm
+  in
+  return_thm ~from:"apply_asm_tac'" thm
 
 let apply_neg_asm_tac : tactic =
  fun (asms, concl) ->
@@ -555,7 +620,7 @@ let trans_tac : tactic =
     let rthm = perform (Subgoal (asms, req)) in
     trans lthm rthm
   in
-  return_thm ~from:"refl_tac" thm
+  return_thm ~from:"trans_tac" thm
 
 let assumption_tac : tactic =
  fun (asms, concl) ->

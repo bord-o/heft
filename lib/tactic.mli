@@ -284,6 +284,12 @@ val apply_thm_asm_tac : tactic
     [P ==> Q] and assumption is [P], replaces the assumption with [Q] and
     creates a subgoal with the updated assumptions *)
 
+val apply_asm_tac' : tactic
+(** Forward reasoning on an assumption. Chooses a theorem from [Rules], strips
+    foralls, matches its first premise against a chosen assumption. Replaces the
+    chosen assumption with the remainder of the theorem (possibly re-quantified
+    over undetermined variables). *)
+
 val apply_neg_asm_tac : tactic
 (** Proves [F] by finding a negation [~P] in assumptions and creating a subgoal
     to prove [P]. Fails if the goal is not [F] or no suitable negation exists *)
