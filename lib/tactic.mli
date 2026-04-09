@@ -277,6 +277,8 @@ val apply_thm_tac : tactic
 (** Applies a chosen theorem from [Rules] by stripping foralls and matching the
     conclusion against the goal *)
 
+val apply_tac : tactic
+
 val apply_thm_asm_tac : tactic
 (** Applies a chosen theorem from [Rules] to a chosen assumption. If theorem is
     [P ==> Q] and assumption is [P], replaces the assumption with [Q] and

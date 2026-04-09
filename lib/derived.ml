@@ -890,7 +890,7 @@ let bool_cases =
   in
   match thm with Ok t -> t | Error _ -> failwith "bool_cases: proof failed"
 
-let rec strip_foralls_acc thm avoid =
+let strip_foralls_acc thm avoid =
   let open Result in
   let rec aux thm avoid vars =
     match destruct_forall (concl thm) with

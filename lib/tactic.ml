@@ -222,15 +222,35 @@ let apply_asm_tac : tactic =
   in
   return_thm ~from:"apply_asm_tac" thm
 
-let _apply_tac : tactic =
+let apply_tac : tactic =
  fun (asms, conc) ->
   burn "apply_tac" (Unsafe 5);
   (* To apply a thm, we need to chose a rule. It should be in the state it was proven in, not preprocessed in any way *)
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
-  (* let stripped, foralls = strip_foralls_acc chosen_thm *)
-  let _premises, _final_conc = collect_premises (concl chosen_thm) in
-  (* we need to inspect the conclusion of our chosen_thm *)
+  (* TODO: Do I need to check if the chosen thm is an assumption? *)
+
+  let thm =
+    let* stripped, _foralls = strip_foralls_acc chosen_thm (conc :: asms) in
+    let premises, final_conc = collect_premises (concl chosen_thm) in
+    (* we need to inspect the conclusion of our chosen_thm *)
+
+    let _matched = Rewrite.match_term final_conc conc in
+    (* TODO: instantiate conclusion and hypotheses *)
+
+    let solved =
+      premises |> List.map (fun prem -> perform (Subgoal (asms, prem)))
+    in
+
+    List.fold_left
+      (fun acc sg ->
+        let* imp = acc in
+        let* step = mp imp sg in
+        Ok step)
+      (Ok stripped) solved
+    (* TODO: re-quantify stripped after discharging implication*)
+  in
+
   (*
     lets strip the foralls, but keep track of them
     find the conclusion of the lemma
@@ -242,8 +262,7 @@ let _apply_tac : tactic =
     if so we fire subgoals for the obligations of the lemma
     with the subgoals solved we can solve the current goal
   *)
-
-  fail ()
+  return_thm ~from:"apply_tac" thm
 
 let apply_thm_tac : tactic =
  fun (asms, conc) ->

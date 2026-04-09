@@ -102,6 +102,29 @@ let%expect_test "basic6" =
     with fuel: 5
     |}]
 
+let%expect_test "new apply" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let c = make_var "C" bool_ty in
+  let imp_cab = make_imp c (make_imp a b) in
+  let imp_ab = make_imp a b in
+  let goal = ([ imp_cab; imp_ab; a ], b) in
+  let proof =
+    with_assumptions (with_nth_choice 1 apply_tac) >> with_first assumption_tac
+  in
+  run_proof goal proof;
+
+  [%expect
+    {|
+    A
+    A ==> B
+    ========================================
+    B
+
+    Proof Complete!
+    with fuel: 6
+    |}]
+
 let%expect_test "deep sequencing with conj" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
