@@ -275,11 +275,6 @@ val apply_asm_tac : tactic
 
 val apply_tac : tactic
 
-val apply_thm_asm_tac : tactic
-(** Applies a chosen theorem from [Rules] to a chosen assumption. If theorem is
-    [P ==> Q] and assumption is [P], replaces the assumption with [Q] and
-    creates a subgoal with the updated assumptions *)
-
 val apply_asm_tac' : tactic
 (** Forward reasoning on an assumption. Chooses a theorem from [Rules], strips
     foralls, matches its first premise against a chosen assumption. Replaces the

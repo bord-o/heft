@@ -274,51 +274,6 @@ let apply_tac : tactic =
   in
   return_thm ~from:"apply_tac" thm
 
-let apply_thm_asm_tac : tactic =
- fun (asms, conc) ->
-  burn "apply_thm_asm_tac" (Unsafe 6);
-  let lemmas = perform Rules in
-  let chosen_thm = choose_theorems lemmas in
-  let chosen_asm = choose_terms asms in
-
-  let avoid = conc :: asms in
-
-  let thm =
-    let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
-    match destruct_imp (concl stripped_thm) with
-    | Ok (prem, _thm_conc) -> (
-        match Rewrite.match_term prem chosen_asm with
-        | Some env ->
-            let all_vars_bound =
-              List.for_all
-                (fun v ->
-                  let v_typed = Rewrite.term_type_subst env.type_sub v in
-                  List.exists
-                    (fun (pat, _) -> alphaorder pat v_typed = 0)
-                    env.term_sub)
-                quant_vars
-            in
-            if not all_vars_bound then fail ();
-
-            let* type_inst = inst_type env.type_sub stripped_thm in
-            let term_sub_flipped =
-              List.map (fun (v, t) -> (t, v)) env.term_sub
-            in
-            let* fully_inst = inst term_sub_flipped type_inst in
-
-            let* _, new_asm = destruct_imp (concl fully_inst) in
-
-            let asms' = new_asm :: List.filter (( <> ) chosen_asm) asms in
-            let sub_thm = perform (Subgoal (asms', conc)) in
-
-            let* asm_thm = assume chosen_asm in
-            let* new_asm_thm = mp fully_inst asm_thm in
-            prove_hyp new_asm_thm sub_thm
-        | None -> fail ())
-    | Error _ -> fail ()
-  in
-  return_thm ~from:"apply_thm_asm_tac" thm
-
 let apply_asm_tac' : tactic =
  fun (asms, conc) ->
   trace_info "running";
@@ -1784,3 +1739,6 @@ let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
         print_term ~pretty c;
         print_endline "Proof Incomplete";
         Printf.printf "with fuel: %d\n" !fuel_count)
+
+(* let _ = apply_asm_tac *)
+(* let apply_asm_tac = with_assumptions (apply_tac) *)
