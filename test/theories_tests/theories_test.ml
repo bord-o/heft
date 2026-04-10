@@ -1418,7 +1418,7 @@ let%expect_test "lt_trans" =
     ∀x. ∀b. ∀c. nat_lt x b ==> nat_lt b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 839
+    with fuel: 765
     |}]
 
 let%expect_test "le_trans" =
@@ -1450,7 +1450,7 @@ let%expect_test "le_trans" =
     ∀x. ∀b. ∀c. nat_le x b ==> nat_le b c ==> nat_le x c
 
     Proof Complete!
-    with fuel: 650
+    with fuel: 585
     |}]
 
 let%expect_test "le_lt_trans" =
@@ -1483,7 +1483,7 @@ let%expect_test "le_lt_trans" =
     ∀x. ∀b. ∀c. nat_le x b ==> nat_lt b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 817
+    with fuel: 752
     |}]
 
 let%expect_test "lt_le_trans" =
@@ -1516,7 +1516,7 @@ let%expect_test "lt_le_trans" =
     ∀x. ∀b. ∀c. nat_lt x b ==> nat_le b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 790
+    with fuel: 734
     |}]
 
 let%expect_test "le_antisym" =
@@ -1569,7 +1569,7 @@ let%expect_test "le_weaken_Suc" =
     ∀x. ∀b. nat_le x b ==> nat_le x (Suc b)
 
     Proof Complete!
-    with fuel: 317
+    with fuel: 308
     |}]
 
 let%expect_test "lt_weaken_Suc" =
@@ -1594,7 +1594,7 @@ let%expect_test "lt_weaken_Suc" =
     ∀x. ∀b. nat_lt x b ==> nat_lt x (Suc b)
 
     Proof Complete!
-    with fuel: 391
+    with fuel: 382
     |}]
 
 let%expect_test "sub_le" =
@@ -1649,7 +1649,7 @@ let%expect_test "sub_lt" =
     ∀x. ∀a. nat_lt Zero x ==> nat_le x a ==> nat_lt (sub a x) a
 
     Proof Complete!
-    with fuel: 413
+    with fuel: 404
     |}]
 
 let%expect_test "sub_add_cancel" =
@@ -1682,7 +1682,7 @@ let%expect_test "sub_add_cancel" =
     ∀x. ∀b. nat_le b x ==> plus (sub x b) b = x
 
     Proof Complete!
-    with fuel: 485
+    with fuel: 476
     |}]
 
 (* (* ===== Group 8: Ordering and addition ===== *) *)
@@ -2411,7 +2411,7 @@ let%expect_test "div pos and lt" =
     ∀x. nat_lt (Suc Zero) x ==> nat_lt Zero (div x (Suc (Suc Zero)))
 
     Proof Complete!
-    with fuel: 772
+    with fuel: 763
     ========================================
     ∀x. ∀k. ∀m. nat_lt Zero m ==> nat_le k x ==> nat_le (div k m) x
 
@@ -2421,7 +2421,7 @@ let%expect_test "div pos and lt" =
     ∀x. nat_lt 1 x ==> nat_lt (div x 2) x
 
     Proof Complete!
-    with fuel: 572
+    with fuel: 563
     |}]
 
 let%expect_test "merge sort sufficient" =
