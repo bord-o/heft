@@ -477,7 +477,9 @@ let%expect_test "modus_tollens" =
     ([], make_imp (make_imp p q) (make_imp (make_neg q) (make_neg p)))
   in
   let proof =
-    intro_tac >> intro_tac >> neg_intro_tac >> with_first (with_assumptions (with_first_term apply_asm_tac)) >> neg_elim_tac
+    intro_tac >> intro_tac >> neg_intro_tac
+    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> neg_elim_tac
   in
   run_proof goal proof;
   [%expect
@@ -1184,7 +1186,9 @@ let%expect_test "assert_tac_basic" =
   let goal = ([ p; pq; qr ], r) in
   let proof =
     with_arbitrary_term q assert_tac
-    >> with_first (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> assumption_tac
+    >> with_first (with_assumptions (with_first_term apply_asm_tac))
     >> assumption_tac
   in
   run_proof ~notrace:false goal proof;
@@ -1794,7 +1798,9 @@ let%expect_test "apply_asm_tac multiple premises" =
   let r3 = Result.get_ok (make_app r three) in
   let goal = ([ p3; q3 ], r3) in
   run_proof goal
-    (with_rules [ thm ] apply_asm_tac >> (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac);
+    (with_rules [ thm ] apply_asm_tac
+    >> with_assumptions (with_first_term apply_asm_tac)
+    >> assumption_tac);
   [%expect
     {|
     P (Suc (Suc (Suc Zero)))
@@ -2142,8 +2148,11 @@ let%expect_test "eq_iff_tac preserves assumptions" =
   let rq = make_imp r q in
   let goal = ([ r; rp; rq ], Result.get_ok (safe_make_eq p q)) in
   run_proof goal
-    (eq_iff_tac >> with_first (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac >> with_first (with_assumptions (with_first_term apply_asm_tac))
-   >> assumption_tac);
+    (eq_iff_tac
+    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> assumption_tac
+    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> assumption_tac);
   [%expect
     {|
     R

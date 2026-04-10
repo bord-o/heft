@@ -263,12 +263,10 @@ let apply_asm_tac : tactic =
   let thm =
     let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
     let premises, _final_conc = collect_premises (concl stripped_thm) in
-    if premises = [] then (
-      fail ());
+    if premises = [] then fail ();
     let first_premise = List.hd premises in
     match Rewrite.match_term first_premise chosen_asm with
-    | None ->
-        fail ()
+    | None -> fail ()
     | Some env ->
         let* type_inst = inst_type env.type_sub stripped_thm in
         let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
@@ -484,7 +482,6 @@ let assert_tac : tactic =
     prove_hyp asserted_thm with_assertion_thm
   in
   return_thm ~from:"assert_tac" thm
-
 
 let intro_tac : tactic =
  fun (asms, concl) ->
@@ -1319,7 +1316,6 @@ let with_first_term : tactic_combinator =
       in
       try_each choices
   | v -> v
-
 
 let itauto_tac : tactic =
   pick_tac
