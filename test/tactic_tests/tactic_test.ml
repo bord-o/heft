@@ -8,7 +8,7 @@ let%expect_test "basic" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = ([ a; b ], make_conj a b) in
-  let proof = conj_tac >> assumption_tac >> with_first assumption_tac in
+  let proof = conj_tac >> assumption_tac >> assumption_tac in
   run_proof goal proof;
   [%expect
     {|
@@ -69,7 +69,7 @@ let%expect_test "basic5" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = ([ a; b ], make_disj a b) in
-  let proof = right_tac >> with_first assumption_tac in
+  let proof = right_tac >> assumption_tac in
   run_proof goal proof;
   [%expect
     {|
@@ -88,7 +88,7 @@ let%expect_test "basic6" =
   let imp_ab = make_imp a b in
   let imp_cab = make_imp (make_imp c a) b in
   let goal = ([ imp_cab; imp_ab; a ], b) in
-  let proof = with_term imp_ab apply_asm_tac >> with_first assumption_tac in
+  let proof = with_term imp_ab apply_asm_tac >> assumption_tac in
   run_proof goal proof;
 
   [%expect
@@ -110,7 +110,7 @@ let%expect_test "new apply" =
   let imp_ab = make_imp a b in
   let goal = ([ imp_cab; imp_ab; a ], b) in
   let proof =
-    with_assumptions (with_nth_choice 1 apply_tac) >> with_first assumption_tac
+    with_assumptions (with_nth_choice 1 apply_tac) >> assumption_tac
   in
   run_proof goal proof;
 
@@ -131,8 +131,7 @@ let%expect_test "deep sequencing with conj" =
   let c = make_var "C" bool_ty in
   let goal = ([ a; b; c ], make_conj (make_conj a b) c) in
   let proof =
-    conj_tac >> conj_tac >> assumption_tac >> with_first assumption_tac
-    >> with_first assumption_tac
+    conj_tac >> conj_tac >> assumption_tac >> assumption_tac >> assumption_tac
   in
   run_proof goal proof;
   [%expect
@@ -150,7 +149,7 @@ let%expect_test "deep sequencing with conj" =
 let%expect_test "basic7" =
   let a = make_var "A" bool_ty in
   let goal = ([ make_false () ], a) in
-  let proof = ccontr_tac >> with_first assumption_tac in
+  let proof = ccontr_tac >> assumption_tac in
   run_proof goal proof;
 
   [%expect
@@ -1146,8 +1145,7 @@ let%expect_test "trans tac" =
   let goal = ([ eq_mo; eq_on ], eq_mn) in
 
   run_proof goal
-    (with_arbitrary_term o trans_tac
-    >> with_first assumption_tac >> with_first assumption_tac);
+    (with_arbitrary_term o trans_tac >> assumption_tac >> assumption_tac);
   [%expect
     {|
     m = o
@@ -1168,8 +1166,8 @@ let%expect_test "assert_tac_basic" =
   let goal = ([ p; pq; qr ], r) in
   let proof =
     with_arbitrary_term q assert_tac
-    >> with_first mp_asm_tac >> with_first assumption_tac
-    >> with_first mp_asm_tac >> with_first assumption_tac
+    >> with_first mp_asm_tac >> assumption_tac >> with_first mp_asm_tac
+    >> assumption_tac
   in
   run_proof ~notrace:false goal proof;
 
@@ -1218,7 +1216,7 @@ let%expect_test "cases_tac bool forall imp" =
   let goal = ([], make_forall b (make_imp b_eq_t b_eq_t)) in
   let proof =
     cases_tac >> intro_tac >> assumption_tac >> with_first intro_tac
-    >> with_first assumption_tac
+    >> assumption_tac
   in
   run_proof goal proof;
   [%expect
@@ -1303,8 +1301,7 @@ let%expect_test "cases_tac arbitrary bool expr" =
   let a_eq_t = Result.get_ok (safe_make_eq a (make_true ())) in
   let goal = ([ a_eq_t; b ], Result.get_ok (safe_make_eq a (make_true ()))) in
   let proof =
-    with_arbitrary_term a cases_tac
-    >> assumption_tac >> with_first assumption_tac
+    with_arbitrary_term a cases_tac >> assumption_tac >> assumption_tac
   in
   run_proof goal proof;
   [%expect
@@ -1322,9 +1319,7 @@ let%expect_test "cases_tac preserves assumptions" =
   let p = make_var "P" bool_ty in
   let b = make_var "b" bool_ty in
   let goal = ([ p ], make_forall b p) in
-  let proof =
-    cases_tac >> with_first assumption_tac >> with_first assumption_tac
-  in
+  let proof = cases_tac >> assumption_tac >> assumption_tac in
   run_proof goal proof;
   [%expect
     {|
@@ -1345,7 +1340,7 @@ let%expect_test "spec_asm_tac basic" =
   let p_a = App (make_var "P" (make_fun_ty nat_ty bool_ty), a) in
   let forall_px = make_forall x p_x in
   let goal = ([ forall_px ], p_a) in
-  let proof = spec_asm_tac a >> with_first assumption_tac in
+  let proof = spec_asm_tac a >> assumption_tac in
   run_proof goal proof;
   [%expect
     {|
@@ -1364,7 +1359,7 @@ let%expect_test "sym_asm_tac basic" =
   let a_eq_b = safe_make_eq a b |> Result.get_ok in
   let b_eq_a = safe_make_eq b a |> Result.get_ok in
   let goal = ([ a_eq_b ], b_eq_a) in
-  let proof = sym_asm_tac >> with_first assumption_tac in
+  let proof = sym_asm_tac >> assumption_tac in
   run_proof goal proof;
   [%expect
     {|
@@ -1474,7 +1469,7 @@ let%expect_test "apply_tac multiple premises isolated" =
   let r00 = Result.get_ok (make_app (Result.get_ok (make_app r zero)) zero) in
   let goal = ([ p0; q0 ], r00) in
   run_proof goal
-    (with_rules [ thm ] apply_tac >> assumption_tac >> with_first assumption_tac);
+    (with_rules [ thm ] apply_tac >> assumption_tac >> assumption_tac);
   [%expect
     {|
     P Zero
@@ -2087,7 +2082,7 @@ let%expect_test "fun_ext_tac polymorphic" =
 let%expect_test "eq_iff_tac basic" =
   let a = make_var "A" bool_ty in
   let goal = make_goal (Result.get_ok (safe_make_eq a a)) in
-  run_proof goal (eq_iff_tac >> assumption_tac >> with_first assumption_tac);
+  run_proof goal (eq_iff_tac >> assumption_tac >> assumption_tac);
   [%expect
     {|
     ========================================
@@ -2104,12 +2099,10 @@ let%expect_test "eq_iff_tac conj comm" =
   let qp = make_conj q p in
   let goal = ([ p; q ], Result.get_ok (safe_make_eq pq qp)) in
   run_proof goal
-    (eq_iff_tac >> elim_conj_asm_tac >> conj_tac >> with_first assumption_tac
-   >> with_first assumption_tac
+    (eq_iff_tac >> elim_conj_asm_tac >> conj_tac >> assumption_tac
+   >> assumption_tac
     >> with_first elim_conj_asm_tac
-    >> with_first conj_tac
-    >> with_first (with_first assumption_tac)
-    >> with_first (with_first assumption_tac));
+    >> with_first conj_tac >> assumption_tac >> assumption_tac);
   [%expect
     {|
     ========================================
@@ -2128,7 +2121,7 @@ let%expect_test "eq_iff_tac preserves assumptions" =
   let goal = ([ r; rp; rq ], Result.get_ok (safe_make_eq p q)) in
   run_proof goal
     (eq_iff_tac >> mp_asm_tac >> assumption_tac >> with_first mp_asm_tac
-   >> with_first assumption_tac);
+   >> assumption_tac);
   [%expect
     {|
     R

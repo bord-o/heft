@@ -678,15 +678,15 @@ let trans_tac : tactic =
 let assumption_tac : tactic =
  fun (asms, concl) ->
   burn "assumption_tac" (Safe 1);
-  let asm = choose_terms asms in
-  if concl <> asm then (
-    trace_error "assumption doesn't match the goal";
-    fail ())
-  else (
-    trace_dbg "Found matching assumption";
-    let t = assume concl in
-    trace_dbg "Assumption succeeded";
-    return_thm ~from:"assumption_tac" t)
+  match List.find_opt (( = ) concl) asms with
+  | None ->
+      trace_error "assumption doesn't match the goal";
+      fail ()
+  | Some _ ->
+      trace_dbg "Found matching assumption";
+      let t = assume concl in
+      trace_dbg "Assumption succeeded";
+      return_thm ~from:"assumption_tac" t
 
 let spec_asm_tac (tm : term) : tactic =
  fun (asms, concl) ->

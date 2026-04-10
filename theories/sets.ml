@@ -85,9 +85,9 @@ and proof = begin
     intros_tac
     >> eq_iff_tac
     >> elim_conj_asm_tac
-    >> conj_tac >>> (try_ (with_first assumption_tac))
+    >> conj_tac >>> (try_ (assumption_tac))
     >> elim_conj_asm_tac
-    >> conj_tac >>> (try_ (with_first assumption_tac))
+    >> conj_tac >>> (try_ (assumption_tac))
 end
 [@quiet]
 
@@ -188,6 +188,6 @@ and proof = begin
     >> assumption_tac
     >> truth_tac
     >> elim_conj_asm_tac
-    >> with_first assumption_tac
+    >> assumption_tac
 end
 [@quiet]

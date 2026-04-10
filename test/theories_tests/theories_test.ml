@@ -764,7 +764,7 @@ let%expect_test "sort correct lemma" =
                     ];
                 spec_asm_tac [%term (n : nat)]
                 >> apply_asm_tac >> simp_asm_tac >> elim_conj_asm_tac
-                >> with_first assumption_tac;
+                >> assumption_tac;
                 with_proven [ "nat_le_flip" ] apply_thm_asm_tac >> simp_tac;
                 conj_tac
                 >>= [
@@ -774,8 +774,7 @@ let%expect_test "sort correct lemma" =
                             simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
                           ];
                       spec_asm_tac [%term (n1 : nat)]
-                      >> simp_asm_tac >> elim_conj_asm_tac
-                      >> with_first assumption_tac;
+                      >> simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
                     ];
               ];
         ]);
@@ -1632,8 +1631,8 @@ let%expect_test "sub_lt" =
     (with_arbitrary_term [%term (b : nat)] induct_tac
     >>> intros_tac >> assumption_reasoning_tac
     >> with_arbitrary_term [%term (a : nat)] destruct_tac
-    >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac
-    >> with_first assumption_tac >> elim_exists_asm_tac
+    >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac >> assumption_tac
+    >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
     >> with_first (with_assumptions rewrite_tac)
     >> with_first (with_assumptions rewrite_asm_tac)
@@ -1822,15 +1821,14 @@ let%expect_test "div unfold" =
          [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)]
          assert_tac
     >> with_proven [ "sub_lt" ] apply_thm_tac
-    >> with_first assumption_tac >> with_first assumption_tac
+    >> assumption_tac >> assumption_tac
     >> with_arbitrary_term
          [%term
            exists (fun (x' : nat) ->
                div_aux (a : nat) (sub (a : nat) (b : nat)) (b : nat) = Some x')]
          assert_tac
     >> with_proven [ "div_fuel_sufficient" ] apply_thm_tac
-    >> with_first assumption_tac >> with_first assumption_tac
-    >> elim_exists_asm_tac
+    >> assumption_tac >> assumption_tac >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
     >> with_first (with_definition [ "match_option" ] rewrite_tac)
     >> beta_tac
@@ -1846,7 +1844,7 @@ let%expect_test "div unfold" =
                = Some x)]
          assert_tac
     >> with_proven [ "div_fuel_sufficient" ] apply_thm_tac
-    >> with_first assumption_tac
+    >> assumption_tac
     >> with_proven [ "lt_Suc_self" ] rewrite_tac
     >> truth_tac >> elim_exists_asm_tac
     >> with_arbitrary_term
@@ -1860,7 +1858,7 @@ let%expect_test "div unfold" =
            = Some (x : nat)]
          assert_tac
     >> with_proven [ "div_fuel_irrel" ] apply_thm_tac
-    >> with_first assumption_tac
+    >> assumption_tac
     >> with_arbitrary_term
          [%term
            plus
@@ -1871,7 +1869,7 @@ let%expect_test "div unfold" =
     >> with_proven [ "sub_add_cancel" ] apply_thm_tac
     >> with_proven [ "le_lt_Suc" ] rewrite_tac
     >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
-    >> with_first assumption_tac
+    >> assumption_tac
     >> with_nth_choice 0 @@ with_proven [ "plus_comm" ] rewrite_asm_tac
     >> with_first (with_assumptions rewrite_asm_tac)
     >> with_first (with_assumptions rewrite_asm_tac)
@@ -2351,13 +2349,13 @@ let%expect_test "div pos and lt" =
     >> with_arbitrary_term ltkm cases_tac
     >> with_arbitrary_term div_unfld3 assert_tac
     >> with_first (with_proven [ "div_unfold" ] apply_thm_tac)
-    >> with_first assumption_tac
+    >> assumption_tac
     >> with_first (with_assumptions rewrite_tac)
     >> with_first (with_assumptions rewrite_tac)
     >> simp_tac
     >> with_arbitrary_term div_unfld3 assert_tac
     >> with_first (with_proven [ "div_unfold" ] apply_thm_tac)
-    >> with_first assumption_tac
+    >> assumption_tac
     >> with_first (with_assumptions rewrite_tac)
     >> with_first (with_assumptions rewrite_tac)
     >> simp_tac ~exclude:[ "div"; "div_unfold" ]
@@ -2365,15 +2363,15 @@ let%expect_test "div pos and lt" =
     >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
     >> with_arbitrary_term subltkmk assert_tac
     >> with_proven [ "sub_lt" ] apply_thm_tac
-    >> with_first assumption_tac >> with_first assumption_tac
+    >> assumption_tac >> assumption_tac
     >> with_arbitrary_term subltkm_Sucn0 assert_tac
     >> with_proven [ "lt_le_trans" ] apply_thm_tac
-    >> with_first assumption_tac >> with_first assumption_tac
+    >> assumption_tac >> assumption_tac
     >> with_first
          (with_proven [ "lt_Suc_le" ]
             (with_info_trace (with_flip_rules rewrite_tac)))
-    >> with_first assumption_tac >> spec_asm_tac subkm >> spec_asm_tac m
-    >> with_repeat mp_asm_tac >> with_first assumption_tac);
+    >> assumption_tac >> spec_asm_tac subkm >> spec_asm_tac m
+    >> with_repeat mp_asm_tac >> assumption_tac);
 
   run_proof ~pretty:true ~name:"div_lt" ~notrace:true glt
     (with_arbitrary_term n induct_tac
@@ -2464,7 +2462,7 @@ let%expect_test "merge sort sufficient" =
        >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
        >> with_first (with_proven [ "lt_le_trans" ] apply_thm_tac)
        >> with_first (with_assumptions rewrite_tac)
-       >> truth_tac >> with_first assumption_tac)
+       >> truth_tac >> assumption_tac)
     >> with_arbitrary_term
          [%term
            nat_lt
@@ -2481,12 +2479,12 @@ let%expect_test "merge sort sufficient" =
              (length (xs : nat list))]
          assert_tac
     >> with_first (with_proven [ "sub_lt" ] apply_thm_tac)
-    >> with_first assumption_tac
+    >> assumption_tac
     >> with_proven [ "div_le" ] apply_thm_tac
     >> simp_tac >> simp_tac
     >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
     >> with_first (with_proven [ "lt_le_trans" ] apply_thm_tac)
-    >> with_first assumption_tac >> with_first assumption_tac
+    >> assumption_tac >> assumption_tac
     >> with_repeat (with_first mp_asm_tac)
     >> with_repeat elim_exists_asm_tac
     >> simp_tac ~exclude:[ "div"; "merge" ]
