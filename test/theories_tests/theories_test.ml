@@ -853,7 +853,7 @@ let%expect_test "div fuel irrel" =
     >> spec_asm_tac [%term sub (a : nat) (b : nat)]
     >> spec_asm_tac [%term (b : nat)]
     >> spec_asm_tac [%term (a0 : nat)]
-    >> with_first mp_asm_tac
+    >> with_first (with_assumptions (with_first_term apply_asm_tac))
     >> with_assumptions rewrite_tac
     >> simp_tac >> simp_tac
     >> with_nth_term 1 (with_assumptions rewrite_asm_tac)
@@ -864,7 +864,7 @@ let%expect_test "div fuel irrel" =
     ∀x. ∀m. ∀a. ∀b. ∀x'. div_aux x a b = Some x' ==> div_aux (plus x m) a b = Some x'
 
     Proof Complete!
-    with fuel: 292
+    with fuel: 294
     |}]
 
 let%expect_test "lt_Zero_Suc" =
@@ -936,7 +936,7 @@ let%expect_test "lt_add_Suc_r" =
     ∀x. ∀b. nat_lt x (plus x (Suc b))
 
     Proof Complete!
-    with fuel: 154
+    with fuel: 156
     |}]
 
 let%expect_test "add_lt_cancel_l" =
@@ -1367,14 +1367,14 @@ let%expect_test "lt_implies_le" =
     >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac
     >> simp_tac >> simp_asm_tac
     >> spec_asm_tac [%term (a0 : nat)]
-    >> mp_asm_tac >> assumption_tac);
+    >> (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac);
   [%expect
     {|
     ========================================
     ∀x. ∀b. nat_lt x b ==> nat_le x b
 
     Proof Complete!
-    with fuel: 230
+    with fuel: 232
     |}]
 
 (* (* ===== Group 5: Transitivity ===== *) *)
@@ -1409,7 +1409,7 @@ let%expect_test "lt_trans" =
           >> spec_asm_tac [%term (n0' : nat)]
           >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
-          >> with_repeat mp_asm_tac >> assumption_tac;
+          >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac;
         ]);
   [%expect
     {|
@@ -1417,7 +1417,7 @@ let%expect_test "lt_trans" =
     ∀x. ∀b. ∀c. nat_lt x b ==> nat_lt b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 765
+    with fuel: 771
     |}]
 
 let%expect_test "le_trans" =
@@ -1441,7 +1441,7 @@ let%expect_test "le_trans" =
           >> spec_asm_tac [%term (n0' : nat)]
           >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "le_Suc_Suc" ] rewrite_tac
-          >> with_repeat mp_asm_tac >> assumption_tac;
+          >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac;
         ]);
   [%expect
     {|
@@ -1449,7 +1449,7 @@ let%expect_test "le_trans" =
     ∀x. ∀b. ∀c. nat_le x b ==> nat_le b c ==> nat_le x c
 
     Proof Complete!
-    with fuel: 585
+    with fuel: 591
     |}]
 
 let%expect_test "le_lt_trans" =
@@ -1474,7 +1474,7 @@ let%expect_test "le_lt_trans" =
           >> spec_asm_tac [%term (n0' : nat)]
           >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
-          >> with_repeat mp_asm_tac >> assumption_tac;
+          >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac;
         ]);
   [%expect
     {|
@@ -1482,7 +1482,7 @@ let%expect_test "le_lt_trans" =
     ∀x. ∀b. ∀c. nat_le x b ==> nat_lt b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 752
+    with fuel: 758
     |}]
 
 let%expect_test "lt_le_trans" =
@@ -1507,7 +1507,7 @@ let%expect_test "lt_le_trans" =
                   (with_proven [ "lt_Suc_Suc"; "le_Suc_Suc" ] rewrite_asm_tac))
           >> spec_asm_tac [%term (n0' : nat)]
           >> spec_asm_tac [%term (n0'' : nat)]
-          >> with_repeat mp_asm_tac >> assumption_tac;
+          >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac;
         ]);
   [%expect
     {|
@@ -1515,7 +1515,7 @@ let%expect_test "lt_le_trans" =
     ∀x. ∀b. ∀c. nat_lt x b ==> nat_le b c ==> nat_lt x c
 
     Proof Complete!
-    with fuel: 734
+    with fuel: 740
     |}]
 
 let%expect_test "le_antisym" =
@@ -1534,14 +1534,14 @@ let%expect_test "le_antisym" =
     >> with_proven [ "eq_cong" ] apply_tac
     >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac))
     >> spec_asm_tac [%term (n0' : nat)]
-    >> with_repeat mp_asm_tac >> assumption_tac);
+    >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac);
   [%expect
     {|
     ========================================
     ∀x. ∀b. nat_le x b ==> nat_le b x ==> x = b
 
     Proof Complete!
-    with fuel: 245
+    with fuel: 251
     |}]
 
 (* (* ===== Group 6: Subtraction properties ===== *) *)
@@ -1561,14 +1561,14 @@ let%expect_test "le_weaken_Suc" =
     >> with_proven [ "le_Suc_Suc" ] rewrite_tac
     >> spec_asm_tac [%term (n0' : nat)]
     >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac))
-    >> with_first mp_asm_tac >> assume_tac);
+    >> with_first (with_assumptions (with_first_term apply_asm_tac)) >> assume_tac);
   [%expect
     {|
     ========================================
     ∀x. ∀b. nat_le x b ==> nat_le x (Suc b)
 
     Proof Complete!
-    with fuel: 308
+    with fuel: 310
     |}]
 
 let%expect_test "lt_weaken_Suc" =
@@ -1586,14 +1586,14 @@ let%expect_test "lt_weaken_Suc" =
     >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
     >> spec_asm_tac [%term (n0' : nat)]
     >> with_repeat (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac))
-    >> with_first mp_asm_tac >> assume_tac);
+    >> with_first (with_assumptions (with_first_term apply_asm_tac)) >> assume_tac);
   [%expect
     {|
     ========================================
     ∀x. ∀b. nat_lt x b ==> nat_lt x (Suc b)
 
     Proof Complete!
-    with fuel: 382
+    with fuel: 384
     |}]
 
 let%expect_test "sub_le" =
@@ -1641,14 +1641,14 @@ let%expect_test "sub_lt" =
     >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac
     >> with_proven [ "lt_weaken_Suc" ] apply_tac
     >> spec_asm_tac [%term (a0 : nat)]
-    >> simp_asm_tac >> simp_tac >> with_repeat mp_asm_tac >> assumption_tac);
+    >> simp_asm_tac >> simp_tac >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac);
   [%expect
     {|
     ========================================
     ∀x. ∀a. nat_lt Zero x ==> nat_le x a ==> nat_lt (sub a x) a
 
     Proof Complete!
-    with fuel: 404
+    with fuel: 410
     |}]
 
 let%expect_test "sub_add_cancel" =
@@ -1673,7 +1673,7 @@ let%expect_test "sub_add_cancel" =
           >> with_proven [ "plus_Suc" ] rewrite_tac
           >> with_proven [ "eq_cong" ] apply_tac
           >> spec_asm_tac [%term (n0' : nat)]
-          >> mp_asm_tac >> assumption_tac;
+          >> (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac;
         ]);
   [%expect
     {|
@@ -1681,7 +1681,7 @@ let%expect_test "sub_add_cancel" =
     ∀x. ∀b. nat_le b x ==> plus (sub x b) b = x
 
     Proof Complete!
-    with fuel: 476
+    with fuel: 478
     |}]
 
 (* (* ===== Group 8: Ordering and addition ===== *) *)
@@ -1697,7 +1697,7 @@ let%expect_test "le_add_r" =
     ∀x. ∀b. nat_le x (plus x b)
 
     Proof Complete!
-    with fuel: 116
+    with fuel: 118
     |}]
 
 (* (* ===== Group 9: Totality ===== *) *)
@@ -1972,7 +1972,7 @@ let%expect_test "merge fuel irrel" =
       >> spec_asm_tac [%term (a1 : nat list)]
       >> spec_asm_tac [%term Cons ((a0' : nat), (a1' : nat list))]
       >> spec_asm_tac [%term (a0 : nat list)]
-      >> with_repeat mp_asm_tac >> simp_tac >> simp_tac
+      >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> simp_tac >> simp_tac
       >> with_first (with_assumptions rewrite_asm_tac)
       >> simp_asm_tac
       >> with_arbitrary_term
@@ -1989,7 +1989,7 @@ let%expect_test "merge fuel irrel" =
       >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))]
       >> spec_asm_tac [%term (a1' : nat list)]
       >> spec_asm_tac [%term (a0 : nat list)]
-      >> with_repeat mp_asm_tac >> simp_tac
+      >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> simp_tac
     end
   in
   ignore merge_fuel_irrel;
@@ -1999,7 +1999,7 @@ let%expect_test "merge fuel irrel" =
     ∀x. ∀additional. ∀xs. ∀ys. ∀x. merge_aux x xs ys = Some x ==> merge_aux (plus x additional) xs ys = Some x
 
     Proof Complete!
-    with fuel: 660
+    with fuel: 668
     |}]
 
 let%expect_test "merge fuel sufficient" =
@@ -2032,7 +2032,7 @@ let%expect_test "merge fuel sufficient" =
     >> with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac
     >> spec_asm_tac [%term (a1 : nat list)]
     >> spec_asm_tac [%term Cons ((a0' : nat), (a1' : nat list))]
-    >> mp_asm_tac >> elim_exists_asm_tac >> simp_tac
+    >> (with_assumptions (with_first_term apply_asm_tac)) >> elim_exists_asm_tac >> simp_tac
     >> with_arbitrary_term [%term Cons ((a0 : nat), (x' : nat list))] exists_tac
     >> refl_tac >> simp_tac
     >> with_first (with_assumptions rewrite_asm_tac)
@@ -2044,7 +2044,7 @@ let%expect_test "merge fuel sufficient" =
     >> with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac
     >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))]
     >> spec_asm_tac [%term (a1' : nat list)]
-    >> mp_asm_tac >> elim_exists_asm_tac >> simp_tac
+    >> (with_assumptions (with_first_term apply_asm_tac)) >> elim_exists_asm_tac >> simp_tac
     >> with_arbitrary_term
          [%term Cons ((a0' : nat), (x' : nat list))]
          exists_tac
@@ -2055,7 +2055,7 @@ let%expect_test "merge fuel sufficient" =
     ∀x. ∀xs. ∀ys. nat_lt (plus (length xs) (length ys)) x ==> ∃x. merge_aux x xs ys = Some x
 
     Proof Complete!
-    with fuel: 424
+    with fuel: 428
     |}]
 
 (*
@@ -2373,7 +2373,7 @@ let%expect_test "div_le" =
       >> assumption_tac
       >> spec_asm_tac [%term sub (k : nat) (m : nat)]
       >> spec_asm_tac [%term (m : nat)]
-      >> with_repeat mp_asm_tac >> assumption_tac
+      >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) >> assumption_tac
     end
   in
   ignore div_le;
@@ -2384,7 +2384,7 @@ let%expect_test "div_le" =
     ∀x. ∀k. ∀m. nat_lt Zero m ==> nat_le k x ==> nat_le (div k m) x
 
     Proof Complete!
-    with fuel: 343
+    with fuel: 349
     |}]
 
 let%expect_test "div_lt" =
@@ -2514,7 +2514,7 @@ let%expect_test "merge sort sufficient" =
              ]
            apply_tac
       >> assumption_tac >> assumption_tac
-      >> with_repeat (with_first mp_asm_tac)
+      >> with_repeat (with_first (with_assumptions (with_first_term apply_asm_tac)))
       >> with_repeat elim_exists_asm_tac
       >> simp_tac ~exclude:[ "div"; "merge" ]
       >> with_arbitrary_term
@@ -2530,7 +2530,7 @@ let%expect_test "merge sort sufficient" =
     ∀x. ∀xs. nat_lt (length xs) x ==> ∃x. merge_sort_aux x xs = Some x
 
     Proof Complete!
-    with fuel: 297
+    with fuel: 303
     |}]
 
 let%expect_test "merge sort fuel irrel" =

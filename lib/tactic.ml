@@ -255,24 +255,19 @@ let apply_tac : tactic =
 
 let apply_asm_tac : tactic =
  fun (asms, conc) ->
-  trace_info "running";
   burn "apply_asm_tac" (Unsafe 5);
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
-  trace_info (Printing.pretty_print_thm chosen_thm);
   let chosen_asm = choose_terms asms in
-  trace_info (Printing.pretty_print_hol_term chosen_asm);
   let avoid = conc :: asms in
   let thm =
     let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
     let premises, _final_conc = collect_premises (concl stripped_thm) in
     if premises = [] then (
-      trace_info "no prems";
       fail ());
     let first_premise = List.hd premises in
     match Rewrite.match_term first_premise chosen_asm with
     | None ->
-        trace_info "match fail";
         fail ()
     | Some env ->
         let* type_inst = inst_type env.type_sub stripped_thm in
@@ -301,6 +296,7 @@ let apply_asm_tac : tactic =
         if List.exists (fun v -> var_free_in v chosen_asm) free_undet then
           fail ();
         let new_asm = make_foralls free_undet remainder in
+        if List.mem new_asm asms then fail ();
         let asms' = new_asm :: asms in
         let sub_thm = perform (Subgoal (asms', conc)) in
         let* asm_thm = assume chosen_asm in
@@ -489,25 +485,6 @@ let assert_tac : tactic =
   in
   return_thm ~from:"assert_tac" thm
 
-let mp_asm_tac : tactic =
- fun (asms, concl) ->
-  burn "mp_asm_tac" (Unsafe 3);
-  let imps = List.filter is_imp asms in
-  if List.is_empty imps then fail ()
-  else
-    let thm =
-      let chosen_imp = choose_terms imps in
-      let* prem, conc = destruct_imp chosen_imp in
-      if List.mem prem asms && not (List.mem conc asms) then
-        let asms' = conc :: asms in
-        let sub_thm = perform (Subgoal (asms', concl)) in
-        let* imp_thm = assume chosen_imp in
-        let* prem_thm = assume prem in
-        let* conc_thm = mp imp_thm prem_thm in
-        prove_hyp conc_thm sub_thm
-      else fail ()
-    in
-    return_thm ~from:"mp_asm_tac" thm
 
 let intro_tac : tactic =
  fun (asms, concl) ->
@@ -1326,6 +1303,24 @@ let with_assumptions : tactic_combinator =
   in
   match tac (asms, concl) with effect Rules, k -> continue k asm_thms | v -> v
 
+let with_first_term : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Choose (Term choices), k ->
+      let r = Multicont.Deep.promote k in
+      let rec try_each = function
+        | [] ->
+            trace_error "no choices available";
+            fail ()
+        | c :: cs -> (
+            match Multicont.Deep.resume r c with
+            | effect Fail, _ -> try_each cs
+            | thm -> thm)
+      in
+      try_each choices
+  | v -> v
+
+
 let itauto_tac : tactic =
   pick_tac
     [
@@ -1340,7 +1335,7 @@ let itauto_tac : tactic =
       neg_elim_tac;
       with_assumptions apply_tac;
       apply_neg_asm_tac;
-      mp_asm_tac;
+      with_assumptions (with_first_term apply_asm_tac);
       left_tac;
       right_tac;
     ]
@@ -1359,7 +1354,7 @@ let ctauto_tac : tactic =
       neg_elim_tac;
       with_assumptions apply_tac;
       apply_neg_asm_tac;
-      mp_asm_tac;
+      with_assumptions (with_first_term apply_asm_tac);
       left_tac;
       right_tac;
       ccontr_tac;
@@ -1638,7 +1633,7 @@ let auto_tac : tactic =
       elim_conj_asm_tac;
       elim_exists_asm_tac;
       false_elim_tac;
-      mp_asm_tac;
+      with_assumptions (with_first_term apply_asm_tac);
     ]
 
 let auto_dfs_tac : tactic =

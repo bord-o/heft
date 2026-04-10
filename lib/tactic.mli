@@ -320,11 +320,6 @@ val assert_tac : tactic
 (** Introduces an assertion: chooses a term, creates a subgoal to prove it, then
     adds it as an assumption for the original goal *)
 
-val mp_asm_tac : tactic
-(** Finds an implication [P ==> Q] in assumptions where [P] is also an
-    assumption, and adds [Q] to the assumptions. Fails if no such implication
-    exists or [Q] is already present *)
-
 val intro_tac : tactic
 (** Transforms a goal [P ==> Q] into a subgoal [Q] with [P] added to the
     assumptions. Fails if goal is not an implication *)
@@ -467,6 +462,8 @@ val with_first : tactic_combinator
 (** Handles [Choose] by trying each choice in order until one succeeds. Only
     handles choices at one level; for recursive search use [with_dfs] or
     [with_best_first] *)
+
+val with_first_term : tactic_combinator
 
 val with_arbitrary_term : Kernel.term -> tactic_combinator
 (** Forces a specific term to be chosen when a [Choose (Term _)] effect is
