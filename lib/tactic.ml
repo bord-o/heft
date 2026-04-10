@@ -951,19 +951,10 @@ let gen_tac : tactic =
   burn "gen_tac" (Safe 1);
   let thm =
     let* x, body = destruct_forall concl in
-    let body_thm = perform (Subgoal (asms, body)) in
-    let hyps_with_x = List.filter (fun h -> var_free_in x h) (hyp body_thm) in
-    let* discharged =
-      List.fold_left
-        (fun acc h ->
-          let* thm = acc in
-          disch h thm)
-        (Ok body_thm) hyps_with_x
-    in
-    trace_info "before gen";
-    let g = gen x discharged in
-    trace_info "after gen";
-    g
+    let* x' = variant (concl :: asms) x in
+    let* body' = vsubst [ (x', x) ] body in
+    let body_thm = perform (Subgoal (asms, body')) in
+    gen x' body_thm
   in
   return_thm ~from:"gen_tac" thm
 
