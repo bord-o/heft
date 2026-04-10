@@ -448,7 +448,8 @@ let eq_truth_elim th =
   let* thm_sym = sym th in
   eq_mp thm_sym truth
 
-(** [f : A -> B, x : A] should derive [|- f = \x. f x] when x is not free in f *)
+(** [f : A -> B, x : A] should derive [|- f = \x. f x] when x is not free in f
+*)
 let eta x f =
   if var_free_in x f then Error (`EtaVarFreeInTerm (x, f))
   else
