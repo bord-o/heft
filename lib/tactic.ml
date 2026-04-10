@@ -481,19 +481,32 @@ let fun_ext_tac : tactic =
     | TyCon ("fun", [ arg_ty; _ ]) ->
         let x = Var ("_ext_x", arg_ty) in
         let* x' = variant (concl :: asms) x in
-        let* l_body =
-          match l with
-          | Lam (v, body) -> vsubst [ (x', v) ] body
-          | _ -> Ok (App (l, x'))
+        let l_is_lam, l_body =
+          match destruct_lam l with
+          | Ok (v, body) -> (true, vsubst [ (x', v) ] body)
+          | Error _ -> (false, Ok (App (l, x')))
         in
-        let* r_body =
-          match r with
-          | Lam (v, body) -> vsubst [ (x', v) ] body
-          | _ -> Ok (App (r, x'))
+        let r_is_lam, r_body =
+          match destruct_lam r with
+          | Ok (v, body) -> (true, vsubst [ (x', v) ] body)
+          | Error _ -> (false, Ok (App (r, x')))
         in
+        let* l_body = l_body in
+        let* r_body = r_body in
         let* body_eq = safe_make_eq l_body r_body in
         let body_thm = perform (Subgoal (asms, body_eq)) in
-        lam x' body_thm
+        let* ext_thm = lam x' body_thm in
+        let* ext_thm =
+          if l_is_lam then Ok ext_thm
+          else
+            let* eta_l = eta x' l in
+            trans eta_l ext_thm
+        in
+        if r_is_lam then Ok ext_thm
+        else
+          let* eta_r = eta x' r in
+          let* sym_eta_r = sym eta_r in
+          trans ext_thm sym_eta_r
     | _ -> fail ()
   in
   return_thm ~from:"fun_ext_tac" thm

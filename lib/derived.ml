@@ -448,6 +448,14 @@ let eq_truth_elim th =
   let* thm_sym = sym th in
   eq_mp thm_sym truth
 
+(** [f : A -> B, x : A] should derive [|- f = \x. f x] when x is not free in f *)
+let eta x f =
+  if var_free_in x f then Error (`EtaVarFreeInTerm (x, f))
+  else
+    let* lam_form = make_lam x (App (f, x)) in
+    let* eq = safe_make_eq f lam_form in
+    new_axiom eq
+
 (* try to apply beta, then get binder from f, instantiate it with the arg f is applied to and beta that *)
 
 (** [|- (λx. x /\ x) arg] should derive [|- arg /\ arg] *)

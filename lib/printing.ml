@@ -244,6 +244,9 @@ let print_error = function
   | `NoRewriteMatch (rule, tm) ->
       Printf.sprintf "NoRewriteMatch: rule %s does not match %s" (fmt_thm rule)
         (fmt_term tm)
+  | `EtaVarFreeInTerm (x, f) ->
+      Printf.sprintf "EtaVarFreeInTerm: %s is free in %s" (fmt_term x)
+        (fmt_term f)
 
 let rec leaf_type = function
   | TyCon ("fun", [ _; rest ]) -> leaf_type rest
