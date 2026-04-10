@@ -901,3 +901,9 @@ let strip_foralls_acc thm avoid =
     | Error _ -> ok (thm, List.rev vars)
   in
   aux thm avoid []
+
+let rec all_vars_in = function
+  | Var _ as tm -> [ tm ]
+  | Const _ -> []
+  | App (s, t) -> all_vars_in s @ all_vars_in t
+  | Lam (bv, bod) -> all_vars_in bv @ all_vars_in bod

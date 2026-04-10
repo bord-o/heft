@@ -303,6 +303,16 @@ val sorry_tac : tactic
 val sym_tac : tactic
 (** Transforms a goal [l = r] into [r = l] *)
 
+val fun_ext_tac : tactic
+(** Proves function equality [f = g] by reducing to pointwise equality. Creates
+    a subgoal [f x = g x] for a fresh variable [x], then uses [lam] to recover
+    the equality. Both lambda and non-lambda terms are handled. *)
+
+val eq_iff_tac : tactic
+(** Proves boolean equality [P = Q] by bi-implication. Creates two subgoals:
+    prove [P] assuming [Q], and prove [Q] assuming [P]. Combines the results via
+    [deduct_antisym_rule]. Fails if the equality is not at type [bool]. *)
+
 val rewrite_tac : tactic
 (** Rewrites the goal using a chosen theorem from [Rules]. Performs subterm
     matching and fails if no progress is made *)

@@ -1976,3 +1976,229 @@ let%expect_test "apply_asm_tac' polymorphic multiple type vars" =
     Proof Complete!
     with fuel: 6
     |}]
+
+(* ===== fun_ext_tac tests ===== *)
+
+let%expect_test "fun_ext_tac basic" =
+  let nat_ty = Nats.nat_ty in
+  let n = make_var "n" nat_ty in
+  let id_fn = Lam (n, n) in
+  let goal = make_goal (Result.get_ok (safe_make_eq id_fn id_fn)) in
+  run_proof goal (fun_ext_tac >> refl_tac);
+  [%expect
+    {|
+    ========================================
+    (λ_ext_x. _ext_x) = (λ_ext_x. _ext_x)
+
+    Proof Complete!
+    with fuel: 3
+    |}]
+
+let%expect_test "fun_ext_tac two different lambdas" =
+  let nat_ty = Nats.nat_ty in
+  let n = make_var "n" nat_ty in
+  let m = make_var "m" nat_ty in
+  let f = Lam (n, App (Nats.suc, n)) in
+  let g = Lam (m, App (Nats.suc, m)) in
+  let goal = make_goal (Result.get_ok (safe_make_eq f g)) in
+  run_proof goal (fun_ext_tac >> refl_tac);
+  [%expect
+    {|
+    ========================================
+    (λ_ext_x. Suc _ext_x) = (λ_ext_x. Suc _ext_x)
+
+    Proof Complete!
+    with fuel: 3
+    |}]
+
+let%expect_test "fun_ext_tac non function fails" =
+  let a = make_var "A" bool_ty in
+  let b = make_var "B" bool_ty in
+  let goal = make_goal (Result.get_ok (safe_make_eq a b)) in
+  run_proof goal fun_ext_tac;
+  [%expect
+    {|
+    --------------
+    A = B
+
+    Proof Incomplete
+    with fuel: 2
+    |}]
+
+let%expect_test "fun_ext_tac not equality fails" =
+  let a = make_var "A" bool_ty in
+  let goal = make_goal a in
+  run_proof goal fun_ext_tac;
+  [%expect
+    {|
+    --------------
+    A
+
+    Proof Incomplete
+    with fuel: 2
+    |}]
+
+let%expect_test "fun_ext_tac freshens variable" =
+  let nat_ty = Nats.nat_ty in
+  let x = make_var "_ext_x" nat_ty in
+  let f = Lam (x, x) in
+  let goal = ([ x ], Result.get_ok (safe_make_eq f f)) in
+  run_proof goal (fun_ext_tac >> refl_tac);
+  [%expect
+    {|
+    ========================================
+    (λ_ext_x'. _ext_x') = (λ_ext_x'. _ext_x')
+
+    Proof Complete!
+    with fuel: 3
+    |}]
+
+let%expect_test "fun_ext_tac bool to bool" =
+  let p = make_var "p" bool_ty in
+  let q = make_var "q" bool_ty in
+  let f = Lam (p, p) in
+  let g = Lam (q, q) in
+  let goal = make_goal (Result.get_ok (safe_make_eq f g)) in
+  run_proof goal (fun_ext_tac >> refl_tac);
+  [%expect
+    {|
+    ========================================
+    (λ_ext_x. _ext_x) = (λ_ext_x. _ext_x)
+
+    Proof Complete!
+    with fuel: 3
+    |}]
+
+let%expect_test "fun_ext_tac polymorphic" =
+  let a = TyVar "a" in
+  let x = make_var "x" a in
+  let y = make_var "y" a in
+  let f = Lam (x, x) in
+  let g = Lam (y, y) in
+  let goal = make_goal (Result.get_ok (safe_make_eq f g)) in
+  run_proof goal (fun_ext_tac >> refl_tac);
+  [%expect
+    {|
+    ========================================
+    (λ_ext_x. _ext_x) = (λ_ext_x. _ext_x)
+
+    Proof Complete!
+    with fuel: 3
+    |}]
+
+(* ===== eq_iff_tac tests ===== *)
+
+let%expect_test "eq_iff_tac basic" =
+  let a = make_var "A" bool_ty in
+  let goal = make_goal (Result.get_ok (safe_make_eq a a)) in
+  run_proof goal (eq_iff_tac >> assumption_tac >> with_first assumption_tac);
+  [%expect
+    {|
+    ========================================
+    A = A
+
+    Proof Complete!
+    with fuel: 3
+    |}]
+
+let%expect_test "eq_iff_tac conj comm" =
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let pq = make_conj p q in
+  let qp = make_conj q p in
+  let goal = ([ p; q ], Result.get_ok (safe_make_eq pq qp)) in
+  run_proof goal
+    (eq_iff_tac >> elim_conj_asm_tac >> conj_tac >> with_first assumption_tac
+   >> with_first assumption_tac
+    >> with_first elim_conj_asm_tac
+    >> with_first conj_tac
+    >> with_first (with_first assumption_tac)
+    >> with_first (with_first assumption_tac));
+  [%expect
+    {|
+    ========================================
+    P ∧ Q = Q ∧ P
+
+    Proof Complete!
+    with fuel: 9
+    |}]
+
+let%expect_test "eq_iff_tac preserves assumptions" =
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let r = make_var "R" bool_ty in
+  let rp = make_imp r p in
+  let rq = make_imp r q in
+  let goal = ([ r; rp; rq ], Result.get_ok (safe_make_eq p q)) in
+  run_proof goal
+    (eq_iff_tac >> mp_asm_tac >> assumption_tac >> with_first mp_asm_tac
+   >> with_first assumption_tac);
+  [%expect
+    {|
+    R
+    R ==> P
+    R ==> Q
+    ========================================
+    P = Q
+
+    Proof Complete!
+    with fuel: 9
+    |}]
+
+let%expect_test "eq_iff_tac non bool fails" =
+  let nat_ty = Nats.nat_ty in
+  let a = make_var "a" nat_ty in
+  let b = make_var "b" nat_ty in
+  let goal = make_goal (Result.get_ok (safe_make_eq a b)) in
+  run_proof goal eq_iff_tac;
+  [%expect
+    {|
+    --------------
+    a = b
+
+    Proof Incomplete
+    with fuel: 1
+    |}]
+
+let%expect_test "eq_iff_tac not equality fails" =
+  let a = make_var "A" bool_ty in
+  let goal = make_goal a in
+  run_proof goal eq_iff_tac;
+  [%expect
+    {|
+    --------------
+    A
+
+    Proof Incomplete
+    with fuel: 1
+    |}]
+
+let%expect_test "eq_iff_tac with automation" =
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let pq = make_conj p q in
+  let qp = make_conj q p in
+  let goal = make_goal (Result.get_ok (safe_make_eq pq qp)) in
+  run_proof goal
+    (eq_iff_tac >> with_best_first ctauto_tac
+    >> with_first (with_best_first ctauto_tac));
+  [%expect
+    {|
+    Proof:
+      conj_tac >>
+      elim_conj_asm_tac >>
+      assumption_tac >>
+      elim_conj_asm_tac >>
+      assumption_tac
+    Proof:
+      conj_tac >>
+      elim_conj_asm_tac >>
+      assumption_tac >>
+      elim_conj_asm_tac >>
+      assumption_tac
+    ========================================
+    P ∧ Q = Q ∧ P
+
+    Proof Complete!
+    with fuel: 77
+    |}]

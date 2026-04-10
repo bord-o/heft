@@ -471,6 +471,46 @@ let sym_tac : tactic =
   in
   return_thm ~from:"sym_tac" thm
 
+let fun_ext_tac : tactic =
+ fun (asms, concl) ->
+  burn "fun_ext_tac" (Safe 2);
+  let thm =
+    let* l, r = destruct_eq concl in
+    let* l_ty = type_of_term l in
+    match l_ty with
+    | TyCon ("fun", [ arg_ty; _ ]) ->
+        let x = Var ("_ext_x", arg_ty) in
+        let* x' = variant (concl :: asms) x in
+        let* l_body =
+          match l with
+          | Lam (v, body) -> vsubst [ (x', v) ] body
+          | _ -> Ok (App (l, x'))
+        in
+        let* r_body =
+          match r with
+          | Lam (v, body) -> vsubst [ (x', v) ] body
+          | _ -> Ok (App (r, x'))
+        in
+        let* body_eq = safe_make_eq l_body r_body in
+        let body_thm = perform (Subgoal (asms, body_eq)) in
+        lam x' body_thm
+    | _ -> fail ()
+  in
+  return_thm ~from:"fun_ext_tac" thm
+
+let eq_iff_tac : tactic =
+ fun (asms, conc) ->
+  burn "eq_iff_tac" (Safe 1);
+  let thm =
+    let* p, q = destruct_eq conc in
+    let* p_ty = type_of_term p in
+    if p_ty <> bool_ty then fail ();
+    let p_from_q = perform (Subgoal (q :: asms, p)) in
+    let q_from_p = perform (Subgoal (p :: asms, q)) in
+    deduct_antisym_rule p_from_q q_from_p
+  in
+  return_thm ~from:"eq_iff_tac" thm
+
 let rewrite_tac : tactic =
  fun (asms, conc) ->
   burn "rewrite_tac" (Unsafe 5);
@@ -783,12 +823,6 @@ let elim_conj_asm_tac : tactic =
     in
     return_thm ~from:"elim_conj_asm_tac" thm
 
-let rec all_var_names = function
-  | Var (n, _) -> [ n ]
-  | Const _ -> []
-  | App (s, t) -> all_var_names s @ all_var_names t
-  | Lam (bv, bod) -> all_var_names bv @ all_var_names bod
-
 let elim_exists_asm_tac : tactic =
  fun (asms, concl) ->
   burn "elim_exists_asm_tac" (Safe 2);
@@ -799,35 +833,24 @@ let elim_exists_asm_tac : tactic =
       let chosen = choose_terms exists_asms in
       let* var, body = destruct_exists chosen in
       let other_asms = List.filter (( <> ) chosen) asms in
-      (* Rename witness variable if it's already free in other assumptions
-         or conclusion, to avoid capture when choose calls gen *)
-      let avoid = concl :: other_asms in
-      let used_names =
-        List.concat_map all_var_names avoid |> List.sort_uniq String.compare
+      let avoid =
+        all_vars_in concl @ (List.map all_vars_in other_asms |> List.flatten)
       in
-      let var_name = match var with Var (n, _) -> n | _ -> "" in
-      let needs_rename = var_name <> "" && List.mem var_name used_names in
-      if needs_rename then
-        let fresh_name =
-          let n = ref var_name in
-          while List.mem !n used_names do
-            n := !n ^ "'"
-          done;
-          !n
-        in
-        let var' =
-          match var with Var (_, ty) -> Var (fresh_name, ty) | _ -> var
-        in
-        let* body' = vsubst [ (var', var) ] body in
-        let asms' = body' :: other_asms in
-        let sub_thm = perform (Subgoal (asms', concl)) in
-        let* exists_assumed = assume chosen in
-        choose var' exists_assumed sub_thm
-      else
-        let asms' = body :: other_asms in
-        let sub_thm = perform (Subgoal (asms', concl)) in
-        let* exists_assumed = assume chosen in
-        choose var exists_assumed sub_thm
+      let* var' = variant avoid var in
+      let* body' = vsubst [ (var', var) ] body in
+      trace_info (Printing.pretty_print_hol_term var);
+      trace_info (Printing.pretty_print_hol_term var');
+      let asms' = body' :: other_asms in
+      let sub_thm = perform (Subgoal (asms', concl)) in
+      let* exists_assumed = assume chosen in
+      trace_info "before choose";
+      trace_info (Printing.pretty_print_thm exists_assumed);
+      trace_info (Printing.pretty_print_thm sub_thm);
+      let c = choose var' exists_assumed sub_thm in
+      (match c with Ok _ -> trace_info "ok" | Error _ -> trace_info "error");
+
+      trace_info "after choose";
+      c
     in
     return_thm ~from:"elim_exists_asm_tac" thm
 
@@ -885,7 +908,9 @@ let false_elim_tac : tactic =
   if List.mem false_tm asms then
     let thm =
       let* false_thm = assume false_tm in
-      contr concl false_thm
+      let* thy = contr concl false_thm in
+      trace_info (Printing.pretty_print_thm thy);
+      Ok thy
     in
     return_thm ~from:"false_elim_tac" thm
   else fail ()
@@ -922,7 +947,10 @@ let gen_tac : tactic =
           disch h thm)
         (Ok body_thm) hyps_with_x
     in
-    gen x discharged
+    trace_info "before gen";
+    let g = gen x discharged in
+    trace_info "after gen";
+    g
   in
   return_thm ~from:"gen_tac" thm
 
