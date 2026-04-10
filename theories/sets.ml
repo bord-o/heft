@@ -191,4 +191,3 @@ and proof = begin
     >> with_first assumption_tac
 end
 [@quiet]
-    
