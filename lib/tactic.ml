@@ -274,60 +274,6 @@ let apply_tac : tactic =
   in
   return_thm ~from:"apply_tac" thm
 
-let apply_thm_tac : tactic =
- fun (asms, conc) ->
-  burn "apply_thm_tac" (Unsafe 5);
-  let lemmas = perform Rules in
-  let chosen_thm = choose_theorems lemmas in
-
-  let avoid = conc :: asms in
-
-  let thm =
-    let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
-
-    let prems, final_conc = collect_premises (concl stripped_thm) in
-
-    let extend_env_from_asms env =
-      List.fold_left
-        (fun env prem ->
-          List.fold_left
-            (fun env asm ->
-              match Rewrite.term_match [] [] env prem asm with
-              | Some env' -> env'
-              | None -> env)
-            env asms)
-        env prems
-    in
-    let all_vars_bound env =
-      List.for_all
-        (fun v ->
-          let v_typed = Rewrite.term_type_subst env.type_sub v in
-          List.exists (fun (pat, _) -> alphaorder pat v_typed = 0) env.term_sub)
-        quant_vars
-    in
-
-    match Rewrite.match_term final_conc conc with
-    | Some env ->
-        let env = extend_env_from_asms env in
-        if not (all_vars_bound env) then fail ();
-
-        let* type_inst = inst_type env.type_sub stripped_thm in
-        let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
-        let* fully_inst = inst term_sub_flipped type_inst in
-
-        if prems = [] then Ok fully_inst
-        else
-          let inst_prems, _ = collect_premises (concl fully_inst) in
-          List.fold_left
-            (fun acc_thm prem ->
-              let* acc = acc_thm in
-              let sub_thm = perform (Subgoal (asms, prem)) in
-              mp acc sub_thm)
-            (Ok fully_inst) inst_prems
-    | None -> fail ()
-  in
-  return_thm ~from:"apply_thm_tac" thm
-
 let apply_thm_asm_tac : tactic =
  fun (asms, conc) ->
   burn "apply_thm_asm_tac" (Unsafe 6);
@@ -1654,6 +1600,34 @@ let with_definition (names : string list) : tactic_combinator =
   in
   fun tac goal ->
     match tac goal with effect Rules, k -> continue k rules | v -> v
+
+let with_specialized ~(name : string) ~(specs : term list) : tactic_combinator =
+  let rule =
+    match Rules.get_proven name with
+    | None ->
+        trace_error (Printf.sprintf "Couldn't find rule with name %s\n" name);
+        fail ()
+    | Some rule -> rule
+  in
+  let specced =
+    let fold_spec =
+      List.fold_left
+        (fun acc r ->
+          let* gen_thm = acc in
+          let* step = spec r gen_thm in
+          Ok step)
+        (Ok rule) specs
+    in
+    match fold_spec with
+    | Error e ->
+        trace_error
+          (Printf.sprintf "Couldn't specialize rule: %s"
+             (Printing.print_error e));
+        fail ()
+    | Ok thm -> thm
+  in
+  fun tac goal ->
+    match tac goal with effect Rules, k -> continue k [ specced ] | v -> v
 
 let with_proven (names : string list) : tactic_combinator =
   let rules =

@@ -273,10 +273,6 @@ val apply_asm_tac : tactic
 (** Finds assumptions of the form [P -> Q] for the goal [Q] and creates a
     subgoal [P] *)
 
-val apply_thm_tac : tactic
-(** Applies a chosen theorem from [Rules] by stripping foralls and matching the
-    conclusion against the goal *)
-
 val apply_tac : tactic
 
 val apply_thm_asm_tac : tactic
@@ -647,6 +643,9 @@ val with_rule : Kernel.thm -> tactic_combinator
 val with_definition : string list -> tactic_combinator
 (** Looks up definitions by name and provides them when a [Rules] effect is
     performed. Fails if any name is not found *)
+
+val with_specialized :
+  name:string -> specs:Kernel.term list -> tactic_combinator
 
 val with_proven : string list -> tactic_combinator
 (** Looks up previously proven theorems by name and provides them when a [Rules]
