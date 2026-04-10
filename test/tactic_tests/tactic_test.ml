@@ -88,7 +88,9 @@ let%expect_test "basic6" =
   let imp_ab = make_imp a b in
   let imp_cab = make_imp (make_imp c a) b in
   let goal = ([ imp_cab; imp_ab; a ], b) in
-  let proof = with_nth_choice 1 (with_assumptions apply_tac)>> assumption_tac in
+  let proof =
+    with_nth_choice 1 (with_assumptions apply_tac) >> assumption_tac
+  in
   run_proof goal proof;
 
   [%expect
@@ -282,7 +284,13 @@ let%expect_test "dfs_conj_assumptions" =
   let goal = ([], make_imp (make_conj p_imp_q q_imp_r) p_imp_r) in
   let proof =
     with_best_first
-      (pick_tac [ intro_tac; elim_conj_asm_tac; with_assumptions apply_tac; assumption_tac ])
+      (pick_tac
+         [
+           intro_tac;
+           elim_conj_asm_tac;
+           with_assumptions apply_tac;
+           assumption_tac;
+         ])
   in
   run_proof goal proof;
 
@@ -339,7 +347,13 @@ let%expect_test "dfs_disj_assumptions" =
   let goal = ([], make_imp p_or_q (make_imp p_imp_r (make_imp q_imp_r r))) in
   let proof =
     with_best_first
-      (pick_tac [ intro_tac; elim_disj_asm_tac; apply_asm_tac; assumption_tac ])
+      (pick_tac
+         [
+           intro_tac;
+           elim_disj_asm_tac;
+           with_assumptions apply_tac;
+           assumption_tac;
+         ])
   in
   run_proof goal proof;
   [%expect
@@ -386,7 +400,7 @@ let%expect_test "pauto_disj_elimination" =
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
 
     Proof Complete!
-    with fuel: 226
+    with fuel: 220
     |}]
 
 let%expect_test "false_elim_tac_test" =
@@ -495,7 +509,7 @@ let%expect_test "excluded_middle_pauto" =
     P ∨ ¬P
 
     Proof Complete!
-    with fuel: 515
+    with fuel: 673
     |}]
 
 let%expect_test "contraposition" =
@@ -519,7 +533,7 @@ let%expect_test "contraposition" =
     (P ==> Q) ==> ¬Q ==> ¬P
 
     Proof Complete!
-    with fuel: 88
+    with fuel: 85
     |}]
 
 let%expect_test "distribution_and_over_or" =
@@ -547,13 +561,13 @@ let%expect_test "distribution_and_over_or" =
       assumption_tac >>
       left_tac >>
       conj_tac >>
-      assumption_tac >>
-      assumption_tac
+      apply_tac >>
+      apply_tac
     ========================================
     P ∧ Q ∨ R ==> P ∧ Q ∨ P ∧ R
 
     Proof Complete!
-    with fuel: 2850
+    with fuel: 17188
     |}]
 
 let%expect_test "distribution_or_over_and" =
@@ -573,16 +587,16 @@ let%expect_test "distribution_or_over_and" =
     {|
     Proof:
       intro_tac >>
+      elim_disj_asm_tac >>
       conj_tac >>
-      elim_disj_asm_tac >>
-      elim_conj_asm_tac >>
       right_tac >>
+      elim_conj_asm_tac >>
       assumption_tac >>
+      right_tac >>
+      elim_conj_asm_tac >>
+      apply_tac >>
+      conj_tac >>
       left_tac >>
-      assumption_tac >>
-      elim_disj_asm_tac >>
-      elim_conj_asm_tac >>
-      right_tac >>
       assumption_tac >>
       left_tac >>
       assumption_tac
@@ -590,7 +604,7 @@ let%expect_test "distribution_or_over_and" =
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
     Proof Complete!
-    with fuel: 683
+    with fuel: 2534
     |}]
 
 let%expect_test "de_morgan_and" =
@@ -607,14 +621,13 @@ let%expect_test "de_morgan_and" =
   [%expect
     {|
     Proof:
+      intro_tac >>
       ccontr_tac >>
       apply_neg_asm_tac >>
-      intro_tac >>
-      right_tac >>
+      left_tac >>
       neg_intro_tac >>
       apply_neg_asm_tac >>
-      intro_tac >>
-      left_tac >>
+      right_tac >>
       neg_intro_tac >>
       apply_neg_asm_tac >>
       conj_tac >>
@@ -624,7 +637,7 @@ let%expect_test "de_morgan_and" =
     ¬P ∧ Q ==> ¬P ∨ ¬Q
 
     Proof Complete!
-    with fuel: 2941
+    with fuel: 1960
     |}]
 
 let%expect_test "de_morgan_or" =
@@ -655,7 +668,7 @@ let%expect_test "de_morgan_or" =
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
     Proof Complete!
-    with fuel: 468
+    with fuel: 524
     |}]
 
 let%expect_test "de_morgan_or_converse" =
@@ -673,16 +686,17 @@ let%expect_test "de_morgan_or_converse" =
     {|
     Proof:
       intro_tac >>
-      elim_conj_asm_tac >>
       neg_intro_tac >>
       elim_disj_asm_tac >>
+      elim_conj_asm_tac >>
       neg_elim_tac >>
+      elim_conj_asm_tac >>
       neg_elim_tac
     ========================================
     ¬P ∧ ¬Q ==> ¬P ∨ Q
 
     Proof Complete!
-    with fuel: 204
+    with fuel: 232
     |}]
 
 let%expect_test "implication_as_disjunction" =
@@ -695,21 +709,20 @@ let%expect_test "implication_as_disjunction" =
   [%expect
     {|
     Proof:
+      intro_tac >>
       ccontr_tac >>
       apply_neg_asm_tac >>
-      intro_tac >>
       left_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
-      intro_tac >>
-      right_tac >>
       mp_asm_tac >>
+      apply_neg_asm_tac >>
+      right_tac >>
       assumption_tac
     ========================================
     (P ==> Q) ==> ¬P ∨ Q
 
     Proof Complete!
-    with fuel: 973
+    with fuel: 777
     |}]
 
 let%expect_test "disjunction_as_implication" =
@@ -723,15 +736,16 @@ let%expect_test "disjunction_as_implication" =
     {|
     Proof:
       intro_tac >>
-      intro_tac >>
       elim_disj_asm_tac >>
+      intro_tac >>
       assumption_tac >>
+      intro_tac >>
       neg_elim_tac
     ========================================
     ¬P ∨ Q ==> P ==> Q
 
     Proof Complete!
-    with fuel: 105
+    with fuel: 107
     |}]
 
 let%expect_test "triple_negation" =
@@ -752,7 +766,7 @@ let%expect_test "triple_negation" =
     ¬¬¬P ==> ¬P
 
     Proof Complete!
-    with fuel: 125
+    with fuel: 105
     |}]
 
 let%expect_test "explosion" =
@@ -788,14 +802,14 @@ let%expect_test "complex_nested" =
       intro_tac >>
       ccontr_tac >>
       apply_neg_asm_tac >>
-      apply_asm_tac >>
+      apply_tac >>
       intro_tac >>
       neg_elim_tac
     ========================================
     ((P ==> Q) ==> P) ==> P
 
     Proof Complete!
-    with fuel: 716
+    with fuel: 349
     |}]
 
 let%expect_test "four_variable_distribution" =
@@ -820,33 +834,34 @@ let%expect_test "four_variable_distribution" =
       intro_tac >>
       elim_conj_asm_tac >>
       elim_disj_asm_tac >>
-      right_tac >>
       elim_disj_asm_tac >>
       right_tac >>
       right_tac >>
+      right_tac >>
       conj_tac >>
       assumption_tac >>
       assumption_tac >>
+      right_tac >>
       left_tac >>
       conj_tac >>
-      assumption_tac >>
-      assumption_tac >>
+      apply_tac >>
+      apply_tac >>
       elim_disj_asm_tac >>
       right_tac >>
       right_tac >>
       left_tac >>
       conj_tac >>
       assumption_tac >>
-      assumption_tac >>
+      apply_tac >>
       left_tac >>
       conj_tac >>
-      assumption_tac >>
+      apply_tac >>
       assumption_tac
     ========================================
     A ∨ B ∧ C ∨ D ==> A ∧ C ∨ A ∧ D ∨ B ∧ C ∨ B ∧ D
 
     Proof Complete!
-    with fuel: 14134
+    with fuel: 32742
     |}]
 
 let%expect_test "implication_chain" =
@@ -906,7 +921,7 @@ let%expect_test "contraposition_chain" =
     (A ==> B) ==> (B ==> C) ==> ¬C ==> ¬A
 
     Proof Complete!
-    with fuel: 132
+    with fuel: 117
     |}]
 
 let%expect_test "absorption_law" =
@@ -948,7 +963,7 @@ let%expect_test "absorption_law_converse" =
     P ==> P ∧ P ∨ Q
 
     Proof Complete!
-    with fuel: 149
+    with fuel: 294
     |}]
 
 let%expect_test "not_false_is_true" =
@@ -965,7 +980,7 @@ let%expect_test "not_false_is_true" =
     ¬F
 
     Proof Complete!
-    with fuel: 27
+    with fuel: 23
     |}]
 
 let%expect_test "manual version " =
@@ -1021,7 +1036,7 @@ let%expect_test "dfs demorgans" =
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
     Proof Complete!
-    with fuel: 468
+    with fuel: 524
     |}]
 
 let%expect_test "rewrite_basic" =

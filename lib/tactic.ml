@@ -1500,7 +1500,6 @@ let with_no_trace ?(show_proof = false) : tactic_combinator =
   | effect Trace (Proof, _), k when not show_proof -> continue k ()
   | v -> v
 
-
 let with_rules (rules : thm list) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rules, k -> continue k rules | v -> v
@@ -1721,4 +1720,3 @@ let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
         print_term ~pretty c;
         print_endline "Proof Incomplete";
         Printf.printf "with fuel: %d\n" !fuel_count)
-

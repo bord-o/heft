@@ -762,8 +762,8 @@ let%expect_test "sort correct lemma" =
                           ];
                     ];
                 spec_asm_tac [%term (n : nat)]
-                >> with_assumptions apply_tac >> simp_asm_tac >> elim_conj_asm_tac
-                >> assumption_tac;
+                >> with_assumptions apply_tac >> simp_asm_tac
+                >> elim_conj_asm_tac >> assumption_tac;
                 with_proven [ "nat_le_flip" ] apply_asm_tac >> simp_tac;
                 conj_tac
                 >>= [
