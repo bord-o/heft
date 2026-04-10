@@ -269,13 +269,9 @@ val or_tac : tactic
 (** Chooses between [left_tac] and [right_tac], ensuring both sides are
     attempted if used under a search combinator *)
 
-val apply_asm_tac : tactic
-(** Finds assumptions of the form [P -> Q] for the goal [Q] and creates a
-    subgoal [P] *)
-
 val apply_tac : tactic
 
-val apply_asm_tac' : tactic
+val apply_asm_tac : tactic
 (** Forward reasoning on an assumption. Chooses a theorem from [Rules], strips
     foralls, matches its first premise against a chosen assumption. Replaces the
     chosen assumption with the remainder of the theorem (possibly re-quantified

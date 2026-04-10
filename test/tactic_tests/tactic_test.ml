@@ -88,7 +88,7 @@ let%expect_test "basic6" =
   let imp_ab = make_imp a b in
   let imp_cab = make_imp (make_imp c a) b in
   let goal = ([ imp_cab; imp_ab; a ], b) in
-  let proof = with_term imp_ab apply_asm_tac >> assumption_tac in
+  let proof = with_nth_choice 1 (with_assumptions apply_tac)>> assumption_tac in
   run_proof goal proof;
 
   [%expect
@@ -99,7 +99,7 @@ let%expect_test "basic6" =
     B
 
     Proof Complete!
-    with fuel: 5
+    with fuel: 6
     |}]
 
 let%expect_test "new apply" =
@@ -282,7 +282,7 @@ let%expect_test "dfs_conj_assumptions" =
   let goal = ([], make_imp (make_conj p_imp_q q_imp_r) p_imp_r) in
   let proof =
     with_best_first
-      (pick_tac [ intro_tac; elim_conj_asm_tac; apply_asm_tac; assumption_tac ])
+      (pick_tac [ intro_tac; elim_conj_asm_tac; with_assumptions apply_tac; assumption_tac ])
   in
   run_proof goal proof;
 
@@ -290,16 +290,16 @@ let%expect_test "dfs_conj_assumptions" =
     {|
     Proof:
       intro_tac >>
-      elim_conj_asm_tac >>
       intro_tac >>
-      apply_asm_tac >>
-      apply_asm_tac >>
+      elim_conj_asm_tac >>
+      apply_tac >>
+      apply_tac >>
       assumption_tac
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
 
     Proof Complete!
-    with fuel: 52
+    with fuel: 54
     |}]
 
 let%expect_test "complete_prop_automation" =
@@ -349,15 +349,15 @@ let%expect_test "dfs_disj_assumptions" =
       intro_tac >>
       intro_tac >>
       elim_disj_asm_tac >>
-      apply_asm_tac >>
+      apply_tac >>
       assumption_tac >>
-      apply_asm_tac >>
-      assumption_tac
+      apply_tac >>
+      apply_tac
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
 
     Proof Complete!
-    with fuel: 125
+    with fuel: 121
     |}]
 
 let%expect_test "pauto_disj_elimination" =
@@ -1709,15 +1709,15 @@ let%expect_test "apply_tac polymorphic multiple type vars" =
     with fuel: 6
     |}]
 
-(* ===== apply_asm_tac' tests ===== *)
+(* ===== apply_asm_tac tests ===== *)
 
-let%expect_test "apply_asm_tac' simple mp" =
+let%expect_test "apply_asm_tac simple mp" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let pq = make_imp p q in
   let thm = Result.get_ok (new_axiom pq) in
   let goal = ([ p; pq ], q) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac' >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
   [%expect
     {|
     P
@@ -1728,7 +1728,7 @@ let%expect_test "apply_asm_tac' simple mp" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_asm_tac' quantified" =
+let%expect_test "apply_asm_tac quantified" =
   let nat_ty = Nats.nat_ty in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
@@ -1744,7 +1744,7 @@ let%expect_test "apply_asm_tac' quantified" =
   let suc_zero = App (Nats.suc, Nats.zero) in
   let suc_zero_eq = Result.get_ok (safe_make_eq suc_zero suc_zero) in
   let goal = ([ zero_eq ], suc_zero_eq) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac' >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
   [%expect
     {|
     Zero = Zero
@@ -1755,7 +1755,7 @@ let%expect_test "apply_asm_tac' quantified" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_asm_tac' multiple premises" =
+let%expect_test "apply_asm_tac multiple premises" =
   let nat_ty = Nats.nat_ty in
   let x = make_var "x" nat_ty in
   let p = make_var "P" (make_fun_ty nat_ty bool_ty) in
@@ -1773,7 +1773,7 @@ let%expect_test "apply_asm_tac' multiple premises" =
   let r3 = Result.get_ok (make_app r three) in
   let goal = ([ p3; q3 ], r3) in
   run_proof goal
-    (with_rules [ thm ] apply_asm_tac' >> mp_asm_tac >> assumption_tac);
+    (with_rules [ thm ] apply_asm_tac >> mp_asm_tac >> assumption_tac);
   [%expect
     {|
     P (Suc (Suc (Suc Zero)))
@@ -1785,7 +1785,7 @@ let%expect_test "apply_asm_tac' multiple premises" =
     with fuel: 9
     |}]
 
-let%expect_test "apply_asm_tac' undetermined in remainder" =
+let%expect_test "apply_asm_tac undetermined in remainder" =
   let nat_ty = Nats.nat_ty in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
@@ -1801,7 +1801,7 @@ let%expect_test "apply_asm_tac' undetermined in remainder" =
   let q_zero = Result.get_ok (make_app q Nats.zero) in
   let goal = ([ p3 ], q_zero) in
   run_proof goal
-    (with_rules [ thm ] apply_asm_tac'
+    (with_rules [ thm ] apply_asm_tac
     >> spec_asm_tac Nats.zero >> assumption_tac);
   [%expect
     {|
@@ -1813,12 +1813,12 @@ let%expect_test "apply_asm_tac' undetermined in remainder" =
     with fuel: 9
     |}]
 
-let%expect_test "apply_asm_tac' no match" =
+let%expect_test "apply_asm_tac no match" =
   let t = make_true () in
   let f = make_false () in
   let thm = Result.get_ok (new_axiom (make_imp t f)) in
   let goal = ([ f ], f) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac');
+  run_proof goal (with_rules [ thm ] apply_asm_tac);
   [%expect
     {|
     F
@@ -1830,11 +1830,11 @@ let%expect_test "apply_asm_tac' no match" =
     with fuel: 5
     |}]
 
-let%expect_test "apply_asm_tac' no premises fails" =
+let%expect_test "apply_asm_tac no premises fails" =
   let a = make_var "A" bool_ty in
   let thm = Result.get_ok (new_axiom a) in
   let goal = ([ a ], a) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac');
+  run_proof goal (with_rules [ thm ] apply_asm_tac);
   [%expect
     {|
     A
@@ -1846,7 +1846,7 @@ let%expect_test "apply_asm_tac' no premises fails" =
     with fuel: 5
     |}]
 
-let%expect_test "apply_asm_tac' polymorphic simple" =
+let%expect_test "apply_asm_tac polymorphic simple" =
   (* ∀(x:'a)(y:'a). x = y ==> y = x with assumption T = F
      type 'a instantiated to bool, new assumption: F = T *)
   let a = TyVar "a" in
@@ -1859,7 +1859,7 @@ let%expect_test "apply_asm_tac' polymorphic simple" =
   let t_eq_f = Result.get_ok (safe_make_eq (make_true ()) (make_false ())) in
   let f_eq_t = Result.get_ok (safe_make_eq (make_false ()) (make_true ())) in
   let goal = ([ t_eq_f ], f_eq_t) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac' >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
   [%expect
     {|
     T = F
@@ -1870,7 +1870,7 @@ let%expect_test "apply_asm_tac' polymorphic simple" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_asm_tac' polymorphic to nat" =
+let%expect_test "apply_asm_tac polymorphic to nat" =
   (* ∀(x:'a)(y:'a). x = y ==> y = x with assumption Zero = Suc Zero
      type 'a instantiated to nat, new assumption: Suc Zero = Zero *)
   let a = TyVar "a" in
@@ -1884,7 +1884,7 @@ let%expect_test "apply_asm_tac' polymorphic to nat" =
   let zero_eq_suc = Result.get_ok (safe_make_eq Nats.zero suc_zero) in
   let suc_eq_zero = Result.get_ok (safe_make_eq suc_zero Nats.zero) in
   let goal = ([ zero_eq_suc ], suc_eq_zero) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac' >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
   [%expect
     {|
     Zero = Suc Zero
@@ -1895,7 +1895,7 @@ let%expect_test "apply_asm_tac' polymorphic to nat" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_asm_tac' polymorphic undetermined in remainder" =
+let%expect_test "apply_asm_tac polymorphic undetermined in remainder" =
   (* ∀(x:'a)(y:'a). P x ==> Q y with assumption P Zero
      'a instantiated to nat, x=Zero determined, y undetermined
      New assumption: ∀y. Q y *)
@@ -1916,7 +1916,7 @@ let%expect_test "apply_asm_tac' polymorphic undetermined in remainder" =
   let q_zero = Result.get_ok (make_app q_nat Nats.zero) in
   let goal = ([ p_zero ], q_zero) in
   run_proof goal
-    (with_rules [ thm ] apply_asm_tac'
+    (with_rules [ thm ] apply_asm_tac
     >> spec_asm_tac Nats.zero >> assumption_tac);
   [%expect
     {|
@@ -1928,7 +1928,7 @@ let%expect_test "apply_asm_tac' polymorphic undetermined in remainder" =
     with fuel: 9
     |}]
 
-let%expect_test "apply_asm_tac' polymorphic multiple type vars" =
+let%expect_test "apply_asm_tac polymorphic multiple type vars" =
   (* ∀(x:'a)(y:'b). f x y ==> g x y with assumption f Zero T
      'a=nat, 'b=bool determined. New assumption: g Zero T *)
   let a = TyVar "a" in
@@ -1958,7 +1958,7 @@ let%expect_test "apply_asm_tac' polymorphic multiple type vars" =
       (make_app (Result.get_ok (make_app g_concrete Nats.zero)) (make_true ()))
   in
   let goal = ([ f_zero_t ], g_zero_t) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac' >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
   [%expect
     {|
     f Zero T

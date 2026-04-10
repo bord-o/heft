@@ -139,7 +139,7 @@ end
 [@quiet]
 
 let apply_asm_to_asm_tac ~asm_thm ~asm_to =
-        with_nth_choice asm_thm (with_nth_term asm_to (with_assumptions apply_asm_tac'))
+        with_nth_choice asm_thm (with_nth_term asm_to (with_assumptions apply_asm_tac))
 
 
 let%thm subset_trans (s1 : 'a set) (s2 : 'a set) (s3 : 'a set) =

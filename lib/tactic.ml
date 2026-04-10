@@ -199,29 +199,6 @@ let or_tac : tactic =
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
-let apply_asm_tac : tactic =
- fun (asms, concl) ->
-  burn "apply_asm_tac" (Unsafe 4);
-  let matching =
-    asms
-    |> List.filter_map (fun asm ->
-        let prems, final_conc = collect_premises asm in
-        if prems <> [] && final_conc = concl then Some (asm, prems) else None)
-  in
-  let choices = rank_terms (List.map fst matching) in
-  let chosen = choose_terms choices in
-  let prems = matching |> List.assoc chosen in
-  let thm =
-    let* assumed = assume chosen in
-    List.fold_left
-      (fun acc_thm prem ->
-        let* acc = acc_thm in
-        let sub_thm = perform (Subgoal (asms, prem)) in
-        mp acc sub_thm)
-      (Ok assumed) prems
-  in
-  return_thm ~from:"apply_asm_tac" thm
-
 let apply_tac : tactic =
  fun (asms, conc) ->
   burn "apply_tac" (Unsafe 5);
@@ -237,6 +214,8 @@ let apply_tac : tactic =
         let* type_inst = inst_type env.type_sub stripped_thm in
         let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
         let* inst_thm = inst term_sub_flipped type_inst in
+        if List.exists (fun h -> not (List.mem h asms)) (hyp inst_thm) then
+          fail ();
         if premises = [] then Ok inst_thm
         else
           let inst_premises, _ = collect_premises (concl inst_thm) in
@@ -274,10 +253,10 @@ let apply_tac : tactic =
   in
   return_thm ~from:"apply_tac" thm
 
-let apply_asm_tac' : tactic =
+let apply_asm_tac : tactic =
  fun (asms, conc) ->
   trace_info "running";
-  burn "apply_asm_tac'" (Unsafe 5);
+  burn "apply_asm_tac" (Unsafe 5);
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
   trace_info (Printing.pretty_print_thm chosen_thm);
@@ -299,6 +278,8 @@ let apply_asm_tac' : tactic =
         let* type_inst = inst_type env.type_sub stripped_thm in
         let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
         let* inst_thm = inst term_sub_flipped type_inst in
+        if List.exists (fun h -> not (List.mem h asms)) (hyp inst_thm) then
+          fail ();
         let inst_premises, inst_final = collect_premises (concl inst_thm) in
         let remainder =
           if List.length inst_premises = 1 then inst_final
@@ -327,7 +308,7 @@ let apply_asm_tac' : tactic =
         let* gen_thm = gens (List.rev free_undet) remainder_thm in
         prove_hyp gen_thm sub_thm
   in
-  return_thm ~from:"apply_asm_tac'" thm
+  return_thm ~from:"apply_asm_tac" thm
 
 let apply_neg_asm_tac : tactic =
  fun (asms, concl) ->
@@ -1336,6 +1317,15 @@ let with_repeat : tactic_combinator =
   in
   aux goal
 
+let with_assumptions : tactic_combinator =
+ fun tac (asms, concl) ->
+  let asm_thms =
+    List.filter_map
+      (fun asm -> match assume asm with Ok thm -> Some thm | Error _ -> None)
+      asms
+  in
+  match tac (asms, concl) with effect Rules, k -> continue k asm_thms | v -> v
+
 let itauto_tac : tactic =
   pick_tac
     [
@@ -1348,7 +1338,7 @@ let itauto_tac : tactic =
       elim_disj_asm_tac;
       false_elim_tac;
       neg_elim_tac;
-      apply_asm_tac;
+      with_assumptions apply_tac;
       apply_neg_asm_tac;
       mp_asm_tac;
       left_tac;
@@ -1367,7 +1357,7 @@ let ctauto_tac : tactic =
       elim_disj_asm_tac;
       false_elim_tac;
       neg_elim_tac;
-      apply_asm_tac;
+      with_assumptions apply_tac;
       apply_neg_asm_tac;
       mp_asm_tac;
       left_tac;
@@ -1510,14 +1500,6 @@ let with_no_trace ?(show_proof = false) : tactic_combinator =
   | effect Trace (Proof, _), k when not show_proof -> continue k ()
   | v -> v
 
-let with_assumptions : tactic_combinator =
- fun tac (asms, concl) ->
-  let asm_thms =
-    List.filter_map
-      (fun asm -> match assume asm with Ok thm -> Some thm | Error _ -> None)
-      asms
-  in
-  match tac (asms, concl) with effect Rules, k -> continue k asm_thms | v -> v
 
 let with_rules (rules : thm list) : tactic_combinator =
  fun tac goal ->
@@ -1740,5 +1722,3 @@ let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
         print_endline "Proof Incomplete";
         Printf.printf "with fuel: %d\n" !fuel_count)
 
-(* let _ = apply_asm_tac *)
-(* let apply_asm_tac = with_assumptions (apply_tac) *)
