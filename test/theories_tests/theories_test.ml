@@ -863,1766 +863,1766 @@ let%expect_test "div fuel irrel" =
     with fuel: 299
     |}]
 
-(* let%expect_test "lt_Zero_Suc" = *)
-(*   let n0 = [%term (n0 : nat)] in *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (b : nat) -> *)
-(*             nat_lt 0n b ==> exists (fun (x : nat) -> b = Suc x))] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"lt_Zero_Suc" ~notrace:true goal *)
-(*     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac *)
-(*    >> with_term n0 exists_tac >> refl_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_lt Zero x ==> ∃x'. x = Suc x' *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 58 *)
-(*     |}] *)
-(**)
-(* let nat_induct_auto_tac = *)
-(*   induct_tac *)
-(*   >> with_no_automation_trace auto_dfs_tac *)
-(*   >> with_no_automation_trace auto_dfs_tac *)
-(**)
-(* let%expect_test "Suc_lt_Zero" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term forall (fun (x : nat) (b : nat) -> b = Suc x ==> nat_lt 0n b)] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"Suc_lt_Zero" ~notrace:true goal *)
-(*     nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. b = Suc x ==> nat_lt Zero b *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 160 *)
-(*     |}] *)
-(**)
-(* let%expect_test "lt_Zero_Suc" = *)
-(*   let goal = *)
-(*     make_goal [%term forall (fun (a : nat) -> nat_lt a Zero = false)] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"lt_Zero_false" ~notrace:true goal *)
-(*     nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_lt x Zero = F *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 97 *)
-(*     |}] *)
-(**)
-(* let%expect_test "lt_add_Suc_r" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term forall (fun (a : nat) (b : nat) -> nat_lt a (plus a (Suc b)))] *)
-(*   in *)
-(*   run_proof ~name:"lt_add_Suc_r" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_lt x (plus x (Suc b)) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 156 *)
-(*     |}] *)
-(**)
-(* let%expect_test "add_lt_cancel_l" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) (c : nat) -> *)
-(*             nat_lt (plus a b) (plus a c) = nat_lt b c)] *)
-(*   in *)
-(*   run_proof ~name:"add_lt_cancel_l" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. ∀c. nat_lt (plus x b) (plus x c) = nat_lt b c *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 164 *)
-(*     |}] *)
-(**)
-(* let%expect_test "add_le_cancel_l" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) (c : nat) -> *)
-(*             nat_le (plus a b) (plus a c) = nat_le b c)] *)
-(*   in *)
-(*   run_proof ~name:"add_le_cancel_l" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. ∀c. nat_le (plus x b) (plus x c) = nat_le b c *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 164 *)
-(*     |}] *)
-(**)
-(* (* ===== Group 1: Basic computation rules ===== *) *)
-(**)
-(* let%expect_test "sub_Zero_r" = *)
-(*   let goal = make_goal [%term forall (fun (a : nat) -> sub a 0n = a)] in *)
-(*   run_proof ~simp:true ~name:"sub_Zero_r" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. sub x Zero = x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 85 *)
-(*     |}] *)
-(**)
-(* let%expect_test "sub_Suc_Suc" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term forall (fun (a : nat) (b : nat) -> sub (Suc a) (Suc b) = sub a b)] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"sub_Suc_Suc" ~notrace:true goal *)
-(*     nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. sub (Suc x) (Suc b) = sub x b *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 153 *)
-(*     |}] *)
-(**)
-(* let%expect_test "sub_Zero_l" = *)
-(*   let goal = make_goal [%term forall (fun (a : nat) -> sub Zero a = 0n)] in *)
-(*   run_proof ~simp:true ~name:"sub_Zero_l" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. sub Zero x = Zero *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 71 *)
-(*     |}] *)
-(**)
-(* let%expect_test "lt_Zero_Suc" = *)
-(*   let goal = *)
-(*     make_goal [%term forall (fun (a : nat) -> nat_lt 0n (Suc a) = true)] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"lt_Zero_Suc" ~notrace:true goal *)
-(*     nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_lt Zero (Suc x) = T *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 107 *)
-(*     |}] *)
-(**)
-(* let%expect_test "lt_Suc_Suc" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> nat_lt (Suc a) (Suc b) = nat_lt a b)] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"lt_Suc_Suc" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_lt (Suc x) (Suc b) = nat_lt x b *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 153 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_Zero_eq" = *)
-(*   let goal = *)
-(*     make_goal [%term forall (fun (a : nat) -> nat_le a 0n ==> (a = 0n))] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"le_Zero_eq" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_le x Zero ==> x = Zero *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 127 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_Zero_l" = *)
-(*   let goal = make_goal [%term forall (fun (a : nat) -> nat_le 0n a = true)] in *)
-(**)
-(*   run_proof ~simp:true ~name:"le_Zero_l" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_le Zero x = T *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 78 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_Suc_Suc" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> nat_le (Suc a) (Suc b) = nat_le a b)] *)
-(*   in *)
-(**)
-(*   run_proof ~simp:true ~name:"le_Suc_Suc" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le (Suc x) (Suc b) = nat_le x b *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 153 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_Zero_r" = *)
-(*   let goal = *)
-(*     make_goal [%term forall (fun (a : nat) -> nat_le (Suc a) Zero = false)] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"le_Zero_r" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_le (Suc x) Zero = F *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 117 *)
-(*     |}] *)
-(**)
-(* (* ===== Group 2: Reflexivity and basic identity ===== *) *)
-(**)
-(* let%expect_test "lt_irrefl" = *)
-(*   let goal = make_goal [%term forall (fun (a : nat) -> nat_lt a a = false)] in *)
-(*   run_proof ~simp:true ~name:"lt_irrefl" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_lt x x = F *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 64 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_refl" = *)
-(*   let goal = make_goal [%term forall (fun (a : nat) -> nat_le a a = true)] in *)
-(*   run_proof ~simp:true ~name:"le_refl" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_le x x = T *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 64 *)
-(*     |}] *)
-(**)
-(* let%expect_test "sub_self" = *)
-(*   let goal = make_goal [%term forall (fun (a : nat) -> sub a a = 0n)] in *)
-(**)
-(*   run_proof ~simp:true ~name:"sub_self" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. sub x x = Zero *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 64 *)
-(*     |}] *)
-(**)
-(* let%expect_test "add_Zero_l" = *)
-(*   let goal = make_goal [%term forall (fun (a : nat) -> plus 0n a = a)] in *)
-(*   run_proof ~simp:true ~name:"add_Zero_l" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. plus Zero x = x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 78 *)
-(*     |}] *)
-(**)
-(* let%expect_test "add_Suc_l" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> plus (Suc a) b = Suc (plus a b))] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"add_Suc_l" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. plus (Suc x) b = Suc (plus x b) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 124 *)
-(*     |}] *)
-(**)
-(* (* ===== Group 3: Successor relationships ===== *) *)
-(**)
-(* let%expect_test "lt_Suc_self" = *)
-(*   let goal = *)
-(*     make_goal [%term forall (fun (a : nat) -> nat_lt a (Suc a) = true)] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"lt_Suc_self" ~notrace:true goal *)
-(*     nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_lt x (Suc x) = T *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 64 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_Suc_self" = *)
-(*   let goal = *)
-(*     make_goal [%term forall (fun (a : nat) -> nat_le a (Suc a) = true)] *)
-(*   in *)
-(*   run_proof ~simp:true ~name:"le_Suc_self" ~notrace:true goal *)
-(*     nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_le x (Suc x) = T *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 64 *)
-(*     |}] *)
-(**)
-(* let%expect_test "lt_Suc_le" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term forall (fun (a : nat) (b : nat) -> nat_lt a (Suc b) = nat_le a b)] *)
-(*   in *)
-(**)
-(*   run_proof ~simp:true ~name:"lt_Suc_le" ~notrace:true goal *)
-(*     (induct_tac *)
-(*     >> with_no_automation_trace auto_dfs_tac *)
-(*     >> intros_tac >> simp_tac *)
-(*     >> with_term [%term (b : nat)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_lt x (Suc b) = nat_le x b *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 155 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_lt_Suc" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term forall (fun (a : nat) (b : nat) -> nat_le a b = nat_lt a (Suc b))] *)
-(*   in *)
-(*   run_proof ~name:"le_lt_Suc" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le x b = nat_lt x (Suc b) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 117 *)
-(*     |}] *)
-(**)
-(* (* (* ===== Group 4: Connection between lt and le ===== *) *) *)
-(* let%expect_test "not_lt_is_le" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> nat_lt a b = false = nat_le b a)] *)
-(*   in *)
-(**)
-(*   run_proof ~simp:true ~name:"not_lt_is_le" ~notrace:true goal *)
-(*     (induct_tac >> induct_tac >> simp_tac >> eq_true_elim_tac >> refl_tac *)
-(*    >> intros_tac >> simp_tac >> eq_false_elim_tac >> neg_intro_tac *)
-(*    >> sym_asm_tac *)
-(*     >> with_first (with_assumptions rewrite_tac) *)
-(*     >> truth_tac >> intros_tac >> simp_tac *)
-(*     >> with_term [%term (b : nat)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_tac >> eq_true_elim_tac >> refl_tac *)
-(*     >> elim_exists_asm_tac >> simp_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_lt x b = F = nat_le b x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 196 *)
-(*     |}] *)
-(**)
-(* let%expect_test "equality simp rules" = *)
-(*   run_proof ~simp:true ~name:"eq_true_false" *)
-(*     (make_goal [%term true = false = false]) *)
-(*     (eq_false_elim_tac >> neg_intro_tac *)
-(*     >> with_assumptions @@ with_flip_rules rewrite_tac *)
-(*     >> truth_tac); *)
-(*   run_proof ~simp:true ~name:"eq_false_false" *)
-(*     (make_goal [%term false = false = true]) *)
-(*     (eq_true_elim_tac >> refl_tac); *)
-(*   run_proof ~simp:true ~name:"eq_true_true" *)
-(*     (make_goal [%term true = true = false]) *)
-(*     (eq_true_elim_tac >> refl_tac); *)
-(*   run_proof ~simp:true ~name:"eq_false_true" *)
-(*     (make_goal [%term false = true = false]) *)
-(*     (eq_false_elim_tac >> neg_intro_tac >> simp_tac); *)
-(*   run_proof ~simp:true ~name:"neg_false_true" *)
-(*     (make_goal [%term (not false) = true]) *)
-(*     (eq_true_elim_tac >> neg_intro_tac >> false_elim_tac); *)
-(*   run_proof ~simp:true ~name:"neg_true_false" *)
-(*     (make_goal [%term (not true) = false]) *)
-(*     (eq_false_elim_tac *)
-(*     >> with_term [%term true] assert_tac *)
-(*     >> truth_tac >> neg_intro_tac >> neg_elim_tac); *)
-(*   run_proof ~name:"eq_cong" *)
-(*     (make_goal *)
-(*        [%term *)
-(*          forall (fun (f : 'a -> 'b) (x : 'a) (y : 'a) -> x = y ==> (f x = f y))]) *)
-(*     (intros_tac >> simp_tac); *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     T = F = F *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 12 *)
-(*     ======================================== *)
-(*     F = F = T *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 3 *)
-(*     ======================================== *)
-(*     T = T = T *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 3 *)
-(*     ======================================== *)
-(*     F = T = F *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 19 *)
-(*     ======================================== *)
-(*     ¬F = T *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 7 *)
-(*     ======================================== *)
-(*     ¬T = F *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 15 *)
-(*     ======================================== *)
-(*     ∀f. ∀x. ∀y. x = y ==> f x = f y *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 21 *)
-(*     |}] *)
-(**)
-(* let%expect_test "not_le_is_lt" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> nat_le a b = false = nat_lt b a)] *)
-(*   in *)
-(*   run_proof ~name:"not_le_is_lt" ~notrace:true goal *)
-(*     (induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac *)
-(*     >> with_term [%term (b : nat)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac *)
-(*     >> with_term [%term (n0 : nat)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le x b = F = nat_lt b x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 257 *)
-(*     |}] *)
-(**)
-(* let%expect_test "lt_implies_le" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term forall (fun (a : nat) (b : nat) -> nat_lt a b ==> nat_le a b)] *)
-(*   in *)
-(*   run_proof ~name:"lt_implies_le" ~notrace:true goal *)
-(*     (induct_tac *)
-(*     >> with_no_automation_trace auto_dfs_tac *)
-(*     >> intros_tac >> simp_tac *)
-(*     >> with_term [%term (b : nat)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac *)
-(*     >> simp_tac >> simp_asm_tac *)
-(*     >> spec_asm_tac [%term (a0 : nat)] *)
-(*     >> with_assumptions (with_first_term apply_asm_tac) *)
-(*     >> assumption_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_lt x b ==> nat_le x b *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 232 *)
-(*     |}] *)
-(**)
-(* (* (* ===== Group 5: Transitivity ===== *) *) *)
-(**)
-(* let assumption_reasoning_tac = *)
-(*   try_ *)
-(*     (with_no_automation_trace *)
-(*        (with_best_first *)
-(*           (pick_tac *)
-(*              [ *)
-(*                simp_tac; simp_asm_tac; false_elim_tac; assumption_tac; truth_tac; *)
-(*              ]))) *)
-(**)
-(* let%expect_test "lt_trans" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) (c : nat) -> *)
-(*             nat_lt a b ==> (nat_lt b c ==> nat_lt a c))] *)
-(*   in *)
-(*   run_proof ~name:"lt_trans" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (c : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >>= [ *)
-(*           with_repeat *)
-(*             (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac)) *)
-(*           >> spec_asm_tac [%term (n0' : nat)] *)
-(*           >> spec_asm_tac [%term (n0'' : nat)] *)
-(*           >> with_proven [ "lt_Suc_Suc" ] rewrite_tac *)
-(*           >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*           >> assumption_tac; *)
-(*         ]); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. ∀c. nat_lt x b ==> nat_lt b c ==> nat_lt x c *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 771 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_trans" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) (c : nat) -> *)
-(*             nat_le a b ==> (nat_le b c ==> nat_le a c))] *)
-(*   in *)
-(*   run_proof ~name:"le_trans" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (c : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >>= [ *)
-(*           with_repeat *)
-(*             (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac)) *)
-(*           >> spec_asm_tac [%term (n0' : nat)] *)
-(*           >> spec_asm_tac [%term (n0'' : nat)] *)
-(*           >> with_proven [ "le_Suc_Suc" ] rewrite_tac *)
-(*           >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*           >> assumption_tac; *)
-(*         ]); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. ∀c. nat_le x b ==> nat_le b c ==> nat_le x c *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 591 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_lt_trans" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) (c : nat) -> *)
-(*             nat_le a b ==> (nat_lt b c ==> nat_lt a c))] *)
-(*   in *)
-(*   run_proof ~name:"le_lt_trans" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (c : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >>= [ *)
-(*           with_repeat *)
-(*             (with_first *)
-(*                (with_proven [ "le_Suc_Suc"; "lt_Suc_Suc" ] rewrite_asm_tac)) *)
-(*           >> spec_asm_tac [%term (n0' : nat)] *)
-(*           >> spec_asm_tac [%term (n0'' : nat)] *)
-(*           >> with_proven [ "lt_Suc_Suc" ] rewrite_tac *)
-(*           >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*           >> assumption_tac; *)
-(*         ]); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. ∀c. nat_le x b ==> nat_lt b c ==> nat_lt x c *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 758 *)
-(*     |}] *)
-(**)
-(* let%expect_test "lt_le_trans" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) (c : nat) -> *)
-(*             nat_lt a b ==> (nat_le b c ==> nat_lt a c))] *)
-(*   in *)
-(*   run_proof ~name:"lt_le_trans" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (c : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >>= [ *)
-(*           with_proven [ "lt_Suc_Suc" ] rewrite_tac *)
-(*           >> with_repeat *)
-(*                (with_first *)
-(*                   (with_proven [ "lt_Suc_Suc"; "le_Suc_Suc" ] rewrite_asm_tac)) *)
-(*           >> spec_asm_tac [%term (n0' : nat)] *)
-(*           >> spec_asm_tac [%term (n0'' : nat)] *)
-(*           >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*           >> assumption_tac; *)
-(*         ]); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. ∀c. nat_lt x b ==> nat_le b c ==> nat_lt x c *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 740 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_antisym" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> *)
-(*             nat_le a b ==> (nat_le b a ==> ((a : nat) = b)))] *)
-(*   in *)
-(*   run_proof ~name:"le_antisym" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >> with_proven [ "eq_cong" ] apply_tac *)
-(*     >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac)) *)
-(*     >> spec_asm_tac [%term (n0' : nat)] *)
-(*     >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*     >> assumption_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le x b ==> nat_le b x ==> x = b *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 251 *)
-(*     |}] *)
-(**)
-(* (* (* ===== Group 6: Subtraction properties ===== *) *) *)
-(**)
-(* let%expect_test "le_weaken_Suc" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> nat_le a b ==> nat_le a (Suc b))] *)
-(*   in *)
-(*   run_proof ~name:"le_weaken_Suc" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> try_ intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >> with_proven [ "le_Suc_Suc" ] rewrite_tac *)
-(*     >> spec_asm_tac [%term (n0' : nat)] *)
-(*     >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac)) *)
-(*     >> with_first (with_assumptions (with_first_term apply_asm_tac)) *)
-(*     >> sorry_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le x b ==> nat_le x (Suc b) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 309 *)
-(*     |}] *)
-(**)
-(* let%expect_test "lt_weaken_Suc" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> nat_lt a b ==> nat_lt a (Suc b))] *)
-(*   in *)
-(*   run_proof ~name:"lt_weaken_Suc" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> try_ intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >> with_proven [ "lt_Suc_Suc" ] rewrite_tac *)
-(*     >> spec_asm_tac [%term (n0' : nat)] *)
-(*     >> with_repeat (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac)) *)
-(*     >> with_first (with_assumptions (with_first_term apply_asm_tac)) *)
-(*     >> sorry_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_lt x b ==> nat_lt x (Suc b) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 383 *)
-(*     |}] *)
-(**)
-(* let%expect_test "sub_le" = *)
-(*   let goal = *)
-(*     make_goal [%term forall (fun (a : nat) (b : nat) -> nat_le (sub a b) a)] *)
-(*   in *)
-(*   run_proof ~name:"sub_le" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> try_ intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >> with_proven [ "sub_Suc_Suc" ] rewrite_tac *)
-(*     >> spec_asm_tac [%term (n0' : nat)] *)
-(*     >> with_proven [ "le_weaken_Suc" ] apply_tac *)
-(*     >> assumption_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le (sub x b) x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 266 *)
-(*     |}] *)
-(**)
-(* let%expect_test "sub_lt" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (b : nat) (a : nat) -> *)
-(*             nat_lt 0n b ==> (nat_le b a ==> nat_lt (sub a b) a))] *)
-(*   in *)
-(*   run_proof ~name:"sub_lt" ~notrace:true goal *)
-(*     (with_term [%term (b : nat)] induct_tac *)
-(*     >>> intros_tac >> assumption_reasoning_tac *)
-(*     >> with_term [%term (a : nat)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac >> assumption_tac *)
-(*     >> elim_exists_asm_tac *)
-(*     >> with_first (with_assumptions rewrite_tac) *)
-(*     >> with_first (with_assumptions rewrite_tac) *)
-(*     >> with_first (with_assumptions rewrite_asm_tac) *)
-(*     >> with_proven [ "sub_Suc_Suc" ] rewrite_tac *)
-(*     >> with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac) *)
-(*     >> with_term [%term (n0 : nat)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac *)
-(*     >> with_proven [ "lt_weaken_Suc" ] apply_tac *)
-(*     >> spec_asm_tac [%term (a0 : nat)] *)
-(*     >> simp_asm_tac >> simp_tac *)
-(*     >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*     >> assumption_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀a. nat_lt Zero x ==> nat_le x a ==> nat_lt (sub a x) a *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 410 *)
-(*     |}] *)
-(**)
-(* let%expect_test "sub_add_cancel" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (a : nat) (b : nat) -> *)
-(*             nat_le b a ==> (plus (sub a b) b = a))] *)
-(*   in *)
-(*   run_proof ~name:"sub_add_cancel" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> try_ intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >>= [ *)
-(*           simp_tac *)
-(*           >> with_proven [ "eq_cong" ] apply_tac *)
-(*           >> with_proven [ "plus_x_Zero" ] rewrite_tac *)
-(*           >> refl_tac; *)
-(*           simp_asm_tac >> simp_tac *)
-(*           >> with_proven [ "plus_Suc" ] rewrite_tac *)
-(*           >> with_proven [ "eq_cong" ] apply_tac *)
-(*           >> spec_asm_tac [%term (n0' : nat)] *)
-(*           >> with_assumptions (with_first_term apply_asm_tac) *)
-(*           >> assumption_tac; *)
-(*         ]); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le b x ==> plus (sub x b) b = x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 478 *)
-(*     |}] *)
-(**)
-(* (* (* ===== Group 8: Ordering and addition ===== *) *) *)
-(**)
-(* let%expect_test "le_add_r" = *)
-(*   let goal = *)
-(*     make_goal [%term forall (fun (a : nat) (b : nat) -> nat_le a (plus a b))] *)
-(*   in *)
-(*   run_proof ~name:"le_add_r" ~notrace:true goal nat_induct_auto_tac; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le x (plus x b) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 118 *)
-(*     |}] *)
-(**)
-(* (* (* ===== Group 9: Totality ===== *) *) *)
-(**)
-(* let%expect_test "lt_total" = *)
-(*   let%thm lt_total (a : nat) (b : nat) = nat_lt a b || nat_le b a *)
-(*   and proof = *)
-(*     begin *)
-(*       with_term [%term (a : nat)] induct_tac *)
-(*       >>> intros_tac *)
-(*       >>> with_term [%term (b : nat)] induct_tac *)
-(*       >>> try_ intros_tac *)
-(*       >>= [ *)
-(*             right_tac >> simp_tac; *)
-(*             left_tac >> simp_tac; *)
-(*             right_tac >> simp_tac; *)
-(*             spec_asm_tac [%term (n0' : nat)] *)
-(*             >> elim_disj_asm_tac >> left_tac *)
-(*             >> with_proven [ "lt_Suc_Suc" ] rewrite_tac *)
-(*             >> assumption_tac >> right_tac *)
-(*             >> with_proven [ "le_Suc_Suc" ] rewrite_tac *)
-(*             >> assumption_tac; *)
-(*           ] *)
-(*     end *)
-(*     [@notrace] *)
-(*   in *)
-(*   ignore lt_total; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_lt x b ∨ nat_le b x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 159 *)
-(*     |}] *)
-(**)
-(* let%expect_test "le_total" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term forall (fun (a : nat) (b : nat) -> nat_le a b || nat_le b a)] *)
-(*   in *)
-(*   run_proof ~name:"le_total" ~notrace:true goal *)
-(*     (with_term [%term (a : nat)] induct_tac *)
-(*     >>> intros_tac *)
-(*     >>> with_term [%term (b : nat)] induct_tac *)
-(*     >>> try_ intros_tac *)
-(*     >>= [ *)
-(*           right_tac >> simp_tac; *)
-(*           left_tac >> simp_tac; *)
-(*           right_tac >> simp_tac; *)
-(*           spec_asm_tac [%term (n0' : nat)] *)
-(*           >> elim_disj_asm_tac >> left_tac *)
-(*           >> with_proven [ "le_Suc_Suc" ] rewrite_tac *)
-(*           >> assumption_tac >> right_tac *)
-(*           >> with_proven [ "le_Suc_Suc" ] rewrite_tac *)
-(*           >> assumption_tac; *)
-(*         ]); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀b. nat_le x b ∨ nat_le b x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 154 *)
-(*     |}] *)
-(**)
-(* let%expect_test "div fuel sufficient" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (n : nat) (a : nat) (b : nat) -> *)
-(*             nat_lt 0n b *)
-(*             ==> (nat_lt a n ==> exists (fun (x : nat) -> div_aux n a b = Some x)))] *)
-(*   in *)
-(*   run_proof ~name:"div_fuel_sufficient" ~notrace:true goal *)
-(*     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac *)
-(*    >> simp_tac >> cond_tac >> simp_tac *)
-(*     >> with_term Nats.n0 exists_tac *)
-(*     >> refl_tac >> simp_tac *)
-(*     >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac) *)
-(*     >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac) *)
-(*     >> (with_first (with_proven [ "sub_lt" ] apply_asm_tac) *)
-(*        >> with_first (with_assumptions apply_asm_tac)) *)
-(*     >> (with_first (with_proven [ "lt_le_trans" ] apply_asm_tac) *)
-(*        >> with_nth_term 4 (with_assumptions apply_asm_tac)) *)
-(*     >> with_nth_term 2 (spec_asm_tac [%term sub (a : nat) (b : nat)]) *)
-(*     >> with_nth_term 0 (spec_asm_tac [%term (b : nat)]) *)
-(*     >> with_first (with_assumptions apply_asm_tac) *)
-(*     >> with_first (with_assumptions apply_asm_tac) *)
-(*     >> elim_exists_asm_tac >> simp_tac *)
-(*     >> with_term [%term Suc (x' : nat)] exists_tac *)
-(*     >> simp_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀a. ∀b. nat_lt Zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = Some x' *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 213 *)
-(*     |}] *)
-(**)
-(* let%expect_test "div unfold" = *)
-(*   let%thm div_unfold (a : nat) (b : nat) = *)
-(*     nat_lt 0n b ==> (div a b = if nat_lt a b then 0n else Suc (div (sub a b) b)) *)
-(*   and proof = *)
-(*     begin *)
-(*       intros_tac *)
-(*       >> with_definition [ "div" ] rewrite_tac *)
-(*       >> beta_tac *)
-(*       >> with_first (with_definition [ "div_aux" ] rewrite_tac) *)
-(*       >> beta_tac >> with_nth_choice 1 cond_tac >> simp_tac *)
-(*       >> with_repeat @@ with_assumptions rewrite_tac *)
-(*       >> with_repeat @@ with_proven [ "cond_false" ] rewrite_tac *)
-(*       >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac) *)
-(*       >> with_term [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)] assert_tac *)
-(*       >> with_proven [ "sub_lt" ] apply_tac *)
-(*       >> assumption_tac >> assumption_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              exists (fun (x' : nat) -> *)
-(*                  div_aux (a : nat) (sub (a : nat) (b : nat)) (b : nat) = Some x')] *)
-(*            assert_tac *)
-(*       >> with_proven [ "div_fuel_sufficient" ] apply_tac *)
-(*       >> assumption_tac >> assumption_tac >> elim_exists_asm_tac *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> with_first (with_definition [ "match_option" ] rewrite_tac) *)
-(*       >> beta_tac *)
-(*       >> with_first (with_definition [ "match_option" ] rewrite_tac) *)
-(*       >> beta_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              exists (fun (x : nat) -> *)
-(*                  div_aux *)
-(*                    (Suc (sub (a : nat) (b : nat))) *)
-(*                    (sub (a : nat) (b : nat)) *)
-(*                    (b : nat) *)
-(*                  = Some x)] *)
-(*            assert_tac *)
-(*       >> with_proven [ "div_fuel_sufficient" ] apply_tac *)
-(*       >> assumption_tac *)
-(*       >> with_proven [ "lt_Suc_self" ] rewrite_tac *)
-(*       >> truth_tac >> elim_exists_asm_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              div_aux *)
-(*                (plus *)
-(*                   (Suc (sub (a : nat) (b : nat))) *)
-(*                   (sub (a : nat) (Suc (sub (a : nat) (b : nat))))) *)
-(*                (sub (a : nat) (b : nat)) *)
-(*                (b : nat) *)
-(*              = Some (x : nat)] *)
-(*            assert_tac *)
-(*       >> with_proven [ "div_fuel_irrel" ] apply_tac *)
-(*       >> assumption_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              plus *)
-(*                (sub (a : nat) (Suc (sub (a : nat) (b : nat)))) *)
-(*                (Suc (sub (a : nat) (b : nat))) *)
-(*              = (a : nat)] *)
-(*            assert_tac *)
-(*       >> with_proven [ "sub_add_cancel" ] apply_tac *)
-(*       >> with_proven [ "le_lt_Suc" ] rewrite_tac *)
-(*       >> with_proven [ "lt_Suc_Suc" ] rewrite_tac *)
-(*       >> assumption_tac *)
-(*       >> with_nth_choice 0 @@ with_proven [ "plus_comm" ] rewrite_asm_tac *)
-(*       >> with_first (with_assumptions rewrite_asm_tac) *)
-(*       >> with_first (with_assumptions rewrite_asm_tac) *)
-(*       >> with_first *)
-(*            (with_rule (Options.option_def.injective |> List.hd) apply_asm_tac) *)
-(*       >> with_nth_term 4 (with_assumptions rewrite_asm_tac) *)
-(*       >> with_definition [ "div" ] rewrite_tac *)
-(*       >> beta_tac *)
-(*       >> with_assumptions rewrite_tac *)
-(*       >> simp_tac *)
-(*     end *)
-(*   in *)
-(*   ignore div_unfold; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀a. ∀b. nat_lt Zero b ==> div a b = COND (nat_lt a b) Zero (Suc (div (sub a b) b)) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 260 *)
-(*     |}] *)
-(**)
-(* let%expect_test "merge test" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         merge_aux 9n *)
-(*           (Cons (2n, Cons (4n, Nil))) *)
-(*           (Cons (1n, Cons (2n, Cons (3n, Nil)))) *)
-(*         = Some (Cons (1n, Cons (2n, Cons (2n, Cons (3n, Cons (4n, Nil))))))] *)
-(*   in *)
-(*   let compute = *)
-(*     try_ *)
-(*       (with_repeat *)
-(*          (with_first *)
-(*             (with_definition *)
-(*                [ "match_list"; "match_option"; "nat_lt"; "match_nat" ] *)
-(*                rewrite_tac))) *)
-(*     >> try_ (with_repeat beta_tac) *)
-(*     >> try_ *)
-(*          (with_repeat *)
-(*             (with_first (with_proven [ "cond_false"; "cond_true" ] rewrite_tac))) *)
-(*     >> try_ (with_repeat beta_tac) *)
-(*     >> try_ (with_first (with_definition [ "merge_aux" ] rewrite_tac)) *)
-(*     >> try_ (with_repeat beta_tac) *)
-(*     >> try_ refl_tac *)
-(*   in *)
-(*   let proof = with_repeat compute in *)
-(*   run_proof ~pretty:true ~notrace:true goal proof; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     merge_aux 9 [2, 4] [1, 2, 3] = Some [1, 2, 2, 3, 4] *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 828 *)
-(*     |}] *)
-(**)
-(* let%expect_test "merge fuel irrel" = *)
-(*   let rw_asm = *)
-(*     with_first (with_assumptions rewrite_tac) *)
-(*     >> with_first (with_assumptions rewrite_asm_tac) *)
-(*   in *)
-(*   let _ = rw_asm in *)
-(*   let%thm merge_fuel_irrel (fuel : nat) (additional : nat) (xs : nat list) *)
-(*       (ys : nat list) (x : nat list) = *)
-(*     merge_aux fuel xs ys = Some x *)
-(*     ==> (merge_aux (plus fuel additional) xs ys = Some x) *)
-(*   and proof = *)
-(*     begin *)
-(*       with_term [%term (fuel : nat)] induct_tac *)
-(*       >> intros_tac >> simp_asm_tac >> discriminate_tac >> intros_tac *)
-(*       >> with_term [%term (xs : nat list)] destruct_tac *)
-(*       >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac *)
-(*       >> elim_exists_asm_tac *)
-(*       >> with_proven [ "add_Suc_l" ] rewrite_tac *)
-(*       >> rw_asm *)
-(*       >> with_term [%term (ys : nat list)] destruct_tac *)
-(*       >> elim_disj_asm_tac *)
-(*       >> with_first (with_definition [ "merge_aux" ] rewrite_tac) *)
-(*       >> beta_tac *)
-(*       >> with_first (with_definition [ "merge_aux" ] rewrite_asm_tac) *)
-(*       >> beta_tac >> simp_tac >> beta_asm_tac *)
-(*       >> with_first (with_assumptions rewrite_asm_tac) *)
-(*       >> simp_asm_tac >> elim_exists_asm_tac >> elim_exists_asm_tac >> rw_asm *)
-(*       >> with_first (with_definition [ "merge_aux" ] rewrite_tac) *)
-(*       >> beta_tac *)
-(*       >> with_first (with_definition [ "merge_aux" ] rewrite_asm_tac) *)
-(*       >> beta_asm_tac >> simp_tac >> simp_asm_tac >> cond_tac >> rw_asm *)
-(*       >> with_proven [ "cond_true" ] rewrite_tac *)
-(*       >> with_proven [ "cond_true" ] rewrite_asm_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              merge_aux *)
-(*                (n0 : nat) *)
-(*                (a1 : nat list) *)
-(*                (Cons ((a0' : nat), (a1' : nat list)))] *)
-(*            destruct_tac *)
-(*       >> elim_disj_asm_tac >> simp_asm_tac >> discriminate_tac *)
-(*       >> elim_exists_asm_tac >> simp_asm_tac *)
-(*       >> spec_asm_tac [%term (additional : nat)] *)
-(*       >> spec_asm_tac [%term (a1 : nat list)] *)
-(*       >> spec_asm_tac [%term Cons ((a0' : nat), (a1' : nat list))] *)
-(*       >> spec_asm_tac [%term (a0 : nat list)] *)
-(*       >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*       >> simp_tac >> simp_tac *)
-(*       >> with_first (with_assumptions rewrite_asm_tac) *)
-(*       >> simp_asm_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              merge_aux *)
-(*                (n0 : nat) *)
-(*                (Cons ((a0 : nat), (a1 : nat list))) *)
-(*                (a1' : nat list)] *)
-(*            destruct_tac *)
-(*       >> elim_disj_asm_tac >> simp_asm_tac >> discriminate_tac *)
-(*       >> elim_exists_asm_tac >> simp_asm_tac *)
-(*       >> spec_asm_tac [%term (additional : nat)] *)
-(*       >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))] *)
-(*       >> spec_asm_tac [%term (a1' : nat list)] *)
-(*       >> spec_asm_tac [%term (a0 : nat list)] *)
-(*       >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*       >> simp_tac *)
-(*     end *)
-(*   in *)
-(*   ignore merge_fuel_irrel; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀additional. ∀xs. ∀ys. ∀x. merge_aux x xs ys = Some x ==> merge_aux (plus x additional) xs ys = Some x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 689 *)
-(*     |}] *)
-(**)
-(* let%expect_test "merge fuel sufficient" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (fuel : nat) (xs : nat list) (ys : nat list) -> *)
-(*             nat_lt (plus (length xs) (length ys)) fuel *)
-(*             ==> exists (fun (x : nat list) -> merge_aux fuel xs ys = Some x))] *)
-(*   in *)
-(*   run_proof ~name:"merge_fuel_sufficient" ~notrace:true goal *)
-(*     (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac *)
-(*    >> simp_tac *)
-(*     >> with_term [%term (xs : nat list)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_tac *)
-(*     >> with_term [%term (ys : nat list)] exists_tac *)
-(*     >> refl_tac *)
-(*     >> with_repeat elim_exists_asm_tac *)
-(*     >> simp_tac *)
-(*     >> with_term [%term (ys : nat list)] destruct_tac *)
-(*     >> elim_disj_asm_tac >> simp_tac *)
-(*     >> with_term [%term Cons ((a0 : nat), (a1 : nat list))] exists_tac *)
-(*     >> refl_tac *)
-(*     >> with_repeat elim_exists_asm_tac *)
-(*     >> simp_tac >> cond_tac >> simp_tac *)
-(*     >> with_first (with_assumptions rewrite_asm_tac) *)
-(*     >> with_first (with_assumptions rewrite_asm_tac) *)
-(*     >> with_first (with_definition [ "length" ] rewrite_asm_tac) *)
-(*     >> with_proven [ "add_Suc_l" ] rewrite_asm_tac *)
-(*     >> with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac *)
-(*     >> spec_asm_tac [%term (a1 : nat list)] *)
-(*     >> spec_asm_tac [%term Cons ((a0' : nat), (a1' : nat list))] *)
-(*     >> with_assumptions (with_first_term apply_asm_tac) *)
-(*     >> elim_exists_asm_tac >> simp_tac *)
-(*     >> with_term [%term Cons ((a0 : nat), (x' : nat list))] exists_tac *)
-(*     >> refl_tac >> simp_tac *)
-(*     >> with_first (with_assumptions rewrite_asm_tac) *)
-(*     >> with_first (with_assumptions rewrite_asm_tac) *)
-(*     >> with_proven [ "plus_comm" ] rewrite_asm_tac *)
-(*     >> with_first (with_definition [ "length" ] rewrite_asm_tac) *)
-(*     >> with_proven [ "add_Suc_l" ] rewrite_asm_tac *)
-(*     >> with_proven [ "plus_comm" ] rewrite_asm_tac *)
-(*     >> with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac *)
-(*     >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))] *)
-(*     >> spec_asm_tac [%term (a1' : nat list)] *)
-(*     >> with_assumptions (with_first_term apply_asm_tac) *)
-(*     >> elim_exists_asm_tac >> simp_tac *)
-(*     >> with_term [%term Cons ((a0' : nat), (x' : nat list))] exists_tac *)
-(*     >> refl_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀xs. ∀ys. nat_lt (plus (length xs) (length ys)) x ==> ∃x. merge_aux x xs ys = Some x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 428 *)
-(*     |}] *)
-(**)
-(* (* *)
-(* what we want *)
-(*     def merge : list nat -> list nat -> list nat *)
-(*         | Nil => λys. ys *)
-(*         | Cons h t => *)
-(*             match_list ys *)
-(*                 (Cons h t) *)
-(*                 (λy'. λys'.  *)
-(*                     COND (nat_lt h 'y) *)
-(*                         (Cons h (merge t (Cons y' ys'))) *)
-(*                         (Cons 'y (merge (Cons h t) ys'))) *)
-(**)
-(*  *) *)
-(* let%expect_test "merge unfolding lemma" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (xs : nat list) (ys : nat list) -> *)
-(*             merge xs ys *)
-(*             = match_list xs ys (fun (h : nat) (t : nat list) -> *)
-(*                 match_list ys *)
-(*                   (Cons (h, t)) *)
-(*                   (fun (y' : nat) (ys' : nat list) -> *)
-(*                     if nat_lt h y' then Cons (h, merge t (Cons (y', ys'))) *)
-(*                     else Cons (y', merge (Cons (h, t)) ys'))))] *)
-(*   in *)
-(*   run_proof ~name:"merge_unfold" ~notrace:true goal *)
-(*     (intros_tac *)
-(*     >> with_term [%term (xs : nat list)] destruct_tac *)
-(*     >> with_term [%term (ys : nat list)] destruct_tac *)
-(*     >> with_repeat elim_disj_asm_tac *)
-(*     >> simp_tac *)
-(*     >> with_repeat elim_exists_asm_tac *)
-(*     >> simp_tac *)
-(*     >> with_repeat elim_exists_asm_tac *)
-(*     >> simp_tac *)
-(*     >> with_repeat elim_exists_asm_tac *)
-(*     >> with_definition [ "merge" ] rewrite_tac *)
-(*     >> beta_tac *)
-(*     >> with_first (with_definition [ "merge_aux" ] rewrite_tac) *)
-(*     >> with_repeat (with_first (with_assumptions rewrite_tac)) *)
-(*     >> simp_tac ~exclude:[ "merge"; "merge_aux" ] *)
-(*     >> cond_tac *)
-(*     >> simp_tac ~exclude:[ "merge"; "merge_aux" ] *)
-(*     >> with_term *)
-(*          [%term *)
-(*            exists (fun (x : nat list) -> *)
-(*                merge_aux *)
-(*                  (Suc *)
-(*                     (plus *)
-(*                        (length (a1' : nat list)) *)
-(*                        (Suc (length (a1 : nat list))))) *)
-(*                  (a1' : nat list) *)
-(*                  (Cons ((a0 : nat), (a1 : nat list))) *)
-(*                = Some x)] *)
-(*          assert_tac *)
-(*     >> with_proven [ "merge_fuel_sufficient" ] apply_tac *)
-(*     >> simp_tac >> elim_exists_asm_tac *)
-(*     >> with_first (with_assumptions rewrite_tac) *)
-(*     >> simp_tac ~exclude:[ "merge"; "merge_aux" ] *)
-(*     >> with_definition [ "merge" ] rewrite_tac *)
-(*     >> beta_tac *)
-(*     >> with_first (with_definition [ "length" ] rewrite_tac) *)
-(*     >> with_first (with_assumptions rewrite_tac) *)
-(*     >> simp_tac *)
-(*     >> simp_tac ~exclude:[ "merge"; "merge_aux" ] *)
-(*     >> with_term *)
-(*          [%term *)
-(*            exists (fun (x : nat list) -> *)
-(*                merge_aux *)
-(*                  (Suc *)
-(*                     (plus *)
-(*                        (length (a1' : nat list)) *)
-(*                        (Suc (length (a1 : nat list))))) *)
-(*                  (Cons ((a0' : nat), (a1' : nat list))) *)
-(*                  (a1 : nat list) *)
-(*                = Some x)] *)
-(*          assert_tac *)
-(*     >> with_proven [ "merge_fuel_sufficient" ] apply_tac *)
-(*     >> simp_tac *)
-(*     >> with_proven [ "plus_Suc" ] rewrite_tac *)
-(*     >> simp_tac >> elim_exists_asm_tac *)
-(*     >> with_first (with_assumptions rewrite_tac) *)
-(*     >> simp_tac ~exclude:[ "merge"; "merge_aux" ] *)
-(*     >> with_definition [ "merge" ] rewrite_tac *)
-(*     >> beta_tac *)
-(*     >> with_first (with_definition [ "length" ] rewrite_tac) *)
-(*     >> with_first (with_proven [ "plus_Suc" ] rewrite_asm_tac) *)
-(*     >> with_first (with_proven [ "plus_comm" ] rewrite_tac) *)
-(*     >> with_first (with_proven [ "plus_Suc" ] rewrite_tac) *)
-(*     >> with_first (with_proven [ "plus_comm" ] rewrite_tac) *)
-(*     >> with_first (with_assumptions rewrite_tac) *)
-(*     >> simp_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀xs. ∀ys. merge xs ys = match_list xs ys (λh. λt. match_list ys (Cons h t) (λy'. λys'. COND (nat_lt h y') (Cons h (merge t (Cons y' ys'))) (Cons y' (merge (Cons h t) ys')))) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 1212 *)
-(*     |}] *)
-(**)
-(* (* sort [3,1,2] = [1,2,3] *) *)
-(* let%expect_test "merge sort [3,1,2] = [1,2,3]" = *)
-(*   let rw_def r = *)
-(*     with_first (with_definition [ r ] rewrite_tac) *)
-(*     >> try_ (with_repeat beta_tac) *)
-(*   in *)
-(*   let rw_thm r = *)
-(*     with_first (with_proven [ r ] rewrite_tac) >> try_ (with_repeat beta_tac) *)
-(*   in *)
-(*   let exclude = *)
-(*     [ *)
-(*       "merge_sort_aux"; *)
-(*       "merge"; *)
-(*       "merge_aux"; *)
-(*       "div"; *)
-(*       "div_aux"; *)
-(*       "merge_unfold"; *)
-(*       "div_unfold"; *)
-(*     ] *)
-(*   in *)
-(**)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         merge_sort_aux 8n (Cons (3n, Cons (1n, Cons (2n, Nil)))) *)
-(*         = Some (Cons (1n, Cons (2n, Cons (3n, Nil))))] *)
-(*   in *)
-(*   run_proof ~pretty:true ~notrace:true goal *)
-(*     (rw_def "merge_sort_aux" >> simp_tac ~exclude *)
-(*     >> with_repeat @@ rw_def "div" *)
-(*     >> with_repeat @@ rw_def "div_aux" *)
-(*     >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude *)
-(*     >> rw_def "merge_sort_aux" >> simp_tac ~exclude *)
-(*     >> with_repeat @@ rw_def "div" *)
-(*     >> with_repeat @@ rw_def "div_aux" *)
-(*     >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude *)
-(*     >> rw_def "merge_sort_aux" >> simp_tac ~exclude >> rw_thm "merge_unfold" *)
-(*     >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude *)
-(*     >> rw_thm "merge_unfold" >> simp_tac ~exclude >> rw_thm "merge_unfold" *)
-(*     >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude *)
-(*     >> rw_thm "merge_unfold" >> simp_tac ~exclude); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     merge_sort_aux 8 [3, 1, 2] = Some [1, 2, 3] *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 1341 *)
-(*     |}] *)
-(**)
-(* let%expect_test "length take" = *)
-(*   let n = [%term (n : nat)] in *)
-(*   let n1 = [%term (n1 : nat list)] in *)
-(*   let xs = [%term (xs : nat list)] in *)
-(*   let gtake = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (n : nat) (xs : nat list) -> *)
-(*             length (take n xs) = if nat_lt n (length xs) then n else length xs)] *)
-(*   in *)
-(*   let gdrop = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall (fun (n : nat) (xs : nat list) -> *)
-(*             length (drop n xs) = sub (length xs) n)] *)
-(*   in *)
-(*   run_proof ~name:"length_take" ~notrace:true gtake *)
-(*     (with_term n induct_tac >>> try_ intros_tac >>> with_term xs induct_tac *)
-(*    >>> try_ intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >> with_repeat *)
-(*          (with_first (with_definition [ "take"; "length" ] rewrite_tac)) *)
-(*     >> beta_tac *)
-(*     >> with_repeat (with_first (with_definition [ "match_list" ] rewrite_tac)) *)
-(*     >> beta_tac *)
-(*     >> with_first (with_definition [ "length" ] rewrite_tac) *)
-(*     >> spec_asm_tac n1 *)
-(*     >> with_assumptions rewrite_tac *)
-(*     >> with_first (with_proven [ "lt_Suc_Suc" ] rewrite_tac) *)
-(*     >> cond_tac >> simp_tac >> simp_tac); *)
-(*   run_proof ~name:"length_drop" ~notrace:true gdrop *)
-(*     (with_term n induct_tac >>> try_ intros_tac >>> with_term xs induct_tac *)
-(*    >>> try_ intros_tac *)
-(*     >>> try_ assumption_reasoning_tac *)
-(*     >> with_repeat *)
-(*          (with_first (with_definition [ "take"; "length" ] rewrite_tac)) *)
-(*     >> beta_tac *)
-(*     >> with_repeat (with_first (with_definition [ "match_list" ] rewrite_tac)) *)
-(*     >> beta_tac *)
-(*     >> with_first (with_definition [ "length" ] rewrite_tac) *)
-(*     >> spec_asm_tac n1 *)
-(*     >> with_assumptions rewrite_tac *)
-(*     >> with_first (with_proven [ "lt_Suc_Suc" ] rewrite_tac) *)
-(*     >> cond_tac >> simp_tac >> simp_tac); *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀xs. length (take x xs) = COND (nat_lt x (length xs)) x (length xs) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 566 *)
-(*     ======================================== *)
-(*     ∀x. ∀xs. length (drop x xs) = sub (length xs) x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 241 *)
-(*     |}] *)
-(**)
-(* let%expect_test "div_pos" = *)
-(*   let%thm div_pos (n : nat) = nat_lt 1n n ==> nat_lt 0n (div n 2n) *)
-(*   and proof = *)
-(*     begin *)
-(*       with_term [%term (n : nat)] induct_tac *)
-(*       >>> intros_tac *)
-(*       >>> try_ assumption_reasoning_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              div (Suc (n0 : nat)) 2n *)
-(*              = *)
-(*              if nat_lt (Suc (n0 : nat)) 2n then 0n *)
-(*              else Suc (div (sub (Suc (n0 : nat)) 2n) 2n)] *)
-(*            assert_tac *)
-(*       >> with_first (with_proven [ "div_unfold" ] apply_tac) *)
-(*       >> simp_tac *)
-(*       >> with_assumptions rewrite_tac *)
-(*       >> cond_tac >> simp_asm_tac *)
-(*       >> with_first eq_true_elim_asm_tac *)
-(*       >> with_first (with_proven [ "le_Zero_eq" ] apply_asm_tac) *)
-(*       >> simp_asm_tac >> false_elim_tac *)
-(*       >> with_assumptions rewrite_tac *)
-(*       >> with_proven [ "cond_false" ] rewrite_tac *)
-(*       >> simp_tac ~exclude:[ "div" ] *)
-(*     end *)
-(*   in *)
-(*   ignore div_pos; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_lt (Suc Zero) x ==> nat_lt Zero (div x (Suc (Suc Zero))) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 772 *)
-(*     |}] *)
-(**)
-(* let apply_asm_to_asm_tac ~asm_thm ~asm_to = *)
-(*   with_nth_choice asm_thm *)
-(*     (with_nth_term asm_to (with_assumptions apply_asm_tac)) *)
-(**)
-(* let%expect_test "div_le" = *)
-(*   let%thm div_le (n : nat) (k : nat) (m : nat) = *)
-(*     nat_lt 0n m ==> (nat_le k n ==> nat_le (div k m) n) *)
-(*   and proof = *)
-(*     begin *)
-(*       with_term [%term (n : nat)] induct_tac *)
-(*       >> intros_tac *)
-(*       >> with_first (with_proven [ "le_Zero_eq" ] apply_asm_tac) *)
-(*       >> simp_tac *)
-(*       >> with_term [%term (m : nat)] destruct_tac *)
-(*       >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac *)
-(*       >> intros_tac *)
-(*       >> with_term [%term nat_lt (k : nat) (m : nat)] cases_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              div (k : nat) (m : nat) *)
-(*              = *)
-(*              if nat_lt (k : nat) (m : nat) then 0n *)
-(*              else Suc (div (sub (k : nat) (m : nat)) (m : nat))] *)
-(*            assert_tac *)
-(*       >> with_first (with_proven [ "div_unfold" ] apply_tac) *)
-(*       >> assumption_tac *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> simp_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              div (k : nat) (m : nat) *)
-(*              = *)
-(*              if nat_lt (k : nat) (m : nat) then 0n *)
-(*              else Suc (div (sub (k : nat) (m : nat)) (m : nat))] *)
-(*            assert_tac *)
-(*       >> with_first (with_proven [ "div_unfold" ] apply_tac) *)
-(*       >> assumption_tac *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> simp_tac ~exclude:[ "div"; "div_unfold" ] *)
-(*       >> with_term *)
-(*            [%term nat_le (sub (k : nat) (m : nat)) (n0 : nat)] *)
-(*            assert_tac *)
-(*       >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac) *)
-(*       >> with_term [%term nat_lt (sub (k : nat) (m : nat)) (k : nat)] assert_tac *)
-(*       >> with_proven [ "sub_lt" ] apply_tac *)
-(*       >> assumption_tac >> assumption_tac *)
-(*       >> with_specialized ~name:"lt_le_trans" *)
-(*            ~specs: *)
-(*              [ *)
-(*                [%term sub (k : nat) (m : nat)]; *)
-(*                [%term (k : nat)]; *)
-(*                [%term Suc (n0 : nat)]; *)
-(*              ] *)
-(*            apply_asm_tac *)
-(*       >> apply_asm_to_asm_tac ~asm_thm:0 ~asm_to:4 *)
-(*       >> with_first *)
-(*            (with_proven [ "lt_Suc_le" ] *)
-(*               (with_info_trace (with_flip_rules rewrite_tac))) *)
-(*       >> assumption_tac *)
-(*       >> spec_asm_tac [%term sub (k : nat) (m : nat)] *)
-(*       >> spec_asm_tac [%term (m : nat)] *)
-(*       >> with_repeat (with_assumptions (with_first_term apply_asm_tac)) *)
-(*       >> assumption_tac *)
-(*     end *)
-(*   in *)
-(*   ignore div_le; *)
-(**)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀k. ∀m. nat_lt Zero m ==> nat_le k x ==> nat_le (div k m) x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 349 *)
-(*     |}] *)
-(**)
-(* let%expect_test "div_lt" = *)
-(*   let%thm div_lt (n : nat) = nat_lt 1n n ==> nat_lt (div n 2n) n *)
-(*   and proof = *)
-(*     begin *)
-(*       with_term [%term (n : nat)] induct_tac *)
-(*       >> intros_tac >> assumption_reasoning_tac >> intros_tac *)
-(*       >> with_term [%term (n0 : nat)] destruct_tac *)
-(*       >> elim_disj_asm_tac >> simp_tac *)
-(*       >> with_repeat elim_exists_asm_tac *)
-(*       >> with_repeat (with_assumptions (with_first rewrite_tac)) *)
-(*       >> with_repeat (with_assumptions (with_first rewrite_asm_tac)) *)
-(*       >> with_term *)
-(*            [%term *)
-(*              div (Suc (Suc (a0 : nat))) 2n *)
-(*              = *)
-(*              if nat_lt (Suc (Suc (a0 : nat))) 2n then 0n *)
-(*              else Suc (div (sub (Suc (Suc (a0 : nat))) 2n) 2n)] *)
-(*            assert_tac *)
-(*       >> with_first (with_proven [ "div_unfold" ] apply_tac) *)
-(*       >> simp_tac *)
-(*       >> with_term [%term (a0 : nat)] destruct_tac *)
-(*       >> elim_disj_asm_tac >> simp_tac *)
-(*       >> with_repeat elim_exists_asm_tac *)
-(*       >> with_repeat (with_first (with_assumptions rewrite_asm_tac)) *)
-(*       >> with_repeat (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac)) *)
-(*       >> with_first *)
-(*            (with_nth_term 0 (with_definition [ "nat_lt" ] rewrite_asm_tac)) *)
-(*       >> beta_asm_tac *)
-(*       >> with_first *)
-(*            (with_nth_term 0 (with_definition [ "match_nat" ] rewrite_asm_tac)) *)
-(*       >> try_ beta_asm_tac *)
-(*       >> with_first *)
-(*            (with_nth_term 0 (with_proven [ "cond_false" ] rewrite_asm_tac)) *)
-(*       >> try_ beta_asm_tac *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> with_proven [ "lt_Suc_Suc" ] rewrite_tac *)
-(*       >> simp_tac ~exclude:[ "nat_lt"; "div" ] *)
-(*       >> with_repeat *)
-(*            (with_assumptions (with_flip_rules (with_first rewrite_tac))) *)
-(*       >> with_proven [ "div_le" ] apply_tac *)
-(*       >> simp_tac >> simp_tac *)
-(*     end *)
-(*   in *)
-(*   ignore div_lt; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. nat_lt (Suc Zero) x ==> nat_lt (div x (Suc (Suc Zero))) x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 563 *)
-(*     |}] *)
-(**)
-(* let%expect_test "merge sort sufficient" = *)
-(*   let%thm merge_sort_fuel_sufficient (fuel : nat) (xs : nat list) = *)
-(*     nat_lt (length xs) fuel *)
-(*     ==> exists (fun (x : nat list) -> merge_sort_aux fuel xs = Some x) *)
-(*   and proof = *)
-(*     begin *)
-(*       induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac *)
-(*       >> with_first (with_definition [ "merge_sort_aux" ] rewrite_tac) *)
-(*       >> beta_tac >> cond_tac *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> simp_tac ~exclude:[ "merge_sort_aux"; "take"; "drop"; "div"; "merge" ] *)
-(*       >> with_term [%term (xs : nat list)] exists_tac *)
-(*       >> refl_tac *)
-(*       >> with_first (with_assumptions rewrite_tac) *)
-(*       >> simp_tac ~exclude:[ "merge_sort_aux"; "take"; "drop"; "div"; "merge" ] *)
-(*       >> spec_asm_tac *)
-(*            [%term take (div (length (xs : nat list)) 2n) (xs : nat list)] *)
-(*       >> spec_asm_tac *)
-(*            [%term drop (div (length (xs : nat list)) 2n) (xs : nat list)] *)
-(*       >> (with_term *)
-(*             [%term *)
-(*               nat_lt *)
-(*                 (length *)
-(*                    (take (div (length (xs : nat list)) 2n) (xs : nat list))) *)
-(*                 (n0 : nat)] *)
-(*             assert_tac *)
-(*          >> with_first (with_proven [ "not_le_is_lt" ] rewrite_asm_tac) *)
-(*          >> with_first (with_proven [ "div_lt" ] apply_asm_tac) *)
-(*          >> with_proven [ "length_take" ] rewrite_tac *)
-(*          >> with_nth_term 0 (with_proven [ "eq_true_intro" ] apply_asm_tac) *)
-(*          >> with_assumptions rewrite_tac *)
-(*          >> simp_tac ~exclude:[ "div" ] *)
-(*          >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac) *)
-(*          >> with_specialized ~name:"lt_le_trans" *)
-(*               ~specs: *)
-(*                 [ *)
-(*                   [%term div (length (xs : nat list)) 2n]; *)
-(*                   [%term length (xs : nat list)]; *)
-(*                   [%term (n0 : nat)]; *)
-(*                 ] *)
-(*               apply_tac *)
-(*          >> with_first (with_assumptions rewrite_tac) *)
-(*          >> truth_tac >> assumption_tac) *)
-(*       >> with_term *)
-(*            [%term *)
-(*              nat_lt *)
-(*                (length (drop (div (length (xs : nat list)) 2n) (xs : nat list))) *)
-(*                (n0 : nat)] *)
-(*            assert_tac *)
-(*       >> with_first (with_proven [ "not_le_is_lt" ] rewrite_asm_tac) *)
-(*       >> with_first (with_proven [ "div_pos" ] apply_asm_tac) *)
-(*       >> with_proven [ "length_drop" ] rewrite_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              nat_lt *)
-(*                (sub (length (xs : nat list)) (div (length (xs : nat list)) 2n)) *)
-(*                (length (xs : nat list))] *)
-(*            assert_tac *)
-(*       >> with_first (with_proven [ "sub_lt" ] apply_tac) *)
-(*       >> assumption_tac *)
-(*       >> with_proven [ "div_le" ] apply_tac *)
-(*       >> simp_tac >> simp_tac *)
-(*       >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac) *)
-(*       >> with_specialized ~name:"lt_le_trans" *)
-(*            ~specs: *)
-(*              [ *)
-(*                [%term *)
-(*                  sub (length (xs : nat list)) (div (length (xs : nat list)) 2n)]; *)
-(*                [%term length (xs : nat list)]; *)
-(*                [%term (n0 : nat)]; *)
-(*              ] *)
-(*            apply_tac *)
-(*       >> assumption_tac >> assumption_tac *)
-(*       >> with_repeat *)
-(*            (with_first (with_assumptions (with_first_term apply_asm_tac))) *)
-(*       >> with_repeat elim_exists_asm_tac *)
-(*       >> simp_tac ~exclude:[ "div"; "merge" ] *)
-(*       >> with_term [%term merge (x' : nat list) (x'' : nat list)] exists_tac *)
-(*       >> refl_tac *)
-(*     end *)
-(*   in *)
-(*   ignore merge_sort_fuel_sufficient; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀x. ∀xs. nat_lt (length xs) x ==> ∃x. merge_sort_aux x xs = Some x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 303 *)
-(*     |}] *)
-(**)
-(* let%expect_test "merge sort fuel irrel" = *)
-(*   let goal = *)
-(*     make_goal *)
-(*       [%term *)
-(*         forall *)
-(*           (fun (fuel : nat) (additional : nat) (xs : nat list) (x : nat list) -> *)
-(*             merge_sort_aux fuel xs = Some x *)
-(*             ==> (merge_sort_aux (plus fuel additional) xs = Some x))] *)
-(*   in *)
-(*   let proof = sorry_tac in *)
-(*   (*TODO: finish this one*) *)
-(*   run_proof ~notrace:true goal proof; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀fuel. ∀additional. ∀xs. ∀x. merge_sort_aux fuel xs = Some x ==> merge_sort_aux (plus fuel additional) xs = Some x *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 1 *)
-(*     |}] *)
-(**)
-(* let%expect_test "merge sort unfold" = *)
-(*   let%thm merge_sort_unfold (xs : nat list) = *)
-(*     merge_sort xs *)
-(*     = *)
-(*     if nat_le (length xs) 1n then xs *)
-(*     else *)
-(*       (fun (half_length : nat) -> *)
-(*         merge *)
-(*           (merge_sort (take half_length xs)) *)
-(*           (merge_sort (drop half_length xs))) *)
-(*         (div (length xs) 2n) *)
-(*   and proof = *)
-(*     begin *)
-(*       intros_tac *)
-(*       >> with_definition [ "merge_sort" ] rewrite_tac *)
-(*       >> beta_tac *)
-(*       >> with_first (with_definition [ "merge_sort_aux" ] rewrite_tac) *)
-(*       >> beta_tac >> cond_tac *)
-(*       >> with_repeat (with_first (with_assumptions rewrite_tac)) *)
-(*       >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ] *)
-(*       >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ] *)
-(*       >> with_term *)
-(*            [%term *)
-(*              merge_sort_aux *)
-(*                (length (xs : nat list)) *)
-(*                (take (div (length (xs : nat list)) 2n) (xs : nat list)) *)
-(*              = Some *)
-(*                  (merge_sort *)
-(*                     (take (div (length (xs : nat list)) 2n) (xs : nat list)))] *)
-(*            assert_tac *)
-(*       >> with_definition [ "merge_sort" ] rewrite_tac *)
-(*       >> beta_tac *)
-(*       >> with_term *)
-(*            [%term *)
-(*              exists (fun (z : nat list) -> *)
-(*                  merge_sort_aux *)
-(*                    (Suc *)
-(*                       (length *)
-(*                          (take *)
-(*                             (div (length (xs : nat list)) 2n) *)
-(*                             (xs : nat list)))) *)
-(*                    (take (div (length (xs : nat list)) 2n) (xs : nat list)) *)
-(*                  = Some z)] *)
-(*            assert_tac *)
-(*       >> with_proven [ "merge_sort_fuel_sufficient" ] apply_tac *)
-(*       >> simp_tac >> elim_exists_asm_tac *)
-(*       >> with_assumptions rewrite_tac *)
-(*       >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ] *)
-(*       >> with_term *)
-(*            [%term *)
-(*              plus *)
-(*                (Suc *)
-(*                   (length *)
-(*                      (take (div (length (xs : nat list)) 2n) (xs : nat list)))) *)
-(*                (sub *)
-(*                   (length (xs : nat list)) *)
-(*                   (Suc *)
-(*                      (length *)
-(*                         (take (div (length (xs : nat list)) 2n) (xs : nat list))))) *)
-(*              = length (xs : nat list)] *)
-(*            assert_tac *)
-(*       >> with_proven [ "plus_comm" ] rewrite_tac *)
-(*       >> with_proven [ "sub_add_cancel" ] apply_tac *)
-(*       >> with_proven [ "length_take" ] rewrite_tac *)
-(*       >> sorry_tac >> sorry_tac >> sorry_tac *)
-(*     end *)
-(*   in *)
-(*   ignore merge_sort_unfold; *)
-(*   [%expect *)
-(*     {| *)
-(*     ======================================== *)
-(*     ∀xs. merge_sort xs = COND (nat_le (length xs) (Suc Zero)) xs ((λhalf_length. merge (merge_sort (take half_length xs)) (merge_sort (drop half_length xs))) (div (length xs) (Suc (Suc Zero)))) *)
-(**)
-(*     Proof Complete! *)
-(*     with fuel: 185 *)
-(*     |}] *)
+let%expect_test "lt_Zero_Suc" =
+  let n0 = [%term (n0 : nat)] in
+  let goal =
+    make_goal
+      [%term
+        forall (fun (b : nat) ->
+            nat_lt 0n b ==> exists (fun (x : nat) -> b = Suc x))]
+  in
+  run_proof ~simp:true ~name:"lt_Zero_Suc" ~notrace:true goal
+    (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
+   >> with_term n0 exists_tac >> refl_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_lt Zero x ==> ∃x'. x = Suc x'
+
+    Proof Complete!
+    with fuel: 58
+    |}]
+
+let nat_induct_auto_tac =
+  induct_tac
+  >> with_no_automation_trace auto_dfs_tac
+  >> with_no_automation_trace auto_dfs_tac
+
+let%expect_test "Suc_lt_Zero" =
+  let goal =
+    make_goal
+      [%term forall (fun (x : nat) (b : nat) -> b = Suc x ==> nat_lt 0n b)]
+  in
+  run_proof ~simp:true ~name:"Suc_lt_Zero" ~notrace:true goal
+    nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. b = Suc x ==> nat_lt Zero b
+
+    Proof Complete!
+    with fuel: 160
+    |}]
+
+let%expect_test "lt_Zero_Suc" =
+  let goal =
+    make_goal [%term forall (fun (a : nat) -> nat_lt a Zero = false)]
+  in
+  run_proof ~simp:true ~name:"lt_Zero_false" ~notrace:true goal
+    nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_lt x Zero = F
+
+    Proof Complete!
+    with fuel: 97
+    |}]
+
+let%expect_test "lt_add_Suc_r" =
+  let goal =
+    make_goal
+      [%term forall (fun (a : nat) (b : nat) -> nat_lt a (plus a (Suc b)))]
+  in
+  run_proof ~name:"lt_add_Suc_r" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_lt x (plus x (Suc b))
+
+    Proof Complete!
+    with fuel: 156
+    |}]
+
+let%expect_test "add_lt_cancel_l" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_lt (plus a b) (plus a c) = nat_lt b c)]
+  in
+  run_proof ~name:"add_lt_cancel_l" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. ∀c. nat_lt (plus x b) (plus x c) = nat_lt b c
+
+    Proof Complete!
+    with fuel: 164
+    |}]
+
+let%expect_test "add_le_cancel_l" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_le (plus a b) (plus a c) = nat_le b c)]
+  in
+  run_proof ~name:"add_le_cancel_l" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. ∀c. nat_le (plus x b) (plus x c) = nat_le b c
+
+    Proof Complete!
+    with fuel: 164
+    |}]
+
+(* ===== Group 1: Basic computation rules ===== *)
+
+let%expect_test "sub_Zero_r" =
+  let goal = make_goal [%term forall (fun (a : nat) -> sub a 0n = a)] in
+  run_proof ~simp:true ~name:"sub_Zero_r" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. sub x Zero = x
+
+    Proof Complete!
+    with fuel: 85
+    |}]
+
+let%expect_test "sub_Suc_Suc" =
+  let goal =
+    make_goal
+      [%term forall (fun (a : nat) (b : nat) -> sub (Suc a) (Suc b) = sub a b)]
+  in
+  run_proof ~simp:true ~name:"sub_Suc_Suc" ~notrace:true goal
+    nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. sub (Suc x) (Suc b) = sub x b
+
+    Proof Complete!
+    with fuel: 153
+    |}]
+
+let%expect_test "sub_Zero_l" =
+  let goal = make_goal [%term forall (fun (a : nat) -> sub Zero a = 0n)] in
+  run_proof ~simp:true ~name:"sub_Zero_l" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. sub Zero x = Zero
+
+    Proof Complete!
+    with fuel: 71
+    |}]
+
+let%expect_test "lt_Zero_Suc" =
+  let goal =
+    make_goal [%term forall (fun (a : nat) -> nat_lt 0n (Suc a) = true)]
+  in
+  run_proof ~simp:true ~name:"lt_Zero_Suc" ~notrace:true goal
+    nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_lt Zero (Suc x) = T
+
+    Proof Complete!
+    with fuel: 107
+    |}]
+
+let%expect_test "lt_Suc_Suc" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> nat_lt (Suc a) (Suc b) = nat_lt a b)]
+  in
+  run_proof ~simp:true ~name:"lt_Suc_Suc" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_lt (Suc x) (Suc b) = nat_lt x b
+
+    Proof Complete!
+    with fuel: 153
+    |}]
+
+let%expect_test "le_Zero_eq" =
+  let goal =
+    make_goal [%term forall (fun (a : nat) -> nat_le a 0n ==> (a = 0n))]
+  in
+  run_proof ~simp:true ~name:"le_Zero_eq" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_le x Zero ==> x = Zero
+
+    Proof Complete!
+    with fuel: 127
+    |}]
+
+let%expect_test "le_Zero_l" =
+  let goal = make_goal [%term forall (fun (a : nat) -> nat_le 0n a = true)] in
+
+  run_proof ~simp:true ~name:"le_Zero_l" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_le Zero x = T
+
+    Proof Complete!
+    with fuel: 78
+    |}]
+
+let%expect_test "le_Suc_Suc" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> nat_le (Suc a) (Suc b) = nat_le a b)]
+  in
+
+  run_proof ~simp:true ~name:"le_Suc_Suc" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le (Suc x) (Suc b) = nat_le x b
+
+    Proof Complete!
+    with fuel: 153
+    |}]
+
+let%expect_test "le_Zero_r" =
+  let goal =
+    make_goal [%term forall (fun (a : nat) -> nat_le (Suc a) Zero = false)]
+  in
+  run_proof ~simp:true ~name:"le_Zero_r" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_le (Suc x) Zero = F
+
+    Proof Complete!
+    with fuel: 117
+    |}]
+
+(* ===== Group 2: Reflexivity and basic identity ===== *)
+
+let%expect_test "lt_irrefl" =
+  let goal = make_goal [%term forall (fun (a : nat) -> nat_lt a a = false)] in
+  run_proof ~simp:true ~name:"lt_irrefl" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_lt x x = F
+
+    Proof Complete!
+    with fuel: 64
+    |}]
+
+let%expect_test "le_refl" =
+  let goal = make_goal [%term forall (fun (a : nat) -> nat_le a a = true)] in
+  run_proof ~simp:true ~name:"le_refl" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_le x x = T
+
+    Proof Complete!
+    with fuel: 64
+    |}]
+
+let%expect_test "sub_self" =
+  let goal = make_goal [%term forall (fun (a : nat) -> sub a a = 0n)] in
+
+  run_proof ~simp:true ~name:"sub_self" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. sub x x = Zero
+
+    Proof Complete!
+    with fuel: 64
+    |}]
+
+let%expect_test "add_Zero_l" =
+  let goal = make_goal [%term forall (fun (a : nat) -> plus 0n a = a)] in
+  run_proof ~simp:true ~name:"add_Zero_l" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. plus Zero x = x
+
+    Proof Complete!
+    with fuel: 78
+    |}]
+
+let%expect_test "add_Suc_l" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> plus (Suc a) b = Suc (plus a b))]
+  in
+  run_proof ~simp:true ~name:"add_Suc_l" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. plus (Suc x) b = Suc (plus x b)
+
+    Proof Complete!
+    with fuel: 124
+    |}]
+
+(* ===== Group 3: Successor relationships ===== *)
+
+let%expect_test "lt_Suc_self" =
+  let goal =
+    make_goal [%term forall (fun (a : nat) -> nat_lt a (Suc a) = true)]
+  in
+  run_proof ~simp:true ~name:"lt_Suc_self" ~notrace:true goal
+    nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_lt x (Suc x) = T
+
+    Proof Complete!
+    with fuel: 64
+    |}]
+
+let%expect_test "le_Suc_self" =
+  let goal =
+    make_goal [%term forall (fun (a : nat) -> nat_le a (Suc a) = true)]
+  in
+  run_proof ~simp:true ~name:"le_Suc_self" ~notrace:true goal
+    nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_le x (Suc x) = T
+
+    Proof Complete!
+    with fuel: 64
+    |}]
+
+let%expect_test "lt_Suc_le" =
+  let goal =
+    make_goal
+      [%term forall (fun (a : nat) (b : nat) -> nat_lt a (Suc b) = nat_le a b)]
+  in
+
+  run_proof ~simp:true ~name:"lt_Suc_le" ~notrace:true goal
+    (induct_tac
+    >> with_no_automation_trace auto_dfs_tac
+    >> intros_tac >> simp_tac
+    >> with_term [%term (b : nat)] destruct_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_lt x (Suc b) = nat_le x b
+
+    Proof Complete!
+    with fuel: 155
+    |}]
+
+let%expect_test "le_lt_Suc" =
+  let goal =
+    make_goal
+      [%term forall (fun (a : nat) (b : nat) -> nat_le a b = nat_lt a (Suc b))]
+  in
+  run_proof ~name:"le_lt_Suc" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le x b = nat_lt x (Suc b)
+
+    Proof Complete!
+    with fuel: 117
+    |}]
+
+(* (* ===== Group 4: Connection between lt and le ===== *) *)
+let%expect_test "not_lt_is_le" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> nat_lt a b = false = nat_le b a)]
+  in
+
+  run_proof ~simp:true ~name:"not_lt_is_le" ~notrace:true goal
+    (induct_tac >> induct_tac >> simp_tac >> eq_true_elim_tac >> refl_tac
+   >> intros_tac >> simp_tac >> eq_false_elim_tac >> neg_intro_tac
+   >> sym_asm_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> truth_tac >> intros_tac >> simp_tac
+    >> with_term [%term (b : nat)] destruct_tac
+    >> elim_disj_asm_tac >> simp_tac >> eq_true_elim_tac >> refl_tac
+    >> elim_exists_asm_tac >> simp_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_lt x b = F = nat_le b x
+
+    Proof Complete!
+    with fuel: 196
+    |}]
+
+let%expect_test "equality simp rules" =
+  run_proof ~simp:true ~name:"eq_true_false"
+    (make_goal [%term true = false = false])
+    (eq_false_elim_tac >> neg_intro_tac
+    >> with_assumptions @@ with_flip_rules rewrite_tac
+    >> truth_tac);
+  run_proof ~simp:true ~name:"eq_false_false"
+    (make_goal [%term false = false = true])
+    (eq_true_elim_tac >> refl_tac);
+  run_proof ~simp:true ~name:"eq_true_true"
+    (make_goal [%term true = true = false])
+    (eq_true_elim_tac >> refl_tac);
+  run_proof ~simp:true ~name:"eq_false_true"
+    (make_goal [%term false = true = false])
+    (eq_false_elim_tac >> neg_intro_tac >> simp_tac);
+  run_proof ~simp:true ~name:"neg_false_true"
+    (make_goal [%term (not false) = true])
+    (eq_true_elim_tac >> neg_intro_tac >> false_elim_tac);
+  run_proof ~simp:true ~name:"neg_true_false"
+    (make_goal [%term (not true) = false])
+    (eq_false_elim_tac
+    >> with_term [%term true] assert_tac
+    >> truth_tac >> neg_intro_tac >> neg_elim_tac);
+  run_proof ~name:"eq_cong"
+    (make_goal
+       [%term
+         forall (fun (f : 'a -> 'b) (x : 'a) (y : 'a) -> x = y ==> (f x = f y))])
+    (intros_tac >> simp_tac);
+
+  [%expect
+    {|
+    ========================================
+    T = F = F
+
+    Proof Complete!
+    with fuel: 12
+    ========================================
+    F = F = T
+
+    Proof Complete!
+    with fuel: 3
+    ========================================
+    T = T = T
+
+    Proof Complete!
+    with fuel: 3
+    ========================================
+    F = T = F
+
+    Proof Complete!
+    with fuel: 19
+    ========================================
+    ¬F = T
+
+    Proof Complete!
+    with fuel: 7
+    ========================================
+    ¬T = F
+
+    Proof Complete!
+    with fuel: 15
+    ========================================
+    ∀f. ∀x. ∀y. x = y ==> f x = f y
+
+    Proof Complete!
+    with fuel: 21
+    |}]
+
+let%expect_test "not_le_is_lt" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> nat_le a b = false = nat_lt b a)]
+  in
+  run_proof ~name:"not_le_is_lt" ~notrace:true goal
+    (induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
+    >> with_term [%term (b : nat)] destruct_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac
+    >> with_term [%term (n0 : nat)] destruct_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le x b = F = nat_lt b x
+
+    Proof Complete!
+    with fuel: 257
+    |}]
+
+let%expect_test "lt_implies_le" =
+  let goal =
+    make_goal
+      [%term forall (fun (a : nat) (b : nat) -> nat_lt a b ==> nat_le a b)]
+  in
+  run_proof ~name:"lt_implies_le" ~notrace:true goal
+    (induct_tac
+    >> with_no_automation_trace auto_dfs_tac
+    >> intros_tac >> simp_tac
+    >> with_term [%term (b : nat)] destruct_tac
+    >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac
+    >> simp_tac >> simp_asm_tac
+    >> spec_asm_tac [%term (a0 : nat)]
+    >> with_assumptions (with_first_term apply_asm_tac)
+    >> assumption_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_lt x b ==> nat_le x b
+
+    Proof Complete!
+    with fuel: 232
+    |}]
+
+(* (* ===== Group 5: Transitivity ===== *) *)
+
+let assumption_reasoning_tac =
+  try_
+    (with_no_automation_trace
+       (with_best_first
+          (pick_tac
+             [
+               simp_tac; simp_asm_tac; false_elim_tac; assumption_tac; truth_tac;
+             ])))
+
+let%expect_test "lt_trans" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_lt a b ==> (nat_lt b c ==> nat_lt a c))]
+  in
+  run_proof ~name:"lt_trans" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (c : nat)] induct_tac
+    >>> intros_tac
+    >>> try_ assumption_reasoning_tac
+    >>= [
+          with_repeat
+            (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac))
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> spec_asm_tac [%term (n0'' : nat)]
+          >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
+          >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+          >> assumption_tac;
+        ]);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. ∀c. nat_lt x b ==> nat_lt b c ==> nat_lt x c
+
+    Proof Complete!
+    with fuel: 771
+    |}]
+
+let%expect_test "le_trans" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_le a b ==> (nat_le b c ==> nat_le a c))]
+  in
+  run_proof ~name:"le_trans" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (c : nat)] induct_tac
+    >>> intros_tac
+    >>> try_ assumption_reasoning_tac
+    >>= [
+          with_repeat
+            (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac))
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> spec_asm_tac [%term (n0'' : nat)]
+          >> with_proven [ "le_Suc_Suc" ] rewrite_tac
+          >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+          >> assumption_tac;
+        ]);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. ∀c. nat_le x b ==> nat_le b c ==> nat_le x c
+
+    Proof Complete!
+    with fuel: 591
+    |}]
+
+let%expect_test "le_lt_trans" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_le a b ==> (nat_lt b c ==> nat_lt a c))]
+  in
+  run_proof ~name:"le_lt_trans" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (c : nat)] induct_tac
+    >>> intros_tac
+    >>> try_ assumption_reasoning_tac
+    >>= [
+          with_repeat
+            (with_first
+               (with_proven [ "le_Suc_Suc"; "lt_Suc_Suc" ] rewrite_asm_tac))
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> spec_asm_tac [%term (n0'' : nat)]
+          >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
+          >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+          >> assumption_tac;
+        ]);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. ∀c. nat_le x b ==> nat_lt b c ==> nat_lt x c
+
+    Proof Complete!
+    with fuel: 758
+    |}]
+
+let%expect_test "lt_le_trans" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) (c : nat) ->
+            nat_lt a b ==> (nat_le b c ==> nat_lt a c))]
+  in
+  run_proof ~name:"lt_le_trans" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (c : nat)] induct_tac
+    >>> intros_tac
+    >>> try_ assumption_reasoning_tac
+    >>= [
+          with_proven [ "lt_Suc_Suc" ] rewrite_tac
+          >> with_repeat
+               (with_first
+                  (with_proven [ "lt_Suc_Suc"; "le_Suc_Suc" ] rewrite_asm_tac))
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> spec_asm_tac [%term (n0'' : nat)]
+          >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+          >> assumption_tac;
+        ]);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. ∀c. nat_lt x b ==> nat_le b c ==> nat_lt x c
+
+    Proof Complete!
+    with fuel: 740
+    |}]
+
+let%expect_test "le_antisym" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) ->
+            nat_le a b ==> (nat_le b a ==> ((a : nat) = b)))]
+  in
+  run_proof ~name:"le_antisym" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> intros_tac
+    >>> try_ assumption_reasoning_tac
+    >> with_proven [ "eq_cong" ] apply_tac
+    >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac))
+    >> spec_asm_tac [%term (n0' : nat)]
+    >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+    >> assumption_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le x b ==> nat_le b x ==> x = b
+
+    Proof Complete!
+    with fuel: 251
+    |}]
+
+(* (* ===== Group 6: Subtraction properties ===== *) *)
+
+let%expect_test "le_weaken_Suc" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> nat_le a b ==> nat_le a (Suc b))]
+  in
+  run_proof ~name:"le_weaken_Suc" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> try_ intros_tac
+    >>> try_ assumption_reasoning_tac
+    >> with_proven [ "le_Suc_Suc" ] rewrite_tac
+    >> spec_asm_tac [%term (n0' : nat)]
+    >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac))
+    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> sorry_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le x b ==> nat_le x (Suc b)
+
+    Proof Complete!
+    with fuel: 309
+    |}]
+
+let%expect_test "lt_weaken_Suc" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) -> nat_lt a b ==> nat_lt a (Suc b))]
+  in
+  run_proof ~name:"lt_weaken_Suc" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> try_ intros_tac
+    >>> try_ assumption_reasoning_tac
+    >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
+    >> spec_asm_tac [%term (n0' : nat)]
+    >> with_repeat (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac))
+    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> sorry_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_lt x b ==> nat_lt x (Suc b)
+
+    Proof Complete!
+    with fuel: 383
+    |}]
+
+let%expect_test "sub_le" =
+  let goal =
+    make_goal [%term forall (fun (a : nat) (b : nat) -> nat_le (sub a b) a)]
+  in
+  run_proof ~name:"sub_le" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> try_ intros_tac
+    >>> try_ assumption_reasoning_tac
+    >> with_proven [ "sub_Suc_Suc" ] rewrite_tac
+    >> spec_asm_tac [%term (n0' : nat)]
+    >> with_proven [ "le_weaken_Suc" ] apply_tac
+    >> assumption_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le (sub x b) x
+
+    Proof Complete!
+    with fuel: 266
+    |}]
+
+let%expect_test "sub_lt" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (b : nat) (a : nat) ->
+            nat_lt 0n b ==> (nat_le b a ==> nat_lt (sub a b) a))]
+  in
+  run_proof ~name:"sub_lt" ~notrace:true goal
+    (with_term [%term (b : nat)] induct_tac
+    >>> intros_tac >> assumption_reasoning_tac
+    >> with_term [%term (a : nat)] destruct_tac
+    >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac >> assumption_tac
+    >> elim_exists_asm_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> with_first (with_assumptions rewrite_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_proven [ "sub_Suc_Suc" ] rewrite_tac
+    >> with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac)
+    >> with_term [%term (n0 : nat)] destruct_tac
+    >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac
+    >> with_proven [ "lt_weaken_Suc" ] apply_tac
+    >> spec_asm_tac [%term (a0 : nat)]
+    >> simp_asm_tac >> simp_tac
+    >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+    >> assumption_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀a. nat_lt Zero x ==> nat_le x a ==> nat_lt (sub a x) a
+
+    Proof Complete!
+    with fuel: 410
+    |}]
+
+let%expect_test "sub_add_cancel" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (a : nat) (b : nat) ->
+            nat_le b a ==> (plus (sub a b) b = a))]
+  in
+  run_proof ~name:"sub_add_cancel" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> try_ intros_tac
+    >>> try_ assumption_reasoning_tac
+    >>= [
+          simp_tac
+          >> with_proven [ "eq_cong" ] apply_tac
+          >> with_proven [ "plus_x_Zero" ] rewrite_tac
+          >> refl_tac;
+          simp_asm_tac >> simp_tac
+          >> with_proven [ "plus_Suc" ] rewrite_tac
+          >> with_proven [ "eq_cong" ] apply_tac
+          >> spec_asm_tac [%term (n0' : nat)]
+          >> with_assumptions (with_first_term apply_asm_tac)
+          >> assumption_tac;
+        ]);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le b x ==> plus (sub x b) b = x
+
+    Proof Complete!
+    with fuel: 478
+    |}]
+
+(* (* ===== Group 8: Ordering and addition ===== *) *)
+
+let%expect_test "le_add_r" =
+  let goal =
+    make_goal [%term forall (fun (a : nat) (b : nat) -> nat_le a (plus a b))]
+  in
+  run_proof ~name:"le_add_r" ~notrace:true goal nat_induct_auto_tac;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le x (plus x b)
+
+    Proof Complete!
+    with fuel: 118
+    |}]
+
+(* (* ===== Group 9: Totality ===== *) *)
+
+let%expect_test "lt_total" =
+  let%thm lt_total (a : nat) (b : nat) = nat_lt a b || nat_le b a
+  and proof =
+    begin
+      with_term [%term (a : nat)] induct_tac
+      >>> intros_tac
+      >>> with_term [%term (b : nat)] induct_tac
+      >>> try_ intros_tac
+      >>= [
+            right_tac >> simp_tac;
+            left_tac >> simp_tac;
+            right_tac >> simp_tac;
+            spec_asm_tac [%term (n0' : nat)]
+            >> elim_disj_asm_tac >> left_tac
+            >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
+            >> assumption_tac >> right_tac
+            >> with_proven [ "le_Suc_Suc" ] rewrite_tac
+            >> assumption_tac;
+          ]
+    end
+    [@notrace]
+  in
+  ignore lt_total;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_lt x b ∨ nat_le b x
+
+    Proof Complete!
+    with fuel: 159
+    |}]
+
+let%expect_test "le_total" =
+  let goal =
+    make_goal
+      [%term forall (fun (a : nat) (b : nat) -> nat_le a b || nat_le b a)]
+  in
+  run_proof ~name:"le_total" ~notrace:true goal
+    (with_term [%term (a : nat)] induct_tac
+    >>> intros_tac
+    >>> with_term [%term (b : nat)] induct_tac
+    >>> try_ intros_tac
+    >>= [
+          right_tac >> simp_tac;
+          left_tac >> simp_tac;
+          right_tac >> simp_tac;
+          spec_asm_tac [%term (n0' : nat)]
+          >> elim_disj_asm_tac >> left_tac
+          >> with_proven [ "le_Suc_Suc" ] rewrite_tac
+          >> assumption_tac >> right_tac
+          >> with_proven [ "le_Suc_Suc" ] rewrite_tac
+          >> assumption_tac;
+        ]);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀b. nat_le x b ∨ nat_le b x
+
+    Proof Complete!
+    with fuel: 154
+    |}]
+
+let%expect_test "div fuel sufficient" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (n : nat) (a : nat) (b : nat) ->
+            nat_lt 0n b
+            ==> (nat_lt a n ==> exists (fun (x : nat) -> div_aux n a b = Some x)))]
+  in
+  run_proof ~name:"div_fuel_sufficient" ~notrace:true goal
+    (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
+   >> simp_tac >> cond_tac >> simp_tac
+    >> with_term Nats.n0 exists_tac
+    >> refl_tac >> simp_tac
+    >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
+    >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
+    >> (with_first (with_proven [ "sub_lt" ] apply_asm_tac)
+       >> with_first (with_assumptions apply_asm_tac))
+    >> (with_first (with_proven [ "lt_le_trans" ] apply_asm_tac)
+       >> with_nth_term 4 (with_assumptions apply_asm_tac))
+    >> with_nth_term 2 (spec_asm_tac [%term sub (a : nat) (b : nat)])
+    >> with_nth_term 0 (spec_asm_tac [%term (b : nat)])
+    >> with_first (with_assumptions apply_asm_tac)
+    >> with_first (with_assumptions apply_asm_tac)
+    >> elim_exists_asm_tac >> simp_tac
+    >> with_term [%term Suc (x' : nat)] exists_tac
+    >> simp_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀a. ∀b. nat_lt Zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = Some x'
+
+    Proof Complete!
+    with fuel: 213
+    |}]
+
+let%expect_test "div unfold" =
+  let%thm div_unfold (a : nat) (b : nat) =
+    nat_lt 0n b ==> (div a b = if nat_lt a b then 0n else Suc (div (sub a b) b))
+  and proof =
+    begin
+      intros_tac
+      >> with_definition [ "div" ] rewrite_tac
+      >> beta_tac
+      >> with_first (with_definition [ "div_aux" ] rewrite_tac)
+      >> beta_tac >> with_nth_choice 1 cond_tac >> simp_tac
+      >> with_repeat @@ with_assumptions rewrite_tac
+      >> with_repeat @@ with_proven [ "cond_false" ] rewrite_tac
+      >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
+      >> with_term [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)] assert_tac
+      >> with_proven [ "sub_lt" ] apply_tac
+      >> assumption_tac >> assumption_tac
+      >> with_term
+           [%term
+             exists (fun (x' : nat) ->
+                 div_aux (a : nat) (sub (a : nat) (b : nat)) (b : nat) = Some x')]
+           assert_tac
+      >> with_proven [ "div_fuel_sufficient" ] apply_tac
+      >> assumption_tac >> assumption_tac >> elim_exists_asm_tac
+      >> with_first (with_assumptions rewrite_tac)
+      >> with_first (with_definition [ "match_option" ] rewrite_tac)
+      >> beta_tac
+      >> with_first (with_definition [ "match_option" ] rewrite_tac)
+      >> beta_tac
+      >> with_term
+           [%term
+             exists (fun (x : nat) ->
+                 div_aux
+                   (Suc (sub (a : nat) (b : nat)))
+                   (sub (a : nat) (b : nat))
+                   (b : nat)
+                 = Some x)]
+           assert_tac
+      >> with_proven [ "div_fuel_sufficient" ] apply_tac
+      >> assumption_tac
+      >> with_proven [ "lt_Suc_self" ] rewrite_tac
+      >> truth_tac >> elim_exists_asm_tac
+      >> with_term
+           [%term
+             div_aux
+               (plus
+                  (Suc (sub (a : nat) (b : nat)))
+                  (sub (a : nat) (Suc (sub (a : nat) (b : nat)))))
+               (sub (a : nat) (b : nat))
+               (b : nat)
+             = Some (x : nat)]
+           assert_tac
+      >> with_proven [ "div_fuel_irrel" ] apply_tac
+      >> assumption_tac
+      >> with_term
+           [%term
+             plus
+               (sub (a : nat) (Suc (sub (a : nat) (b : nat))))
+               (Suc (sub (a : nat) (b : nat)))
+             = (a : nat)]
+           assert_tac
+      >> with_proven [ "sub_add_cancel" ] apply_tac
+      >> with_proven [ "le_lt_Suc" ] rewrite_tac
+      >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
+      >> assumption_tac
+      >> with_nth_choice 0 @@ with_proven [ "plus_comm" ] rewrite_asm_tac
+      >> with_first (with_assumptions rewrite_asm_tac)
+      >> with_first (with_assumptions rewrite_asm_tac)
+      >> with_first
+           (with_rule (Options.option_def.injective |> List.hd) apply_asm_tac)
+      >> with_nth_term 4 (with_assumptions rewrite_asm_tac)
+      >> with_definition [ "div" ] rewrite_tac
+      >> beta_tac
+      >> with_assumptions rewrite_tac
+      >> simp_tac
+    end
+  in
+  ignore div_unfold;
+  [%expect
+    {|
+    ========================================
+    ∀a. ∀b. nat_lt Zero b ==> div a b = COND (nat_lt a b) Zero (Suc (div (sub a b) b))
+
+    Proof Complete!
+    with fuel: 260
+    |}]
+
+let%expect_test "merge test" =
+  let goal =
+    make_goal
+      [%term
+        merge_aux 9n
+          (Cons (2n, Cons (4n, Nil)))
+          (Cons (1n, Cons (2n, Cons (3n, Nil))))
+        = Some (Cons (1n, Cons (2n, Cons (2n, Cons (3n, Cons (4n, Nil))))))]
+  in
+  let compute =
+    try_
+      (with_repeat
+         (with_first
+            (with_definition
+               [ "match_list"; "match_option"; "nat_lt"; "match_nat" ]
+               rewrite_tac)))
+    >> try_ (with_repeat beta_tac)
+    >> try_
+         (with_repeat
+            (with_first (with_proven [ "cond_false"; "cond_true" ] rewrite_tac)))
+    >> try_ (with_repeat beta_tac)
+    >> try_ (with_first (with_definition [ "merge_aux" ] rewrite_tac))
+    >> try_ (with_repeat beta_tac)
+    >> try_ refl_tac
+  in
+  let proof = with_repeat compute in
+  run_proof ~pretty:true ~notrace:true goal proof;
+  [%expect
+    {|
+    ========================================
+    merge_aux 9 [2, 4] [1, 2, 3] = Some [1, 2, 2, 3, 4]
+
+    Proof Complete!
+    with fuel: 828
+    |}]
+
+let%expect_test "merge fuel irrel" =
+  let rw_asm =
+    with_first (with_assumptions rewrite_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
+  in
+  let _ = rw_asm in
+  let%thm merge_fuel_irrel (fuel : nat) (additional : nat) (xs : nat list)
+      (ys : nat list) (x : nat list) =
+    merge_aux fuel xs ys = Some x
+    ==> (merge_aux (plus fuel additional) xs ys = Some x)
+  and proof =
+    begin
+      with_term [%term (fuel : nat)] induct_tac
+      >> intros_tac >> simp_asm_tac >> discriminate_tac >> intros_tac
+      >> with_term [%term (xs : nat list)] destruct_tac
+      >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac
+      >> elim_exists_asm_tac
+      >> with_proven [ "add_Suc_l" ] rewrite_tac
+      >> rw_asm
+      >> with_term [%term (ys : nat list)] destruct_tac
+      >> elim_disj_asm_tac
+      >> with_first (with_definition [ "merge_aux" ] rewrite_tac)
+      >> beta_tac
+      >> with_first (with_definition [ "merge_aux" ] rewrite_asm_tac)
+      >> beta_tac >> simp_tac >> beta_asm_tac
+      >> with_first (with_assumptions rewrite_asm_tac)
+      >> simp_asm_tac >> elim_exists_asm_tac >> elim_exists_asm_tac >> rw_asm
+      >> with_first (with_definition [ "merge_aux" ] rewrite_tac)
+      >> beta_tac
+      >> with_first (with_definition [ "merge_aux" ] rewrite_asm_tac)
+      >> beta_asm_tac >> simp_tac >> simp_asm_tac >> cond_tac >> rw_asm
+      >> with_proven [ "cond_true" ] rewrite_tac
+      >> with_proven [ "cond_true" ] rewrite_asm_tac
+      >> with_term
+           [%term
+             merge_aux
+               (n0 : nat)
+               (a1 : nat list)
+               (Cons ((a0' : nat), (a1' : nat list)))]
+           destruct_tac
+      >> elim_disj_asm_tac >> simp_asm_tac >> discriminate_tac
+      >> elim_exists_asm_tac >> simp_asm_tac
+      >> spec_asm_tac [%term (additional : nat)]
+      >> spec_asm_tac [%term (a1 : nat list)]
+      >> spec_asm_tac [%term Cons ((a0' : nat), (a1' : nat list))]
+      >> spec_asm_tac [%term (a0 : nat list)]
+      >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+      >> simp_tac >> simp_tac
+      >> with_first (with_assumptions rewrite_asm_tac)
+      >> simp_asm_tac
+      >> with_term
+           [%term
+             merge_aux
+               (n0 : nat)
+               (Cons ((a0 : nat), (a1 : nat list)))
+               (a1' : nat list)]
+           destruct_tac
+      >> elim_disj_asm_tac >> simp_asm_tac >> discriminate_tac
+      >> elim_exists_asm_tac >> simp_asm_tac
+      >> spec_asm_tac [%term (additional : nat)]
+      >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))]
+      >> spec_asm_tac [%term (a1' : nat list)]
+      >> spec_asm_tac [%term (a0 : nat list)]
+      >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+      >> simp_tac
+    end
+  in
+  ignore merge_fuel_irrel;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀additional. ∀xs. ∀ys. ∀x. merge_aux x xs ys = Some x ==> merge_aux (plus x additional) xs ys = Some x
+
+    Proof Complete!
+    with fuel: 689
+    |}]
+
+let%expect_test "merge fuel sufficient" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (fuel : nat) (xs : nat list) (ys : nat list) ->
+            nat_lt (plus (length xs) (length ys)) fuel
+            ==> exists (fun (x : nat list) -> merge_aux fuel xs ys = Some x))]
+  in
+  run_proof ~name:"merge_fuel_sufficient" ~notrace:true goal
+    (induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
+   >> simp_tac
+    >> with_term [%term (xs : nat list)] destruct_tac
+    >> elim_disj_asm_tac >> simp_tac
+    >> with_term [%term (ys : nat list)] exists_tac
+    >> refl_tac
+    >> with_repeat elim_exists_asm_tac
+    >> simp_tac
+    >> with_term [%term (ys : nat list)] destruct_tac
+    >> elim_disj_asm_tac >> simp_tac
+    >> with_term [%term Cons ((a0 : nat), (a1 : nat list))] exists_tac
+    >> refl_tac
+    >> with_repeat elim_exists_asm_tac
+    >> simp_tac >> cond_tac >> simp_tac
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_first (with_definition [ "length" ] rewrite_asm_tac)
+    >> with_proven [ "add_Suc_l" ] rewrite_asm_tac
+    >> with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac
+    >> spec_asm_tac [%term (a1 : nat list)]
+    >> spec_asm_tac [%term Cons ((a0' : nat), (a1' : nat list))]
+    >> with_assumptions (with_first_term apply_asm_tac)
+    >> elim_exists_asm_tac >> simp_tac
+    >> with_term [%term Cons ((a0 : nat), (x' : nat list))] exists_tac
+    >> refl_tac >> simp_tac
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_first (with_assumptions rewrite_asm_tac)
+    >> with_proven [ "plus_comm" ] rewrite_asm_tac
+    >> with_first (with_definition [ "length" ] rewrite_asm_tac)
+    >> with_proven [ "add_Suc_l" ] rewrite_asm_tac
+    >> with_proven [ "plus_comm" ] rewrite_asm_tac
+    >> with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac
+    >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))]
+    >> spec_asm_tac [%term (a1' : nat list)]
+    >> with_assumptions (with_first_term apply_asm_tac)
+    >> elim_exists_asm_tac >> simp_tac
+    >> with_term [%term Cons ((a0' : nat), (x' : nat list))] exists_tac
+    >> refl_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀xs. ∀ys. nat_lt (plus (length xs) (length ys)) x ==> ∃x. merge_aux x xs ys = Some x
+
+    Proof Complete!
+    with fuel: 428
+    |}]
+
+(*
+what we want
+    def merge : list nat -> list nat -> list nat
+        | Nil => λys. ys
+        | Cons h t =>
+            match_list ys
+                (Cons h t)
+                (λy'. λys'. 
+                    COND (nat_lt h 'y)
+                        (Cons h (merge t (Cons y' ys')))
+                        (Cons 'y (merge (Cons h t) ys')))
+
+ *)
+let%expect_test "merge unfolding lemma" =
+  let goal =
+    make_goal
+      [%term
+        forall (fun (xs : nat list) (ys : nat list) ->
+            merge xs ys
+            = match_list xs ys (fun (h : nat) (t : nat list) ->
+                match_list ys
+                  (Cons (h, t))
+                  (fun (y' : nat) (ys' : nat list) ->
+                    if nat_lt h y' then Cons (h, merge t (Cons (y', ys')))
+                    else Cons (y', merge (Cons (h, t)) ys'))))]
+  in
+  run_proof ~name:"merge_unfold" ~notrace:true goal
+    (intros_tac
+    >> with_term [%term (xs : nat list)] destruct_tac
+    >> with_term [%term (ys : nat list)] destruct_tac
+    >> with_repeat elim_disj_asm_tac
+    >> simp_tac
+    >> with_repeat elim_exists_asm_tac
+    >> simp_tac
+    >> with_repeat elim_exists_asm_tac
+    >> simp_tac
+    >> with_repeat elim_exists_asm_tac
+    >> with_definition [ "merge" ] rewrite_tac
+    >> beta_tac
+    >> with_first (with_definition [ "merge_aux" ] rewrite_tac)
+    >> with_repeat (with_first (with_assumptions rewrite_tac))
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> cond_tac
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> with_term
+         [%term
+           exists (fun (x : nat list) ->
+               merge_aux
+                 (Suc
+                    (plus
+                       (length (a1' : nat list))
+                       (Suc (length (a1 : nat list)))))
+                 (a1' : nat list)
+                 (Cons ((a0 : nat), (a1 : nat list)))
+               = Some x)]
+         assert_tac
+    >> with_proven [ "merge_fuel_sufficient" ] apply_tac
+    >> simp_tac >> elim_exists_asm_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> with_definition [ "merge" ] rewrite_tac
+    >> beta_tac
+    >> with_first (with_definition [ "length" ] rewrite_tac)
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> with_term
+         [%term
+           exists (fun (x : nat list) ->
+               merge_aux
+                 (Suc
+                    (plus
+                       (length (a1' : nat list))
+                       (Suc (length (a1 : nat list)))))
+                 (Cons ((a0' : nat), (a1' : nat list)))
+                 (a1 : nat list)
+               = Some x)]
+         assert_tac
+    >> with_proven [ "merge_fuel_sufficient" ] apply_tac
+    >> simp_tac
+    >> with_proven [ "plus_Suc" ] rewrite_tac
+    >> simp_tac >> elim_exists_asm_tac
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
+    >> with_definition [ "merge" ] rewrite_tac
+    >> beta_tac
+    >> with_first (with_definition [ "length" ] rewrite_tac)
+    >> with_first (with_proven [ "plus_Suc" ] rewrite_asm_tac)
+    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
+    >> with_first (with_proven [ "plus_Suc" ] rewrite_tac)
+    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
+    >> with_first (with_assumptions rewrite_tac)
+    >> simp_tac);
+  [%expect
+    {|
+    ========================================
+    ∀xs. ∀ys. merge xs ys = match_list xs ys (λh. λt. match_list ys (Cons h t) (λy'. λys'. COND (nat_lt h y') (Cons h (merge t (Cons y' ys'))) (Cons y' (merge (Cons h t) ys'))))
+
+    Proof Complete!
+    with fuel: 1212
+    |}]
+
+(* sort [3,1,2] = [1,2,3] *)
+let%expect_test "merge sort [3,1,2] = [1,2,3]" =
+  let rw_def r =
+    with_first (with_definition [ r ] rewrite_tac)
+    >> try_ (with_repeat beta_tac)
+  in
+  let rw_thm r =
+    with_first (with_proven [ r ] rewrite_tac) >> try_ (with_repeat beta_tac)
+  in
+  let exclude =
+    [
+      "merge_sort_aux";
+      "merge";
+      "merge_aux";
+      "div";
+      "div_aux";
+      "merge_unfold";
+      "div_unfold";
+    ]
+  in
+
+  let goal =
+    make_goal
+      [%term
+        merge_sort_aux 8n (Cons (3n, Cons (1n, Cons (2n, Nil))))
+        = Some (Cons (1n, Cons (2n, Cons (3n, Nil))))]
+  in
+  run_proof ~pretty:true ~notrace:true goal
+    (rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> with_repeat @@ rw_def "div"
+    >> with_repeat @@ rw_def "div_aux"
+    >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> with_repeat @@ rw_def "div"
+    >> with_repeat @@ rw_def "div_aux"
+    >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> rw_def "merge_sort_aux" >> simp_tac ~exclude >> rw_thm "merge_unfold"
+    >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude
+    >> rw_thm "merge_unfold" >> simp_tac ~exclude >> rw_thm "merge_unfold"
+    >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude
+    >> rw_thm "merge_unfold" >> simp_tac ~exclude);
+  [%expect
+    {|
+    ========================================
+    merge_sort_aux 8 [3, 1, 2] = Some [1, 2, 3]
+
+    Proof Complete!
+    with fuel: 1341
+    |}]
+
+let%expect_test "length take" =
+  let n = [%term (n : nat)] in
+  let n1 = [%term (n1 : nat list)] in
+  let xs = [%term (xs : nat list)] in
+  let gtake =
+    make_goal
+      [%term
+        forall (fun (n : nat) (xs : nat list) ->
+            length (take n xs) = if nat_lt n (length xs) then n else length xs)]
+  in
+  let gdrop =
+    make_goal
+      [%term
+        forall (fun (n : nat) (xs : nat list) ->
+            length (drop n xs) = sub (length xs) n)]
+  in
+  run_proof ~name:"length_take" ~notrace:true gtake
+    (with_term n induct_tac >>> try_ intros_tac >>> with_term xs induct_tac
+   >>> try_ intros_tac
+    >>> try_ assumption_reasoning_tac
+    >> with_repeat
+         (with_first (with_definition [ "take"; "length" ] rewrite_tac))
+    >> beta_tac
+    >> with_repeat (with_first (with_definition [ "match_list" ] rewrite_tac))
+    >> beta_tac
+    >> with_first (with_definition [ "length" ] rewrite_tac)
+    >> spec_asm_tac n1
+    >> with_assumptions rewrite_tac
+    >> with_first (with_proven [ "lt_Suc_Suc" ] rewrite_tac)
+    >> cond_tac >> simp_tac >> simp_tac);
+  run_proof ~name:"length_drop" ~notrace:true gdrop
+    (with_term n induct_tac >>> try_ intros_tac >>> with_term xs induct_tac
+   >>> try_ intros_tac
+    >>> try_ assumption_reasoning_tac
+    >> with_repeat
+         (with_first (with_definition [ "take"; "length" ] rewrite_tac))
+    >> beta_tac
+    >> with_repeat (with_first (with_definition [ "match_list" ] rewrite_tac))
+    >> beta_tac
+    >> with_first (with_definition [ "length" ] rewrite_tac)
+    >> spec_asm_tac n1
+    >> with_assumptions rewrite_tac
+    >> with_first (with_proven [ "lt_Suc_Suc" ] rewrite_tac)
+    >> cond_tac >> simp_tac >> simp_tac);
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀xs. length (take x xs) = COND (nat_lt x (length xs)) x (length xs)
+
+    Proof Complete!
+    with fuel: 566
+    ========================================
+    ∀x. ∀xs. length (drop x xs) = sub (length xs) x
+
+    Proof Complete!
+    with fuel: 241
+    |}]
+
+let%expect_test "div_pos" =
+  let%thm div_pos (n : nat) = nat_lt 1n n ==> nat_lt 0n (div n 2n)
+  and proof =
+    begin
+      with_term [%term (n : nat)] induct_tac
+      >>> intros_tac
+      >>> try_ assumption_reasoning_tac
+      >> with_term
+           [%term
+             div (Suc (n0 : nat)) 2n
+             =
+             if nat_lt (Suc (n0 : nat)) 2n then 0n
+             else Suc (div (sub (Suc (n0 : nat)) 2n) 2n)]
+           assert_tac
+      >> with_first (with_proven [ "div_unfold" ] apply_tac)
+      >> simp_tac
+      >> with_assumptions rewrite_tac
+      >> cond_tac >> simp_asm_tac
+      >> with_first eq_true_elim_asm_tac
+      >> with_first (with_proven [ "le_Zero_eq" ] apply_asm_tac)
+      >> simp_asm_tac >> false_elim_tac
+      >> with_assumptions rewrite_tac
+      >> with_proven [ "cond_false" ] rewrite_tac
+      >> simp_tac ~exclude:[ "div" ]
+    end
+  in
+  ignore div_pos;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_lt (Suc Zero) x ==> nat_lt Zero (div x (Suc (Suc Zero)))
+
+    Proof Complete!
+    with fuel: 772
+    |}]
+
+let apply_asm_to_asm_tac ~asm_thm ~asm_to =
+  with_nth_choice asm_thm
+    (with_nth_term asm_to (with_assumptions apply_asm_tac))
+
+let%expect_test "div_le" =
+  let%thm div_le (n : nat) (k : nat) (m : nat) =
+    nat_lt 0n m ==> (nat_le k n ==> nat_le (div k m) n)
+  and proof =
+    begin
+      with_term [%term (n : nat)] induct_tac
+      >> intros_tac
+      >> with_first (with_proven [ "le_Zero_eq" ] apply_asm_tac)
+      >> simp_tac
+      >> with_term [%term (m : nat)] destruct_tac
+      >> elim_disj_asm_tac >> simp_tac >> elim_exists_asm_tac >> simp_tac
+      >> intros_tac
+      >> with_term [%term nat_lt (k : nat) (m : nat)] cases_tac
+      >> with_term
+           [%term
+             div (k : nat) (m : nat)
+             =
+             if nat_lt (k : nat) (m : nat) then 0n
+             else Suc (div (sub (k : nat) (m : nat)) (m : nat))]
+           assert_tac
+      >> with_first (with_proven [ "div_unfold" ] apply_tac)
+      >> assumption_tac
+      >> with_first (with_assumptions rewrite_tac)
+      >> with_first (with_assumptions rewrite_tac)
+      >> simp_tac
+      >> with_term
+           [%term
+             div (k : nat) (m : nat)
+             =
+             if nat_lt (k : nat) (m : nat) then 0n
+             else Suc (div (sub (k : nat) (m : nat)) (m : nat))]
+           assert_tac
+      >> with_first (with_proven [ "div_unfold" ] apply_tac)
+      >> assumption_tac
+      >> with_first (with_assumptions rewrite_tac)
+      >> with_first (with_assumptions rewrite_tac)
+      >> simp_tac ~exclude:[ "div"; "div_unfold" ]
+      >> with_term
+           [%term nat_le (sub (k : nat) (m : nat)) (n0 : nat)]
+           assert_tac
+      >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
+      >> with_term [%term nat_lt (sub (k : nat) (m : nat)) (k : nat)] assert_tac
+      >> with_proven [ "sub_lt" ] apply_tac
+      >> assumption_tac >> assumption_tac
+      >> with_specialized ~name:"lt_le_trans"
+           ~specs:
+             [
+               [%term sub (k : nat) (m : nat)];
+               [%term (k : nat)];
+               [%term Suc (n0 : nat)];
+             ]
+           apply_asm_tac
+      >> apply_asm_to_asm_tac ~asm_thm:0 ~asm_to:4
+      >> with_first
+           (with_proven [ "lt_Suc_le" ]
+              (with_info_trace (with_flip_rules rewrite_tac)))
+      >> assumption_tac
+      >> spec_asm_tac [%term sub (k : nat) (m : nat)]
+      >> spec_asm_tac [%term (m : nat)]
+      >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
+      >> assumption_tac
+    end
+  in
+  ignore div_le;
+
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀k. ∀m. nat_lt Zero m ==> nat_le k x ==> nat_le (div k m) x
+
+    Proof Complete!
+    with fuel: 349
+    |}]
+
+let%expect_test "div_lt" =
+  let%thm div_lt (n : nat) = nat_lt 1n n ==> nat_lt (div n 2n) n
+  and proof =
+    begin
+      with_term [%term (n : nat)] induct_tac
+      >> intros_tac >> assumption_reasoning_tac >> intros_tac
+      >> with_term [%term (n0 : nat)] destruct_tac
+      >> elim_disj_asm_tac >> simp_tac
+      >> with_repeat elim_exists_asm_tac
+      >> with_repeat (with_assumptions (with_first rewrite_tac))
+      >> with_repeat (with_assumptions (with_first rewrite_asm_tac))
+      >> with_term
+           [%term
+             div (Suc (Suc (a0 : nat))) 2n
+             =
+             if nat_lt (Suc (Suc (a0 : nat))) 2n then 0n
+             else Suc (div (sub (Suc (Suc (a0 : nat))) 2n) 2n)]
+           assert_tac
+      >> with_first (with_proven [ "div_unfold" ] apply_tac)
+      >> simp_tac
+      >> with_term [%term (a0 : nat)] destruct_tac
+      >> elim_disj_asm_tac >> simp_tac
+      >> with_repeat elim_exists_asm_tac
+      >> with_repeat (with_first (with_assumptions rewrite_asm_tac))
+      >> with_repeat (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm_tac))
+      >> with_first
+           (with_nth_term 0 (with_definition [ "nat_lt" ] rewrite_asm_tac))
+      >> beta_asm_tac
+      >> with_first
+           (with_nth_term 0 (with_definition [ "match_nat" ] rewrite_asm_tac))
+      >> try_ beta_asm_tac
+      >> with_first
+           (with_nth_term 0 (with_proven [ "cond_false" ] rewrite_asm_tac))
+      >> try_ beta_asm_tac
+      >> with_first (with_assumptions rewrite_tac)
+      >> with_first (with_assumptions rewrite_tac)
+      >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
+      >> simp_tac ~exclude:[ "nat_lt"; "div" ]
+      >> with_repeat
+           (with_assumptions (with_flip_rules (with_first rewrite_tac)))
+      >> with_proven [ "div_le" ] apply_tac
+      >> simp_tac >> simp_tac
+    end
+  in
+  ignore div_lt;
+  [%expect
+    {|
+    ========================================
+    ∀x. nat_lt (Suc Zero) x ==> nat_lt (div x (Suc (Suc Zero))) x
+
+    Proof Complete!
+    with fuel: 563
+    |}]
+
+let%expect_test "merge sort sufficient" =
+  let%thm merge_sort_fuel_sufficient (fuel : nat) (xs : nat list) =
+    nat_lt (length xs) fuel
+    ==> exists (fun (x : nat list) -> merge_sort_aux fuel xs = Some x)
+  and proof =
+    begin
+      induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
+      >> with_first (with_definition [ "merge_sort_aux" ] rewrite_tac)
+      >> beta_tac >> cond_tac
+      >> with_first (with_assumptions rewrite_tac)
+      >> simp_tac ~exclude:[ "merge_sort_aux"; "take"; "drop"; "div"; "merge" ]
+      >> with_term [%term (xs : nat list)] exists_tac
+      >> refl_tac
+      >> with_first (with_assumptions rewrite_tac)
+      >> simp_tac ~exclude:[ "merge_sort_aux"; "take"; "drop"; "div"; "merge" ]
+      >> spec_asm_tac
+           [%term take (div (length (xs : nat list)) 2n) (xs : nat list)]
+      >> spec_asm_tac
+           [%term drop (div (length (xs : nat list)) 2n) (xs : nat list)]
+      >> (with_term
+            [%term
+              nat_lt
+                (length
+                   (take (div (length (xs : nat list)) 2n) (xs : nat list)))
+                (n0 : nat)]
+            assert_tac
+         >> with_first (with_proven [ "not_le_is_lt" ] rewrite_asm_tac)
+         >> with_first (with_proven [ "div_lt" ] apply_asm_tac)
+         >> with_proven [ "length_take" ] rewrite_tac
+         >> with_nth_term 0 (with_proven [ "eq_true_intro" ] apply_asm_tac)
+         >> with_assumptions rewrite_tac
+         >> simp_tac ~exclude:[ "div" ]
+         >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
+         >> with_specialized ~name:"lt_le_trans"
+              ~specs:
+                [
+                  [%term div (length (xs : nat list)) 2n];
+                  [%term length (xs : nat list)];
+                  [%term (n0 : nat)];
+                ]
+              apply_tac
+         >> with_first (with_assumptions rewrite_tac)
+         >> truth_tac >> assumption_tac)
+      >> with_term
+           [%term
+             nat_lt
+               (length (drop (div (length (xs : nat list)) 2n) (xs : nat list)))
+               (n0 : nat)]
+           assert_tac
+      >> with_first (with_proven [ "not_le_is_lt" ] rewrite_asm_tac)
+      >> with_first (with_proven [ "div_pos" ] apply_asm_tac)
+      >> with_proven [ "length_drop" ] rewrite_tac
+      >> with_term
+           [%term
+             nat_lt
+               (sub (length (xs : nat list)) (div (length (xs : nat list)) 2n))
+               (length (xs : nat list))]
+           assert_tac
+      >> with_first (with_proven [ "sub_lt" ] apply_tac)
+      >> assumption_tac
+      >> with_proven [ "div_le" ] apply_tac
+      >> simp_tac >> simp_tac
+      >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
+      >> with_specialized ~name:"lt_le_trans"
+           ~specs:
+             [
+               [%term
+                 sub (length (xs : nat list)) (div (length (xs : nat list)) 2n)];
+               [%term length (xs : nat list)];
+               [%term (n0 : nat)];
+             ]
+           apply_tac
+      >> assumption_tac >> assumption_tac
+      >> with_repeat
+           (with_first (with_assumptions (with_first_term apply_asm_tac)))
+      >> with_repeat elim_exists_asm_tac
+      >> simp_tac ~exclude:[ "div"; "merge" ]
+      >> with_term [%term merge (x' : nat list) (x'' : nat list)] exists_tac
+      >> refl_tac
+    end
+  in
+  ignore merge_sort_fuel_sufficient;
+  [%expect
+    {|
+    ========================================
+    ∀x. ∀xs. nat_lt (length xs) x ==> ∃x. merge_sort_aux x xs = Some x
+
+    Proof Complete!
+    with fuel: 303
+    |}]
+
+let%expect_test "merge sort fuel irrel" =
+  let goal =
+    make_goal
+      [%term
+        forall
+          (fun (fuel : nat) (additional : nat) (xs : nat list) (x : nat list) ->
+            merge_sort_aux fuel xs = Some x
+            ==> (merge_sort_aux (plus fuel additional) xs = Some x))]
+  in
+  let proof = sorry_tac in
+  (*TODO: finish this one*)
+  run_proof ~notrace:true goal proof;
+  [%expect
+    {|
+    ========================================
+    ∀fuel. ∀additional. ∀xs. ∀x. merge_sort_aux fuel xs = Some x ==> merge_sort_aux (plus fuel additional) xs = Some x
+
+    Proof Complete!
+    with fuel: 1
+    |}]
+
+let%expect_test "merge sort unfold" =
+  let%thm merge_sort_unfold (xs : nat list) =
+    merge_sort xs
+    =
+    if nat_le (length xs) 1n then xs
+    else
+      (fun (half_length : nat) ->
+        merge
+          (merge_sort (take half_length xs))
+          (merge_sort (drop half_length xs)))
+        (div (length xs) 2n)
+  and proof =
+    begin
+      intros_tac
+      >> with_definition [ "merge_sort" ] rewrite_tac
+      >> beta_tac
+      >> with_first (with_definition [ "merge_sort_aux" ] rewrite_tac)
+      >> beta_tac >> cond_tac
+      >> with_repeat (with_first (with_assumptions rewrite_tac))
+      >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ]
+      >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ]
+      >> with_term
+           [%term
+             merge_sort_aux
+               (length (xs : nat list))
+               (take (div (length (xs : nat list)) 2n) (xs : nat list))
+             = Some
+                 (merge_sort
+                    (take (div (length (xs : nat list)) 2n) (xs : nat list)))]
+           assert_tac
+      >> with_definition [ "merge_sort" ] rewrite_tac
+      >> beta_tac
+      >> with_term
+           [%term
+             exists (fun (z : nat list) ->
+                 merge_sort_aux
+                   (Suc
+                      (length
+                         (take
+                            (div (length (xs : nat list)) 2n)
+                            (xs : nat list))))
+                   (take (div (length (xs : nat list)) 2n) (xs : nat list))
+                 = Some z)]
+           assert_tac
+      >> with_proven [ "merge_sort_fuel_sufficient" ] apply_tac
+      >> simp_tac >> elim_exists_asm_tac
+      >> with_assumptions rewrite_tac
+      >> simp_tac ~exclude:[ "merge_sort"; "merge"; "merge_sort_aux"; "div" ]
+      >> with_term
+           [%term
+             plus
+               (Suc
+                  (length
+                     (take (div (length (xs : nat list)) 2n) (xs : nat list))))
+               (sub
+                  (length (xs : nat list))
+                  (Suc
+                     (length
+                        (take (div (length (xs : nat list)) 2n) (xs : nat list)))))
+             = length (xs : nat list)]
+           assert_tac
+      >> with_proven [ "plus_comm" ] rewrite_tac
+      >> with_proven [ "sub_add_cancel" ] apply_tac
+      >> with_proven [ "length_take" ] rewrite_tac
+      >> sorry_tac >> sorry_tac >> sorry_tac
+    end
+  in
+  ignore merge_sort_unfold;
+  [%expect
+    {|
+    ========================================
+    ∀xs. merge_sort xs = COND (nat_le (length xs) (Suc Zero)) xs ((λhalf_length. merge (merge_sort (take half_length xs)) (merge_sort (drop half_length xs))) (div (length xs) (Suc (Suc Zero))))
+
+    Proof Complete!
+    with fuel: 185
+    |}]
