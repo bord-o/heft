@@ -10,6 +10,7 @@
     <span><span>| `ConstructorsAlreadyExist</span> of <span>string list</span></span>
     <span><span>| `DefinitionError</span> of string</span>
     <span><span>| `EqMp</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `EtaVarFreeInTerm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `InvariantViolation</span> of string</span>
     <span><span>| `LamRuleCantApply</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `MakeAppTypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
@@ -246,7 +247,7 @@
   <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a>, <span>[&gt; <span>`NotAConj of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-is_conj"><a href="#val-is_conj" class="anchor"></a><code><span><span class="keyword">val</span> is_conj : <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span> bool</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-is_eq"><a href="#val-is_eq" class="anchor"></a><code><span><span class="keyword">val</span> is_eq : <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span> bool</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-is_disj"><a href="#val-is_disj" class="anchor"></a><code><span><span class="keyword">val</span> is_disj : <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span> bool</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-destruct_imp"><a href="#val-destruct_imp" class="anchor"></a><code><span><span class="keyword">val</span> destruct_imp : 
   <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
-  <span><span>(<a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a>, <span>[&gt; <span>`NotAnImp of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-destruct_disj"><a href="#val-destruct_disj" class="anchor"></a><code><span><span class="keyword">val</span> destruct_disj : 
+  <span><span>(<a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a>, <span>[&gt; <span>`NotAnImp of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-collect_premises"><a href="#val-collect_premises" class="anchor"></a><code><span><span class="keyword">val</span> collect_premises : <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span> <span><a href="../Kernel/index.html#type-term">Kernel.term</a> list</span> * <a href="../Kernel/index.html#type-term">Kernel.term</a></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-destruct_disj"><a href="#val-destruct_disj" class="anchor"></a><code><span><span class="keyword">val</span> destruct_disj : 
   <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a>, <span>[&gt; <span>`NotADisj of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span> <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-is_imp"><a href="#val-is_imp" class="anchor"></a><code><span><span class="keyword">val</span> is_imp : <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span> bool</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-destruct_exists"><a href="#val-destruct_exists" class="anchor"></a><code><span><span class="keyword">val</span> destruct_exists : 
   <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
@@ -321,7 +322,16 @@
     <span><span>| `NotBothEquations</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `TypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
     <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div><div class="spec-doc"><p><code>|- p = T</code> should derive <code>|- p</code></p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-beta_conv"><a href="#val-beta_conv" class="anchor"></a><code><span><span class="keyword">val</span> beta_conv : 
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div><div class="spec-doc"><p><code>|- p = T</code> should derive <code>|- p</code></p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-eta"><a href="#val-eta" class="anchor"></a><code><span><span class="keyword">val</span> eta : 
+  <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span>(<a href="../Kernel/index.html#type-thm">Kernel.thm</a>,
+    <span>[&gt; <span>`CantApplyNonFunctionType of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `EtaVarFreeInTerm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `MakeLamNotAVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NewAxiomNotAProp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div><div class="spec-doc"><p><code>f : A -&gt; B, x : A</code> should derive <code>|- f = \x. f x</code> when x is not free in f</p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-beta_conv"><a href="#val-beta_conv" class="anchor"></a><code><span><span class="keyword">val</span> beta_conv : 
   <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<a href="../Kernel/index.html#type-thm">Kernel.thm</a>,
     <span>[&gt; <span>`BadSubstitutionList of <span><span>(<a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a>)</span> list</span></span>
@@ -1030,4 +1040,29 @@
     <span><span>| `RuleTrans</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `TypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
     <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
-    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div><div class="spec-doc"><p><code>|- ~ (x = y)</code> should derive <code>|- ~(y = x)</code></p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-bool_cases"><a href="#val-bool_cases" class="anchor"></a><code><span><span class="keyword">val</span> bool_cases : <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span></code></div></div></div></body></html>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div><div class="spec-doc"><p><code>|- ~ (x = y)</code> should derive <code>|- ~(y = x)</code></p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-bool_cases"><a href="#val-bool_cases" class="anchor"></a><code><span><span class="keyword">val</span> bool_cases : <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-strip_foralls_acc"><a href="#val-strip_foralls_acc" class="anchor"></a><code><span><span class="keyword">val</span> strip_foralls_acc : 
+  <span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span><a href="../Kernel/index.html#type-term">Kernel.term</a> list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span>(<a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <span><a href="../Kernel/index.html#type-term">Kernel.term</a> list</span>,
+    <span>[&gt; <span>`BadSubstitutionList of <span><span>(<a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a>)</span> list</span></span>
+    <span><span>| `CantApplyNonFunctionType</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `CantCreateVariantForNonVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `CantDestructEquality</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `Clash</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `ConstantTermAlreadyDeclared</span> of string</span>
+    <span><span>| `DefinitionError</span> of string</span>
+    <span><span>| `EqMp</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `LamRuleCantApply</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `NewBasicDefinition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NewBasicDefinitionAlreadyDefined</span> of string</span>
+    <span><span>| `NotAForall</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotALam</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAVar</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAnApp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAnApplication</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotBothEquations</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `NotTrivialBetaRedex</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `RuleTrans</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `TypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
+    <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-all_vars_in"><a href="#val-all_vars_in" class="anchor"></a><code><span><span class="keyword">val</span> all_vars_in : <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span> <span><a href="../Kernel/index.html#type-term">Kernel.term</a> list</span></span></code></div></div></div></body></html>
