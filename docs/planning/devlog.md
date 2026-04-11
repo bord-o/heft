@@ -471,3 +471,30 @@ Now that I have some decent tooling for writing HOL terms and definitions, and a
 ### Move theorems out of tests and into their respective modules
 ### Design Aesop-style proof search
 ### Make it easier to specify what to rewrite and where
+
+## Friday, April 10
+
+I'm looking at adding some more tactics to improve the ergonomics of my prover. I've added a discriminate tactic for goals with distinct constructor equality (`Suc n = Zero`), but I want to improve my contradiction reasoning a bit. Right now I have a contradict_asm_tac which can prove things like `~P |- F` using a subgoal of ` |- P`, but Rocq's contradict tactic is much stronger and handles 3 more distinct  cases in addition to the one that my tactic does.
+
+
+From Rocq's documentation:
+
+```
+A tactic for proof by contradiction. With contradict H,
+
+1    H:~A |- B gives |- A
+2    H:~A |- ~B gives H: B |- A
+3    H: A |- B gives |- ~A
+4    H: A |- ~B gives H: B |- ~A
+
+```
+Translating this to my system, I can have exfalso_tac as `assert_tac F >> [subgoal] >> false_elim_tac`
+
+- Case one is just `exfalso >> contradict_asm_tac`
+- Case two is `neg_intro` to get `~A, B |- F`, then `contradict_asm_tac` to get `B |- A`
+- Case three is just `assert_tac ~A`
+- Case four is `neg_intro` to get  `A, B |- F`, then `assert_tac ~A >> [subgoal >> neg_elim_tac` 
+
+Essentially if the goal is a negation we call neg_intro to get it in an assumption, say `A`, then we take a chosen assumption (other than `A`), say `B`. If it's a negation, we contradict_asm, otherwise we just assert its negation (`~B`).
+
+This will help in a variety of cases that are currently pretty tedious with the current negation/false related tactics. 

@@ -249,8 +249,7 @@ val eq_iff_tac : tactic
 
 val discriminate_tac : tactic
 (** Closes a goal by deriving a contradiction from an equality assumption
-    between distinct constructors of an inductive type. Currently unimplemented.
-*)
+    between distinct constructors of an inductive type. *)
 
 val rewrite_tac : tactic
 (** Rewrites a subterm of the goal with a theorem chosen from [Rules]. Fails if

@@ -192,7 +192,7 @@ let%expect_test "length_Zero_implies_Nil" =
     ∀x. length x = Zero ==> x = Nil
 
     Proof Complete!
-    with fuel: 46
+    with fuel: 45
     |}]
 
 let%expect_test "append Nil xs = xs" =
@@ -859,7 +859,7 @@ let%expect_test "div fuel irrel" =
     ∀x. ∀m. ∀a. ∀b. ∀x'. div_aux x a b = Some x' ==> div_aux (plus x m) a b = Some x'
 
     Proof Complete!
-    with fuel: 303
+    with fuel: 308
     |}]
 
 let%expect_test "lt_Zero_Suc" =
@@ -2000,7 +2000,7 @@ let%expect_test "merge fuel irrel" =
     ∀x. ∀additional. ∀xs. ∀ys. ∀x. merge_aux x xs ys = Some x ==> merge_aux (plus x additional) xs ys = Some x
 
     Proof Complete!
-    with fuel: 685
+    with fuel: 689
     |}]
 
 let%expect_test "merge fuel sufficient" =
