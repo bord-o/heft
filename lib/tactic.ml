@@ -6,27 +6,18 @@ open Effect.Deep
 open Result.Syntax
 open Rewrite
 
-type goal = term list * term [@@deriving show]
+type goal = term list * term [@@deriving show { with_path = false }]
 
 let make_goal ?(asms = []) t = (asms, t)
 
 type level = Debug | Info | Warn | Error | Proof | Search
-type proof_state = Incomplete of goal | Complete of thm [@@deriving show]
+
+type proof_state = Incomplete of goal | Complete of thm
+[@@deriving show { with_path = false }]
+
 type tactic = goal -> thm
 type tactic_combinator = tactic -> tactic
 type cost = Safe of int | Unsafe of int
-
-type choice_kind =
-  | CTerm of (goal * term)
-  | CTheorem of goal * thm
-  | CTactic of goal * cost * tactic
-  | CUnknown of goal
-
-type _ rankable =
-  | Term : term list -> term rankable
-  | Goal : goal list -> goal rankable
-  | Tactic : tactic list -> tactic rankable
-  | Unknown : 'a list -> 'a rankable
 
 type _ choosable =
   | Term : term list -> term choosable
@@ -39,18 +30,11 @@ exception Out_of_fuel
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
   | Choose : 'a choosable -> 'a Effect.t
-  | Rank : 'a rankable -> 'a list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Quiet : bool Effect.t
   | Burn : (string * cost) -> unit Effect.t
   | Rules : thm list Effect.t
-
-let as_ranked_list : type a. a rankable -> a list = function
-  | Term ts -> ts
-  | Goal gs -> gs
-  | Tactic tacs -> tacs
-  | Unknown xs -> xs
 
 let as_chosen_list : type a. a choosable -> a list = function
   | Term ts -> ts
@@ -63,6 +47,7 @@ let cost_of_tactic (tac : tactic) (goal : goal) =
   | effect Burn (name, cost), _k -> (name, cost)
   | _ -> failwith "Burn must be first call of tactic"
 
+let cost_value = function Safe n | Unsafe n -> n
 let fail () = perform Fail
 let burn name cost = perform (Burn (name, cost))
 let trace_dbg a = perform (Trace (Debug, a))
@@ -73,7 +58,6 @@ let choose_terms gs = perform (Choose (Term gs))
 let choose_theorems gs = perform (Choose (Theorem gs))
 let choose_tactics gs = perform (Choose (Tactic gs))
 let choose_unknowns gs = perform (Choose (Unknown gs))
-let rank_terms ts = perform (Rank (Term ts))
 
 let return_thm ?(from = "unknown") res =
   let quiet = perform Quiet in
@@ -84,8 +68,6 @@ let return_thm ?(from = "unknown") res =
   | Error e ->
       if quiet then fail () else trace_error @@ print_error e;
       fail ()
-
-(* let noop_tac : tactic = fun goal -> perform (Subgoal goal) *)
 
 let left_tac : tactic =
  fun (asms, concl) ->
@@ -244,11 +226,6 @@ let apply_neg_asm_tac : tactic =
       in
       return_thm ~from:"apply_neg_asm_tac" thm
 
-let assume_tac : tactic =
- fun (_asms, conc) ->
-  burn "assume_tac" (Unsafe 2);
-  return_thm ~from:"assume_tac" @@ assume conc
-
 let sorry_tac : tactic =
  fun (_, conc) ->
   burn "sorry_tac" (Unsafe 1);
@@ -325,12 +302,13 @@ let rewrite_tac : tactic =
   let thm =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
-    (* print_thm chosen_rule; *)
 
     let* rw_thm = rewrite_once chosen_rule conc in
     let* _, conc_rewritten = destruct_eq (concl rw_thm) in
+
     (* Fail if no progress was made *)
     if alphaorder conc conc_rewritten = 0 then fail ();
+
     let subthm = perform @@ Subgoal (asms, conc_rewritten) in
     let* rw_sym = sym rw_thm in
     eq_mp rw_sym subthm
@@ -344,17 +322,14 @@ let rewrite_asm_tac : tactic =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
     let chosen_asm = choose_terms asms in
-
     (* prevent an assumption from being used as a rule to rewrite itself *)
     if List.mem chosen_asm (hyp chosen_rule) then fail ();
 
     let* rw_thm = rewrite_once chosen_rule chosen_asm in
     let* _, asm_rewritten = destruct_eq (concl rw_thm) in
     if alphaorder chosen_asm asm_rewritten = 0 then fail ();
-
     let asms' = asm_rewritten :: List.filter (( <> ) chosen_asm) asms in
     let sub_thm = perform @@ Subgoal (asms', conc) in
-
     let* asm_thm = assume chosen_asm in
     let* new_asm_thm = eq_mp rw_thm asm_thm in
     prove_hyp new_asm_thm sub_thm
@@ -433,9 +408,6 @@ let refl_tac : tactic =
   in
   return_thm ~from:"refl_tac" thm
 
-(* need to make an arbitrary term of the same type as the
-   equality, and make subgoals for both sides then use
-   the trans derived rule to make a thm. fail if not an eq *)
 let trans_tac : tactic =
  fun (asms, concl) ->
   burn "trans_tac" (Safe 1);
@@ -742,7 +714,6 @@ let rec induct_tac : tactic =
         let* induction_var, bod = destruct_forall concl in
         let* ty = type_of_term induction_var in
         let* ty_name, ty_args = destruct_type ty in
-
         let inductive_def =
           match Hashtbl.find_opt the_inductives ty_name with
           | None ->
@@ -750,29 +721,21 @@ let rec induct_tac : tactic =
               fail ()
           | Some d -> d
         in
-
         let* _, def_ty_params = destruct_type inductive_def.ty in
-
         let type_sub = List.combine def_ty_params ty_args in
-
         let* typed_induction = inst_type type_sub inductive_def.induction in
-
         let binder = make_var "pred_binder" ty in
         let* bod_with_binder = vsubst [ (binder, induction_var) ] bod in
         let* p = make_lam binder bod_with_binder in
-
         let* inst_induction = spec p typed_induction in
-
         let cases, _conclusion =
           collect_premises (Kernel.concl inst_induction)
         in
-
         let solved =
           cases
           |> List.map (fun case ->
               ((asms, case), perform (Subgoal (asms, case))))
         in
-
         let* result =
           List.fold_left
             (fun acc_thm (_goal, case_thm) ->
@@ -893,8 +856,6 @@ let prove ?(quiet = false) ?(name = "") (goal : goal) (tactic : tactic) =
   (* While trace is used to decide how/when to report our traces, quiet is used
       to keep them from happening in situations where we want maximumm performance *)
   | effect Quiet, k -> continue k quiet
-  (* Rank is used to sort terms by an undetermined heuristic *)
-  | effect Rank (Term terms), k -> continue k terms
   (* This represents failure for any reason *)
   | effect Fail, _k -> Incomplete goal
   (* Choose is used to decide how to explore options *)
@@ -1001,16 +962,9 @@ let with_first : tactic_combinator =
       try_each (as_chosen_list choices)
   | v -> v
 
-let with_arbitrary_term (t : term) : tactic_combinator =
- fun tac goal ->
-  match tac goal with effect Choose (Term _), k -> continue k t | x -> x
-
 let with_term (t : term) : tactic_combinator =
  fun tac goal ->
-  match tac goal with
-  | effect Choose (Term terms), k ->
-      if List.mem t terms then continue k t else fail ()
-  | x -> x
+  match tac goal with effect Choose (Term _), k -> continue k t | x -> x
 
 let cond_tac : tactic =
  fun (asms, concl) ->
@@ -1033,7 +987,7 @@ let cond_tac : tactic =
       fail ()
   | terms ->
       let tm = choose_terms terms in
-      with_arbitrary_term tm cases_tac (asms, concl)
+      with_term tm cases_tac (asms, concl)
 
 let try_ : tactic_combinator =
  fun tac goal ->
@@ -1126,44 +1080,6 @@ let with_nth_term n : tactic_combinator =
       match List.nth_opt ts n with None -> fail () | Some c -> continue k c)
   | v -> v
 
-let with_term_size_ranking : tactic_combinator =
- fun tac goal ->
-  match tac goal with
-  | effect Rank (Term terms), k ->
-      let sorted =
-        List.stable_sort (fun l r -> compare (term_size l) (term_size r)) terms
-      in
-      continue k sorted
-  | v -> v
-
-let cost_value = function Safe n | Unsafe n -> n
-
-let with_added_fuel extra : tactic_combinator =
- fun tac goal ->
-  match tac goal with
-  | effect Burn (name, cost), k ->
-      let new_cost =
-        match cost with
-        | Safe n -> Safe (n + extra)
-        | Unsafe n -> Unsafe (n + extra)
-      in
-      burn name new_cost;
-      continue k ()
-  | v -> v
-
-let with_fuel_limit' (limit : int) : tactic_combinator =
-  let fuel = ref limit in
-  fun tac goal ->
-    match tac goal with
-    | effect Burn (name, cost), k ->
-        let n = cost_value cost in
-        fuel := !fuel - n;
-        if !fuel <= 0 then fail ()
-        else (
-          burn name cost;
-          continue k ())
-    | v -> v
-
 let with_fuel_limit limit : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -1192,14 +1108,6 @@ let show_tac : tactic =
   print_endline "-------------------------";
   print_term @@ snd goal;
   fail ()
-
-let with_show_subgoal : tactic_combinator =
- fun tac goal ->
-  print_endline "Current subgoal:";
-  List.iter print_term (fst goal);
-  print_endline "-------------------------";
-  print_term @@ snd goal;
-  tac goal
 
 let with_info_trace : tactic_combinator =
  fun tac goal ->

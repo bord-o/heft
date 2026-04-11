@@ -8,11 +8,8 @@ type goal = term list * term
 (** A list of assumptions and a term to prove under them *)
 
 val make_goal : ?asms:term list -> term -> goal
-
-val pp_goal :
-  Ppx_deriving_runtime.Format.formatter -> goal -> Ppx_deriving_runtime.unit
-
-val show_goal : goal -> Ppx_deriving_runtime.string
+val pp_goal : Format.formatter -> goal -> unit
+val show_goal : goal -> string
 
 type level =
   | Debug
@@ -29,12 +26,8 @@ type proof_state =
       (** [proof_state] is used by the ambient handler [prove] to represent the
           result of applying a tactic *)
 
-val pp_proof_state :
-  Ppx_deriving_runtime.Format.formatter ->
-  proof_state ->
-  Ppx_deriving_runtime.unit
-
-val show_proof_state : proof_state -> Ppx_deriving_runtime.string
+val pp_proof_state : Format.formatter -> proof_state -> unit
+val show_proof_state : proof_state -> string
 
 type tactic = goal -> thm
 (** A [tactic] is a function that works on a goal, possibly performing effects
@@ -48,22 +41,7 @@ type tactic_combinator = tactic -> tactic
 
 type cost = Safe of int | Unsafe of int
 
-type choice_kind =
-  | CTerm of (goal * term)
-  | CTheorem of goal * thm
-  | CTactic of goal * cost * tactic
-  | CUnknown of goal
-
-(** {1 Choice and Ranking GADTs} *)
-
-type _ rankable =
-  | Term : term list -> term rankable
-  | Goal : goal list -> goal rankable
-  | Tactic : tactic list -> tactic rankable
-  | Unknown : 'a list -> 'a rankable
-      (** The [rankable] GADT is used to allow both agnostic treatment of the
-          [Rank] effect as well as deeper introspection into the underlying data
-          when needed *)
+(** {1 Choice} *)
 
 type _ choosable =
   | Term : term list -> term choosable
@@ -83,7 +61,6 @@ exception Out_of_fuel
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
   | Choose : 'a choosable -> 'a Effect.t
-  | Rank : 'a rankable -> 'a list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Quiet : bool Effect.t
@@ -91,9 +68,6 @@ type _ Effect.t +=
   | Rules : thm list Effect.t
 
 (** {1 Effect Helpers} *)
-
-val as_ranked_list : 'a rankable -> 'a list
-(** Extracts the underlying list from the [rankable] GADT *)
 
 val as_chosen_list : 'a choosable -> 'a list
 (** Extracts the underlying list from the [choosable] GADT *)
@@ -134,9 +108,6 @@ val choose_tactics : tactic list -> tactic
 
 val choose_unknowns : 'a list -> 'a
 (** Requests a choice among a list of unknown type *)
-
-val rank_terms : term list -> term list
-(** Requests a ranking/sorting of terms by some heuristic *)
 
 val return_thm :
   ?from:string ->
@@ -221,10 +192,6 @@ val apply_asm_tac : tactic
 val apply_neg_asm_tac : tactic
 (** Proves [F] by finding a negation [~P] in assumptions and creating a subgoal
     to prove [P]. Fails if the goal is not [F] or no suitable negation exists *)
-
-val assume_tac : tactic
-(** Proves any goal by assuming it. This creates a theorem with the goal as a
-    hypothesis *)
 
 val sorry_tac : tactic
 
@@ -347,8 +314,8 @@ val truth_tac : tactic
 val cases_tac : tactic
 (** Performs case splitting. For [forall b:bool] goals, splits into [b=T] and
     [b=F] cases. For [forall x:inductive] goals, delegates to [induct_tac]. For
-    arbitrary bool expressions (via [with_arbitrary_term]), adds [e=T] and [e=F]
-    as assumptions *)
+    arbitrary bool expressions (via [with_term]), adds [e=T] and [e=F] as
+    assumptions *)
 
 val destruct_tac : tactic
 (** Performs case analysis on a chosen term of an inductive type using
@@ -406,13 +373,9 @@ val with_first : tactic_combinator
 
 val with_first_term : tactic_combinator
 
-val with_arbitrary_term : term -> tactic_combinator
-(** Forces a specific term to be chosen when a [Choose (Term _)] effect is
-    performed, regardless of whether it appears in the choices *)
-
 val with_term : term -> tactic_combinator
 (** Forces a specific term to be chosen when a [Choose (Term _)] effect is
-    performed. Fails if the term is not among the choices *)
+    performed, regardless of whether it appears in the choices *)
 
 val cond_tac : tactic
 (** Finds COND applications in the goal and case-splits on the condition
@@ -449,22 +412,10 @@ val with_nth_term : int -> tactic_combinator
 (** Always selects the [n]th term from a [Choose (Term _)] effect. Fails if [n]
     is out of bounds. Only handles term choices, other choices pass through *)
 
-val with_term_size_ranking : tactic_combinator
-(** Handles [Rank (Term _)] effects by sorting terms from smallest to largest
-    based on AST size *)
-
 (** {1 Tactic Combinators: Fuel and Tracing} *)
 
 val cost_value : cost -> int
 (** Extracts the integer value from a [cost], whether [Safe] or [Unsafe] *)
-
-val with_added_fuel : int -> tactic_combinator
-(** Adds extra fuel to each [Burn] effect, increasing all tactic costs by the
-    given amount *)
-
-val with_fuel_limit' : int -> tactic_combinator
-(** Tracks fuel consumption and fails when the limit is exceeded. Uses an
-    internal mutable counter *)
 
 val with_fuel_limit : int ref -> tactic_combinator
 (** Tracks fuel consumption and raises [Out_of_fuel] when the limit is exceeded.
@@ -475,10 +426,7 @@ val with_fuel_counter : int ref -> tactic_combinator
     [Burn] effect *)
 
 val show_tac : tactic
-
-val with_show_subgoal : tactic_combinator
-(** Prints the current subgoal (assumptions and conclusion) before running the
-    tactic *)
+(** Prints the current subgoal (assumptions and conclusion) *)
 
 val with_info_trace : tactic_combinator
 (** Prints info-level trace messages to stdout, letting all other effects pass

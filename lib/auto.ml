@@ -4,6 +4,12 @@ open Effect
 open Effect.Deep
 open Tactic
 
+type choice_kind =
+  | CTerm of (goal * term)
+  | CTheorem of goal * thm
+  | CTactic of goal * cost * tactic
+  | CUnknown of goal
+
 type search_metadata = MSubgoal of goal | MChoice of choice_kind | MResume
 
 type step_result =
@@ -230,6 +236,8 @@ let with_dfs' : tactic_combinator =
     | v -> v
   in
   handler (fun () -> tac goal)
+
+let _ = (with_dfs', with_dfs'')
 
 let itauto_tac : tactic =
   pick_tac

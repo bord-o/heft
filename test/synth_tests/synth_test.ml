@@ -24,8 +24,7 @@ let%expect_test "synth goal setup" =
   in
 
   let proof =
-    with_arbitrary_term [%term 0n] exists_tac
-    >> intro_tac >> simp_tac ~with_asms:true
+    with_term [%term 0n] exists_tac >> intro_tac >> simp_tac ~with_asms:true
   in
 
   run_proof goal proof;
@@ -68,8 +67,8 @@ let%expect_test "synth goal setup full" =
   (* print_endline @@ Printing.pretty_print_hol_type cons_ty; *)
 
   let proof =
-    with_arbitrary_term zero exists_tac
-    >> with_arbitrary_term cons_witness exists_tac
+    with_term zero exists_tac
+    >> with_term cons_witness exists_tac
     >> intros_tac >> auto_dfs_tac
   in
   run_proof goal proof;

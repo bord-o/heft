@@ -96,10 +96,10 @@ let%thm union_comm (s1 : 'a set) (s2 : 'a set) = union s1 s2 = union s2 s1
 and proof = begin
     intros_tac
     >> simp_tac
-    >> with_arbitrary_term [%term (s1:'a set)] destruct_tac
+    >> with_term [%term (s1:'a set)] destruct_tac
     >> elim_exists_asm_tac
     >> simp_tac
-    >> with_arbitrary_term [%term (s2:'a set)] destruct_tac
+    >> with_term [%term (s2:'a set)] destruct_tac
     >> elim_exists_asm_tac
     >> simp_tac
     >> with_proven ["set_inj"] apply_tac
@@ -113,10 +113,10 @@ let%thm inter_comm (s1 : 'a set) (s2 : 'a set) = inter s1 s2 = inter s2 s1
 and proof = begin
     intros_tac
     >> simp_tac
-    >> with_arbitrary_term [%term (s1:'a set)] destruct_tac
+    >> with_term [%term (s1:'a set)] destruct_tac
     >> elim_exists_asm_tac
     >> simp_tac
-    >> with_arbitrary_term [%term (s2:'a set)] destruct_tac
+    >> with_term [%term (s2:'a set)] destruct_tac
     >> elim_exists_asm_tac
     >> simp_tac
     >> with_proven ["set_inj"] apply_tac 
@@ -130,7 +130,7 @@ let%thm subset_refl (s : 'a set) = subset s s
 and proof = begin
     intros_tac
     >> simp_tac
-    >> with_arbitrary_term [%term (s:'a set)] destruct_tac
+    >> with_term [%term (s:'a set)] destruct_tac
     >> elim_exists_asm_tac
     >> simp_tac
     >> intros_tac
@@ -146,9 +146,9 @@ let%thm subset_trans (s1 : 'a set) (s2 : 'a set) (s3 : 'a set) =
   subset s1 s2 ==> (subset s2 s3 ==> subset s1 s3)
 and proof = begin
     intros_tac
-    >> with_arbitrary_term [%term (s1:'a set)] destruct_tac
-    >> with_arbitrary_term [%term (s2:'a set)] destruct_tac
-    >> with_arbitrary_term [%term (s3:'a set)] destruct_tac
+    >> with_term [%term (s1:'a set)] destruct_tac
+    >> with_term [%term (s2:'a set)] destruct_tac
+    >> with_term [%term (s3:'a set)] destruct_tac
     >> with_repeat elim_exists_asm_tac
     >> simp_tac
     >> intros_tac
@@ -161,7 +161,7 @@ end
 
 let%thm union_empty (s : 'a set) = union s empty_set = s
 and proof = begin
-    with_arbitrary_term [%term (s:'a set)] induct_tac
+    with_term [%term (s:'a set)] induct_tac
     >> intros_tac
     >> simp_tac
     >> with_proven ["set_inj"] apply_tac
@@ -178,7 +178,7 @@ end
 let%thm inter_univ (s : 'a set) = inter s univ_set = s
 and proof = begin
     intros_tac
-    >> with_arbitrary_term [%term (s:'a set)] destruct_tac
+    >> with_term [%term (s:'a set)] destruct_tac
     >> elim_exists_asm_tac
     >> simp_tac
     >> with_proven ["set_inj"] apply_tac

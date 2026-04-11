@@ -1,4 +1,11 @@
+open Kernel
 open Tactic
+
+type choice_kind =
+  | CTerm of (goal * term)
+  | CTheorem of goal * thm
+  | CTactic of goal * cost * tactic
+  | CUnknown of goal
 
 type search_metadata =
   | MSubgoal of goal
@@ -61,15 +68,6 @@ val step : tactic -> goal -> step_result
 (** Performs one expansion of the proof tree and aggregates the results along
     with their continuations *)
 
-val run_thunk_with_path : string list ref -> (unit -> 'a) -> 'a
-(** Executes a thunk while capturing [Trace (Proof, _)] effects into the
-    provided path reference. Used by search combinators to track the winning
-    proof sequence *)
-
-val emit_proof_path : string list -> unit
-(** Formats a proof path as a tactic script and emits it as a
-    [Trace (Search, _)] effect *)
-
 val stats_of_list : (search_metadata * 'a * 'b * 'c) list -> string
 (** Summarizes a list of search entries by counting subgoals, choices, and
     resumptions *)
@@ -99,14 +97,6 @@ module QueueFrontier : Frontier
 val with_bfs : tactic_combinator
 (** Performs breadth-first search over choices and subgoals. Uses a queue to
     explore paths level by level. Emits the winning proof path on success *)
-
-val with_dfs'' : tactic_combinator
-(** Alternative DFS implementation using an explicit stack for choice points.
-    Does not track proof paths *)
-
-val with_dfs' : tactic_combinator
-(** Recursive DFS implementation that uses the call stack for backtracking.
-    Simpler but may overflow on deep searches. Does not track proof paths *)
 
 (** {1 Automation Tactics} *)
 

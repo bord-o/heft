@@ -1,9 +1,7 @@
 type hol_type = TyVar of string | TyCon of string * hol_type list
 
-val pp_hol_type :
-  Ppx_deriving_runtime.Format.formatter -> hol_type -> Ppx_deriving_runtime.unit
-
-val show_hol_type : hol_type -> Ppx_deriving_runtime.string
+val pp_hol_type : Format.formatter -> hol_type -> unit
+val show_hol_type : hol_type -> string
 
 type term =
   | Var of string * hol_type
@@ -11,26 +9,18 @@ type term =
   | App of term * term
   | Lam of term * term
 
-val pp_term :
-  Ppx_deriving_runtime.Format.formatter -> term -> Ppx_deriving_runtime.unit
-
-val show_term : term -> Ppx_deriving_runtime.string
+val pp_term : Format.formatter -> term -> unit
+val show_term : term -> string
 
 type thm
 
-val pp_thm :
-  Ppx_deriving_runtime.Format.formatter -> thm -> Ppx_deriving_runtime.unit
-
-val show_thm : thm -> Ppx_deriving_runtime.string
+val pp_thm : Format.formatter -> thm -> unit
+val show_thm : thm -> string
 
 type constructor_spec = { name : string; arg_types : hol_type list }
 
-val pp_constructor_spec :
-  Ppx_deriving_runtime.Format.formatter ->
-  constructor_spec ->
-  Ppx_deriving_runtime.unit
-
-val show_constructor_spec : constructor_spec -> Ppx_deriving_runtime.string
+val pp_constructor_spec : Format.formatter -> constructor_spec -> unit
+val show_constructor_spec : constructor_spec -> string
 
 type inductive_def = {
   ty : hol_type;
@@ -43,12 +33,8 @@ type inductive_def = {
   match_function : thm;
 }
 
-val pp_inductive_def :
-  Ppx_deriving_runtime.Format.formatter ->
-  inductive_def ->
-  Ppx_deriving_runtime.unit
-
-val show_inductive_def : inductive_def -> Ppx_deriving_runtime.string
+val pp_inductive_def : Format.formatter -> inductive_def -> unit
+val show_inductive_def : inductive_def -> string
 
 type kernel_error =
   [ `BadSubstitutionList of (term * term) list
@@ -93,12 +79,8 @@ type kernel_error =
   | `WrongNumberOfTypeArgs of string
   | `NoRewriteMatch of thm * term ]
 
-val pp_kernel_error :
-  Ppx_deriving_runtime.Format.formatter ->
-  kernel_error ->
-  Ppx_deriving_runtime.unit
-
-val show_kernel_error : kernel_error -> Ppx_deriving_runtime.string
+val pp_kernel_error : Format.formatter -> kernel_error -> unit
+val show_kernel_error : kernel_error -> string
 val the_type_constants : (string, int) Hashtbl.t
 val the_term_constants : (string, hol_type) Hashtbl.t
 val the_inductives : (string, inductive_def) Hashtbl.t
