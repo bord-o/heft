@@ -502,10 +502,10 @@ let%expect_test "excluded_middle_pauto" =
     {|
     Proof:
       ccontr_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       right_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       left_tac >>
       assumption_tac
     ========================================
@@ -530,7 +530,7 @@ let%expect_test "contraposition" =
       intro_tac >>
       intro_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       apply_tac >>
       assumption_tac
     ========================================
@@ -627,13 +627,13 @@ let%expect_test "de_morgan_and" =
     Proof:
       intro_tac >>
       ccontr_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       right_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       left_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       conj_tac >>
       assumption_tac >>
       assumption_tac
@@ -661,11 +661,11 @@ let%expect_test "de_morgan_or" =
       intro_tac >>
       conj_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       right_tac >>
       assumption_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       left_tac >>
       assumption_tac
     ========================================
@@ -692,7 +692,7 @@ let%expect_test "de_morgan_or_converse" =
       intro_tac >>
       elim_conj_asm_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       elim_disj_asm_tac >>
       assumption_tac >>
       neg_elim_tac
@@ -714,11 +714,11 @@ let%expect_test "implication_as_disjunction" =
     {|
     Proof:
       ccontr_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       intro_tac >>
       left_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       intro_tac >>
       apply_asm_tac >>
       right_tac >>
@@ -764,7 +764,7 @@ let%expect_test "triple_negation" =
     Proof:
       intro_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       neg_intro_tac >>
       neg_elim_tac
     ========================================
@@ -806,7 +806,7 @@ let%expect_test "complex_nested" =
     Proof:
       intro_tac >>
       ccontr_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       apply_tac >>
       intro_tac >>
       neg_elim_tac
@@ -918,7 +918,7 @@ let%expect_test "contraposition_chain" =
       intro_tac >>
       intro_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       apply_tac >>
       apply_tac >>
       assumption_tac
@@ -999,8 +999,8 @@ let%expect_test "manual version " =
   in
   (* let proof = with_best_first ctauto_tac in *)
   let proof =
-    intro_tac >> conj_tac >> neg_intro_tac >> apply_neg_asm_tac >> left_tac
-    >> assumption_tac >> neg_intro_tac >> apply_neg_asm_tac >> right_tac
+    intro_tac >> conj_tac >> neg_intro_tac >> contradict_asm_tac >> left_tac
+    >> assumption_tac >> neg_intro_tac >> contradict_asm_tac >> right_tac
     >> assumption_tac
   in
   run_proof goal proof;
@@ -1030,11 +1030,11 @@ let%expect_test "dfs demorgans" =
       intro_tac >>
       conj_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       right_tac >>
       assumption_tac >>
       neg_intro_tac >>
-      apply_neg_asm_tac >>
+      contradict_asm_tac >>
       left_tac >>
       assumption_tac
     ========================================

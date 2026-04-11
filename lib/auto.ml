@@ -252,7 +252,7 @@ let itauto_tac : tactic =
       false_elim_tac;
       neg_elim_tac;
       with_assumptions apply_tac;
-      apply_neg_asm_tac;
+      contradict_asm_tac;
       with_assumptions (with_first_term apply_asm_tac);
       left_tac;
       right_tac;
@@ -271,7 +271,7 @@ let ctauto_tac : tactic =
       false_elim_tac;
       neg_elim_tac;
       with_assumptions apply_tac;
-      apply_neg_asm_tac;
+      contradict_asm_tac;
       with_assumptions (with_first_term apply_asm_tac);
       left_tac;
       right_tac;

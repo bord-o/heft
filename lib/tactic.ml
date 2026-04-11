@@ -1019,9 +1019,9 @@ let apply_asm_tac : tactic =
   return_thm ~from:"apply_asm_tac" thm
 
 (* TODO: see if I can factor this out into other apply tactics *)
-let apply_neg_asm_tac : tactic =
+let contradict_asm_tac : tactic =
  fun (asms, concl) ->
-  burn "apply_neg_asm_tac" (Unsafe 5);
+  burn "contradict_asm_tac" (Unsafe 5);
   let false_tm = make_false () in
   if concl <> false_tm then fail ()
   else
@@ -1038,7 +1038,7 @@ let apply_neg_asm_tac : tactic =
           let sub_thm = perform (Subgoal (asms, p)) in
           prove_hyp sub_thm elim
       in
-      return_thm ~from:"apply_neg_asm_tac" thm
+      return_thm ~from:"contradict_asm_tac" thm
 
 (* [cases_tac] and [induct_tac] are mutually recursive, and [cond_tac] depends
    on [cases_tac], so they are grouped here. [destruct_tac] is independent but

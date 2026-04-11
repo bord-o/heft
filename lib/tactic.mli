@@ -293,7 +293,6 @@ val eq_true_elim_tac : tactic
     [eq_truth_intro] *)
 
 val eq_false_elim_tac : tactic
-
 val apply_tac : tactic
 
 val apply_asm_tac : tactic
@@ -302,7 +301,7 @@ val apply_asm_tac : tactic
     chosen assumption with the remainder of the theorem (possibly re-quantified
     over undetermined variables). *)
 
-val apply_neg_asm_tac : tactic
+val contradict_asm_tac : tactic
 (** Proves [F] by finding a negation [~P] in assumptions and creating a subgoal
     to prove [P]. Fails if the goal is not [F] or no suitable negation exists *)
 
