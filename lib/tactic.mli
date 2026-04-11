@@ -167,6 +167,35 @@ val return_thm :
 
 (** {1 Tactics} *)
 
+val assumption_tac : tactic
+(** Proves the goal if it matches one of the assumptions. Fails if no matching
+    assumption is found *)
+
+val truth_tac : tactic
+(** Proves the goal [T] (truth). Fails if the goal is not [T] *)
+
+val refl_tac : tactic
+(** Proves goals of the form [t = t] by reflexivity. Fails if the goal is not an
+    equality or the sides are not identical *)
+
+val false_elim_tac : tactic
+(** Proves any goal when [F] (false) is in the assumptions. Fails if [F] is not
+    present *)
+
+val neg_elim_tac : tactic
+(** Proves any goal when both [P] and [~P] are in assumptions, deriving a
+    contradiction. Fails if no such pair exists *)
+
+val sorry_tac : tactic
+
+val intro_tac : tactic
+(** Transforms a goal [P ==> Q] into a subgoal [Q] with [P] added to the
+    assumptions. Fails if goal is not an implication *)
+
+val conj_tac : tactic
+(** Transforms a goal [P /\ Q] into two subgoals [P] and [Q]. Fails if the goal
+    is not a conjunction *)
+
 val left_tac : tactic
 (** Takes goals like [P \/ Q] and creates the subgoal [P]. Fails if the goal's
     conclusion is not a disjunction. This tactic is {b not safe}, as it is not
@@ -181,22 +210,50 @@ val or_tac : tactic
 (** Chooses between [left_tac] and [right_tac], ensuring both sides are
     attempted if used under a search combinator *)
 
-val apply_tac : tactic
+val neg_intro_tac : tactic
+(** Transforms a goal [~P] into a subgoal [F] with [P] added to the assumptions.
+    Fails if goal is not a negation or [P] is already an assumption *)
 
-val apply_asm_tac : tactic
-(** Forward reasoning on an assumption. Chooses a theorem from [Rules], strips
-    foralls, matches its first premise against a chosen assumption. Replaces the
-    chosen assumption with the remainder of the theorem (possibly re-quantified
-    over undetermined variables). *)
+val elim_conj_asm_tac : tactic
+(** Eliminates a conjunction [P /\ Q] in the assumptions by replacing it with
+    both [P] and [Q] as separate assumptions *)
 
-val apply_neg_asm_tac : tactic
-(** Proves [F] by finding a negation [~P] in assumptions and creating a subgoal
-    to prove [P]. Fails if the goal is not [F] or no suitable negation exists *)
+val elim_disj_asm_tac : tactic
+(** Eliminates a disjunction [P \/ Q] in the assumptions by case splitting,
+    creating two subgoals: one with [P] and one with [Q] *)
 
-val sorry_tac : tactic
+val elim_exists_asm_tac : tactic
+(** Eliminates an existential [exists x. P x] in the assumptions by replacing it
+    with [P x] where [x] is the bound variable. The existential assumption is
+    chosen via [Choose]. Fails if no existential assumptions exist. *)
+
+val ccontr_tac : tactic
+(** Proves [P] by classical contradiction: assumes [~P] and derives [F]. This is
+    a classical (non-intuitionistic) tactic *)
+
+val gen_tac : tactic
+(** Transforms a goal [forall x. P] into a subgoal [P]. Fails if the goal is not
+    a universal quantification *)
+
+val exists_tac : tactic
+(** Proves an existential goal [exists x. P x] by choosing a witness term and
+    creating a subgoal to prove [P] with the chosen term substituted *)
+
+val spec_asm_tac : term -> tactic
+(** [spec_asm_tac tm] specializes a universally quantified assumption
+    [forall x. P x] with [tm], adding the result as a new assumption. The forall
+    assumption is chosen via [Choose] *)
 
 val sym_tac : tactic
 (** Transforms a goal [l = r] into [r = l] *)
+
+val sym_asm_tac : tactic
+(** Finds an equality assumption [a = b] and replaces it with [b = a]. The
+    assumption is chosen via [Choose] *)
+
+val trans_tac : tactic
+(** Proves an equality [l = r] by choosing an intermediate term [s] and creating
+    two subgoals [l = s] and [s = r], then combining them via transitivity *)
 
 val fun_ext_tac : tactic
 (** Proves function equality [f = g] by reducing to pointwise equality. Creates
@@ -224,35 +281,6 @@ val beta_asm_tac : tactic
 (** Performs deep beta reduction on a chosen assumption. Fails if no progress is
     made *)
 
-val assert_tac : tactic
-(** Introduces an assertion: chooses a term, creates a subgoal to prove it, then
-    adds it as an assumption for the original goal *)
-
-val intro_tac : tactic
-(** Transforms a goal [P ==> Q] into a subgoal [Q] with [P] added to the
-    assumptions. Fails if goal is not an implication *)
-
-val refl_tac : tactic
-(** Proves goals of the form [t = t] by reflexivity. Fails if the goal is not an
-    equality or the sides are not identical *)
-
-val trans_tac : tactic
-(** Proves an equality [l = r] by choosing an intermediate term [s] and creating
-    two subgoals [l = s] and [s = r], then combining them via transitivity *)
-
-val assumption_tac : tactic
-(** Proves the goal if it matches one of the assumptions. Fails if no matching
-    assumption is found *)
-
-val spec_asm_tac : term -> tactic
-(** [spec_asm_tac tm] specializes a universally quantified assumption
-    [forall x. P x] with [tm], adding the result as a new assumption. The forall
-    assumption is chosen via [Choose] *)
-
-val sym_asm_tac : tactic
-(** Finds an equality assumption [a = b] and replaces it with [b = a]. The
-    assumption is chosen via [Choose] *)
-
 val eq_true_asm_tac : tactic
 (** Finds a bare boolean assumption [P] (not an equality) and adds [P = T] to
     the assumptions *)
@@ -266,50 +294,17 @@ val eq_true_elim_tac : tactic
 
 val eq_false_elim_tac : tactic
 
-val conj_tac : tactic
-(** Transforms a goal [P /\ Q] into two subgoals [P] and [Q]. Fails if the goal
-    is not a conjunction *)
+val apply_tac : tactic
 
-val elim_disj_asm_tac : tactic
-(** Eliminates a disjunction [P \/ Q] in the assumptions by case splitting,
-    creating two subgoals: one with [P] and one with [Q] *)
+val apply_asm_tac : tactic
+(** Forward reasoning on an assumption. Chooses a theorem from [Rules], strips
+    foralls, matches its first premise against a chosen assumption. Replaces the
+    chosen assumption with the remainder of the theorem (possibly re-quantified
+    over undetermined variables). *)
 
-val elim_conj_asm_tac : tactic
-(** Eliminates a conjunction [P /\ Q] in the assumptions by replacing it with
-    both [P] and [Q] as separate assumptions *)
-
-val neg_elim_tac : tactic
-(** Proves any goal when both [P] and [~P] are in assumptions, deriving a
-    contradiction. Fails if no such pair exists *)
-
-val neg_intro_tac : tactic
-(** Transforms a goal [~P] into a subgoal [F] with [P] added to the assumptions.
-    Fails if goal is not a negation or [P] is already an assumption *)
-
-val ccontr_tac : tactic
-(** Proves [P] by classical contradiction: assumes [~P] and derives [F]. This is
-    a classical (non-intuitionistic) tactic *)
-
-val false_elim_tac : tactic
-(** Proves any goal when [F] (false) is in the assumptions. Fails if [F] is not
-    present *)
-
-val exists_tac : tactic
-(** Proves an existential goal [exists x. P x] by choosing a witness term and
-    creating a subgoal to prove [P] with the chosen term substituted *)
-
-val gen_tac : tactic
-(** Transforms a goal [forall x. P] into a subgoal [P]. Fails if the goal is not
-    a universal quantification *)
-
-val induct_tac : tactic
-(** Applies structural induction. Works on both [forall x. P x] goals (inducting
-    on the quantified variable) and goals with a free variable (discharges
-    assumptions, requantifies, inducts, then re-specializes). For the free
-    variable case, the variable is chosen via [Choose]. *)
-
-val truth_tac : tactic
-(** Proves the goal [T] (truth). Fails if the goal is not [T] *)
+val apply_neg_asm_tac : tactic
+(** Proves [F] by finding a negation [~P] in assumptions and creating a subgoal
+    to prove [P]. Fails if the goal is not [F] or no suitable negation exists *)
 
 val cases_tac : tactic
 (** Performs case splitting. For [forall b:bool] goals, splits into [b=T] and
@@ -325,10 +320,15 @@ val destruct_tac : tactic
     to split the resulting disjunction. For induction with hypotheses, use
     [induct_tac] instead. *)
 
-val elim_exists_asm_tac : tactic
-(** Eliminates an existential [exists x. P x] in the assumptions by replacing it
-    with [P x] where [x] is the bound variable. The existential assumption is
-    chosen via [Choose]. Fails if no existential assumptions exist. *)
+val induct_tac : tactic
+(** Applies structural induction. Works on both [forall x. P x] goals (inducting
+    on the quantified variable) and goals with a free variable (discharges
+    assumptions, requantifies, inducts, then re-specializes). For the free
+    variable case, the variable is chosen via [Choose]. *)
+
+val assert_tac : tactic
+(** Introduces an assertion: chooses a term, creates a subgoal to prove it, then
+    adds it as an assumption for the original goal *)
 
 (** {1 Proof Runner} *)
 
