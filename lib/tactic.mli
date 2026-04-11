@@ -5,7 +5,7 @@ open Kernel
 
 (** {1 Goals and Proof State} *)
 
-type goal = term list * term
+type goal = (string * term) list * term
 (** A goal is a pair of assumptions and a conclusion to prove under them. *)
 
 val make_goal : ?asms:term list -> term -> goal

@@ -6,7 +6,9 @@ open Effect.Deep
 open Result.Syntax
 open Rewrite
 
-type goal = term list * term [@@deriving show { with_path = false }]
+type goal = (string * term) list * term [@@deriving show { with_path = false }]
+
+let destruct_goal ((asnames, asterms), c) = asnames, asterms, c
 
 let make_goal ?(asms = []) t = (asms, t)
 
