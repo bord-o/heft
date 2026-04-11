@@ -1,28 +1,29 @@
 open Kernel
 open Tactic
 
+(** Search-based proof automation built on top of [Tactic]. *)
+
+(** {1 Search Infrastructure} *)
+
 type choice_kind =
   | CTerm of (goal * term)
   | CTheorem of goal * thm
   | CTactic of goal * cost * tactic
   | CUnknown of goal
+      (** Tag describing what was offered at a given [Choose] point. *)
 
 type search_metadata =
   | MSubgoal of goal
   | MChoice of choice_kind
   | MResume
-      (** [search_metadata] is used by [with_best_first] to sort a priority
-          queue, deciding which path of a proof space to explore next *)
+      (** Classification of an entry in a search frontier, used by
+          [with_best_first] to order exploration. *)
 
 type step_result =
   | Cont of (choice_kind * (unit -> step_result)) list
   | Need of goal * (Kernel.thm -> step_result)
   | Done of Kernel.thm
-  | Dead
-      (** In search [tactic_combinator]s, [step_result] is used to represent
-          possible continuations of a search *)
-
-(** {1 Search Infrastructure} *)
+  | Dead  (** Result of one expansion of the proof tree by [step]. *)
 
 module Priority : sig
   type t =
@@ -32,6 +33,8 @@ module Priority : sig
     * string list
 
   val compare : t -> t -> int
+  (** Orders entries with [MResume] highest, then [MChoice], then [MSubgoal].
+      Among [MChoice]s, prefers smaller terms and cheaper tactics. *)
 end
 
 module PriorityQueue : sig
@@ -55,6 +58,9 @@ module PriorityQueue : sig
   val fold_unordered : ('acc -> Priority.t -> 'acc) -> 'acc -> t -> 'acc
 end
 
+(** A container of pending search entries. The choice of frontier determines the
+    search order: stack for DFS, queue for BFS, priority queue for best-first.
+*)
 module type Frontier = sig
   type t
 
@@ -65,54 +71,43 @@ module type Frontier = sig
 end
 
 val step : tactic -> goal -> step_result
-(** Performs one expansion of the proof tree and aggregates the results along
-    with their continuations *)
+(** Runs a tactic until it performs its next [Subgoal], [Choose], [Fail], or
+    completes, and packages the continuation. *)
 
 val stats_of_list : (search_metadata * 'a * 'b * 'c) list -> string
-(** Summarizes a list of search entries by counting subgoals, choices, and
-    resumptions *)
+(** Formats counts of subgoals, choices, and resumptions in a list of frontier
+    entries. *)
 
 module StackFrontier : Frontier
 
 val make_search : (module Frontier) -> tactic_combinator
-(** Creates a search combinator from a [Frontier] module. The frontier
-    determines exploration order (stack for DFS, queue for BFS, priority queue
-    for best-first) *)
+(** Builds a search combinator from a [Frontier] implementation. *)
 
 val with_dfs : tactic_combinator
-(** Performs depth-first search over choices and subgoals. Explores the proof
-    space using a stack, backtracking on failure. Emits the winning proof path
-    on success *)
+(** Depth-first search using [StackFrontier]. *)
 
 module PQueueFrontier : Frontier
 
 val with_best_first : tactic_combinator
-(** Performs best-first search over choices and subgoals. Uses a priority queue
-    ordered by [search_metadata] to explore promising paths first (resumes
-    before choices, choices before subgoals). Emits the winning proof path on
-    success *)
+(** Best-first search using [PQueueFrontier]. *)
 
 module QueueFrontier : Frontier
 
 val with_bfs : tactic_combinator
-(** Performs breadth-first search over choices and subgoals. Uses a queue to
-    explore paths level by level. Emits the winning proof path on success *)
+(** Breadth-first search using [QueueFrontier]. *)
 
 (** {1 Automation Tactics} *)
 
 val itauto_tac : tactic
-(** Complete automation tactic for intuitionistic propositional logic. Chooses
-    among various introduction and elimination tactics. Use with a search
-    combinator like [with_dfs] or [with_best_first] *)
+(** Choice over the basic intuitionistic propositional tactics. Wrap with a
+    search combinator to drive automation. *)
 
 val ctauto_tac : tactic
-(** Complete automation tactic for classical propositional logic. Includes all
-    intuitionistic tactics plus [ccontr_tac]. Use with a search combinator like
-    [with_dfs] or [with_best_first] *)
+(** Like [itauto_tac], extended with [ccontr_tac] for classical propositional
+    logic. *)
 
 val ctauto_dfs_tac : tactic
-(** [ctauto_tac] wrapped with [with_dfs] for automatic depth-first proof search
-*)
+(** [ctauto_tac] wrapped with [with_dfs]. *)
 
 val auto_dfs_tac : tactic
-(** [auto_tac] wrapped with [with_dfs] for automatic depth-first proof search *)
+(** [auto_tac] wrapped with [with_dfs]. *)

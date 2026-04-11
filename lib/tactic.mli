@@ -1,13 +1,21 @@
 open Kernel
 
-(** Tactic engine for interactive theorem proving with algebraic effects. *)
+(** Tactic engine for interactive theorem proving, built on OCaml algebraic
+    effects. *)
 
 (** {1 Goals and Proof State} *)
 
 type goal = term list * term
-(** A list of assumptions and a term to prove under them *)
+(** A goal is a pair of assumptions and a conclusion to prove under them. *)
 
 val make_goal : ?asms:term list -> term -> goal
+(** [make_goal ?asms concl] builds a goal with conclusion [concl]. Defaults to
+    no assumptions.
+
+    {[
+    make_goal (make_imp p q) (* ⊢ p ==> q *) make_goal ~asms:[ p ] q (* p ⊢ q *)
+    ]} *)
+
 val pp_goal : Format.formatter -> goal -> unit
 val show_goal : goal -> string
 
@@ -18,28 +26,29 @@ type level =
   | Error
   | Proof
   | Search
-      (** [level] is used to distinguish between different types of traces *)
+      (** Trace severity. [Proof] is used by tactics to record their name on the
+          proof path; [Search] is used by search combinators. *)
 
 type proof_state =
   | Incomplete of goal
-  | Complete of thm
-      (** [proof_state] is used by the ambient handler [prove] to represent the
-          result of applying a tactic *)
+  | Complete of thm  (** Result of running a tactic through [prove]. *)
 
 val pp_proof_state : Format.formatter -> proof_state -> unit
 val show_proof_state : proof_state -> string
 
 type tactic = goal -> thm
-(** A [tactic] is a function that works on a goal, possibly performing effects
-*)
+(** A tactic transforms a goal into a theorem, possibly performing effects. *)
 
 type tactic_combinator = tactic -> tactic
-(** A [tactic_combinator] is a function between tactics. It has many uses like
-    sequencing tactics ([then_one], [then_all]), handling specific effects
-    ([with_no_trace], [with_fuel_limit]), or managing search over a tactics
-    choices ([with_dfs], [with_best_first]). *)
+(** A function between tactics. Used for sequencing ([then_one], [then_all]),
+    handling effects ([with_no_trace], [with_fuel_limit]), and managing search
+    ([with_dfs], [with_best_first]). *)
 
-type cost = Safe of int | Unsafe of int
+type cost =
+  | Safe of int
+  | Unsafe of int
+      (** Cost associated with a tactic. [Safe] tactics preserve provability;
+          [Unsafe] tactics may fail even when the goal is provable. *)
 
 (** {1 Choice} *)
 
@@ -48,13 +57,11 @@ type _ choosable =
   | Theorem : thm list -> thm choosable
   | Tactic : tactic list -> tactic choosable
   | Unknown : 'a list -> 'a choosable
-      (** The [choosable] GADT is used to allow both agnostic treatment of the
-          [Choose] effect as well as deeper introspection into the underlying
-          data when needed *)
+      (** Typed wrapper for the [Choose] effect. Allows handlers to introspect
+          the kind of value being chosen. *)
 
 exception Out_of_fuel
-(** Raised by the [with_fuel_limit] [tactic_combinator] to indicate that a
-    tactic has gone over its limit *)
+(** Raised by [with_fuel_limit] when the fuel counter reaches zero. *)
 
 (** {1 Effects} *)
 
@@ -70,44 +77,30 @@ type _ Effect.t +=
 (** {1 Effect Helpers} *)
 
 val as_chosen_list : 'a choosable -> 'a list
-(** Extracts the underlying list from the [choosable] GADT *)
+(** Extracts the underlying list from a [choosable]. *)
 
 val cost_of_tactic : tactic -> goal -> string * cost
-(** Runs a tactic just far enough to extract its name and [Burn] cost. The
-    tactic must perform [Burn] as its first effect *)
+(** Runs a tactic just far enough to extract its name and first [Burn] cost. The
+    tactic must perform [Burn] before any other effect. *)
 
 val fail : unit -> 'a
-(** Performs the [Fail] effect. Used to signal when a tactic doesn't apply or
-    doesn't make progress *)
+(** Performs the [Fail] effect. Signals that a tactic does not apply. *)
 
 val burn : string -> cost -> unit
-(** Performs the [Burn] effect. Used to signal the cost of a tactic relative to
-    other tactics *)
+(** Performs the [Burn] effect. *)
 
 val trace_dbg : string -> unit
-(** Emits a debug-level trace message *)
-
 val trace_info : string -> unit
-(** Emits an info-level trace message *)
-
 val trace_error : string -> unit
-(** Emits an error-level trace message *)
 
 val trace_proof : string -> unit
-(** Emits a proof-level trace message, used by tactics to record their name in
-    the proof path *)
+(** Emits a [Proof]-level trace. Used by tactics to record their name on the
+    proof path. *)
 
 val choose_terms : term list -> term
-(** Requests a choice among a list of terms *)
-
 val choose_theorems : thm list -> thm
-(** Requests a choice among a list of theorems *)
-
 val choose_tactics : tactic list -> tactic
-(** Requests a choice among a list of tactics *)
-
 val choose_unknowns : 'a list -> 'a
-(** Requests a choice among a list of unknown type *)
 
 val return_thm :
   ?from:string ->
@@ -162,338 +155,340 @@ val return_thm :
     | `WrongNumberOfTypeArgs of string ] )
   result ->
   'a
-(** Used by tactics to handle failure and trace information about which tactic
-    was run *)
+(** Unwraps a kernel result into a theorem. On [Ok], emits a [Proof] trace
+    tagged with [from] and returns the theorem. On [Error], traces the error and
+    performs [Fail]. *)
 
 (** {1 Tactics} *)
 
 val assumption_tac : tactic
-(** Proves the goal if it matches one of the assumptions. Fails if no matching
-    assumption is found *)
+(** Closes the goal if its conclusion matches an assumption. *)
 
 val truth_tac : tactic
-(** Proves the goal [T] (truth). Fails if the goal is not [T] *)
+(** Closes a goal whose conclusion is [T]. *)
 
 val refl_tac : tactic
-(** Proves goals of the form [t = t] by reflexivity. Fails if the goal is not an
-    equality or the sides are not identical *)
+(** Closes a goal of the form [t = t]. *)
 
 val false_elim_tac : tactic
-(** Proves any goal when [F] (false) is in the assumptions. Fails if [F] is not
-    present *)
+(** Closes any goal if [F] is among the assumptions. *)
 
 val neg_elim_tac : tactic
-(** Proves any goal when both [P] and [~P] are in assumptions, deriving a
-    contradiction. Fails if no such pair exists *)
+(** Closes any goal if both [P] and [~P] appear as assumptions. *)
 
 val sorry_tac : tactic
+(** Closes the goal by admitting it as a new axiom. Use to skip a proof
+    obligation while developing. {b Unsound}. *)
 
 val intro_tac : tactic
-(** Transforms a goal [P ==> Q] into a subgoal [Q] with [P] added to the
-    assumptions. Fails if goal is not an implication *)
+(** Transforms a goal [P ==> Q] into [Q] with [P] added to the assumptions. *)
 
 val conj_tac : tactic
-(** Transforms a goal [P /\ Q] into two subgoals [P] and [Q]. Fails if the goal
-    is not a conjunction *)
+(** Splits a goal [P /\ Q] into subgoals [P] and [Q]. *)
 
 val left_tac : tactic
-(** Takes goals like [P \/ Q] and creates the subgoal [P]. Fails if the goal's
-    conclusion is not a disjunction. This tactic is {b not safe}, as it is not
-    true that [P] is always provable when [P \/ Q] is *)
+(** Reduces a goal [P \/ Q] to the subgoal [P]. {b Unsafe}: not complete for
+    disjunction. *)
 
 val right_tac : tactic
-(** Takes goals like [P \/ Q] and creates the subgoal [Q]. Fails if the goal's
-    conclusion is not a disjunction. This tactic is {b not safe}, as it is not
-    true that [Q] is always provable when [P \/ Q] is *)
+(** Reduces a goal [P \/ Q] to the subgoal [Q]. {b Unsafe}: not complete for
+    disjunction. *)
 
 val or_tac : tactic
-(** Chooses between [left_tac] and [right_tac], ensuring both sides are
-    attempted if used under a search combinator *)
+(** Performs a [Choose] between [left_tac] and [right_tac]. *)
 
 val neg_intro_tac : tactic
 (** Transforms a goal [~P] into a subgoal [F] with [P] added to the assumptions.
-    Fails if goal is not a negation or [P] is already an assumption *)
+*)
 
 val elim_conj_asm_tac : tactic
-(** Eliminates a conjunction [P /\ Q] in the assumptions by replacing it with
-    both [P] and [Q] as separate assumptions *)
+(** Replaces a conjunction [P /\ Q] among the assumptions with [P] and [Q]. *)
 
 val elim_disj_asm_tac : tactic
-(** Eliminates a disjunction [P \/ Q] in the assumptions by case splitting,
-    creating two subgoals: one with [P] and one with [Q] *)
+(** Case-splits on a disjunction [P \/ Q] among the assumptions, producing two
+    subgoals. *)
 
 val elim_exists_asm_tac : tactic
-(** Eliminates an existential [exists x. P x] in the assumptions by replacing it
-    with [P x] where [x] is the bound variable. The existential assumption is
-    chosen via [Choose]. Fails if no existential assumptions exist. *)
+(** Eliminates an existential [?x. P x] from the assumptions, introducing a
+    fresh witness. The existential is selected via [Choose]. *)
 
 val ccontr_tac : tactic
-(** Proves [P] by classical contradiction: assumes [~P] and derives [F]. This is
-    a classical (non-intuitionistic) tactic *)
+(** Proof by classical contradiction: reduces a goal [P] to [F] under the added
+    assumption [~P]. *)
 
 val gen_tac : tactic
-(** Transforms a goal [forall x. P] into a subgoal [P]. Fails if the goal is not
-    a universal quantification *)
+(** Strips a universal quantifier from a goal [!x. P x], leaving the subgoal
+    [P x]. *)
 
 val exists_tac : tactic
-(** Proves an existential goal [exists x. P x] by choosing a witness term and
-    creating a subgoal to prove [P] with the chosen term substituted *)
+(** Reduces a goal [?x. P x] to [P t] for a witness [t] chosen via [Choose]. *)
 
 val spec_asm_tac : term -> tactic
-(** [spec_asm_tac tm] specializes a universally quantified assumption
-    [forall x. P x] with [tm], adding the result as a new assumption. The forall
-    assumption is chosen via [Choose] *)
+(** [spec_asm_tac t] specializes a universally quantified assumption [!x. P x]
+    with [t], adding [P t] as a new assumption. The assumption to specialize is
+    selected via [Choose]. *)
 
 val sym_tac : tactic
-(** Transforms a goal [l = r] into [r = l] *)
+(** Rewrites a goal [l = r] to [r = l]. *)
 
 val sym_asm_tac : tactic
-(** Finds an equality assumption [a = b] and replaces it with [b = a]. The
-    assumption is chosen via [Choose] *)
+(** Replaces an equality assumption [a = b] (chosen via [Choose]) with [b = a].
+*)
 
 val trans_tac : tactic
-(** Proves an equality [l = r] by choosing an intermediate term [s] and creating
-    two subgoals [l = s] and [s = r], then combining them via transitivity *)
+(** Proves a goal [l = r] by choosing an intermediate term [m] and creating
+    subgoals [l = m] and [m = r]. *)
 
 val fun_ext_tac : tactic
-(** Proves function equality [f = g] by reducing to pointwise equality. Creates
-    a subgoal [f x = g x] for a fresh variable [x], then uses [lam] to recover
-    the equality. Both lambda and non-lambda terms are handled. *)
+(** Reduces a function equality [f = g] to pointwise equality [f x = g x] for a
+    fresh [x]. *)
 
 val eq_iff_tac : tactic
-(** Proves boolean equality [P = Q] by bi-implication. Creates two subgoals:
-    prove [P] assuming [Q], and prove [Q] assuming [P]. Combines the results via
-    [deduct_antisym_rule]. Fails if the equality is not at type [bool]. *)
+(** Reduces a boolean equality [P = Q] to two subgoals: [P] under [Q], and [Q]
+    under [P]. *)
+
+val discriminate_tac : tactic
+(** Closes a goal by deriving a contradiction from an equality assumption
+    between distinct constructors of an inductive type. Currently unimplemented.
+*)
 
 val rewrite_tac : tactic
-(** Rewrites the goal using a chosen theorem from [Rules]. Performs subterm
-    matching and fails if no progress is made *)
+(** Rewrites a subterm of the goal with a theorem chosen from [Rules]. Fails if
+    no rewrite makes progress. *)
 
 val rewrite_asm_tac : tactic
-(** Rewrites a chosen assumption using a theorem from [Rules]. Fails if no
-    progress is made *)
+(** Rewrites a subterm of an assumption with a theorem chosen from [Rules]. The
+    assumption is selected via [Choose]. *)
 
 val beta_tac : tactic
-(** Performs deep beta reduction on the goal and creates a subgoal with the
-    reduced term *)
+(** Beta-reduces the goal. Fails if no beta redex is found. *)
 
 val beta_asm_tac : tactic
-(** Performs deep beta reduction on a chosen assumption. Fails if no progress is
-    made *)
+(** Beta-reduces an assumption chosen via [Choose]. *)
 
 val eq_true_asm_tac : tactic
-(** Finds a bare boolean assumption [P] (not an equality) and adds [P = T] to
-    the assumptions *)
+(** For a boolean assumption [P] (not already an equality), adds [P = T] as an
+    assumption. *)
 
 val eq_true_elim_asm_tac : tactic
-(** Finds an assumption [P = T] and adds [P] to the assumptions *)
+(** For an assumption [P = T], adds [P] as an assumption. *)
 
 val eq_true_elim_tac : tactic
-(** Transforms a goal [P = T] into a subgoal [P], then wraps the result with
-    [eq_truth_intro] *)
+(** Reduces a goal [P = T] to a subgoal [P]. *)
 
 val eq_false_elim_tac : tactic
+(** Reduces a goal [P = F] to a subgoal [~P]. *)
+
 val apply_tac : tactic
+(** Backward chaining. Chooses a theorem from [Rules], strips its outer
+    quantifiers, and matches its conclusion against the goal. Each remaining
+    premise becomes a subgoal, quantified over variables that matching did not
+    determine. *)
 
 val apply_asm_tac : tactic
-(** Forward reasoning on an assumption. Chooses a theorem from [Rules], strips
-    foralls, matches its first premise against a chosen assumption. Replaces the
-    chosen assumption with the remainder of the theorem (possibly re-quantified
-    over undetermined variables). *)
+(** Forward chaining on an assumption. Chooses a theorem from [Rules] and an
+    assumption, then matches the theorem's first premise against the assumption.
+    The assumption is replaced with the remainder of the theorem, quantified
+    over variables that matching did not determine. *)
 
 val contradict_asm_tac : tactic
-(** Proves [F] by finding a negation [~P] in assumptions and creating a subgoal
-    to prove [P]. Fails if the goal is not [F] or no suitable negation exists *)
+(** For a goal [F], finds a negation [~P] among the assumptions (via [Choose])
+    and creates a subgoal [P]. *)
 
 val cases_tac : tactic
-(** Performs case splitting. For [forall b:bool] goals, splits into [b=T] and
-    [b=F] cases. For [forall x:inductive] goals, delegates to [induct_tac]. For
-    arbitrary bool expressions (via [with_term]), adds [e=T] and [e=F] as
-    assumptions *)
+(** Case splits. For a goal [!b:bool. P b], produces subgoals for [P T] and
+    [P F]. For a goal [!x:t. P x] where [t] is inductive, delegates to
+    [induct_tac]. Otherwise chooses a boolean term [e] via [Choose] and adds
+    [e = T] / [e = F] as alternative assumptions. *)
 
 val destruct_tac : tactic
-(** Performs case analysis on a chosen term of an inductive type using
-    exhaustiveness. Adds an assumption of the form
-    [tm = C1 \/ (exists a0. tm = C2 a0) \/ ...] to the goal. Works on arbitrary
-    terms, not just variables. Use [elim_disj_asm_tac] and [elim_exists_asm_tac]
-    to split the resulting disjunction. For induction with hypotheses, use
-    [induct_tac] instead. *)
+(** Case analysis via exhaustiveness. Chooses a term [t] of some inductive type
+    and adds the exhaustiveness disjunction for [t] (e.g.
+    [t = C1 \/ ?a. t = C2 a \/ ...]) as an assumption. Follow with
+    [elim_disj_asm_tac] and [elim_exists_asm_tac] to split the cases. Unlike
+    [induct_tac], produces no induction hypothesis. *)
 
 val induct_tac : tactic
-(** Applies structural induction. Works on both [forall x. P x] goals (inducting
-    on the quantified variable) and goals with a free variable (discharges
-    assumptions, requantifies, inducts, then re-specializes). For the free
-    variable case, the variable is chosen via [Choose]. *)
+(** Structural induction on an inductive type. For a goal [!x. P x], produces
+    one subgoal per constructor. For a goal with a free variable [x], the
+    variable is chosen via [Choose], mentioning assumptions are discharged,
+    induction runs on the resulting [!x. ...] goal, and the assumptions are
+    re-introduced. *)
 
 val assert_tac : tactic
-(** Introduces an assertion: chooses a term, creates a subgoal to prove it, then
-    adds it as an assumption for the original goal *)
+(** Chooses a term [p] via [Choose] and produces two subgoals: prove [p] under
+    the current assumptions, then prove the original goal with [p] added as an
+    assumption. *)
 
 (** {1 Proof Runner} *)
 
 val prove : ?quiet:bool -> ?name:string -> goal -> tactic -> proof_state
-(** The main effect handler that runs a tactic on a goal. Provides default
-    interpretations for all effects: printing traces, taking first choices,
-    ignoring fuel costs, etc. Returns [Complete thm] on success or
-    [Incomplete goal] on failure *)
+(** Top-level handler that interprets every effect with defaults: [Choose] takes
+    the first option, [Rules] is empty, [Burn] is ignored, [Trace] prints,
+    [Fail] yields [Incomplete], and [Subgoal] yields [Incomplete]. On success,
+    registers the resulting theorem under [name] via [Rules.add_proven]. *)
 
 (** {1 Tactic Combinators: Sequencing} *)
 
 val then_one : tactic -> tactic_combinator
-(** Sequences two tactics: applies [tac1] then applies [tac] to only the first
-    subgoal. Remaining subgoals bubble up. Infix: [>>] *)
+(** [then_one t1 t2] runs [t1], then runs [t2] on its first subgoal. Later
+    subgoals bubble up. Infix: [>>]. *)
 
 val ( >> ) : tactic -> tactic_combinator
 
 val then_all : tactic -> tactic_combinator
-(** Sequences two tactics: applies [tac1] then applies [tac] to all subgoals,
-    including subgoals emitted from children. Infix: [>>>>] *)
+(** [then_all t1 t2] runs [t1], then runs [t2] on every [Subgoal] it emits,
+    recursively (subgoals from [t2] are also handled). Infix: [>>>>]. *)
 
 val ( >>>> ) : tactic -> tactic_combinator
 
 val then_all_direct : tactic -> tactic_combinator
-(** Applies [tac] to each direct subgoal of [tac1], but lets subgoals from [tac]
-    itself bubble up to the outer handler. Infix: [>>>] *)
+(** Like [then_all], but subgoals emitted by [t2] itself bubble up instead of
+    being handled. Infix: [>>>]. *)
 
 val ( >>> ) : tactic -> tactic_combinator
 
 val then_each : tactic list -> tactic_combinator
-(** Applies a list of tactics to subgoals in order. Fails if there are more
-    subgoals than tactics provided. Infix: [>>=] *)
+(** [t >>= [t1; t2; ...]] runs [t], then applies [ti] to the [i]th subgoal in
+    order. Fails if there are more subgoals than tactics. *)
 
 val ( >>= ) : tactic -> tactic list -> tactic
 
 (** {1 Tactic Combinators: Choice and Search} *)
 
 val with_first : tactic_combinator
-(** Handles [Choose] by trying each choice in order until one succeeds. Only
-    handles choices at one level; for recursive search use [with_dfs] or
-    [with_best_first] *)
+(** Handles [Choose] by trying each option in order until one succeeds. Does not
+    recurse into nested [Choose] effects; for full search, use [Auto.with_dfs]
+    or [Auto.with_best_first]. *)
 
 val with_first_term : tactic_combinator
+(** Like [with_first], but only handles [Choose (Term _)]. Other choices pass
+    through. *)
 
 val with_term : term -> tactic_combinator
-(** Forces a specific term to be chosen when a [Choose (Term _)] effect is
-    performed, regardless of whether it appears in the choices *)
+(** [with_term t] resolves any [Choose (Term _)] by returning [t], regardless of
+    the offered options. *)
 
 val cond_tac : tactic
-(** Finds COND applications in the goal and case-splits on the condition
-    argument. Collects all condition terms from COND expressions, presents them
-    via [Choose], then delegates to [cases_tac] *)
+(** Finds [COND] applications in the goal, chooses one of their conditions via
+    [Choose], and delegates to [cases_tac] on the chosen condition. *)
 
 val try_ : tactic_combinator
-(** Converts failure into a subgoal request, allowing a tactic sequence to
-    continue when intermediate tactics fail *)
+(** Converts [Fail] into a [Subgoal] for the current goal, letting a tactic
+    sequence continue past a failing step. *)
 
 val pick_tac : tactic list -> tactic
-(** Creates a tactic that chooses among the given tactics. Used with search
-    combinators to explore different proof strategies *)
+(** Performs a [Choose] among the given tactics and runs the result. *)
 
 val solve : tactic_combinator
-(** Requires a tactic to completely solve the goal without leaving subgoals.
-    Fails if any subgoals remain *)
+(** Requires the wrapped tactic to close the goal completely. Fails on any
+    remaining [Subgoal]. *)
 
 val with_repeat : tactic_combinator
-(** Repeatedly applies a tactic until it fails or makes no progress. On failure
-    after progress, emits a subgoal for the current state *)
+(** Runs the wrapped tactic repeatedly until it fails. If progress was made
+    before the failure, emits a [Subgoal] for the current state instead of
+    failing. *)
 
 (** {1 Tactic Combinators: Interactive and Selection} *)
 
 val with_interactive_choice : tactic_combinator
-(** Handles [Choose] effects by prompting the user to select from the available
-    options via stdin *)
+(** Handles [Choose] by prompting on stdin for an option index. *)
 
 val with_nth_choice : int -> tactic_combinator
-(** Always selects the [n]th option from any [Choose] effect. Fails if [n] is
-    out of bounds *)
+(** Resolves every [Choose] by taking its [n]th option. Fails if [n] is out of
+    range. *)
 
 val with_nth_term : int -> tactic_combinator
-(** Always selects the [n]th term from a [Choose (Term _)] effect. Fails if [n]
-    is out of bounds. Only handles term choices, other choices pass through *)
+(** Like [with_nth_choice], but only for [Choose (Term _)]. *)
 
 (** {1 Tactic Combinators: Fuel and Tracing} *)
 
 val cost_value : cost -> int
-(** Extracts the integer value from a [cost], whether [Safe] or [Unsafe] *)
+(** Extracts the integer from a [cost]. *)
 
 val with_fuel_limit : int ref -> tactic_combinator
-(** Tracks fuel consumption and raises [Out_of_fuel] when the limit is exceeded.
-    The limit is a mutable reference that decreases with each [Burn] effect *)
+(** Decrements the given counter on each [Burn] and raises [Out_of_fuel] if it
+    reaches zero. *)
 
 val with_fuel_counter : int ref -> tactic_combinator
-(** Tracks total fuel consumed by incrementing a mutable reference for each
-    [Burn] effect *)
+(** Increments the given counter on each [Burn]. Does not enforce a limit. *)
 
 val show_tac : tactic
-(** Prints the current subgoal (assumptions and conclusion) *)
+(** Prints the current goal. Does not close it. *)
 
 val with_info_trace : tactic_combinator
-(** Prints info-level trace messages to stdout, letting all other effects pass
-    through *)
+(** Prints [Info]-level traces to stdout. Other effects pass through. *)
 
 val with_no_automation_trace : tactic_combinator
+(** Suppresses [Search]-level traces. *)
 
 val with_no_trace : ?show_proof:bool -> tactic_combinator
-(** Suppresses trace messages. By default suppresses all except [Search]. Set
-    [show_proof:true] to also show [Proof] traces *)
+(** Suppresses [Debug], [Info], [Warn], and [Error] traces. [Proof] traces pass
+    through unless [show_proof:false] is set, in which case they are also
+    suppressed. *)
 
 (** {1 Tactic Combinators: Rules} *)
 
 val with_assumptions : tactic_combinator
-(** Provides the goal's assumptions as theorems when a [Rules] effect is
-    performed *)
+(** Answers [Rules] with theorems obtained by [assume]-ing each of the goal's
+    assumptions. *)
 
 val with_rules : thm list -> tactic_combinator
-(** Provides a fixed list of theorems when a [Rules] effect is performed *)
+(** Answers [Rules] with the given list of theorems. *)
 
 val with_flip_rules : tactic_combinator
-(** Inverts the direction of all equality rules provided by the outer [Rules]
-    handler using [sym] *)
+(** Re-answers [Rules] with each equation from the outer handler flipped via
+    [sym]. Non-equations are dropped. *)
 
 val with_rule : thm -> tactic_combinator
-(** Provides a single theorem when a [Rules] effect is performed *)
+(** Answers [Rules] with a single theorem. *)
 
 val with_definition : string list -> tactic_combinator
-(** Looks up definitions by name and provides them when a [Rules] effect is
-    performed. Fails if any name is not found *)
+(** Answers [Rules] with definitions looked up by name in [Rules.get_def]. Fails
+    if any name is unknown. *)
 
 val with_specialized : name:string -> specs:term list -> tactic_combinator
+(** Looks up a proven theorem by [name], specializes its outer universal
+    quantifiers with [specs] in order, and answers [Rules] with the result.
+    Fails if the name is unknown or specialization fails. *)
 
 val with_proven : string list -> tactic_combinator
-(** Looks up previously proven theorems by name and provides them when a [Rules]
-    effect is performed. Fails if any name is not found *)
+(** Answers [Rules] with theorems looked up by name in [Rules.get_proven]. Fails
+    if any name is unknown. *)
 
 val with_rules_and_assumptions : thm list -> tactic_combinator
-(** Provides both the given rules and the goal's assumptions as theorems when a
-    [Rules] effect is performed *)
+(** Answers [Rules] with the given theorems together with the goal's assumptions
+    (as in [with_assumptions]). *)
 
 (** {1 Simplification and Automation} *)
 
 val intros_tac : tactic
-(** Repeatedly applies [intro_tac] and [gen_tac] until neither makes progress.
-    Useful for introducing all hypotheses at once *)
+(** Repeatedly applies [intro_tac] or [gen_tac] until neither makes progress. *)
 
 val simp_tac : ?exclude:string list -> ?with_asms:bool -> tactic
-(** Simplifies the goal using rewrite rules from definitions and registered simp
-    lemmas. Set [with_asms:false] to exclude assumptions *)
+(** Repeatedly rewrites the goal using the definitions and simp lemmas
+    registered in [Rules], plus any theorems provided by an outer [Rules]
+    handler. Also runs [beta_tac], [refl_tac], and [truth_tac]. [exclude] skips
+    definitions and simps by name. [with_asms] (default [true]) includes the
+    goal's assumptions as rewrites. *)
 
 val auto_tac : tactic
-(** Automation tactic combining simplification with basic logical tactics. Use
-    with a search combinator for full automation *)
+(** Performs a [Choose] among simplification, introduction rules, elimination
+    rules, and assumption-apply. Intended to be wrapped with a search
+    combinator. *)
 
 val simp_asm_tac :
   ?exclude:string list -> ?with_asms:bool -> ?add:thm list -> tactic
-(** Simplifies assumptions using rewrite rules from definitions. Use [add] to
-    provide additional rules. Set [with_asms:false] to exclude other assumptions
-    as rewrite rules *)
+(** Like [simp_tac], but rewrites assumptions instead of the goal. [add]
+    provides extra rules. *)
 
 (** {1 Term Synthesis} *)
 
 val with_synthetic_term :
   ?extra:(string * hol_type) list -> int -> tactic_combinator
-(** Handles [Choose (Term _)] effects by enumerating terms of the appropriate
-    type up to the given depth, then choosing among them. Use [extra] to provide
-    additional variables for synthesis *)
+(** Handles [Choose (Term _)] by enumerating well-typed terms up to the given
+    depth (using the type inferred from the current goal) and choosing among
+    them. [extra] adds named variables to the enumeration context. *)
 
 (** {1 Proof Execution} *)
 
@@ -506,7 +501,7 @@ val run_proof :
   goal ->
   tactic ->
   unit
-(** Runs a proof with fuel tracking and tracing. Prints the resulting theorem
-    and fuel usage on success, or the incomplete subgoal on failure. Set
-    [simp:true] to register the result as a simp lemma. Set [quiet:true] to
-    suppress output *)
+(** Runs a tactic through [prove] with a fuel limit of 1,000,000, prints the
+    result, and reports fuel used. [notrace] (default [true]) wraps the tactic
+    in [with_no_trace]. [simp:true] registers a successful proof as a simp lemma
+    under [name]. [quiet:true] suppresses all output. *)

@@ -177,22 +177,22 @@ let%expect_test "Nil_implies_length_Zero" =
 
 (* length xs = Zero ==> xs = Nil *)
 let%expect_test "length_Zero_implies_Nil" =
-  let goal =
-    make_goal
-      [%term forall (fun (xs : 'a list) -> length xs = Zero ==> (xs = Nil))]
+  let%thm _length_zero_nil (xs : 'a list) = length xs = Zero ==> (xs = Nil)
+  and proof =
+    begin
+      induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
+      >> discriminate_tac
+    end
   in
-  run_proof goal
-    (induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
-   >> sym_asm_tac
-    >> with_first (with_rules Nats.nat_def.distinct rewrite_asm_tac)
-    >> false_elim_tac);
+  ();
+
   [%expect
     {|
     ========================================
     ∀x. length x = Zero ==> x = Nil
 
     Proof Complete!
-    with fuel: 40
+    with fuel: 46
     |}]
 
 let%expect_test "append Nil xs = xs" =
@@ -834,9 +834,7 @@ let%expect_test "div fuel irrel" =
             div_aux n a b = Some x ==> (div_aux (plus n m) a b = Some x))]
   in
   run_proof ~name:"div_fuel_irrel" ~notrace:true goal
-    (induct_tac >> intros_tac >> simp_asm_tac
-    >> with_rule (List.hd Options.option_def.distinct) rewrite_asm_tac
-    >> false_elim_tac >> intros_tac
+    (induct_tac >> intros_tac >> simp_asm_tac >> discriminate_tac >> intros_tac
     >> with_first (with_definition [ "plus" ] rewrite_tac)
     >> beta_tac >> simp_tac >> simp_asm_tac
     >> with_term [%term nat_lt (a : nat) (b : nat)] cases_tac
@@ -844,10 +842,8 @@ let%expect_test "div fuel irrel" =
     >> with_term
          [%term div_aux (n0 : nat) (sub (a : nat) (b : nat)) (b : nat)]
          destruct_tac
-    >> elim_disj_asm_tac >> simp_asm_tac
-    >> with_first
-       @@ with_rule (List.hd Options.option_def.distinct) rewrite_asm_tac
-    >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
+    >> elim_disj_asm_tac >> simp_asm_tac >> discriminate_tac
+    >> elim_exists_asm_tac >> simp_asm_tac
     >> spec_asm_tac [%term (m : nat)]
     >> spec_asm_tac [%term sub (a : nat) (b : nat)]
     >> spec_asm_tac [%term (b : nat)]
@@ -863,7 +859,7 @@ let%expect_test "div fuel irrel" =
     ∀x. ∀m. ∀a. ∀b. ∀x'. div_aux x a b = Some x' ==> div_aux (plus x m) a b = Some x'
 
     Proof Complete!
-    with fuel: 294
+    with fuel: 303
     |}]
 
 let%expect_test "lt_Zero_Suc" =
@@ -1943,9 +1939,7 @@ let%expect_test "merge fuel irrel" =
   and proof =
     begin
       with_term [%term (fuel : nat)] induct_tac
-      >> intros_tac >> simp_asm_tac
-      >> with_rules Options.option_def.distinct rewrite_asm_tac
-      >> false_elim_tac >> intros_tac
+      >> intros_tac >> simp_asm_tac >> discriminate_tac >> intros_tac
       >> with_term [%term (xs : nat list)] destruct_tac
       >> elim_disj_asm_tac >> simp_tac >> simp_asm_tac >> elim_exists_asm_tac
       >> elim_exists_asm_tac
@@ -1972,9 +1966,8 @@ let%expect_test "merge fuel irrel" =
                (a1 : nat list)
                (Cons ((a0' : nat), (a1' : nat list)))]
            destruct_tac
-      >> elim_disj_asm_tac >> simp_asm_tac
-      >> with_first (with_rules Options.option_def.distinct rewrite_asm_tac)
-      >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
+      >> elim_disj_asm_tac >> simp_asm_tac >> discriminate_tac
+      >> elim_exists_asm_tac >> simp_asm_tac
       >> spec_asm_tac [%term (additional : nat)]
       >> spec_asm_tac [%term (a1 : nat list)]
       >> spec_asm_tac [%term Cons ((a0' : nat), (a1' : nat list))]
@@ -1990,9 +1983,8 @@ let%expect_test "merge fuel irrel" =
                (Cons ((a0 : nat), (a1 : nat list)))
                (a1' : nat list)]
            destruct_tac
-      >> elim_disj_asm_tac >> simp_asm_tac
-      >> with_first (with_rules Options.option_def.distinct rewrite_asm_tac)
-      >> false_elim_tac >> elim_exists_asm_tac >> simp_asm_tac
+      >> elim_disj_asm_tac >> simp_asm_tac >> discriminate_tac
+      >> elim_exists_asm_tac >> simp_asm_tac
       >> spec_asm_tac [%term (additional : nat)]
       >> spec_asm_tac [%term Cons ((a0 : nat), (a1 : nat list))]
       >> spec_asm_tac [%term (a1' : nat list)]
@@ -2008,7 +2000,7 @@ let%expect_test "merge fuel irrel" =
     ∀x. ∀additional. ∀xs. ∀ys. ∀x. merge_aux x xs ys = Some x ==> merge_aux (plus x additional) xs ys = Some x
 
     Proof Complete!
-    with fuel: 668
+    with fuel: 685
     |}]
 
 let%expect_test "merge fuel sufficient" =

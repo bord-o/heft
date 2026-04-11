@@ -1018,7 +1018,6 @@ let apply_asm_tac : tactic =
   in
   return_thm ~from:"apply_asm_tac" thm
 
-(* TODO: see if I can factor this out into other apply tactics *)
 let contradict_asm_tac : tactic =
  fun (asms, concl) ->
   burn "contradict_asm_tac" (Unsafe 5);
@@ -1039,6 +1038,38 @@ let contradict_asm_tac : tactic =
           prove_hyp sub_thm elim
       in
       return_thm ~from:"contradict_asm_tac" thm
+
+let discriminate_tac : tactic =
+ fun (asms, conc) ->
+  burn "discriminate_tac" (Safe 1);
+  let thm =
+    let equalities =
+      asms
+      |> List.map (fun asm ->
+          let* l, _ = destruct_eq asm in
+          let* ty = type_of_term l in
+          let* ty_name, _ = destruct_type ty in
+          let* ind_def =
+            Hashtbl.find_opt the_inductives ty_name
+            |> Option.to_result ~none:(`TypeNotDeclared ty_name)
+          in
+          Ok (asm, ind_def.distinct))
+      |> List.filter_map Result.to_option
+    in
+    let try_distinct_tac asm thms =
+      try_
+        (with_first (with_rules thms (with_term asm rewrite_asm_tac))
+        >> false_elim_tac)
+      >> try_ (with_term asm sym_asm_tac)
+      >> (with_first (with_rules thms rewrite_asm_tac) >> false_elim_tac)
+    in
+
+    let attempts =
+      equalities |> List.map @@ fun (asm, thms) -> try_distinct_tac asm thms
+    in
+    Ok (with_first (pick_tac attempts) (asms, conc))
+  in
+  return_thm ~from:"discriminate_tac" thm
 
 (* [cases_tac] and [induct_tac] are mutually recursive, and [cond_tac] depends
    on [cases_tac], so they are grouped here. [destruct_tac] is independent but
