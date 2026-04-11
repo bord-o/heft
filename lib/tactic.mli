@@ -290,6 +290,10 @@ val apply_asm_tac : tactic
     The assumption is replaced with the remainder of the theorem, quantified
     over variables that matching did not determine. *)
 
+val apply_asm_to_asm_tac : asm_thm:int -> asm_to:int -> tactic
+(** Apply the assumption at index [asm_thm] to the assumption at index [asm_to]
+    using [apply_asm_tac] *)
+
 val contradict_asm_tac : tactic
 (** For a goal [F], finds a negation [~P] among the assumptions (via [Choose])
     and creates a subgoal [P]. *)

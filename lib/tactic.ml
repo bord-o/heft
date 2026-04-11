@@ -1018,6 +1018,23 @@ let apply_asm_tac : tactic =
   in
   return_thm ~from:"apply_asm_tac" thm
 
+(* This is temporary, with named assumptions I should be able to make a more 
+   powerful apply tac which can handle different situations like this by name
+   rather than index, potentially looking for the given name in the assumptions,
+   and falling back to Rules.proven if it doesn't exist, then calling the
+   appropriate tactic based on that. It could have an optional argument for the 
+   `to` part of the application. Where if it is supplied it is an assumption
+   name to apply to, and if its left out we can apply to the goal.
+
+   On named assumptions. I think I can just add a name to each hyp in the 
+   goal type, and when we add an assumption we use a name hint or provided
+   optional name. If a tactic replaces an assumption then it should keep the
+   name.
+ *)
+let apply_asm_to_asm_tac ~asm_thm ~asm_to =
+  with_nth_choice asm_thm
+    (with_nth_term asm_to (with_assumptions apply_asm_tac))
+
 let contradict_asm_tac : tactic =
  fun (asms, concl) ->
   burn "contradict_asm_tac" (Unsafe 5);
