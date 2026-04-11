@@ -4,6 +4,7 @@ open Kernel
 open Tactic
 open Synth
 open Heft_theories
+open Auto
 
 let () = Functions.init ()
 let () = Options.init ()

@@ -1,11 +1,13 @@
+open Kernel
+
 (** Tactic engine for interactive theorem proving with algebraic effects. *)
 
 (** {1 Goals and Proof State} *)
 
-type goal = Kernel.term list * Kernel.term
+type goal = term list * term
 (** A list of assumptions and a term to prove under them *)
 
-val make_goal : ?asms:Kernel.term list -> Kernel.term -> goal
+val make_goal : ?asms:term list -> term -> goal
 
 val pp_goal :
   Ppx_deriving_runtime.Format.formatter -> goal -> Ppx_deriving_runtime.unit
@@ -23,7 +25,7 @@ type level =
 
 type proof_state =
   | Incomplete of goal
-  | Complete of Kernel.thm
+  | Complete of thm
       (** [proof_state] is used by the ambient handler [prove] to represent the
           result of applying a tactic *)
 
@@ -34,7 +36,7 @@ val pp_proof_state :
 
 val show_proof_state : proof_state -> Ppx_deriving_runtime.string
 
-type tactic = goal -> Kernel.thm
+type tactic = goal -> thm
 (** A [tactic] is a function that works on a goal, possibly performing effects
 *)
 
@@ -47,72 +49,15 @@ type tactic_combinator = tactic -> tactic
 type cost = Safe of int | Unsafe of int
 
 type choice_kind =
-  | CTerm of (goal * Kernel.term)
-  | CTheorem of goal * Kernel.thm
+  | CTerm of (goal * term)
+  | CTheorem of goal * thm
   | CTactic of goal * cost * tactic
   | CUnknown of goal
-
-type search_metadata =
-  | MSubgoal of goal
-  | MChoice of choice_kind
-  | MResume
-      (** [search_metadata] is used by [with_best_first] to sort a priority
-          queue, deciding which path of a proof space to explore next *)
-
-type step_result =
-  | Cont of (choice_kind * (unit -> step_result)) list
-  | Need of goal * (Kernel.thm -> step_result)
-  | Done of Kernel.thm
-  | Dead
-      (** In search [tactic_combinator]s, [step_result] is used to represent
-          possible continuations of a search *)
-
-(** {1 Search Infrastructure} *)
-
-module Priority : sig
-  type t =
-    search_metadata
-    * (unit -> step_result)
-    * (Kernel.thm -> step_result) list
-    * string list
-
-  val compare : t -> t -> int
-end
-
-module PriorityQueue : sig
-  type t = Pqueue.MakeMax(Priority).t
-
-  val create : unit -> t
-  val length : t -> int
-  val is_empty : t -> bool
-  val add : t -> Priority.t -> unit
-  val add_iter : t -> ((Priority.t -> unit) -> 'x -> unit) -> 'x -> unit
-  val max_elt : t -> Priority.t option
-  val get_max_elt : t -> Priority.t
-  val pop_max : t -> Priority.t option
-  val remove_max : t -> unit
-  val clear : t -> unit
-  val copy : t -> t
-  val of_array : Priority.t array -> t
-  val of_list : Priority.t list -> t
-  val of_iter : ((Priority.t -> unit) -> 'x -> unit) -> 'x -> t
-  val iter_unordered : (Priority.t -> unit) -> t -> unit
-  val fold_unordered : ('acc -> Priority.t -> 'acc) -> 'acc -> t -> 'acc
-end
-
-module type Frontier = sig
-  type t
-
-  val create : unit -> t
-  val pop : t -> Priority.t option
-  val add : t -> Priority.t -> unit
-  val stats : t -> string
-end
 
 (** {1 Choice and Ranking GADTs} *)
 
 type _ rankable =
-  | Term : Kernel.term list -> Kernel.term rankable
+  | Term : term list -> term rankable
   | Goal : goal list -> goal rankable
   | Tactic : tactic list -> tactic rankable
   | Unknown : 'a list -> 'a rankable
@@ -121,8 +66,8 @@ type _ rankable =
           when needed *)
 
 type _ choosable =
-  | Term : Kernel.term list -> Kernel.term choosable
-  | Theorem : Kernel.thm list -> Kernel.thm choosable
+  | Term : term list -> term choosable
+  | Theorem : thm list -> thm choosable
   | Tactic : tactic list -> tactic choosable
   | Unknown : 'a list -> 'a choosable
       (** The [choosable] GADT is used to allow both agnostic treatment of the
@@ -136,14 +81,14 @@ exception Out_of_fuel
 (** {1 Effects} *)
 
 type _ Effect.t +=
-  | Subgoal : goal -> Kernel.thm Effect.t
+  | Subgoal : goal -> thm Effect.t
   | Choose : 'a choosable -> 'a Effect.t
   | Rank : 'a rankable -> 'a list Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Quiet : bool Effect.t
   | Burn : (string * cost) -> unit Effect.t
-  | Rules : Kernel.thm list Effect.t
+  | Rules : thm list Effect.t
 
 (** {1 Effect Helpers} *)
 
@@ -156,10 +101,6 @@ val as_chosen_list : 'a choosable -> 'a list
 val cost_of_tactic : tactic -> goal -> string * cost
 (** Runs a tactic just far enough to extract its name and [Burn] cost. The
     tactic must perform [Burn] as its first effect *)
-
-val step : tactic -> goal -> step_result
-(** Performs one expansion of the proof tree and aggregates the results along
-    with their continuations *)
 
 val fail : unit -> 'a
 (** Performs the [Fail] effect. Used to signal when a tactic doesn't apply or
@@ -182,10 +123,10 @@ val trace_proof : string -> unit
 (** Emits a proof-level trace message, used by tactics to record their name in
     the proof path *)
 
-val choose_terms : Kernel.term list -> Kernel.term
+val choose_terms : term list -> term
 (** Requests a choice among a list of terms *)
 
-val choose_theorems : Kernel.thm list -> Kernel.thm
+val choose_theorems : thm list -> thm
 (** Requests a choice among a list of theorems *)
 
 val choose_tactics : tactic list -> tactic
@@ -194,59 +135,59 @@ val choose_tactics : tactic list -> tactic
 val choose_unknowns : 'a list -> 'a
 (** Requests a choice among a list of unknown type *)
 
-val rank_terms : Kernel.term list -> Kernel.term list
+val rank_terms : term list -> term list
 (** Requests a ranking/sorting of terms by some heuristic *)
 
 val return_thm :
   ?from:string ->
   ( 'a,
-    [< `BadSubstitutionList of (Kernel.term * Kernel.term) list
-    | `CantApplyNonFunctionType of Kernel.term
-    | `CantCreateVariantForNonVariable of Kernel.term
-    | `CantDestructEquality of Kernel.term
-    | `Clash of Kernel.term
+    [< `BadSubstitutionList of (term * term) list
+    | `CantApplyNonFunctionType of term
+    | `CantCreateVariantForNonVariable of term
+    | `CantDestructEquality of term
+    | `Clash of term
     | `ConstantTermAlreadyDeclared of string
     | `ConstructorsAlreadyExist of string list
     | `DefinitionError of string
-    | `EqMp of Kernel.thm * Kernel.thm
+    | `EqMp of thm * thm
     | `InvariantViolation of string
-    | `LamRuleCantApply of Kernel.term * Kernel.thm
-    | `MakeAppTypesDontAgree of Kernel.hol_type * Kernel.hol_type
-    | `MakeLamNotAVariable of Kernel.term
+    | `LamRuleCantApply of term * thm
+    | `MakeAppTypesDontAgree of hol_type * hol_type
+    | `MakeLamNotAVariable of term
     | `NameMappingError of string
-    | `NewAxiomNotAProp of Kernel.term
-    | `NewBasicDefinition of Kernel.term
+    | `NewAxiomNotAProp of term
+    | `NewBasicDefinition of term
     | `NewBasicDefinitionAlreadyDefined of string
     | `NoBaseCase of string
-    | `NoRewriteMatch of Kernel.thm * Kernel.term
-    | `NotAConj of Kernel.term
-    | `NotAConst of Kernel.term
+    | `NoRewriteMatch of thm * term
+    | `NotAConj of term
+    | `NotAConst of term
     | `NotAConstantName of string
-    | `NotADisj of Kernel.term
-    | `NotAForall of Kernel.term
-    | `NotALam of Kernel.term
-    | `NotANegation of Kernel.term
-    | `NotAProposition of Kernel.term
-    | `NotAVar of Kernel.term
-    | `NotAnApp of Kernel.term
-    | `NotAnApplication of Kernel.term
-    | `NotAnExists of Kernel.term
-    | `NotAnImp of Kernel.term
-    | `NotBothEquations of Kernel.thm * Kernel.thm
+    | `NotADisj of term
+    | `NotAForall of term
+    | `NotALam of term
+    | `NotANegation of term
+    | `NotAProposition of term
+    | `NotAVar of term
+    | `NotAnApp of term
+    | `NotAnApplication of term
+    | `NotAnExists of term
+    | `NotAnImp of term
+    | `NotBothEquations of thm * thm
     | `NotFreshConstructor of string list
     | `NotPositive of string
-    | `NotTrivialBetaRedex of Kernel.term
+    | `NotTrivialBetaRedex of term
     | `OperationDoesntMatch of string
-    | `RuleTrans of Kernel.thm * Kernel.thm
+    | `RuleTrans of thm * thm
     | `TypeAlreadyDeclared of string
     | `TypeAlreadyExists of string
     | `TypeConstructorNotAVariable of string
     | `TypeDefinitionError of string
-    | `TypeEquivalenceNotImplemented of Kernel.hol_type * Kernel.hol_type
+    | `TypeEquivalenceNotImplemented of hol_type * hol_type
     | `TypeNotDeclared of string
     | `TypeVariableNotAConstructor of string
-    | `TypesDontAgree of Kernel.hol_type * Kernel.hol_type
-    | `UnexpectedLambdaForm of Kernel.term
+    | `TypesDontAgree of hol_type * hol_type
+    | `UnexpectedLambdaForm of term
     | `WrongNumberOfTypeArgs of string ] )
   result ->
   'a
@@ -336,7 +277,7 @@ val assumption_tac : tactic
 (** Proves the goal if it matches one of the assumptions. Fails if no matching
     assumption is found *)
 
-val spec_asm_tac : Kernel.term -> tactic
+val spec_asm_tac : term -> tactic
 (** [spec_asm_tac tm] specializes a universally quantified assumption
     [forall x. P x] with [tm], adding the result as a new assumption. The forall
     assumption is chosen via [Choose] *)
@@ -465,11 +406,11 @@ val with_first : tactic_combinator
 
 val with_first_term : tactic_combinator
 
-val with_arbitrary_term : Kernel.term -> tactic_combinator
+val with_arbitrary_term : term -> tactic_combinator
 (** Forces a specific term to be chosen when a [Choose (Term _)] effect is
     performed, regardless of whether it appears in the choices *)
 
-val with_term : Kernel.term -> tactic_combinator
+val with_term : term -> tactic_combinator
 (** Forces a specific term to be chosen when a [Choose (Term _)] effect is
     performed. Fails if the term is not among the choices *)
 
@@ -490,72 +431,9 @@ val solve : tactic_combinator
 (** Requires a tactic to completely solve the goal without leaving subgoals.
     Fails if any subgoals remain *)
 
-val run_thunk_with_path : string list ref -> (unit -> 'a) -> 'a
-(** Executes a thunk while capturing [Trace (Proof, _)] effects into the
-    provided path reference. Used by search combinators to track the winning
-    proof sequence *)
-
-val emit_proof_path : string list -> unit
-(** Formats a proof path as a tactic script and emits it as a
-    [Trace (Search, _)] effect *)
-
-val stats_of_list : (search_metadata * 'a * 'b * 'c) list -> string
-(** Summarizes a list of search entries by counting subgoals, choices, and
-    resumptions *)
-
-module StackFrontier : Frontier
-
-val make_search : (module Frontier) -> tactic_combinator
-(** Creates a search combinator from a [Frontier] module. The frontier
-    determines exploration order (stack for DFS, queue for BFS, priority queue
-    for best-first) *)
-
-val with_dfs : tactic_combinator
-(** Performs depth-first search over choices and subgoals. Explores the proof
-    space using a stack, backtracking on failure. Emits the winning proof path
-    on success *)
-
-module PQueueFrontier : Frontier
-
-val with_best_first : tactic_combinator
-(** Performs best-first search over choices and subgoals. Uses a priority queue
-    ordered by [search_metadata] to explore promising paths first (resumes
-    before choices, choices before subgoals). Emits the winning proof path on
-    success *)
-
-module QueueFrontier : Frontier
-
-val with_bfs : tactic_combinator
-(** Performs breadth-first search over choices and subgoals. Uses a queue to
-    explore paths level by level. Emits the winning proof path on success *)
-
-val with_dfs'' : tactic_combinator
-(** Alternative DFS implementation using an explicit stack for choice points.
-    Does not track proof paths *)
-
-val with_dfs' : tactic_combinator
-(** Recursive DFS implementation that uses the call stack for backtracking.
-    Simpler but may overflow on deep searches. Does not track proof paths *)
-
 val with_repeat : tactic_combinator
 (** Repeatedly applies a tactic until it fails or makes no progress. On failure
     after progress, emits a subgoal for the current state *)
-
-(** {1 Automation Tactics} *)
-
-val itauto_tac : tactic
-(** Complete automation tactic for intuitionistic propositional logic. Chooses
-    among various introduction and elimination tactics. Use with a search
-    combinator like [with_dfs] or [with_best_first] *)
-
-val ctauto_tac : tactic
-(** Complete automation tactic for classical propositional logic. Includes all
-    intuitionistic tactics plus [ccontr_tac]. Use with a search combinator like
-    [with_dfs] or [with_best_first] *)
-
-val ctauto_dfs_tac : tactic
-(** [ctauto_tac] wrapped with [with_dfs] for automatic depth-first proof search
-*)
 
 (** {1 Tactic Combinators: Interactive and Selection} *)
 
@@ -618,28 +496,27 @@ val with_assumptions : tactic_combinator
 (** Provides the goal's assumptions as theorems when a [Rules] effect is
     performed *)
 
-val with_rules : Kernel.thm list -> tactic_combinator
+val with_rules : thm list -> tactic_combinator
 (** Provides a fixed list of theorems when a [Rules] effect is performed *)
 
 val with_flip_rules : tactic_combinator
 (** Inverts the direction of all equality rules provided by the outer [Rules]
     handler using [sym] *)
 
-val with_rule : Kernel.thm -> tactic_combinator
+val with_rule : thm -> tactic_combinator
 (** Provides a single theorem when a [Rules] effect is performed *)
 
 val with_definition : string list -> tactic_combinator
 (** Looks up definitions by name and provides them when a [Rules] effect is
     performed. Fails if any name is not found *)
 
-val with_specialized :
-  name:string -> specs:Kernel.term list -> tactic_combinator
+val with_specialized : name:string -> specs:term list -> tactic_combinator
 
 val with_proven : string list -> tactic_combinator
 (** Looks up previously proven theorems by name and provides them when a [Rules]
     effect is performed. Fails if any name is not found *)
 
-val with_rules_and_assumptions : Kernel.thm list -> tactic_combinator
+val with_rules_and_assumptions : thm list -> tactic_combinator
 (** Provides both the given rules and the goal's assumptions as theorems when a
     [Rules] effect is performed *)
 
@@ -657,11 +534,8 @@ val auto_tac : tactic
 (** Automation tactic combining simplification with basic logical tactics. Use
     with a search combinator for full automation *)
 
-val auto_dfs_tac : tactic
-(** [auto_tac] wrapped with [with_dfs] for automatic depth-first proof search *)
-
 val simp_asm_tac :
-  ?exclude:string list -> ?with_asms:bool -> ?add:Kernel.thm list -> tactic
+  ?exclude:string list -> ?with_asms:bool -> ?add:thm list -> tactic
 (** Simplifies assumptions using rewrite rules from definitions. Use [add] to
     provide additional rules. Set [with_asms:false] to exclude other assumptions
     as rewrite rules *)
@@ -669,7 +543,7 @@ val simp_asm_tac :
 (** {1 Term Synthesis} *)
 
 val with_synthetic_term :
-  ?extra:(string * Kernel.hol_type) list -> int -> tactic_combinator
+  ?extra:(string * hol_type) list -> int -> tactic_combinator
 (** Handles [Choose (Term _)] effects by enumerating terms of the appropriate
     type up to the given depth, then choosing among them. Use [extra] to provide
     additional variables for synthesis *)

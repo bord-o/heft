@@ -2,6 +2,7 @@ open Heft
 open Kernel
 open Tactic
 open Derived
+open Auto
 
 [%%inductive
 type day =

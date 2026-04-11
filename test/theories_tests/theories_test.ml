@@ -3,6 +3,7 @@ open Kernel
 open Derived
 open Tactic
 open Heft_theories
+open Auto
 
 let () = Functions.init ()
 let () = Options.init ()

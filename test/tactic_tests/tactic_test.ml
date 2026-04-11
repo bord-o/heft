@@ -3,6 +3,7 @@ open Kernel
 open Derived
 open Tactic
 open Heft_theories
+open Auto
 
 let%expect_test "basic" =
   let a = make_var "A" bool_ty in
