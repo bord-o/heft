@@ -8,7 +8,7 @@ open Auto
 let%expect_test "basic" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
-  let goal = make_goal ~asms:[ "ha", a; "hb", b ] (make_conj a b) in
+  let goal = make_goal ~asms:[ ("ha", a); ("hb", b) ] (make_conj a b) in
   let proof = conj_tac >> assumption_tac >> assumption_tac in
   run_proof goal proof;
   [%expect
@@ -53,7 +53,7 @@ let%expect_test "basic3" =
 let%expect_test "basic4" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
-  let goal = make_goal ~asms:[ "ha",a ] (make_disj a b) in
+  let goal = make_goal ~asms:[ ("ha", a) ] (make_disj a b) in
   let proof = left_tac >> assumption_tac in
   run_proof goal proof;
   [%expect
@@ -69,7 +69,7 @@ let%expect_test "basic4" =
 let%expect_test "basic5" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
-  let goal = make_goal ~asms:[ "ha",a;"hb", b ] (make_disj a b) in
+  let goal = make_goal ~asms:[ ("ha", a); ("hb", b) ] (make_disj a b) in
   let proof = right_tac >> assumption_tac in
   run_proof goal proof;
   [%expect
@@ -88,7 +88,9 @@ let%expect_test "basic6" =
   let c = make_var "C" bool_ty in
   let imp_ab = make_imp a b in
   let imp_cab = make_imp (make_imp c a) b in
-  let goal = make_goal ~asms:[ "himp",imp_cab; "himp2",imp_ab; "ha",a ] b in
+  let goal =
+    make_goal ~asms:[ ("himp", imp_cab); ("himp2", imp_ab); ("ha", a) ] b
+  in
   let proof =
     with_nth_choice 1 (with_assumptions apply_tac) >> assumption_tac
   in
@@ -111,7 +113,9 @@ let%expect_test "new apply" =
   let c = make_var "C" bool_ty in
   let imp_cab = make_imp c (make_imp a b) in
   let imp_ab = make_imp a b in
-  let goal = make_goal ~asms:[ "himp",imp_cab; "himp2",imp_ab; "ha",a ] b in
+  let goal =
+    make_goal ~asms:[ ("himp", imp_cab); ("himp2", imp_ab); ("ha", a) ] b
+  in
   let proof =
     with_assumptions (with_nth_choice 1 apply_tac) >> assumption_tac
   in
@@ -132,7 +136,11 @@ let%expect_test "deep sequencing with conj" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let c = make_var "C" bool_ty in
-  let goal = make_goal ~asms:[ "ha",a; "hb",b;"hc", c ] (make_conj (make_conj a b) c) in
+  let goal =
+    make_goal
+      ~asms:[ ("ha", a); ("hb", b); ("hc", c) ]
+      (make_conj (make_conj a b) c)
+  in
   let proof =
     conj_tac >> conj_tac >> assumption_tac >> assumption_tac >> assumption_tac
   in
@@ -151,7 +159,7 @@ let%expect_test "deep sequencing with conj" =
 
 let%expect_test "basic7" =
   let a = make_var "A" bool_ty in
-  let goal = make_goal ~asms:[ "hfalse", make_false () ] a in
+  let goal = make_goal ~asms:[ ("hfalse", make_false ()) ] a in
   let proof = ccontr_tac >> assumption_tac in
   run_proof goal proof;
 
@@ -167,7 +175,7 @@ let%expect_test "basic7" =
 
 let%expect_test "basic8" =
   let a = make_var "A" bool_ty in
-  let goal = make_goal ~asms:[ "hfalse", make_false () ] a in
+  let goal = make_goal ~asms:[ ("hfalse", make_false ()) ] a in
   let proof = false_elim_tac >> assumption_tac in
   run_proof goal proof;
 
@@ -227,8 +235,9 @@ let%expect_test "dfs_backtrack" =
   let e = make_var "E" bool_ty in
   let f = make_var "F" bool_ty in
   let goal =
-    make_goal ~asms:[ "hf", f ]
-      (make_disj (make_disj e (make_disj (make_disj c d) (make_disj a b))) f )
+    make_goal
+      ~asms:[ ("hf", f) ]
+      (make_disj (make_disj e (make_disj (make_disj c d) (make_disj a b))) f)
   in
   let proof = with_best_first (try_ or_tac >> assumption_tac) in
   run_proof goal proof;
@@ -252,7 +261,7 @@ let%expect_test "dfs_conj_backtrack" =
   let c = make_var "C" bool_ty in
   (* Goal: (A ∨ B) ∧ C, only have [B; C] *)
   let left = make_disj a b in
-  let goal = make_goal ~asms:[ "hb",b; "hc",c ] (make_conj left c) in
+  let goal = make_goal ~asms:[ ("hb", b); ("hc", c) ] (make_conj left c) in
   let proof =
     with_best_first (try_ conj_tac >> try_ or_tac >> assumption_tac)
   in
@@ -1098,14 +1107,14 @@ let%expect_test "rewrite_basic" =
 let%expect_test "basic4" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
-  let goal = make_goal ~asms:[ "ha",a ] (make_disj a b) in
+  let goal = make_goal ~asms:[ ("ha", a) ] (make_disj a b) in
   let name, _ = cost_of_tactic left_tac goal in
   print_endline name;
   [%expect {| left_tac |}]
 
 let%expect_test "exists_tac_bool" =
   let p = make_var "P" bool_ty in
-  let goal = make_goal ~asms:[ "htrue", make_true () ] (make_exists p p) in
+  let goal = make_goal ~asms:[ ("htrue", make_true ()) ] (make_exists p p) in
   (* ∃P. P *)
   run_proof goal (with_term (make_true ()) exists_tac >> assumption_tac);
   [%expect
@@ -1159,7 +1168,7 @@ let%expect_test "trans tac" =
   let eq_mo = Result.get_ok (safe_make_eq m o) in
   let eq_on = Result.get_ok (safe_make_eq o n) in
   let eq_mn = Result.get_ok (safe_make_eq m n) in
-  let goal = make_goal ~asms:[ "heq", eq_mo; "heq2",eq_on ] (eq_mn) in
+  let goal = make_goal ~asms:[ ("heq", eq_mo); ("heq2", eq_on) ] eq_mn in
 
   run_proof goal (with_term o trans_tac >> assumption_tac >> assumption_tac);
   [%expect
@@ -1173,9 +1182,9 @@ let%expect_test "trans tac" =
     with fuel: 3
     |}]
 
-let make_goal' (unnamed, conc) = 
-    let asms = unnamed |> List.map (fun p -> "", p) in
-    make_goal ~asms conc
+let make_goal' (unnamed, conc) =
+  let asms = unnamed |> List.map (fun p -> ("", p)) in
+  make_goal ~asms conc
 
 let%expect_test "assert_tac_basic" =
   let p = make_var "P" bool_ty in
@@ -1325,7 +1334,9 @@ let%expect_test "cases_tac arbitrary bool expr" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let a_eq_t = Result.get_ok (safe_make_eq a (make_true ())) in
-  let goal = make_goal' ([ a_eq_t; b ], Result.get_ok (safe_make_eq a (make_true ()))) in
+  let goal =
+    make_goal' ([ a_eq_t; b ], Result.get_ok (safe_make_eq a (make_true ())))
+  in
   let proof = with_term a cases_tac >> assumption_tac >> assumption_tac in
   run_proof goal proof;
   [%expect
