@@ -8,7 +8,7 @@ open Kernel
 type goal = (string * term) list * term
 (** A goal is a pair of assumptions and a conclusion to prove under them. *)
 
-val make_goal : ?asms:term list -> term -> goal
+val make_goal : ?asms:(string * term) list -> term -> goal
 (** [make_goal ?asms concl] builds a goal with conclusion [concl]. Defaults to
     no assumptions.
 

@@ -1,6 +1,7 @@
 open Kernel
 
 let avoid_asms asms n =
+  let asms = List.map fst asms in
   if not (List.mem n asms) then n
   else
     let rec loop i =
@@ -23,5 +24,7 @@ let name_hint (tm : term) : string =
   | Const (t, _) -> t
   | _ -> ""
 
-let name_asm ?(prefix = "h") ?name tm asms  =
-  match name with Some n -> n | None -> avoid_asms asms (prefix ^ name_hint tm)
+let name_asm ?(prefix = "h") ?name tm (asms : (string * term) list) =
+  match name with
+  | Some n -> (n, tm)
+  | None -> (avoid_asms asms (prefix ^ name_hint tm), tm)
