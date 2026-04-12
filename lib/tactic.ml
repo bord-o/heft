@@ -279,8 +279,10 @@ let with_fuel_counter r : tactic_combinator =
 let show_tac : tactic =
  fun goal ->
   print_endline "Current subgoal:";
-  fst goal |> List.iter (fun (name, asm) -> 
-      Printf.printf "[%s]:  %s\n" name (Printing.pretty_print_hol_term ~pretty:true asm));
+  fst goal
+  |> List.iter (fun (name, asm) ->
+      Printf.printf "[%s]:  %s\n" name
+        (Printing.pretty_print_hol_term ~pretty:true asm));
   print_endline "-------------------------";
   print_term @@ snd goal;
   fail ()
