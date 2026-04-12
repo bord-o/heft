@@ -296,9 +296,7 @@ let unwrap_thm = function
 (* Goal display *)
 
 let () = Fmt_tty.setup_std_outputs ()
-
-let is_auto_name name =
-  String.length name >= 1 && name.[0] = '_'
+let is_auto_name name = String.length name >= 1 && name.[0] = '_'
 
 let hline n =
   let unit = "\xe2\x94\x80" in
@@ -313,8 +311,7 @@ let display_goal ?(pretty = false) ((asms, concl) : (string * term) list * term)
   let ppf = Format.std_formatter in
   let pp_term t = pretty_print_hol_term ~pretty t in
   match asms with
-  | [] ->
-      Fmt.pf ppf "  %a@." Fmt.(styled `Bold string) (pp_term concl)
+  | [] -> Fmt.pf ppf "  %a@." Fmt.(styled `Bold string) (pp_term concl)
   | _ ->
       let max_name_len =
         List.fold_left (fun acc (n, _) -> max acc (String.length n)) 0 asms
@@ -325,12 +322,12 @@ let display_goal ?(pretty = false) ((asms, concl) : (string * term) list * term)
           let padded = Printf.sprintf "%-*s" pad name in
           if is_auto_name name then
             Fmt.pf ppf "  %a  %s@."
-              Fmt.(styled `Faint string) padded
-              (pp_term tm)
+              Fmt.(styled `Faint string)
+              padded (pp_term tm)
           else
             Fmt.pf ppf "  %a  %s@."
-              Fmt.(styled `Cyan string) padded
-              (pp_term tm))
+              Fmt.(styled `Cyan string)
+              padded (pp_term tm))
         asms;
       let concl_str = pp_term concl in
       let bar_len = max (pad + 6 + String.length concl_str) 40 in
