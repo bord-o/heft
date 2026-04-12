@@ -2231,3 +2231,76 @@ let%expect_test "eq_iff_tac with automation" =
     Proof Complete!
     with fuel: 77
     |}]
+
+let%expect_test "example" =
+  let%thm _test (p : bool) (q : bool) = p ==> (q ==> (p && q))
+  and proof =
+    begin
+      gen_tac >> gen_tac
+      >> with_names [ "hp" ] intro_tac
+      >> with_names [ "hq" ] intro_tac
+      >> show_tac
+    end
+  in
+  ();
+
+  [%expect
+    {|
+      hq  q
+      hp  p
+      ────────────────────────────────────────
+      p ∧ q
+    --------------
+    ∀p. ∀q. p ==> q ==> p ∧ q
+
+    Proof Incomplete
+    with fuel: 4
+    |}]
+
+let%expect_test "with_names elim_conj" =
+  let%thm _test (p : bool) (q : bool) = (p && q) ==> (q && p)
+  and proof =
+    begin
+      gen_tac >> gen_tac >> intro_tac
+      >> with_names [ "hp"; "hq" ] elim_conj_asm_tac
+      >> show_tac
+    end
+  in
+  ();
+  [%expect
+    {|
+      hq  p
+      hp  q
+      ────────────────────────────────────────
+      q ∧ p
+    --------------
+    ∀p. ∀q. p ∧ q ==> q ∧ p
+
+    Proof Incomplete
+    with fuel: 4
+    |}]
+
+let%expect_test "with_names partial fallback" =
+  let%thm _test (p : bool) (q : bool) (r : bool) =
+    p ==> (q ==> (r ==> (p && q && r)))
+  and proof =
+    begin
+      gen_tac >> gen_tac >> gen_tac
+      >> with_names [ "hp" ] intro_tac
+      >> intro_tac >> intro_tac >> show_tac
+    end
+  in
+  ();
+  [%expect
+    {|
+      _h1  r
+      _h   q
+      hp   p
+      ────────────────────────────────────────
+      p ∧ q ∧ r
+    --------------
+    ∀p. ∀q. ∀r. p ==> q ==> r ==> p ∧ q ∧ r
+
+    Proof Incomplete
+    with fuel: 6
+    |}]
