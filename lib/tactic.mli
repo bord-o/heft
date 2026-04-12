@@ -73,6 +73,7 @@ type _ Effect.t +=
   | Quiet : bool Effect.t
   | Burn : (string * cost) -> unit Effect.t
   | Rules : thm list Effect.t
+  | Name : (term * (string * term) list) -> (string * term) Effect.t
 
 (** {1 Effect Helpers} *)
 
@@ -458,6 +459,10 @@ val with_specialized : name:string -> specs:term list -> tactic_combinator
 val with_proven : string list -> tactic_combinator
 (** Answers [Rules] with theorems looked up by name in [Rules.get_proven]. Fails
     if any name is unknown. *)
+
+val with_names : string list -> tactic_combinator
+(** Handles [Name] by supplying names from the given list in order. When the
+    list is exhausted, falls back to auto-generation. *)
 
 val with_rules_and_assumptions : thm list -> tactic_combinator
 (** Answers [Rules] with the given theorems together with the goal's assumptions

@@ -38,6 +38,7 @@ type _ Effect.t +=
   | Quiet : bool Effect.t
   | Burn : (string * cost) -> unit Effect.t
   | Rules : thm list Effect.t
+  | Name : (term * (string * term) list) -> (string * term) Effect.t
 
 let as_chosen_list : type a. a choosable -> a list = function
   | Term ts -> ts
@@ -343,6 +344,23 @@ let with_flip_rules : tactic_combinator =
 let with_rule (rule : thm) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rules, k -> continue k [ rule ] | v -> v
+
+(* Combinators: Naming *)
+
+let with_names (names : string list) : tactic_combinator =
+ fun tac goal ->
+  let queue = ref names in
+  match tac goal with
+  | effect Name (tm, asms), k ->
+      let result =
+        match !queue with
+        | n :: rest ->
+            queue := rest;
+            (n, tm)
+        | [] -> name_asm tm asms
+      in
+      continue k result
+  | v -> v
 
 let with_definition (names : string list) : tactic_combinator =
   let rules =
@@ -1411,6 +1429,8 @@ let prove ?(quiet = false) ?(name = "") (goal : goal) (tactic : tactic) =
   (* While trace is used to decide how/when to report our traces, quiet is used
       to keep them from happening in situations where we want maximumm performance *)
   | effect Quiet, k -> continue k quiet
+  (* Name is used to name assumptions, defaulting to auto-generation *)
+  | effect Name (tm, asms), k -> continue k (name_asm tm asms)
   (* This represents failure for any reason *)
   | effect Fail, _k -> Incomplete goal
   (* Choose is used to decide how to explore options *)
