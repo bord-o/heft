@@ -1,0 +1,6 @@
+(executable
+ (public_name theory_dev)
+ (name theory_dev)
+ (preprocess
+  (pps heft.ppx_heft))
+ (libraries heft heft.theories))

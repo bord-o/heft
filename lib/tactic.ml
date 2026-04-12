@@ -280,7 +280,7 @@ let with_fuel_counter r : tactic_combinator =
 let show_tac : tactic =
  fun goal ->
   Printing.display_goal ~pretty:true goal;
-  fail ()
+  perform (Subgoal goal)
 
 let with_info_trace : tactic_combinator =
  fun tac goal ->

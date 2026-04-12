@@ -418,7 +418,7 @@ val with_fuel_counter : int ref -> tactic_combinator
 (** Increments the given counter on each [Burn]. Does not enforce a limit. *)
 
 val show_tac : tactic
-(** Prints the current goal. Does not close it. *)
+(** Prints the current goal and leaves it open *)
 
 val with_info_trace : tactic_combinator
 (** Prints [Info]-level traces to stdout. Other effects pass through. *)
