@@ -177,6 +177,9 @@ val false_elim_tac : tactic
 val neg_elim_tac : tactic
 (** Closes any goal if both [P] and [~P] appear as assumptions. *)
 
+val zero_tac : tactic
+(** Does nothing *)
+
 val sorry_tac : tactic
 (** Closes the goal by admitting it as a new axiom. Use to skip a proof
     obligation while developing. {b Unsound}. *)
@@ -295,6 +298,9 @@ val apply_asm_to_asm_tac : asm_thm:int -> asm_to:int -> tactic
 (** Apply the assumption at index [asm_thm] to the assumption at index [asm_to]
     using [apply_asm_tac] *)
 
+val apply_at_tac : string -> ?target:string -> tactic
+val rewrite_at_tac : string -> ?target:string -> tactic
+
 val contradict_asm_tac : tactic
 (** For a goal [F], finds a negation [~P] among the assumptions (via [Choose])
     and creates a subgoal [P]. *)
@@ -401,6 +407,10 @@ val with_interactive_choice : tactic_combinator
 val with_nth_choice : int -> tactic_combinator
 (** Resolves every [Choose] by taking its [n]th option. Fails if [n] is out of
     range. *)
+
+val with_named_asm_term : string -> tactic_combinator
+(** resolves [Choose (Term _)] by finding an assumption matching the given name.
+    Fails if the name isn't in the assumptions list *)
 
 val with_nth_term : int -> tactic_combinator
 (** Like [with_nth_choice], but only for [Choose (Term _)]. *)

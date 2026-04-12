@@ -284,3 +284,10 @@ let auto_dfs_tac : tactic =
  fun goal ->
   let thm = with_dfs auto_tac goal in
   return_thm ~from:"auto_dfs_tac" (Ok thm)
+
+let destruct_elim_tac =
+  with_names [ "ignore" ] destruct_tac
+  >> try_ elim_disj_asm_tac
+  >>> with_repeat (with_first elim_exists_asm_tac)
+
+let simp_all_tac = try_ simp_asm_tac >> try_ simp_tac

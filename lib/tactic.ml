@@ -247,6 +247,15 @@ let with_nth_choice n : tactic_combinator =
       | Some c -> continue k c)
   | v -> v
 
+let with_named_asm_term n : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Choose (Term _ts), k -> (
+      match fst goal |> List.find_opt (fun (name, _) -> n = name) with
+      | None -> fail ()
+      | Some c -> continue k (snd c))
+  | v -> v
+
 let with_nth_term n : tactic_combinator =
  fun tac goal ->
   match tac goal with
@@ -495,6 +504,12 @@ let neg_elim_tac : tactic =
       else fail ()
     in
     return_thm ~from:"neg_elim_tac" thm
+
+let zero_tac : tactic =
+ fun goal ->
+  burn "zero_tac" (Safe 10);
+  let thm = perform (Subgoal goal) in
+  return_thm ~from:"zero_tac" (Ok thm)
 
 let sorry_tac : tactic =
  fun (_, conc) ->
@@ -1078,6 +1093,31 @@ let apply_asm_tac : tactic =
 let apply_asm_to_asm_tac ~asm_thm ~asm_to =
   with_nth_choice asm_thm
     (with_nth_term asm_to (with_assumptions apply_asm_tac))
+
+(* Take a thm, from (in order of precedence) 
+   1. A named assumption (will fail if name is auto generated
+   2. A proven lemma or theorem
+   3. A definition
+   and apply it to [target], where target is the goal by default, but if provided will look up a named assumption
+   *)
+let apply_at_tac (source : string) ?target =
+ fun goal ->
+  let found = Rules.find_thm source (fst goal) in
+  if Option.is_none found then fail ();
+  let thm = Option.get found in
+  match target with
+  | None -> (with_rule thm apply_tac) goal
+  | Some name -> (with_named_asm_term name (with_rule thm apply_asm_tac)) goal
+
+let rewrite_at_tac (source : string) ?target =
+ fun goal ->
+  let found = Rules.find_thms source (fst goal) in
+  if Option.is_none found then fail ();
+  let thms = Option.get found in
+  match target with
+  | None -> (with_rules thms rewrite_tac) goal
+  | Some name ->
+      (with_named_asm_term name (with_rules thms rewrite_asm_tac)) goal
 
 let contradict_asm_tac : tactic =
  fun (asms, concl) ->

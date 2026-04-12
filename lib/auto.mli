@@ -111,3 +111,10 @@ val ctauto_dfs_tac : tactic
 
 val auto_dfs_tac : tactic
 (** [auto_tac] wrapped with [with_dfs]. *)
+
+val destruct_elim_tac : tactic
+(** A variation of [destruct_tac] which also eliminates the existentials it
+    generates *)
+
+val simp_all_tac : tactic
+(** A combination of [simp_asm_tac] and [simp_tac] *)

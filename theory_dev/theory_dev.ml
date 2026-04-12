@@ -2,6 +2,7 @@ open Heft
 open Kernel
 open Derived
 open Tactic
+open Auto
 
 let () =
   print_newline ();
@@ -195,3 +196,110 @@ and proof = begin
     >> assumption_tac
 end
 [@quiet]
+
+let%thm mem_singleton (x : 'a) (a : 'a) =
+  (mem x (singleton a)) = (x = a)
+and proof = begin
+    intros_tac
+    >> simp_tac
+end
+[@quiet]
+
+let%thm mem_diff (x : 'a) (s1 : 'a set) (s2 : 'a set) =
+  mem x (diff s1 s2) = (mem x s1 && not (mem x s2))
+and proof = begin
+    intros_tac
+    >> simp_tac
+end
+[@quiet]
+
+let%thm subset_antisym (s1 : 'a set) (s2 : 'a set) =
+  subset s1 s2 ==> (subset s2 s1 ==> (s1 = s2))
+and proof =
+  begin
+    with_names [ "hsubset1"; "hsubset2" ] intros_tac
+    >> with_names [ "hs1" ] (with_term [%term (s1 : 'a set)] destruct_elim_tac)
+    >> with_names [ "hs2" ] (with_term [%term (s2 : 'a set)] destruct_elim_tac)
+    >> simp_all_tac 
+    >> apply_at_tac "set_inj" 
+    >> fun_ext_tac
+    >> with_names [ "ha0'"; "ha0" ] eq_iff_tac
+    >> (apply_at_tac "hsubset2" ~target:"ha0'" >> assumption_tac)
+    >> (apply_at_tac "hsubset1" ~target:"ha0" >> assumption_tac)
+  end
+(* [@quiet] *)
+
+let%thm mem_subset (x : 'a) (s1 : 'a set) (s2 : 'a set) =
+  mem x s1 ==> (subset s1 s2 ==> mem x s2)
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
+
+let%thm subset_union_l (s1 : 'a set) (s2 : 'a set) = subset s1 (union s1 s2)
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
+
+let%thm subset_union_r (s1 : 'a set) (s2 : 'a set) = subset s2 (union s1 s2)
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
+
+let%thm inter_subset_l (s1 : 'a set) (s2 : 'a set) = subset (inter s1 s2) s1
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
+
+let%thm inter_subset_r (s1 : 'a set) (s2 : 'a set) = subset (inter s1 s2) s2
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
+
+let%thm union_assoc (s1 : 'a set) (s2 : 'a set) (s3 : 'a set) =
+  union s1 (union s2 s3) = union (union s1 s2) s3
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
+
+let%thm inter_assoc (s1 : 'a set) (s2 : 'a set) (s3 : 'a set) =
+  inter s1 (inter s2 s3) = inter (inter s1 s2) s3
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
+
+let%thm diff_subset (s1 : 'a set) (s2 : 'a set) = subset (diff s1 s2) s1
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
+
+let%thm diff_self (s : 'a set) = diff s s = empty_set
+
+and proof =
+  begin
+    sorry_tac
+  end
+  [@quiet]
