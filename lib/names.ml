@@ -24,7 +24,7 @@ let name_hint (tm : term) : string =
   | Const (t, _) -> t
   | _ -> ""
 
-let name_asm ?(prefix = "h") ?name tm (asms : (string * term) list) =
+let name_asm ?(prefix = "_h") ?name tm (asms : (string * term) list) =
   match name with
   | Some n -> (n, tm)
   | None -> (avoid_asms asms (prefix ^ name_hint tm), tm)
