@@ -516,7 +516,9 @@ let intro_tac : tactic =
     let* conc = side_of_op "==>" Right concl in
     trace_dbg "destruct success";
 
-    let body_thm = perform (Subgoal (name_asm hyp asms :: asms, conc)) in
+    let body_thm =
+      perform (Subgoal (perform (Name (hyp, asms)) :: asms, conc))
+    in
     let t = disch hyp body_thm in
     trace_dbg "disch success";
     t
@@ -579,7 +581,7 @@ let neg_intro_tac : tactic =
     if List.mem p (asm_terms asms) then fail ()
     else
       let f = make_false () in
-      let goal' = (name_asm p asms :: asms, f) in
+      let goal' = (perform (Name (p, asms)) :: asms, f) in
       let sub_thm = perform (Subgoal goal') in
       not_intro p sub_thm
   in
@@ -595,8 +597,8 @@ let elim_conj_asm_tac : tactic =
       let chosen = choose_terms (asm_terms conjs) in
       let* l, r = destruct_conj chosen in
       let filtered = List.filter (fun (_, a) -> a <> chosen) asms in
-      let add_r = name_asm r filtered :: filtered in
-      let asms' = name_asm l add_r :: add_r in
+      let add_r = perform (Name (r, filtered)) :: filtered in
+      let asms' = perform (Name (l, add_r)) :: add_r in
       let sub_thm = perform (Subgoal (asms', concl)) in
       let* conj_asm = assume chosen in
       let* l_thm = conj_left conj_asm in
@@ -617,8 +619,8 @@ let elim_disj_asm_tac : tactic =
       let* l, r = destruct_disj chosen in
       let asms' = List.filter (fun (_, a) -> a <> chosen) asms in
 
-      let left_goal = (name_asm l asms' :: asms', concl) in
-      let right_goal = (name_asm r asms' :: asms', concl) in
+      let left_goal = (perform (Name (l, asms')) :: asms', concl) in
+      let right_goal = (perform (Name (r, asms')) :: asms', concl) in
 
       let lthm = perform (Subgoal left_goal) in
       let rthm = perform (Subgoal right_goal) in
@@ -644,7 +646,7 @@ let elim_exists_asm_tac : tactic =
       in
       let* var' = variant avoid var in
       let* body' = vsubst [ (var', var) ] body in
-      let asms' = name_asm body' other_asms :: other_asms in
+      let asms' = perform (Name (body', other_asms)) :: other_asms in
       let sub_thm = perform (Subgoal (asms', concl)) in
       let* exists_assumed = assume chosen in
       let c = choose var' exists_assumed sub_thm in
@@ -663,7 +665,7 @@ let ccontr_tac : tactic =
   if concl = false_tm || List.mem neg_concl (asm_terms asms) then fail ()
   else
     let thm =
-      let goal' = (name_asm neg_concl asms :: asms, false_tm) in
+      let goal' = (perform (Name (neg_concl, asms)) :: asms, false_tm) in
       let sub_thm = perform (Subgoal goal') in
       ccontr concl sub_thm
     in
@@ -716,7 +718,7 @@ let spec_asm_tac (tm : term) : tactic =
       let spec_concl = Kernel.concl specialized in
       if List.mem spec_concl (asm_terms asms) then fail ()
       else
-        let asms' = name_asm spec_concl asms :: asms in
+        let asms' = perform (Name (spec_concl, asms)) :: asms in
         let sub_thm = perform (Subgoal (asms', concl)) in
         prove_hyp specialized sub_thm
     in
@@ -746,7 +748,7 @@ let sym_asm_tac : tactic =
       let flipped_concl = Kernel.concl flipped in
       if List.mem flipped_concl (asm_terms asms) then fail ()
       else
-        let asms' = name_asm flipped_concl asms :: asms in
+        let asms' = perform (Name (flipped_concl, asms)) :: asms in
         let sub_thm = perform (Subgoal (asms', concl)) in
         prove_hyp flipped sub_thm
     in
@@ -813,8 +815,8 @@ let eq_iff_tac : tactic =
     let* p, q = destruct_eq conc in
     let* p_ty = type_of_term p in
     if p_ty <> bool_ty then fail ();
-    let p_from_q = perform (Subgoal (name_asm q asms :: asms, p)) in
-    let q_from_p = perform (Subgoal (name_asm p asms :: asms, q)) in
+    let p_from_q = perform (Subgoal (perform (Name (q, asms)) :: asms, p)) in
+    let q_from_p = perform (Subgoal (perform (Name (p, asms)) :: asms, q)) in
     deduct_antisym_rule p_from_q q_from_p
   in
   return_thm ~from:"eq_iff_tac" thm
@@ -915,7 +917,7 @@ let eq_true_asm_tac : tactic =
     let* asm_thm = assume chosen in
     let* eq_t = eq_truth_intro asm_thm in
     let new_asm = Kernel.concl eq_t in
-    let asms' = name_asm new_asm asms :: asms in
+    let asms' = perform (Name (new_asm, asms)) :: asms in
     let sub_thm = perform (Subgoal (asms', concl)) in
     prove_hyp eq_t sub_thm
   in
@@ -929,7 +931,7 @@ let eq_true_elim_asm_tac : tactic =
     let* asm_thm = assume chosen in
     let* p = eq_truth_elim asm_thm in
     let new_asm = Kernel.concl p in
-    let asms' = name_asm new_asm asms :: asms in
+    let asms' = perform (Name (new_asm, asms)) :: asms in
     let sub_thm = perform (Subgoal (asms', concl)) in
     prove_hyp p sub_thm
   in
@@ -1057,7 +1059,7 @@ let apply_asm_tac : tactic =
           fail ();
         let new_asm = make_foralls free_undet remainder in
         if List.mem new_asm (asm_terms asms) then fail ();
-        let asms' = name_asm new_asm asms :: asms in
+        let asms' = perform (Name (new_asm, asms)) :: asms in
         let sub_thm = perform (Subgoal (asms', conc)) in
         let* asm_thm = assume chosen_asm in
         let* remainder_thm = mp inst_thm asm_thm in
@@ -1142,7 +1144,7 @@ let rec cases_tac : tactic =
     let* var_eq_val = safe_make_eq var value in
     let* bod_subst = vsubst [ (value, var) ] bod in
     let subgoal_thm =
-      perform (Subgoal (name_asm var_eq_val asms :: asms, bod_subst))
+      perform (Subgoal (perform (Name (var_eq_val, asms)) :: asms, bod_subst))
     in
     let* pred_lam = make_lam var bod in
     let* var_eq_val_assumed = assume var_eq_val in
@@ -1162,8 +1164,12 @@ let rec cases_tac : tactic =
     let* bc = spec tm bool_cases in
     let* tm_eq_t = safe_make_eq tm (make_true ()) in
     let* tm_eq_f = safe_make_eq tm (make_false ()) in
-    let t_thm = perform (Subgoal (name_asm tm_eq_t asms :: asms, concl)) in
-    let f_thm = perform (Subgoal (name_asm tm_eq_f asms :: asms, concl)) in
+    let t_thm =
+      perform (Subgoal (perform (Name (tm_eq_t, asms)) :: asms, concl))
+    in
+    let f_thm =
+      perform (Subgoal (perform (Name (tm_eq_f, asms)) :: asms, concl))
+    in
     disj_cases bc t_thm f_thm
   in
   let thm =
@@ -1199,7 +1205,7 @@ and destruct_tac : tactic =
     let* specced = spec tm typed_exhaust in
     let exhaust_fact = Kernel.concl specced in
     let sub_thm =
-      perform (Subgoal (name_asm exhaust_fact asms :: asms, concl))
+      perform (Subgoal (perform (Name (exhaust_fact, asms)) :: asms, concl))
     in
     prove_hyp specced sub_thm
   in
@@ -1300,7 +1306,7 @@ let assert_tac : tactic =
     let assertion = choose_terms [] in
     let asserted_thm = perform (Subgoal (asms, assertion)) in
     let with_assertion_thm =
-      perform (Subgoal (name_asm assertion asms :: asms, concl))
+      perform (Subgoal (perform (Name (assertion, asms)) :: asms, concl))
     in
     prove_hyp asserted_thm with_assertion_thm
   in
