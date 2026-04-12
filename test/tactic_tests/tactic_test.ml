@@ -1605,14 +1605,7 @@ let%expect_test "apply_tac match failure" =
   let thm = Derived.truth in
   let goal = make_goal (make_false ()) in
   run_proof goal (with_rules [ thm ] apply_tac);
-  [%expect
-    {|
-    --------------
-    F
-
-    Proof Incomplete
-    with fuel: 5
-    |}]
+  [%expect {| F |}]
 
 let%expect_test "apply_tac polymorphic no premises" =
   (* ∀(x:'a). x = x applied to T = T — type 'a instantiated to bool *)
@@ -1857,13 +1850,9 @@ let%expect_test "apply_asm_tac no match" =
   run_proof goal (with_rules [ thm ] apply_asm_tac);
   [%expect
     {|
+       F
+    ────────────────────────────────────────
     F
-
-    --------------
-    F
-
-    Proof Incomplete
-    with fuel: 5
     |}]
 
 let%expect_test "apply_asm_tac no premises fails" =
@@ -1873,13 +1862,9 @@ let%expect_test "apply_asm_tac no premises fails" =
   run_proof goal (with_rules [ thm ] apply_asm_tac);
   [%expect
     {|
+       A
+    ────────────────────────────────────────
     A
-
-    --------------
-    A
-
-    Proof Incomplete
-    with fuel: 5
     |}]
 
 let%expect_test "apply_asm_tac polymorphic simple" =
@@ -2044,27 +2029,13 @@ let%expect_test "fun_ext_tac non function fails" =
   let b = make_var "B" bool_ty in
   let goal = make_goal (Result.get_ok (safe_make_eq a b)) in
   run_proof goal fun_ext_tac;
-  [%expect
-    {|
-    --------------
-    A = B
-
-    Proof Incomplete
-    with fuel: 2
-    |}]
+  [%expect {| A = B |}]
 
 let%expect_test "fun_ext_tac not equality fails" =
   let a = make_var "A" bool_ty in
   let goal = make_goal a in
   run_proof goal fun_ext_tac;
-  [%expect
-    {|
-    --------------
-    A
-
-    Proof Incomplete
-    with fuel: 2
-    |}]
+  [%expect {| A |}]
 
 let%expect_test "fun_ext_tac freshens variable" =
   let nat_ty = Nats.nat_ty in
@@ -2180,27 +2151,13 @@ let%expect_test "eq_iff_tac non bool fails" =
   let b = make_var "b" nat_ty in
   let goal = make_goal (Result.get_ok (safe_make_eq a b)) in
   run_proof goal eq_iff_tac;
-  [%expect
-    {|
-    --------------
-    a = b
-
-    Proof Incomplete
-    with fuel: 1
-    |}]
+  [%expect {| a = b |}]
 
 let%expect_test "eq_iff_tac not equality fails" =
   let a = make_var "A" bool_ty in
   let goal = make_goal a in
   run_proof goal eq_iff_tac;
-  [%expect
-    {|
-    --------------
-    A
-
-    Proof Incomplete
-    with fuel: 1
-    |}]
+  [%expect {| A |}]
 
 let%expect_test "eq_iff_tac with automation" =
   let p = make_var "P" bool_ty in
@@ -2239,22 +2196,16 @@ let%expect_test "example" =
       gen_tac >> gen_tac
       >> with_names [ "hp" ] intro_tac
       >> with_names [ "hq" ] intro_tac
-      >> show_tac
     end
   in
   ();
 
   [%expect
     {|
-      hq  q
-      hp  p
-      ────────────────────────────────────────
-      p ∧ q
-    --------------
-    ∀p. ∀q. p ==> q ==> p ∧ q
-
-    Proof Incomplete
-    with fuel: 4
+    hq  q
+    hp  p
+    ────────────────────────────────────────
+    p ∧ q
     |}]
 
 let%expect_test "with_names elim_conj" =
@@ -2263,21 +2214,15 @@ let%expect_test "with_names elim_conj" =
     begin
       gen_tac >> gen_tac >> intro_tac
       >> with_names [ "hp"; "hq" ] elim_conj_asm_tac
-      >> show_tac
     end
   in
   ();
   [%expect
     {|
-      hq  p
-      hp  q
-      ────────────────────────────────────────
-      q ∧ p
-    --------------
-    ∀p. ∀q. p ∧ q ==> q ∧ p
-
-    Proof Incomplete
-    with fuel: 4
+    hq  p
+    hp  q
+    ────────────────────────────────────────
+    q ∧ p
     |}]
 
 let%expect_test "with_names partial fallback" =
@@ -2287,20 +2232,15 @@ let%expect_test "with_names partial fallback" =
     begin
       gen_tac >> gen_tac >> gen_tac
       >> with_names [ "hp" ] intro_tac
-      >> intro_tac >> intro_tac >> show_tac
+      >> intro_tac >> intro_tac
     end
   in
   ();
   [%expect
     {|
-      _h1  r
-      _h   q
-      hp   p
-      ────────────────────────────────────────
-      p ∧ q ∧ r
-    --------------
-    ∀p. ∀q. ∀r. p ==> q ==> r ==> p ∧ q ∧ r
-
-    Proof Incomplete
-    with fuel: 6
+    _h1  r
+    _h   q
+    hp   p
+    ────────────────────────────────────────
+    p ∧ q ∧ r
     |}]

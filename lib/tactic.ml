@@ -1468,10 +1468,4 @@ let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
         print_thm ~pretty thm;
         print_endline "Proof Complete!";
         Printf.printf "with fuel: %d\n" !fuel_count)
-  | Incomplete (asms, c) ->
-      if not quiet then (
-        List.iter (print_term ~pretty) (asm_terms asms);
-        print_endline "--------------";
-        print_term ~pretty c;
-        print_endline "Proof Incomplete";
-        Printf.printf "with fuel: %d\n" !fuel_count)
+  | Incomplete g -> if not quiet then Printing.display_goal g
