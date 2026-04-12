@@ -19,6 +19,7 @@ depends: [
   "ocamlformat"
   "sedlex"
   "ppxlib"
+  "fmt"
   "odoc" {with-doc}
 ]
 build: [
