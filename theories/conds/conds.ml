@@ -6,7 +6,6 @@ open Tactic
 
 let t = make_true ()
 let f = make_false ()
-let init () = ()
 
 let not_t_eq_f =
   let thm =

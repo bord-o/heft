@@ -4,10 +4,6 @@ open Result.Syntax
 open Derived
 open Tactic
 
-let () = Functions.init ()
-let () = Options.init ()
-let init () = ()
-
 [%%inductive type nat = Zero | Suc of nat]
 
 let%def pred (n : nat) : nat = match n with Zero -> Zero | Suc m -> m

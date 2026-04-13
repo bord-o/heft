@@ -3,8 +3,6 @@ open Kernel
 open Derived
 open Tactic
 
-let init () = ()
-
 let%def eqb (a : bool) (b : bool) : bool =
   if a then if b then true else false else if b then false else true
 

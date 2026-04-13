@@ -1,6 +1,6 @@
 (library
  (name ppx_tests)
- (libraries heft heft.theories heft.ppx_heft)
+ (libraries heft heft.ppx_heft heft.theories.nats heft.theories.lists)
  (inline_tests)
  (preprocess
   (pps ppx_expect ppx_heft)))

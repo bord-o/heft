@@ -1,0 +1,7 @@
+(library
+ (name heft_theories_nats)
+ (public_name heft.theories.nats)
+ (wrapped false)
+ (preprocess
+  (pps ppx_heft))
+ (libraries heft heft.ppx_heft heft.theories.functions heft.theories.options))

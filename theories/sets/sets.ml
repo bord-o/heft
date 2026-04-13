@@ -4,8 +4,6 @@ open Derived
 open Tactic
 open Auto
 
-let init () = ()
-
 (* Definitions *)
 [%%inductive type 'a set = Set of ('a -> bool)]
 
@@ -36,6 +34,7 @@ and proof = begin
     intros_tac >> simp_tac >> neg_intro_tac >> assumption_tac
 end 
 [@quiet]
+[@simp]
 
 let%thm mem_union (x : 'a) (s1 : 'a set) (s2 : 'a set) =
   mem x (union s1 s2) = (mem x s1 || mem x s2)
@@ -44,6 +43,7 @@ and proof = begin
     >> simp_tac
 end 
 [@quiet]
+[@simp]
 
 let%thm mem_inter (x : 'a) (s1 : 'a set) (s2 : 'a set) =
   mem x (inter s1 s2) = (mem x s1 && mem x s2)
@@ -52,6 +52,7 @@ and proof = begin
     >> simp_tac
 end 
 [@quiet]
+[@simp]
 
 let set_def = Hashtbl.find the_inductives "set"
 (* let () = List.iter Printing.print_thm (set_def.injective) *)
@@ -200,6 +201,7 @@ and proof = begin
     >> simp_tac
 end
 [@quiet]
+[@simp]
 
 let%thm mem_diff (x : 'a) (s1 : 'a set) (s2 : 'a set) =
   mem x (diff s1 s2) = (mem x s1 && not (mem x s2))
@@ -208,6 +210,7 @@ and proof = begin
     >> simp_tac
 end
 [@quiet]
+[@simp]
 
 let%thm subset_antisym (s1 : 'a set) (s2 : 'a set) =
   subset s1 s2 ==> (subset s2 s1 ==> (s1 = s2))
@@ -357,6 +360,7 @@ and proof = begin
     >> simp_tac
 end
 [@quiet]
+[@simp]
 
 let%thm empty_subset (s : 'a set) = subset empty_set s
 and proof = begin

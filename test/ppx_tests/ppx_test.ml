@@ -2,8 +2,6 @@ open Heft
 open Kernel
 open Derived
 open Tactic
-open Heft_theories
-open Theories
 
 let%expect_test "variable with type annotation" =
   let (t : term) = [%term (test : nat list)] in
@@ -907,7 +905,8 @@ let%thm thm_multi_arg (x : nat) (y : nat) = plus x y = plus y x
 
 and proof =
   begin
-    with_term x induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
+    with_term [%term (x : nat)] induct_tac
+    >> intros_tac >> simp_tac >> intros_tac >> simp_tac
   end
   [@quiet]
 

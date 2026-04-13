@@ -1,8 +1,6 @@
 open Heft
 open Kernel
 
-let init () = ()
-
 [%%inductive type ('a, 'b) pair = Pair of 'a * 'b]
 
 let%def fst (x : ('a, 'b) pair) : 'a = match x with Pair (l, r) -> l

@@ -1,8 +1,6 @@
 open Heft
 open Kernel
 
-let init () = ()
-
 [%%inductive type 'a option = None | Some of 'a]
 
 let%def default (opt : 'a option) (value : 'a) : 'a =

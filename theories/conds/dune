@@ -1,0 +1,7 @@
+(library
+ (name heft_theories_conds)
+ (public_name heft.theories.conds)
+ (wrapped false)
+ (preprocess
+  (pps ppx_heft))
+ (libraries heft heft.ppx_heft))

@@ -3,4 +3,4 @@
  (name theory_dev)
  (preprocess
   (pps heft.ppx_heft))
- (libraries heft heft.theories))
+ (libraries heft))

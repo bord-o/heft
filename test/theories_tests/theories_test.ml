@@ -2,15 +2,7 @@ open Heft
 open Kernel
 open Derived
 open Tactic
-open Heft_theories
 open Auto
-
-let () = Functions.init ()
-let () = Options.init ()
-let () = Lists.init ()
-let () = Nats.init ()
-let () = Conds.init ()
-let () = Pairs.init ()
 
 let%expect_test "template" =
   let goal = make_goal [%term forall (fun (a : nat) -> true)] in
