@@ -89,7 +89,7 @@ val cost_of_tactic : tactic -> goal -> string * cost
 val fail : unit -> 'a
 (** Performs the [Fail] effect. Signals that a tactic does not apply. *)
 
-val burn : string -> cost -> unit
+val register : string -> cost -> unit
 (** Performs the [Register] effect. *)
 
 val trace_dbg : string -> unit

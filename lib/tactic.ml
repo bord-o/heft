@@ -55,7 +55,7 @@ let cost_of_tactic (tac : tactic) (goal : goal) =
 
 let cost_value = function Safe n | Unsafe n -> n
 let fail () = perform Fail
-let burn name cost = perform (Register { name; cost })
+let register name cost = perform (Register { name; cost })
 let trace_dbg a = perform (Trace (Debug, a))
 let trace_info a = perform (Trace (Info, a))
 let trace_error a = perform (Trace (Error, a))
@@ -275,7 +275,7 @@ let with_fuel_limit limit : tactic_combinator =
       limit := !limit - n;
       if !limit <= 0 then discontinue k Out_of_fuel
       else (
-        burn info.name info.cost;
+        register info.name info.cost;
         continue k ())
   | v -> v
 
@@ -284,7 +284,7 @@ let with_fuel_counter r : tactic_combinator =
   match tac goal with
   | effect Register info, k ->
       r := !r + cost_value info.cost;
-      burn info.name info.cost;
+      register info.name info.cost;
       continue k ()
   | v -> v
 
@@ -438,7 +438,7 @@ let with_rules_and_assumptions (rules : thm list) : tactic_combinator =
 
 let assumption_tac : tactic =
  fun (asms, concl) ->
-  burn "assumption_tac" (Safe 1);
+  register "assumption_tac" (Safe 1);
   match List.find_opt (fun (_, tm) -> tm = concl) asms with
   | None ->
       trace_error "assumption doesn't match the goal";
@@ -451,7 +451,7 @@ let assumption_tac : tactic =
 
 let truth_tac : tactic =
  fun (_asms, concl) ->
-  burn "truth_tac" (Safe 1);
+  register "truth_tac" (Safe 1);
   let t = make_true () in
   if t <> concl then (
     trace_error "goal is not T";
@@ -460,7 +460,7 @@ let truth_tac : tactic =
 
 let refl_tac : tactic =
  fun (_asms, concl) ->
-  burn "refl_tac" (Safe 1);
+  register "refl_tac" (Safe 1);
   let thm =
     let* l, r = destruct_eq concl in
     trace_dbg "destruct success";
@@ -476,7 +476,7 @@ let refl_tac : tactic =
 
 let false_elim_tac : tactic =
  fun (asms, concl) ->
-  burn "false_elim_tac" (Safe 1);
+  register "false_elim_tac" (Safe 1);
   let false_tm = make_false () in
   if List.mem false_tm (List.map snd asms) then
     let thm =
@@ -490,7 +490,7 @@ let false_elim_tac : tactic =
 
 let neg_elim_tac : tactic =
  fun (asms, concl) ->
-  burn "neg_elim_tac" (Unsafe 3);
+  register "neg_elim_tac" (Unsafe 3);
   let negs = List.filter is_neg (asm_terms asms) in
   if List.is_empty negs then fail ()
   else
@@ -509,19 +509,19 @@ let neg_elim_tac : tactic =
 
 let zero_tac : tactic =
  fun goal ->
-  burn "zero_tac" (Safe 10);
+  register "zero_tac" (Safe 10);
   let thm = perform (Subgoal goal) in
   return_thm ~from:"zero_tac" (Ok thm)
 
 let sorry_tac : tactic =
  fun (_, conc) ->
-  burn "sorry_tac" (Unsafe 1);
+  register "sorry_tac" (Unsafe 1);
   let thm = new_axiom conc in
   return_thm ~from:"sorry_tac" thm
 
 let intro_tac : tactic =
  fun (asms, concl) ->
-  burn "intro_tac" (Safe 1);
+  register "intro_tac" (Safe 1);
   let thm =
     let* hyp = side_of_op "==>" Left concl in
     let* conc = side_of_op "==>" Right concl in
@@ -538,7 +538,7 @@ let intro_tac : tactic =
 
 let conj_tac : tactic =
  fun (asms, concl) ->
-  burn "conj_tac" (Safe 1);
+  register "conj_tac" (Safe 1);
   let thm =
     let* l, r = destruct_conj concl in
     trace_dbg "Destruct succeeded";
@@ -555,7 +555,7 @@ let conj_tac : tactic =
 
 let left_tac : tactic =
  fun (asms, concl) ->
-  burn "left_tac" (Unsafe 6);
+  register "left_tac" (Unsafe 6);
   let thm =
     let* l, r = destruct_disj concl in
     let l_thm = perform (Subgoal (asms, l)) in
@@ -567,7 +567,7 @@ let left_tac : tactic =
 
 let right_tac : tactic =
  fun (asms, concl) ->
-  burn "right_tac" (Unsafe 6);
+  register "right_tac" (Unsafe 6);
   let thm =
     let* l, r = destruct_disj concl in
     let r_thm = perform (Subgoal (asms, r)) in
@@ -579,14 +579,14 @@ let right_tac : tactic =
 
 let or_tac : tactic =
  fun (asms, concl) ->
-  burn "or_tac" (Unsafe 6);
+  register "or_tac" (Unsafe 6);
   let tac = choose_tactics [ left_tac; right_tac ] in
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or_tac" thm
 
 let neg_intro_tac : tactic =
  fun (asms, concl) ->
-  burn "neg_intro_tac" (Unsafe 4);
+  register "neg_intro_tac" (Unsafe 4);
   let thm =
     let* p = term_of_negation concl in
     if List.mem p (asm_terms asms) then fail ()
@@ -600,7 +600,7 @@ let neg_intro_tac : tactic =
 
 let elim_conj_asm_tac : tactic =
  fun (asms, concl) ->
-  burn "elim_conj_asm_tac" (Safe 1);
+  register "elim_conj_asm_tac" (Safe 1);
   let conjs = List.filter (fun (_, a) -> is_conj a) asms in
   if List.is_empty conjs then fail ()
   else
@@ -621,7 +621,7 @@ let elim_conj_asm_tac : tactic =
 
 let elim_disj_asm_tac : tactic =
  fun (asms, concl) ->
-  burn "elim_disj_asm_tac" (Unsafe 5);
+  register "elim_disj_asm_tac" (Unsafe 5);
   let disjs = List.filter (compose is_disj snd) asms in
   if List.is_empty disjs then fail ()
   else
@@ -643,7 +643,7 @@ let elim_disj_asm_tac : tactic =
 
 let elim_exists_asm_tac : tactic =
  fun (asms, concl) ->
-  burn "elim_exists_asm_tac" (Safe 2);
+  register "elim_exists_asm_tac" (Safe 2);
   let exists_asms = List.filter (compose is_exists snd) asms in
   if List.is_empty exists_asms then fail ()
   else
@@ -670,7 +670,7 @@ let elim_exists_asm_tac : tactic =
 
 let ccontr_tac : tactic =
  fun (asms, concl) ->
-  burn "ccontr_tac" (Unsafe 10);
+  register "ccontr_tac" (Unsafe 10);
   let false_tm = make_false () in
   let neg_concl = make_neg concl in
   if concl = false_tm || List.mem neg_concl (asm_terms asms) then fail ()
@@ -684,7 +684,7 @@ let ccontr_tac : tactic =
 
 let gen_tac : tactic =
  fun (asms, concl) ->
-  burn "gen_tac" (Safe 1);
+  register "gen_tac" (Safe 1);
   let thm =
     let* x, body = destruct_forall concl in
     let* x' = variant (concl :: asm_terms asms) x in
@@ -696,7 +696,7 @@ let gen_tac : tactic =
 
 let exists_tac : tactic =
  fun (asms, concl) ->
-  burn "exists_tac" (Unsafe 8);
+  register "exists_tac" (Unsafe 8);
   let thm =
     let* x, body = destruct_exists concl in
     let chosen = choose_terms [] in
@@ -714,7 +714,7 @@ let exists_tac : tactic =
 
 let spec_asm_tac (tm : term) : tactic =
  fun (asms, concl) ->
-  burn "spec_asm_tac" (Unsafe 3);
+  register "spec_asm_tac" (Unsafe 3);
   let foralls =
     List.filter
       (fun a -> match destruct_forall a with Ok _ -> true | _ -> false)
@@ -737,7 +737,7 @@ let spec_asm_tac (tm : term) : tactic =
 
 let sym_tac : tactic =
  fun (asms, conc) ->
-  burn "sym_tac" (Safe 1);
+  register "sym_tac" (Safe 1);
   let thm =
     let* l, r = destruct_eq conc in
     let* flipped = safe_make_eq r l in
@@ -748,7 +748,7 @@ let sym_tac : tactic =
 
 let sym_asm_tac : tactic =
  fun (asms, concl) ->
-  burn "sym_asm_tac" (Safe 2);
+  register "sym_asm_tac" (Safe 2);
   let eqs = List.filter is_eq (asm_terms asms) in
   if List.is_empty eqs then fail ()
   else
@@ -767,7 +767,7 @@ let sym_asm_tac : tactic =
 
 let trans_tac : tactic =
  fun (asms, concl) ->
-  burn "trans_tac" (Safe 1);
+  register "trans_tac" (Safe 1);
   let thm =
     let* l, r = destruct_eq concl in
     let s = choose_terms [] in
@@ -781,7 +781,7 @@ let trans_tac : tactic =
 
 let fun_ext_tac : tactic =
  fun (asms, concl) ->
-  burn "fun_ext_tac" (Safe 2);
+  register "fun_ext_tac" (Safe 2);
   let thm =
     let* l, r = destruct_eq concl in
     let* l_ty = type_of_term l in
@@ -821,7 +821,7 @@ let fun_ext_tac : tactic =
 
 let eq_iff_tac : tactic =
  fun (asms, conc) ->
-  burn "eq_iff_tac" (Safe 1);
+  register "eq_iff_tac" (Safe 1);
   let thm =
     let* p, q = destruct_eq conc in
     let* p_ty = type_of_term p in
@@ -834,7 +834,7 @@ let eq_iff_tac : tactic =
 
 let rewrite_tac : tactic =
  fun (asms, conc) ->
-  burn "rewrite_tac" (Unsafe 5);
+  register "rewrite_tac" (Unsafe 5);
   let thm =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
@@ -853,7 +853,7 @@ let rewrite_tac : tactic =
 
 let rewrite_asm_tac : tactic =
  fun (asms, conc) ->
-  burn "rewrite_asm_tac" (Unsafe 5);
+  register "rewrite_asm_tac" (Unsafe 5);
   let thm =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
@@ -883,7 +883,7 @@ let rewrite_asm_tac : tactic =
 
 let beta_tac : tactic =
  fun (asms, conc) ->
-  burn "beta_tac" (Safe 1);
+  register "beta_tac" (Safe 1);
   let thm =
     let* beta_thm = deep_beta conc in
     let* _, conc_reduced = destruct_eq (concl beta_thm) in
@@ -895,7 +895,7 @@ let beta_tac : tactic =
 
 let beta_asm_tac : tactic =
  fun (asms, conc) ->
-  burn "beta_asm_tac" (Safe 1);
+  register "beta_asm_tac" (Safe 1);
   let thm =
     let chosen_asm = choose_terms (asm_terms asms) in
     (*TODO: Make sure this isn't broken*)
@@ -922,7 +922,7 @@ let beta_asm_tac : tactic =
 
 let eq_true_asm_tac : tactic =
  fun (asms, concl) ->
-  burn "eq_true_asm_tac" (Safe 2);
+  register "eq_true_asm_tac" (Safe 2);
   let thm =
     let chosen = choose_terms (asm_terms asms) in
     let* asm_thm = assume chosen in
@@ -936,7 +936,7 @@ let eq_true_asm_tac : tactic =
 
 let eq_true_elim_asm_tac : tactic =
  fun (asms, concl) ->
-  burn "eq_true_elim_asm_tac" (Safe 2);
+  register "eq_true_elim_asm_tac" (Safe 2);
   let thm =
     let chosen = choose_terms (asm_terms asms) in
     let* asm_thm = assume chosen in
@@ -950,7 +950,7 @@ let eq_true_elim_asm_tac : tactic =
 
 let eq_true_elim_tac : tactic =
  fun (asms, concl) ->
-  burn "eq_true_elim_tac" (Safe 2);
+  register "eq_true_elim_tac" (Safe 2);
   let thm =
     let* l, _r = destruct_eq concl in
     let elim_thm = perform (Subgoal (asms, l)) in
@@ -960,7 +960,7 @@ let eq_true_elim_tac : tactic =
 
 let eq_false_elim_tac : tactic =
  fun (asms, concl) ->
-  burn "eq_false_elim_tac" (Safe 2);
+  register "eq_false_elim_tac" (Safe 2);
   let thm =
     let* l, _r = destruct_eq concl in
     let elim_thm = perform (Subgoal (asms, make_neg l)) in
@@ -970,7 +970,7 @@ let eq_false_elim_tac : tactic =
 
 let apply_tac : tactic =
  fun (asms, conc) ->
-  burn "apply_tac" (Unsafe 5);
+  register "apply_tac" (Unsafe 5);
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
   let avoid = conc :: asm_terms asms in
@@ -1027,7 +1027,7 @@ let apply_tac : tactic =
 
 let apply_asm_tac : tactic =
  fun (asms, conc) ->
-  burn "apply_asm_tac" (Unsafe 5);
+  register "apply_asm_tac" (Unsafe 5);
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
   let chosen_asm = choose_terms (asm_terms asms) in
@@ -1123,7 +1123,7 @@ let rewrite_at_tac (source : string) ?target =
 
 let contradict_asm_tac : tactic =
  fun (asms, concl) ->
-  burn "contradict_asm_tac" (Unsafe 5);
+  register "contradict_asm_tac" (Unsafe 5);
   let false_tm = make_false () in
   if concl <> false_tm then fail ()
   else
@@ -1144,7 +1144,7 @@ let contradict_asm_tac : tactic =
 
 let discriminate_tac : tactic =
  fun (asms, conc) ->
-  burn "discriminate_tac" (Safe 5);
+  register "discriminate_tac" (Safe 5);
   let equalities =
     asm_terms asms
     |> List.map (fun asm ->
@@ -1175,7 +1175,7 @@ let discriminate_tac : tactic =
    included in the [and] chain to preserve mli ordering. *)
 let rec cases_tac : tactic =
  fun (asms, concl) ->
-  burn "cases_tac" (Unsafe 8);
+  register "cases_tac" (Unsafe 8);
   let bool_case_branch var bod value asms =
     let* var_eq_val = safe_make_eq var value in
     let* bod_subst = vsubst [ (value, var) ] bod in
@@ -1222,7 +1222,7 @@ let rec cases_tac : tactic =
 
 and destruct_tac : tactic =
  fun (asms, concl) ->
-  burn "destruct_tac" (Unsafe 6);
+  register "destruct_tac" (Unsafe 6);
   let thm =
     let tm = choose_terms [] in
     let* ty = type_of_term tm in
@@ -1249,7 +1249,7 @@ and destruct_tac : tactic =
 
 and induct_tac : tactic =
  fun (asms, concl) ->
-  burn "induct_tac" (Unsafe 8);
+  register "induct_tac" (Unsafe 8);
   match destruct_forall concl with
   | Ok _ ->
       let thm =
@@ -1337,7 +1337,7 @@ and cond_tac : tactic =
 
 let assert_tac : tactic =
  fun (asms, concl) ->
-  burn "assert_tac" (Unsafe 5);
+  register "assert_tac" (Unsafe 5);
   let thm =
     let assertion = choose_terms [] in
     let asserted_thm = perform (Subgoal (asms, assertion)) in
