@@ -350,3 +350,64 @@ and proof =
     >> neg_elim_tac
   end
 [@quiet]
+
+let%thm mem_univ (x : 'a) = mem x univ_set = true
+and proof = begin
+    intros_tac
+    >> simp_tac
+end
+[@quiet]
+
+let%thm empty_subset (s : 'a set) = subset empty_set s
+and proof = begin
+    intros_tac
+    >> simp_tac
+    >> intros_tac
+    >> false_elim_tac
+end
+[@quiet]
+
+let%thm diff_empty (s : 'a set) = diff s empty_set = s
+and proof = begin
+    intros_tac
+    >> with_term [%term (s : 'a set)] destruct_elim_tac
+    >> simp_tac
+    >> apply_at_tac "set_inj"
+    >> fun_ext_tac
+    >> eq_iff_tac
+    >> with_no_automation_trace auto_dfs_tac
+    >> with_no_automation_trace auto_dfs_tac
+end
+[@quiet]
+
+let%thm union_inter_distrib (s : 'a set) (t : 'a set) (u : 'a set) =
+  union s (inter t u) = inter (union s t) (union s u)
+and proof = begin
+    intros_tac
+    >> with_term [%term (s : 'a set)] destruct_elim_tac
+    >> with_term [%term (t : 'a set)] destruct_elim_tac
+    >> with_term [%term (u : 'a set)] destruct_elim_tac
+    >> simp_tac
+    >> apply_at_tac "set_inj"
+    >> fun_ext_tac
+    >> with_names ["hleft"; "hright"] eq_iff_tac
+    >> with_no_automation_trace (with_best_first (pick_tac [elim_conj_asm_tac; conj_tac; assumption_tac; elim_disj_asm_tac; or_tac]))
+    >> with_no_automation_trace (with_best_first (pick_tac [elim_conj_asm_tac; conj_tac; assumption_tac; elim_disj_asm_tac; or_tac]))
+end
+[@quiet]
+
+let%thm inter_union_distrib (s : 'a set) (t : 'a set) (u : 'a set) =
+  inter s (union t u) = union (inter s t) (inter s u)
+and proof = begin
+    intros_tac
+    >> with_term [%term (s : 'a set)] destruct_elim_tac
+    >> with_term [%term (t : 'a set)] destruct_elim_tac
+    >> with_term [%term (u : 'a set)] destruct_elim_tac
+    >> simp_tac
+    >> apply_at_tac "set_inj"
+    >> fun_ext_tac
+    >> with_names ["hleft"; "hright"] eq_iff_tac
+    >> with_no_automation_trace (with_best_first (pick_tac [elim_conj_asm_tac; conj_tac; assumption_tac; elim_disj_asm_tac; or_tac]))
+    >> with_no_automation_trace (with_best_first (pick_tac [elim_conj_asm_tac; conj_tac; assumption_tac; elim_disj_asm_tac; or_tac]))
+end
+[@quiet]

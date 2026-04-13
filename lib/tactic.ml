@@ -5,7 +5,6 @@ open Effect
 open Effect.Deep
 open Result.Syntax
 open Rewrite
-open Names
 open Fun
 
 type goal = (string * term) list * term [@@deriving show { with_path = false }]
@@ -362,7 +361,7 @@ let with_names (names : string list) : tactic_combinator =
         | n :: rest ->
             queue := rest;
             (n, tm)
-        | [] -> name_asm tm asms
+        | [] -> Names.name_asm tm asms
       in
       continue k result
   | v -> v
@@ -1472,7 +1471,7 @@ let prove ?(quiet = false) ?(name = "") (goal : goal) (tactic : tactic) =
       to keep them from happening in situations where we want maximumm performance *)
   | effect Quiet, k -> continue k quiet
   (* Name is used to name assumptions, defaulting to auto-generation *)
-  | effect Name (tm, asms), k -> continue k (name_asm tm asms)
+  | effect Name (tm, asms), k -> continue k (Names.name_asm tm asms)
   (* This represents failure for any reason *)
   | effect Fail, _k -> Incomplete goal
   (* Choose is used to decide how to explore options *)
