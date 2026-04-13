@@ -89,7 +89,7 @@ let%thm plus_x_Zero (x : nat) =
 and proof =
   begin
     induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
-  end [@quiet]
+  end [@quiet] [@simp]
 
 let%thm plus_assoc (x : nat ) (y:nat) (z:nat) = 
     plus x (plus y z) = plus (plus x y) z

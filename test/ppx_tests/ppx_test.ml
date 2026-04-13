@@ -978,5 +978,5 @@ let%expect_test "let%thm with notrace inside expect_test" =
     ∀x. plus x Zero = x
 
     Proof Complete!
-    with fuel: 53
+    with fuel: 34
     |}]

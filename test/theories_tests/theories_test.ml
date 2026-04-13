@@ -63,7 +63,7 @@ let%expect_test "plus Suc lemma" =
       [%term
         forall (fun (x : nat) (y : nat) -> plus x (Suc y) = Suc (plus x y))]
   in
-  run_proof ~name:"plus_Suc" goal
+  run_proof ~simp:true ~name:"plus_Suc" goal
     (induct_tac >> gen_tac >> simp_tac >> intros_tac >> simp_tac);
   [%expect
     {|
@@ -92,14 +92,13 @@ let%expect_test "Suc injective rev" =
 
 (* Commutativity: plus x y = plus y x *)
 let%expect_test "plus comm" =
-  let goal =
-    make_goal [%term forall (fun (x : nat) (y : nat) -> plus x y = plus y x)]
+  let%thm plus_comm (x : nat) (y : nat) = plus x y = plus y x
+  and proof =
+    begin
+      induct_tac >> (gen_tac >> simp_tac) >> (intros_tac >> simp_tac)
+    end
   in
-  run_proof ~name:"plus_comm" goal
-    (induct_tac >> gen_tac >> simp_tac
-    >> with_first (with_proven [ "plus_x_Zero" ] rewrite_tac)
-    >> refl_tac >> intros_tac >> simp_tac >> sym_tac
-    >> with_first (with_proven [ "plus_Suc" ] apply_tac));
+  ignore plus_comm;
 
   [%expect
     {|
@@ -107,7 +106,7 @@ let%expect_test "plus comm" =
     ∀x. ∀y. plus x y = plus y x
 
     Proof Complete!
-    with fuel: 73
+    with fuel: 69
     |}]
 
 let%expect_test "cancellation" =
@@ -306,7 +305,7 @@ let%expect_test "length (reverse xs) = length xs" =
     ∀x. length (reverse x) = length x
 
     Proof Complete!
-    with fuel: 104
+    with fuel: 84
     |}]
 
 let%expect_test "reverse (append xs ys) = append (reverse ys) (reverse xs)" =
@@ -931,7 +930,7 @@ let%expect_test "lt_add_Suc_r" =
     ∀x. ∀b. nat_lt x (plus x (Suc b))
 
     Proof Complete!
-    with fuel: 156
+    with fuel: 171
     |}]
 
 let%expect_test "add_lt_cancel_l" =
@@ -1147,7 +1146,7 @@ let%expect_test "add_Zero_l" =
     ∀x. plus Zero x = x
 
     Proof Complete!
-    with fuel: 78
+    with fuel: 76
     |}]
 
 let%expect_test "add_Suc_l" =
@@ -1657,40 +1656,30 @@ let%expect_test "sub_lt" =
     |}]
 
 let%expect_test "sub_add_cancel" =
-  let goal =
-    make_goal
-      [%term
-        forall (fun (a : nat) (b : nat) ->
-            nat_le b a ==> (plus (sub a b) b = a))]
+  let%thm sub_add_cancel (a : nat) (b : nat) =
+    nat_le b a ==> (plus (sub a b) b = a)
+  and proof =
+    begin
+      with_term [%term (a : nat)] induct_tac
+      >>> with_names [ "hIH" ] intros_tac
+      >>> with_term [%term (b : nat)] induct_tac
+      >>> try_ intros_tac
+      >>> try_ assumption_reasoning_tac
+      >> (simp_tac >> apply_at_tac "eq_cong" >> apply_at_tac "hIH"
+        >> simp_asm_tac >> simp_tac)
+    end
   in
-  run_proof ~name:"sub_add_cancel" ~notrace:true goal
-    (with_term [%term (a : nat)] induct_tac
-    >>> intros_tac
-    >>> with_term [%term (b : nat)] induct_tac
-    >>> try_ intros_tac
-    >>> try_ assumption_reasoning_tac
-    >>= [
-          simp_tac
-          >> with_proven [ "eq_cong" ] apply_tac
-          >> with_proven [ "plus_x_Zero" ] rewrite_tac
-          >> refl_tac;
-          simp_asm_tac >> simp_tac
-          >> with_proven [ "plus_Suc" ] rewrite_tac
-          >> with_proven [ "eq_cong" ] apply_tac
-          >> spec_asm_tac [%term (n0' : nat)]
-          >> with_assumptions (with_first_term apply_asm_tac)
-          >> assumption_tac;
-        ]);
+  ignore sub_add_cancel;
   [%expect
     {|
     ========================================
     ∀x. ∀b. nat_le b x ==> plus (sub x b) b = x
 
     Proof Complete!
-    with fuel: 478
+    with fuel: 360
     |}]
 
-(* (* ===== Group 8: Ordering and addition ===== *) *)
+(* ===== Group 8: Ordering and addition ===== *)
 
 let%expect_test "le_add_r" =
   let goal =
@@ -2109,9 +2098,8 @@ let%expect_test "merge unfolding lemma" =
            exists (fun (x : nat list) ->
                merge_aux
                  (Suc
-                    (plus
-                       (length (a1' : nat list))
-                       (Suc (length (a1 : nat list)))))
+                    (Suc
+                       (plus (length (a1' : nat list)) (length (a1 : nat list)))))
                  (a1' : nat list)
                  (Cons ((a0 : nat), (a1 : nat list)))
                = Some x)]
@@ -2123,6 +2111,7 @@ let%expect_test "merge unfolding lemma" =
     >> with_definition [ "merge" ] rewrite_tac
     >> beta_tac
     >> with_first (with_definition [ "length" ] rewrite_tac)
+    >> with_first (with_proven [ "plus_Suc" ] rewrite_tac)
     >> with_first (with_assumptions rewrite_tac)
     >> simp_tac
     >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
@@ -2131,26 +2120,21 @@ let%expect_test "merge unfolding lemma" =
            exists (fun (x : nat list) ->
                merge_aux
                  (Suc
-                    (plus
-                       (length (a1' : nat list))
-                       (Suc (length (a1 : nat list)))))
+                    (Suc
+                       (plus (length (a1' : nat list)) (length (a1 : nat list)))))
                  (Cons ((a0' : nat), (a1' : nat list)))
                  (a1 : nat list)
                = Some x)]
          assert_tac
     >> with_proven [ "merge_fuel_sufficient" ] apply_tac
-    >> simp_tac
-    >> with_proven [ "plus_Suc" ] rewrite_tac
     >> simp_tac >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
     >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
     >> with_definition [ "merge" ] rewrite_tac
     >> beta_tac
     >> with_first (with_definition [ "length" ] rewrite_tac)
-    >> with_first (with_proven [ "plus_Suc" ] rewrite_asm_tac)
-    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
-    >> with_first (with_proven [ "plus_Suc" ] rewrite_tac)
-    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
+    >> with_first (with_definition [ "plus" ] rewrite_tac)
+    >> beta_tac
     >> with_first (with_assumptions rewrite_tac)
     >> simp_tac);
   [%expect
@@ -2159,7 +2143,7 @@ let%expect_test "merge unfolding lemma" =
     ∀xs. ∀ys. merge xs ys = match_list xs ys (λh. λt. match_list ys (Cons h t) (λy'. λys'. COND (nat_lt h y') (Cons h (merge t (Cons y' ys'))) (Cons y' (merge (Cons h t) ys'))))
 
     Proof Complete!
-    with fuel: 1212
+    with fuel: 1266
     |}]
 
 (* sort [3,1,2] = [1,2,3] *)

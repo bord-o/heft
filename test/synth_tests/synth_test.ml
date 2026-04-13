@@ -1359,20 +1359,9 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
       beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
@@ -1387,13 +1376,7 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
+      beta_tac >>
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
@@ -1414,7 +1397,7 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Pair (Suc Zero) (Suc (Suc Zero))) (Cons (Pair (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc Zero))))) Nil)) = Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc Zero))))))))) ∧ g (Cons (Pair (Suc (Suc (Suc (Suc (Suc Zero))))) Zero) Nil) = Suc (Suc (Suc (Suc (Suc Zero))))
 
     Proof Complete!
-    with fuel: 32379
+    with fuel: 30569
     |}]
 
 let%expect_test "synth insert via make_synthesis_goal" =
