@@ -4,6 +4,8 @@ open Derived
 open Tactic
 open Auto
 
+let () = print_endline "initializing theory sets"
+
 (* Definitions *)
 [%%inductive type 'a set = Set of ('a -> bool)]
 

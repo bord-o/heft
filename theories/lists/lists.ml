@@ -2,6 +2,7 @@ open Heft
 open Kernel
 open Derived
 
+let () = print_endline "initializing theory lists"
 let a = make_vartype "a"
 let list_ty = TyCon ("list", [ a ])
 let list_a = TyCon ("list", [ a ])

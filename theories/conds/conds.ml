@@ -4,6 +4,7 @@ open Derived
 open Result.Syntax
 open Tactic
 
+let () = print_endline "initializing theory conds"
 let t = make_true ()
 let f = make_false ()
 

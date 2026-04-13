@@ -4,6 +4,8 @@ open Result.Syntax
 open Derived
 open Tactic
 
+let () = print_endline "initializing theory nats"
+
 [%%inductive type nat = Zero | Suc of nat]
 
 let%def pred (n : nat) : nat = match n with Zero -> Zero | Suc m -> m

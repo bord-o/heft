@@ -3,6 +3,8 @@ open Kernel
 open Derived
 open Tactic
 
+let () = print_endline "initializing theory bools"
+
 let%def eqb (a : bool) (b : bool) : bool =
   if a then if b then true else false else if b then false else true
 
