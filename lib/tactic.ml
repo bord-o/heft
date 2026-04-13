@@ -30,13 +30,15 @@ type _ choosable =
 
 exception Out_of_fuel
 
+type tactic_info = { name : string; cost : cost }
+
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
   | Choose : 'a choosable -> 'a Effect.t
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Quiet : bool Effect.t
-  | Burn : (string * cost) -> unit Effect.t
+  | Register : tactic_info -> unit Effect.t
   | Rules : thm list Effect.t
   | Name : (term * (string * term) list) -> (string * term) Effect.t
 
@@ -48,12 +50,12 @@ let as_chosen_list : type a. a choosable -> a list = function
 
 let cost_of_tactic (tac : tactic) (goal : goal) =
   match tac goal with
-  | effect Burn (name, cost), _k -> (name, cost)
-  | _ -> failwith "Burn must be first call of tactic"
+  | effect Register info, _k -> (info.name, info.cost)
+  | _ -> failwith "Register must be first call of tactic"
 
 let cost_value = function Safe n | Unsafe n -> n
 let fail () = perform Fail
-let burn name cost = perform (Burn (name, cost))
+let burn name cost = perform (Register { name; cost })
 let trace_dbg a = perform (Trace (Debug, a))
 let trace_info a = perform (Trace (Info, a))
 let trace_error a = perform (Trace (Error, a))
@@ -268,21 +270,21 @@ let with_nth_term n : tactic_combinator =
 let with_fuel_limit limit : tactic_combinator =
  fun tac goal ->
   match tac goal with
-  | effect Burn (name, cost), k ->
-      let n = cost_value cost in
+  | effect Register info, k ->
+      let n = cost_value info.cost in
       limit := !limit - n;
       if !limit <= 0 then discontinue k Out_of_fuel
       else (
-        burn name cost;
+        burn info.name info.cost;
         continue k ())
   | v -> v
 
 let with_fuel_counter r : tactic_combinator =
  fun tac goal ->
   match tac goal with
-  | effect Burn (name, cost), k ->
-      r := !r + cost_value cost;
-      burn name cost;
+  | effect Register info, k ->
+      r := !r + cost_value info.cost;
+      burn info.name info.cost;
       continue k ()
   | v -> v
 
@@ -1458,8 +1460,8 @@ let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
 
 let prove ?(quiet = false) ?(name = "") (goal : goal) (tactic : tactic) =
   match tactic goal with
-  (* Burn is used for resource tracking/limiting *)
-  | effect Burn _, k -> continue k ()
+  (* Register is used for tracking data about tactics during runtime *)
+  | effect Register _, k -> continue k ()
   (* Rules is used for passing rewrites and lemmas to different tactics *)
   | effect Rules, k -> continue k []
   (* Trace is a unified interface for logs and errors *)

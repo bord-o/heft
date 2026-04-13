@@ -63,6 +63,8 @@ type _ choosable =
 exception Out_of_fuel
 (** Raised by [with_fuel_limit] when the fuel counter reaches zero. *)
 
+type tactic_info = { name : string; cost : cost }
+
 (** {1 Effects} *)
 
 type _ Effect.t +=
@@ -71,7 +73,7 @@ type _ Effect.t +=
   | Fail : 'a Effect.t
   | Trace : (level * string) -> unit Effect.t
   | Quiet : bool Effect.t
-  | Burn : (string * cost) -> unit Effect.t
+  | Register : tactic_info -> unit Effect.t
   | Rules : thm list Effect.t
   | Name : (term * (string * term) list) -> (string * term) Effect.t
 
@@ -81,14 +83,14 @@ val as_chosen_list : 'a choosable -> 'a list
 (** Extracts the underlying list from a [choosable]. *)
 
 val cost_of_tactic : tactic -> goal -> string * cost
-(** Runs a tactic just far enough to extract its name and first [Burn] cost. The
-    tactic must perform [Burn] before any other effect. *)
+(** Runs a tactic just far enough to extract its name and first [Register] cost.
+    The tactic must perform [Register] before any other effect. *)
 
 val fail : unit -> 'a
 (** Performs the [Fail] effect. Signals that a tactic does not apply. *)
 
 val burn : string -> cost -> unit
-(** Performs the [Burn] effect. *)
+(** Performs the [Register] effect. *)
 
 val trace_dbg : string -> unit
 val trace_info : string -> unit
@@ -334,7 +336,7 @@ val assert_tac : tactic
 
 val prove : ?quiet:bool -> ?name:string -> goal -> tactic -> proof_state
 (** Top-level handler that interprets every effect with defaults: [Choose] takes
-    the first option, [Rules] is empty, [Burn] is ignored, [Trace] prints,
+    the first option, [Rules] is empty, [Register] is ignored, [Trace] prints,
     [Fail] yields [Incomplete], and [Subgoal] yields [Incomplete]. On success,
     registers the resulting theorem under [name] via [Rules.add_proven]. *)
 
@@ -421,11 +423,12 @@ val cost_value : cost -> int
 (** Extracts the integer from a [cost]. *)
 
 val with_fuel_limit : int ref -> tactic_combinator
-(** Decrements the given counter on each [Burn] and raises [Out_of_fuel] if it
-    reaches zero. *)
+(** Decrements the given counter on each [Register] and raises [Out_of_fuel] if
+    it reaches zero. *)
 
 val with_fuel_counter : int ref -> tactic_combinator
-(** Increments the given counter on each [Burn]. Does not enforce a limit. *)
+(** Increments the given counter on each [Register]. Does not enforce a limit.
+*)
 
 val show_tac : tactic
 (** Prints the current goal and leaves it open *)
