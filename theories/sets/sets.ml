@@ -56,9 +56,6 @@ end
 [@quiet]
 [@simp]
 
-let set_def = Hashtbl.find the_inductives "set"
-(* let () = List.iter Printing.print_thm (set_def.injective) *)
-
 let%thm set_inj (f : 'a -> bool) (g : 'a -> bool) = 
     (f = g) ==> (Set f = Set g)
 and proof = begin
