@@ -284,6 +284,9 @@ val eq_true_elim_tac : tactic
 val eq_false_elim_tac : tactic
 (** Reduces a goal [P = F] to a subgoal [~P]. *)
 
+val exact_tac : tactic
+(** UNDER CONSTRUCTION *)
+
 val apply_tac : tactic
 (** Backward chaining. Chooses a theorem from [Rules], strips its outer
     quantifiers, and matches its conclusion against the goal. Each remaining

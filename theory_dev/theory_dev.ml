@@ -50,9 +50,8 @@ and proof =
        >> with_names [ "hfalse"; "hrest" ] elim_disj_asm_tac
        >> assumption_tac
        >> with_names [ "hrest'" ] (with_named_asm_term "hrest" sym_asm_tac)
-       >> with_named_asm_term "hrest'"
-            (with_rules Nats.nat_def.distinct rewrite_asm_tac)
-       >> assumption_tac >> elim_exists_asm_tac >> simp_tac >> eq_iff_tac
+       >> discriminate_tac
+       >> elim_exists_asm_tac >> simp_tac >> eq_iff_tac
        >> with_names [ "hlt_na"; "heq_na" ] elim_disj_asm_tac
        >> left_tac >> assumption_tac >> right_tac
        >> with_rules Nats.nat_def.injective apply_tac
@@ -96,13 +95,21 @@ and proof =
     >> assumption_tac
   end
 (* [@trace] *)
-(* [@quiet] *)
+[@quiet]
 
 let%def wf (r : 'a -> 'a -> bool) : bool =
   forall (fun (p : 'a -> bool) ->
       forall (fun (x : 'a) -> forall (fun (y : 'a) -> r y x ==> p y) ==> p x)
       ==> forall (fun (x : 'a) -> p x))
 
+let%thm wf_num =
+  wf (nat_lt)
+and proof =
+begin
+    rewrite_at_tac "wf"  >> beta_tac
+    >> with_info_trace (with_proven ["nat_induct_strong"] exact_tac)
+end
+(* [@trace] *)
 (* let () = Printing.print_thm wf *)
 
 let () = ()

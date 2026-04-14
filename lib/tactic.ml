@@ -967,6 +967,15 @@ let eq_false_elim_tac : tactic =
   in
   return_thm ~from:"eq_false_elim_tac" thm
 
+let exact_tac : tactic =
+ fun (_, conc) ->
+  register "exact_tac" (Safe 2);
+  let lemmas = perform Rules in
+  let chosen_thm = choose_theorems lemmas in
+  let order = alphaorder conc (concl chosen_thm) in
+  let thm = if order = 0 then chosen_thm else fail () in
+  return_thm ~from:"exact_tac" (Ok thm)
+
 let apply_tac : tactic =
  fun (asms, conc) ->
   register "apply_tac" (Unsafe 5);
@@ -977,7 +986,12 @@ let apply_tac : tactic =
     let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
     let premises, final_conc = collect_premises (concl stripped_thm) in
     match Rewrite.match_term final_conc conc with
-    | None -> fail ()
+    | None ->
+        trace_info
+          (Printf.sprintf "couldn't match: \n%s\nwith:\n%s\n"
+             (pretty_print_hol_term final_conc)
+             (pretty_print_hol_term conc));
+        fail ()
     | Some env ->
         let* type_inst = inst_type env.type_sub stripped_thm in
         let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
