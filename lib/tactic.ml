@@ -381,6 +381,7 @@ let with_definition (names : string list) : tactic_combinator =
     match tac goal with effect Rules, k -> continue k rules | v -> v
 
 let with_specialized ~(name : string) ~(specs : term list) : tactic_combinator =
+ fun tac goal ->
   let rule =
     match Rules.get_proven name with
     | None ->
@@ -393,8 +394,17 @@ let with_specialized ~(name : string) ~(specs : term list) : tactic_combinator =
       List.fold_left
         (fun acc r ->
           let* gen_thm = acc in
-          let* step = spec r gen_thm in
-          Ok step)
+          let* quant = quantifier_of_forall (concl gen_thm) in
+          let* quant_ty = type_of_term quant in
+          let* r_ty = type_of_term r in
+          match type_match [] quant_ty r_ty with
+          | None ->
+              let* step = spec r gen_thm in
+              Ok step
+          | Some env ->
+              let* typed_gen_thm = inst_type env gen_thm in
+              let* step = spec r typed_gen_thm in
+              Ok step)
         (Ok rule) specs
     in
     match fold_spec with
@@ -403,10 +413,11 @@ let with_specialized ~(name : string) ~(specs : term list) : tactic_combinator =
           (Printf.sprintf "Couldn't specialize rule: %s"
              (Printing.print_error e));
         fail ()
-    | Ok thm -> thm
+    | Ok thm ->
+        trace_info ((Printf.sprintf "thm: %s\n") (pretty_print_thm thm));
+        thm
   in
-  fun tac goal ->
-    match tac goal with effect Rules, k -> continue k [ specced ] | v -> v
+  match tac goal with effect Rules, k -> continue k [ specced ] | v -> v
 
 let with_proven (names : string list) : tactic_combinator =
   let rules =
@@ -1360,6 +1371,17 @@ let assert_tac : tactic =
     prove_hyp asserted_thm with_assertion_thm
   in
   return_thm ~from:"assert_tac" thm
+
+let assert_premise_tac : tactic =
+ fun (asms, concl) ->
+  register "assert_premise_tac" (Unsafe 5);
+  let thm =
+    let imps = asms |> List.filter (compose is_imp snd) in
+    let chosen_imp = choose_terms (asm_terms imps) in
+    let* prem, _ = destruct_imp chosen_imp in
+    Ok (with_term prem assert_tac (asms, concl))
+  in
+  return_thm ~from:"assert_premise_tac" thm
 
 (* Simplification and Automation *)
 

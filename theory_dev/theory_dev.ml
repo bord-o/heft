@@ -109,7 +109,64 @@ begin
     rewrite_at_tac "wf"  >> beta_tac
     >> with_info_trace (with_proven ["nat_induct_strong"] exact_tac)
 end
-(* [@trace] *)
-(* let () = Printing.print_thm wf *)
+[@quiet]
+
+let wn = with_names
+
+let%thm wf_measure_gen (r : 'b -> 'b -> bool) (m : 'a -> 'b) =
+  wf r ==> wf (fun (x : 'a) (y : 'a) -> r (m x) (m y))
+and proof = 
+begin
+    rewrite_at_tac "wf"  >> beta_tac
+    >> rewrite_at_tac "wf"  >> beta_tac
+    >> wn [ "hwflam"; "hwfr"] intros_tac
+    >> wn ["hwfspec"] (with_named_asm_term "hwflam" (spec_asm_tac [%term 
+        fun (b : 'b) -> forall (fun (a :'a) ->
+            (m:'a -> 'b) a = b ==> (p:'a -> bool) a
+        )]))
+    >> wn ["hprem"] @@ with_named_asm_term "hwfspec" assert_premise_tac
+    >> wn ["hall"; "heq"] intros_tac
+    >> wn ["hwfr_a"] (with_named_asm_term "hwfr" (spec_asm_tac [%term (a:'a)]))
+    >> apply_at_tac "hwfr_a"
+    >> wn ["hr"] intros_tac
+    >> rewrite_at_tac "heq" ~target:"hr"
+    >> wn ["hall'"] @@ apply_at_tac "hall" ~target:"hr"
+    >> apply_at_tac "hall'"
+    >> refl_tac
+    >> wn ["hall'"] @@ apply_at_tac "hwfspec" ~target:"hprem"
+    >> wn ["hfinal"] (with_named_asm_term "hall'" (spec_asm_tac [%term (m:'a -> 'b) (x:'a)]))
+    >> apply_at_tac "hfinal"
+    >> refl_tac
+end
+[@quiet]
+
+let%def measure (m : 'a -> nat) : 'a -> 'a -> bool =
+  fun (x : 'a) (y : 'a) -> nat_lt (m x) (m y)
+
+(* let () = Printing.print_thm measure  *)
+
+let%thm wf_measure (m : 'a -> nat) =
+  wf (measure m)
+and proof =
+  begin
+    rewrite_at_tac "measure" >> beta_tac
+    >> gen_tac
+    >> apply_at_tac "wf_measure_gen"
+    >> with_proven ["wf_num"] exact_tac
+  end
+  [@quiet]
+
+let%thm wf_rec (r : 'a -> 'a -> bool) =
+  wf r ==>
+  forall (fun (h : ('a -> 'b) -> 'a -> 'b) ->
+    (forall (fun (f : 'a -> 'b) (g : 'a -> 'b) (x : 'a) ->
+      (forall (fun (z : 'a) -> r z x ==> f z = g z)) ==> h f x = h g x))
+    ==> exists (fun (f : 'a -> 'b) -> forall (fun (x : 'a) -> f x = h f x)))
+and proof = 
+    begin
+        zero_tac
+    end
+
+
 
 let () = ()
