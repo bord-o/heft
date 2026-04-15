@@ -1652,7 +1652,7 @@ let%expect_test "sub_add_cancel" =
   and proof =
     begin
       with_term [%term (a : nat)] induct_tac
-      >>> with_names [ "hIH" ] intros_tac
+      >>> intros_tac @: [ "hIH" ]
       >>> with_term [%term (b : nat)] induct_tac
       >>> try_ intros_tac
       >>> try_ assumption_reasoning_tac

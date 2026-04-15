@@ -482,6 +482,8 @@ val with_names : string list -> tactic_combinator
 (** Handles [Name] by supplying names from the given list in order. When the
     list is exhausted, falls back to auto-generation. *)
 
+val ( @: ) : tactic -> string list -> tactic
+
 val with_rules_and_assumptions : thm list -> tactic_combinator
 (** Answers [Rules] with the given theorems together with the goal's assumptions
     (as in [with_assumptions]). *)

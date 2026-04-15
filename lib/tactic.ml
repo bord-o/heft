@@ -366,6 +366,8 @@ let with_names (names : string list) : tactic_combinator =
       continue k result
   | v -> v
 
+let ( @: ) tc names = with_names names tc
+
 let with_definition (names : string list) : tactic_combinator =
   let rules =
     names

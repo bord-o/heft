@@ -2181,9 +2181,7 @@ let%expect_test "example" =
   let%thm _test (p : bool) (q : bool) = p ==> (q ==> (p && q))
   and proof =
     begin
-      gen_tac >> gen_tac
-      >> with_names [ "hp" ] intro_tac
-      >> with_names [ "hq" ] intro_tac
+      gen_tac >> gen_tac >> intro_tac @: [ "hp" ] >> intro_tac @: [ "hq" ]
     end
   in
   ();
@@ -2200,8 +2198,7 @@ let%expect_test "with_names elim_conj" =
   let%thm _test (p : bool) (q : bool) = (p && q) ==> (q && p)
   and proof =
     begin
-      gen_tac >> gen_tac >> intro_tac
-      >> with_names [ "hp"; "hq" ] elim_conj_asm_tac
+      gen_tac >> gen_tac >> intro_tac >> elim_conj_asm_tac @: [ "hp"; "hq" ]
     end
   in
   ();
@@ -2218,9 +2215,8 @@ let%expect_test "with_names partial fallback" =
     p ==> (q ==> (r ==> (p && q && r)))
   and proof =
     begin
-      gen_tac >> gen_tac >> gen_tac
-      >> with_names [ "hp" ] intro_tac
-      >> intro_tac >> intro_tac
+      gen_tac >> gen_tac >> gen_tac >> intro_tac @: [ "hp" ] >> intro_tac
+      >> intro_tac
     end
   in
   ();
