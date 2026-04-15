@@ -870,7 +870,7 @@ let%expect_test "lt_Zero_Suc" =
     ∀x. nat_lt Zero x ==> ∃x'. x = Suc x'
 
     Proof Complete!
-    with fuel: 58
+    with fuel: 39
     |}]
 
 let nat_induct_auto_tac =
@@ -906,7 +906,7 @@ let%expect_test "lt_Zero_Suc" =
     ∀x. nat_lt x Zero = F
 
     Proof Complete!
-    with fuel: 97
+    with fuel: 64
     |}]
 
 let%expect_test "lt_add_Suc_r" =
@@ -1273,11 +1273,6 @@ let%expect_test "equality simp rules" =
     (eq_false_elim_tac
     >> with_term [%term true] assert_tac
     >> truth_tac >> neg_intro_tac >> neg_elim_tac);
-  run_proof ~name:"eq_cong"
-    (make_goal
-       [%term
-         forall (fun (f : 'a -> 'b) (x : 'a) (y : 'a) -> x = y ==> (f x = f y))])
-    (intros_tac >> simp_tac);
 
   [%expect
     {|
@@ -1311,11 +1306,6 @@ let%expect_test "equality simp rules" =
 
     Proof Complete!
     with fuel: 15
-    ========================================
-    ∀f. ∀x. ∀y. x = y ==> f x = f y
-
-    Proof Complete!
-    with fuel: 21
     |}]
 
 let%expect_test "not_le_is_lt" =

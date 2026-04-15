@@ -3,6 +3,7 @@ open Kernel
 open Result.Syntax
 open Derived
 open Tactic
+open Auto
 
 let () = print_endline "initializing theory nats"
 
@@ -95,3 +96,41 @@ and proof =
   begin
     induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
   end [@quiet]
+
+let%thm lt_Zero_false (m : nat) = nat_lt m Zero = false
+
+and proof =
+  begin
+    induct_tac
+    >> with_no_automation_trace auto_dfs_tac
+    >> with_no_automation_trace auto_dfs_tac
+  end
+  [@simp] [@quiet]
+
+let%thm lt_Suc_or_eq (m : nat) (n : nat) =
+  nat_lt m (Suc n) = (nat_lt m n || m = n)
+
+and proof =
+  begin
+    induct_tac
+    >> (intros_tac >> simp_tac >> sym_tac >> eq_true_elim_tac
+       >> with_term [%term (n : nat)] destruct_tac
+       >> elim_disj_asm_tac
+       >> (simp_tac >> right_tac >> refl_tac)
+       >> (elim_exists_asm_tac >> simp_tac >> left_tac >> truth_tac))
+    >> (intros_tac @: [ "hIH" ]
+       >> with_term [%term (n : nat)] destruct_tac
+       >> elim_disj_asm_tac >> simp_tac >> sym_tac >> eq_false_elim_tac
+       >> neg_intro_tac
+       >> elim_disj_asm_tac @: [ "hfalse"; "hrest" ]
+       >> assumption_tac
+       >> with_named_asm_term "hrest" sym_asm_tac @: [ "hrest'" ]
+       >> discriminate_tac >> elim_exists_asm_tac >> simp_tac >> eq_iff_tac
+       >> elim_disj_asm_tac @: [ "hlt_na"; "heq_na" ]
+       >> left_tac >> assumption_tac >> right_tac
+       >> with_rules nat_def.injective apply_tac
+       >> assumption_tac >> elim_disj_asm_tac >> left_tac >> assumption_tac
+       >> right_tac >> apply_at_tac "eq_cong" >> assumption_tac)
+  end
+  (* [@trace] *)
+  [@quiet]
