@@ -138,7 +138,7 @@ and proof =
        @: [ "hfinal" ]
     >> apply_at_tac "hfinal" >> refl_tac
   end
-(* [@quiet] *)
+  [@quiet]
 
 let%def measure (m : 'a -> nat) : 'a -> 'a -> bool =
  fun (x : 'a) (y : 'a) -> nat_lt (m x) (m y)
@@ -159,12 +159,12 @@ let%thm wf_rec (r : 'a -> 'a -> bool) =
   wf r
   ==> forall (fun (h : ('a -> 'b) -> 'a -> 'b) ->
       forall (fun (f : 'a -> 'b) (g : 'a -> 'b) (x : 'a) ->
-          forall (fun (z : 'a) -> r z x ==> f z = g z) ==> h f x = h g x)
+          forall (fun (z : 'a) -> r z x ==> (f z = g z)) ==> (h f x = h g x))
       ==> exists (fun (f : 'a -> 'b) -> forall (fun (x : 'a) -> f x = h f x)))
 
 and proof =
   begin
-    zero_tac
+    intros_tac @: [ "hwf"; "himp" ] >> sorry_tac
   end
   [@quiet]
 
