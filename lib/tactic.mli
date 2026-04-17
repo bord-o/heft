@@ -226,6 +226,8 @@ val gen_tac : tactic
 (** Strips a universal quantifier from a goal [!x. P x], leaving the subgoal
     [P x]. *)
 
+val generalize_tac : term -> tactic
+
 val exists_tac : tactic
 (** Reduces a goal [?x. P x] to [P t] for a witness [t] chosen via [Choose]. *)
 

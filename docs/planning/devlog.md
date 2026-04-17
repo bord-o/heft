@@ -662,3 +662,14 @@ vim.lsp.enable('tinymist') -- typst language server
 
 vim.keymap.set('n', '<leader>cc', 'olet goal = make_goal [%term ] in') 
 ```
+
+## Friday, April 17
+
+There are really only a few more large items on my list before I'll be comfortable releasing and writing about it. In it's current state I'm able to do some nontrivial proofs, but the tactics are quite low level like HOL-Light, and the automation isn't as powerful or sound as I'd like. The main items to work on moving forward are well founded recursion, and a partial redesign of the tactic cost model to support better automation.
+
+### Well founded recursion
+
+### Aesop-like automation
+
+Working on well founded recursion
+

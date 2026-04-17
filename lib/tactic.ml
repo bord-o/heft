@@ -707,6 +707,18 @@ let gen_tac : tactic =
   in
   return_thm ~from:"gen_tac" thm
 
+let generalize_tac (x : term) : tactic =
+ fun (asms, concl) ->
+  register "generalize_tac" (Safe 1);
+  let thm =
+    if List.exists (var_free_in x) (asm_terms asms) then fail ()
+    else
+      let gen_concl = make_forall x concl in
+      let gen_thm = perform (Subgoal (asms, gen_concl)) in
+      spec x gen_thm
+  in
+  return_thm ~from:"generalize_tac" thm
+
 let exists_tac : tactic =
  fun (asms, concl) ->
   register "exists_tac" (Unsafe 8);

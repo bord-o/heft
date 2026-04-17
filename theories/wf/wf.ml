@@ -175,3 +175,100 @@ and proof =
     >> neg_elim_tac
   end
   [@quiet]
+
+(* Harrison's version, the trivial counterexample of the set { x, y } *)
+(* let%thm wf_not_sym' (r : 'a -> 'a -> bool) = *)
+(*   wf r ==> forall (fun (x : 'a) (y : 'a) -> not (r x y && r y x)) *)
+(* and proof = *)
+(*   begin *)
+(*     zero_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac >> gen_tac *)
+(*     >> gen_tac *)
+(*     >> spec_asm_tac [%term fun (z : 'a) -> z = (x : 'a) || z = (y : 'a)] *)
+(*        @! "hContraSpec" *)
+(*     >> neg_intro_tac *)
+(*     >> elim_conj_asm_tac @: [ "hleft"; "hright" ] *)
+(*   end *)
+
+let%thm wf_rec_rel_elim (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
+    (x : 'a) (v : 'b) =
+  wf_rec_rel r h x v
+  ==> exists (fun (g : 'a -> 'b) ->
+      forall (fun (y : 'a) -> r y x ==> wf_rec_rel r h y (g y)) && v = h g x)
+
+and proof =
+  begin
+    intros_tac @! "hwf" >> simp_asm_tac
+    >> spec_asm_tac
+         [%term
+           fun (a : 'a) (b : 'b) ->
+             exists (fun (g : 'a -> 'b) ->
+                 forall (fun (y : 'a) ->
+                     (r : 'a -> 'a -> bool) y a
+                     ==> wf_rec_rel
+                           (r : 'a -> 'a -> bool)
+                           (h : ('a -> 'b) -> 'a -> 'b)
+                           y (g y))
+                 && b = (h : ('a -> 'b) -> 'a -> 'b) g a)]
+       @! "hwfSpec"
+    >> apply_at_tac "hwfSpec"
+    >> intros_tac @: [ "hallPrem"; "heqPrem" ]
+    >> with_term [%term (g : 'a -> 'b)] exists_tac
+    >> conj_tac >> intros_tac @: [ "hrya" ]
+    >> apply_at_tac "hallPrem" ~target:"hrya"
+    >> elim_exists_asm_tac @! "hgElim"
+    >> elim_conj_asm_tac @: [ "heqg"; "hallrel" ]
+    >> rewrite_at_tac "heqg"
+    >> apply_at_tac "wf_rec_rel_intro"
+    >> intros_tac @: [ "hryy" ]
+    >> apply_at_tac "hallrel" ~target:"hryy"
+    >> assumption_tac >> assumption_tac
+  end
+  [@quiet]
+
+let%thm wf_rec_rel_functional (r : 'a -> 'a -> bool)
+    (h : ('a -> 'b) -> 'a -> 'b) (x : 'a) (v : 'b) (v' : 'b) =
+  wf r
+  ==> (wf_rec_cong r h
+      ==> (wf_rec_rel r h x v ==> (wf_rec_rel r h x v' ==> (v = v'))))
+
+and proof =
+  begin
+    with_repeat gen_tac >> intro_tac @! "hwf" >> intro_tac @! "hcong"
+    >> simp_asm_tac ~exclude:[ "wf_rec_cong"; "wf_rec_rel" ]
+    >> spec_asm_tac
+         [%term
+           fun (x : 'a) ->
+             forall (fun (v : 'b) (v' : 'b) ->
+                 wf_rec_rel
+                   (r : 'a -> 'a -> bool)
+                   (h : ('a -> 'b) -> 'a -> 'b)
+                   x v
+                 ==> (wf_rec_rel
+                        (r : 'a -> 'a -> bool)
+                        (h : ('a -> 'b) -> 'a -> 'b)
+                        x v'
+                     ==> (v = v')))]
+       @! "hwf'"
+    >> generalize_tac [%term (v' : 'b)]
+    >> generalize_tac [%term (v : 'b)]
+    >> generalize_tac [%term (x : 'a)]
+    >> apply_at_tac "hwf'"
+    >> intros_tac @: [ "hIH"; "hRxv"; "hRxv'" ]
+    >> (apply_at_tac "wf_rec_rel_elim" ~target:"hRxv'"
+       >> elim_exists_asm_tac >> elim_conj_asm_tac)
+       @: [ ""; ""; "hRxv'Eq"; "hRxv'Elim" ]
+    >> (apply_at_tac "wf_rec_rel_elim" ~target:"hRxv"
+       >> elim_exists_asm_tac >> elim_conj_asm_tac)
+       @: [ ""; ""; "hRxvEq"; "hRxvElim" ]
+    >> rewrite_at_tac "hRxvEq" >> rewrite_at_tac "hRxv'Eq"
+    >> rewrite_at_tac "wf_rec_cong" ~target:"hcong"
+    >> beta_asm_tac >> apply_at_tac "hcong" >> intros_tac @! "hrzx"
+    (* TODO: allow discharging multiple premises in one tactic to avoid intermediate names*)
+    >> apply_at_tac "hRxvElim" ~target:"hrzx" @! "hRzGz"
+    >> apply_at_tac "hRxv'Elim" ~target:"hrzx" @! "hRzG'z"
+    >> apply_at_tac "hIH" ~target:"hrzx" @! "hIHprem"
+    >> apply_at_tac "hIHprem" ~target:"hRzGz" @! "hIHprem'"
+    >> apply_at_tac "hIHprem'" ~target:"hRzG'z"
+    >> assumption_tac
+  end
+  [@quiet]

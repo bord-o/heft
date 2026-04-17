@@ -12,40 +12,28 @@ let () =
 
 (* [@@@ocamlformat "disable"] *)
 
-let%thm wf_rec_rel_elim (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
-    (x : 'a) (v : 'b) =
-  wf_rec_rel r h x v
-  ==> exists (fun (g : 'a -> 'b) ->
-      forall (fun (y : 'a) -> r y x ==> wf_rec_rel r h y (g y)) && v = h g x)
+let%thm wf_rec_rel_total (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
+    (x : 'a) =
+  wf r ==> exists (fun (v : 'b) -> wf_rec_rel r h x v)
 
 and proof =
   begin
-    intros_tac @! "hwf" >> simp_asm_tac
+    zero_tac >> with_repeat gen_tac >> intro_tac @! "hwf" >> simp_asm_tac
+    >> spec_asm_tac
+         [%term
+           fun (x : 'a) ->
+             exists (fun (v : 'b) ->
+                 wf_rec_rel
+                   (r : 'a -> 'a -> bool)
+                   (h : ('a -> 'b) -> 'a -> 'b)
+                   x v)]
+       @! "hIH"
+    >> generalize_tac [%term (x : 'a)]
+    >> apply_at_tac "hIH" >> intros_tac @! "hprem"
   end
-  [@quiet]
+(* [@trace] *)
+(* [@quiet] *)
 
-(* let%thm wf_rec_rel_functional (r : 'a -> 'a -> bool) *)
-(*     (h : ('a -> 'b) -> 'a -> 'b) (x : 'a) (v : 'b) (v' : 'b) = *)
-(*   wf r *)
-(*   ==> (wf_rec_cong r h *)
-(*       ==> (wf_rec_rel r h x v ==> (wf_rec_rel r h x v' ==> (v = v')))) *)
-(**)
-(* and proof = *)
-(*   begin *)
-(*     sorry_tac *)
-(*   end *)
-(*   [@quiet] *)
-(**)
-(* let%thm wf_rec_rel_total (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b) *)
-(*     (x : 'a) = *)
-(*   wf r ==> exists (fun (v : 'b) -> wf_rec_rel r h x v) *)
-(**)
-(* and proof = *)
-(*   begin *)
-(*     sorry_tac *)
-(*   end *)
-(*   [@quiet] *)
-(**)
 (* let%thm wf_rec (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b) = *)
 (*   wf r *)
 (*   ==> (wf_rec_cong r h *)
