@@ -24,6 +24,7 @@ let get_prec = function
   | Var _ | Const _ -> PrecAtom
   | App (Const ("!", _), Lam _) -> PrecQuant
   | App (Const ("?", _), Lam _) -> PrecQuant
+  | App (Const ("@", _), Lam _) -> PrecQuant
   | App (App (Const ("==>", _), _), _) -> PrecImp
   | App _ -> PrecApp
   | Lam _ -> PrecQuant
@@ -108,6 +109,11 @@ and pretty_print_hol_term_inner ~with_type ~pretty:_ ~parent_prec:_ ~wrap ~aux
   | App (Const ("?", _), Lam (v, body)) ->
       wrap
         (Format.sprintf "∃%s. %s"
+           (aux ~parent_prec:PrecAtom v)
+           (aux ~parent_prec:PrecQuant body))
+  | App (Const ("@", _), Lam (v, body)) ->
+      wrap
+        (Format.sprintf "@%s. %s"
            (aux ~parent_prec:PrecAtom v)
            (aux ~parent_prec:PrecQuant body))
   (* Regular cases *)

@@ -293,6 +293,10 @@ and translate_apply ~loc ~env func args =
   | Pexp_ident { txt = Lident "exists"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
       translate_quantifier ~loc ~env ~quant:"make_exists" lam
+  (* choose (fun (x : ty) -> body) → make_select var body *)
+  | Pexp_ident { txt = Lident "choose"; _ }, [ (Nolabel, lam) ]
+    when is_fun_expr lam ->
+      translate_quantifier ~loc ~env ~quant:"make_select" ~pure:false lam
   (* not p → make_neg p *)
   | Pexp_ident { txt = Lident "not"; _ }, [ (Nolabel, p) ] ->
       let p_expr = translate_expr ~loc ~env p in
@@ -333,15 +337,16 @@ and translate_apply ~loc ~env func args =
         (func_expr, func_var) all_args
       |> fst
 
-(* forall/exists applied to a lambda: quantifier (fun (x : ty) (y : ty) -> body) *)
-and translate_quantifier ~loc ~env ~quant lam =
+(* forall/exists/choose applied to a lambda: quantifier (fun (x : ty) (y : ty) -> body) *)
+and translate_quantifier ~loc ~env ~quant ?(pure = true) lam =
   match extract_fun_params_and_body lam with
-  | Some (pats, body) -> translate_quantifier_params ~loc ~env ~quant pats body
+  | Some (pats, body) ->
+      translate_quantifier_params ~loc ~env ~quant ~pure pats body
   | None ->
       Location.raise_errorf ~loc:lam.pexp_loc
-        "forall/exists expects a lambda argument"
+        "forall/exists/choose expects a lambda argument"
 
-and translate_quantifier_params ~loc ~env ~quant pats body =
+and translate_quantifier_params ~loc ~env ~quant ~pure pats body =
   let (module A) = Ast_builder.make loc in
   match pats with
   | [] -> translate_expr ~loc ~env body
@@ -352,12 +357,15 @@ and translate_quantifier_params ~loc ~env ~quant pats body =
       let var_expr =
         A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
       in
-      let inner = translate_quantifier_params ~loc ~env ~quant rest body in
+      let inner =
+        translate_quantifier_params ~loc ~env ~quant ~pure rest body
+      in
       let body_var = fresh_id "body" in
+      let quant_call = A.eapply (A.evar quant) [ var_expr; A.evar body_var ] in
       mk_bind ~loc ty_expr ty_var
         (mk_bind ~loc inner body_var
-           (A.eapply (A.evar "Result.ok")
-              [ A.eapply (A.evar quant) [ var_expr; A.evar body_var ] ]))
+           (if pure then A.eapply (A.evar "Result.ok") [ quant_call ]
+            else quant_call))
 
 (* Binary operator where the kernel function returns a result *)
 and translate_binary_result ~loc ~env ~fn lhs rhs =

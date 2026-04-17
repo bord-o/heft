@@ -364,6 +364,43 @@ let%expect_test "multi-param exists" =
   print_endline s;
   [%expect {| ∃x. ∃y. x = y |}]
 
+(* === Choice operator === *)
+
+let%expect_test "choose" =
+  let (t : term) = [%term choose (fun (x : nat) -> (x : nat) = Zero)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| @x. x = Zero |}]
+
+let%expect_test "multi-param choose" =
+  let (t : term) =
+    [%term choose (fun (x : nat) (y : nat) -> (x : nat) = (y : nat))]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| @x. @y. x = y |}]
+
+let%expect_test "choose: bare variable from binder" =
+  let (t : term) = [%term choose (fun (x : nat) -> Suc x = Zero)] in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| @x. Suc x = Zero |}]
+
+let%expect_test "choose with type annotation" =
+  let (t : term) = [%term choose (fun (x : nat) -> (x : nat) = Zero)] in
+  let s = Printing.pretty_print_hol_term ~with_type:true t in
+  print_endline s;
+  [%expect {| @x:nat. x:nat = Zero:nat |}]
+
+let%expect_test "choose in forall" =
+  let (t : term) =
+    [%term
+      forall (fun (n : nat) -> choose (fun (m : nat) -> plus n m = n) = Zero)]
+  in
+  let s = Printing.pretty_print_hol_term t in
+  print_endline s;
+  [%expect {| ∀n. (@m. plus n m = n) = Zero |}]
+
 (* === Nat literals === *)
 
 let%expect_test "0n" =
@@ -744,7 +781,7 @@ let%expect_test "match: wildcard pattern" =
       fun (xs : nat list) -> match xs with Nil -> 0n | Cons (_, rest) -> 1n]
   in
   print_endline (Printing.pretty_print_hol_term ~pretty:true t);
-  [%expect {| λxs. match_list xs 0 (λ_wild_810. λrest. 1) |}]
+  [%expect {| λxs. match_list xs 0 (λ_wild_852. λrest. 1) |}]
 
 let%expect_test "match: nested match in body" =
   let t =
@@ -755,7 +792,7 @@ let%expect_test "match: nested match in body" =
         | Suc n' -> ( match (n' : nat) with Zero -> 1n | Suc _ -> 2n)]
   in
   print_endline (Printing.pretty_print_hol_term ~pretty:true t);
-  [%expect {| λn. match_nat n 0 (λn'. match_nat n' 1 (λ_wild_840. 2)) |}]
+  [%expect {| λn. match_nat n 0 (λn'. match_nat n' 1 (λ_wild_882. 2)) |}]
 
 (* === let%def === *)
 
