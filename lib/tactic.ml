@@ -367,6 +367,7 @@ let with_names (names : string list) : tactic_combinator =
   | v -> v
 
 let ( @: ) tc names = with_names names tc
+let ( @! ) tc name = with_names [ name ] tc
 
 let with_definition (names : string list) : tactic_combinator =
   let rules =
@@ -385,7 +386,7 @@ let with_definition (names : string list) : tactic_combinator =
 let with_specialized ~(name : string) ~(specs : term list) : tactic_combinator =
  fun tac goal ->
   let rule =
-    match Rules.get_proven name with
+    match Rules.find_thm name (fst goal) with
     | None ->
         trace_error (Printf.sprintf "Couldn't find rule with name %s\n" name);
         fail ()

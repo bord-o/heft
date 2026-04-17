@@ -5,4 +5,4 @@
   (:standard -linkall))
  (preprocess
   (pps heft.ppx_heft))
- (libraries heft heft.theories.nats))
+ (libraries heft heft.theories.nats heft.theories.wf))

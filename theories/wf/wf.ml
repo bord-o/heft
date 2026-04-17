@@ -99,3 +99,79 @@ and proof =
     >> with_proven [ "wf_num" ] exact_tac
   end
   [@quiet]
+
+let%def wf_rec_cong (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b) : bool =
+  forall (fun (f : 'a -> 'b) (g : 'a -> 'b) (x : 'a) ->
+      forall (fun (z : 'a) -> r z x ==> (f z = g z)) ==> (h f x = h g x))
+
+let%def wf_rec_rel (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b) (x : 'a)
+    (v : 'b) : bool =
+  forall (fun (s : 'a -> 'b -> bool) ->
+      forall (fun (a : 'a) (b : 'b) (g : 'a -> 'b) ->
+          forall (fun (y : 'a) -> r y a ==> s y (g y)) ==> (b = h g a ==> s a b))
+      ==> s x v)
+
+let%thm wf_rec_rel_intro (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
+    (a : 'a) (g : 'a -> 'b) =
+  forall (fun (y : 'a) -> r y a ==> wf_rec_rel r h y (g y))
+  ==> wf_rec_rel r h a (h g a)
+
+and proof =
+  begin
+    intros_tac @: [ "hall" ] >> simp_tac >> intros_tac @: [ "himp" ]
+    >> with_specialized ~name:"himp"
+         ~specs:
+           [
+             [%term (a : 'a)];
+             [%term (h : ('a -> 'b) -> 'a -> 'b) (g : 'a -> 'b) (a : 'a)];
+             [%term (g : 'a -> 'b)];
+           ]
+         apply_tac
+    >> intros_tac @! "hrya"
+    >> apply_at_tac "hall" ~target:"hrya" @! "hwfgy"
+    >> rewrite_at_tac "wf_rec_rel" ~target:"hwfgy"
+    >> with_named_asm_term "hwfgy" simp_asm_tac
+    >> apply_at_tac "hwfgy"
+    >> with_assumptions (with_first exact_tac)
+    >> refl_tac
+  end
+  [@quiet]
+
+let%thm wf_not_sym (r : 'a -> 'a -> bool) =
+  wf r ==> forall (fun (a : 'a) (x : 'a) -> r a x ==> not (r x a))
+
+and proof =
+  begin
+    zero_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac
+    >> spec_asm_tac
+         [%term
+           fun (a : 'a) ->
+             forall (fun (x : 'a) ->
+                 (r : 'a -> 'a -> bool) (a : 'a) x
+                 ==> not ((r : 'a -> 'a -> bool) x (a : 'a)))]
+       @! "hContraSpec"
+    >> apply_at_tac "hContraSpec"
+    >> intros_tac @: [ "hprem"; "hrxx" ]
+    >> neg_intro_tac @! "hneg"
+    >> with_named_asm_term "hprem" (spec_asm_tac [%term (x' : 'a)]) @! "hprem'"
+    >> apply_at_tac "hprem'" ~target:"hneg" @! "hprem_disch"
+    >> apply_at_tac "hprem_disch" ~target:"hneg" @! "hprem_disch'"
+    >> neg_elim_tac
+  end
+  [@quiet]
+
+let%thm wf_irrefl (r : 'a -> 'a -> bool) =
+  wf r ==> forall (fun (x : 'a) -> not (r x x))
+
+and proof =
+  begin
+    zero_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac
+    >> spec_asm_tac
+         [%term fun (x : 'a) -> not ((r : 'a -> 'a -> bool) (x : 'a) (x : 'a))]
+       @! "hContraSpec"
+    >> apply_at_tac "hContraSpec" >> intros_tac @: [ "hprem" ]
+    >> neg_intro_tac @! "hneg"
+    >> apply_at_tac "hprem" ~target:"hneg"
+    >> neg_elim_tac
+  end
+  [@quiet]
