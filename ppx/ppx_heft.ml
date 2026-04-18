@@ -288,11 +288,11 @@ and translate_apply ~loc ~env func args =
   (* forall (fun (x : ty) -> body) → make_forall var body *)
   | Pexp_ident { txt = Lident "forall"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
-      translate_quantifier ~loc ~env ~quant:"make_forall" lam
+      translate_quantifier ~loc ~env ~quant:"make_forall" ~pure:false lam
   (* exists (fun (x : ty) -> body) → make_exists var body *)
   | Pexp_ident { txt = Lident "exists"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
-      translate_quantifier ~loc ~env ~quant:"make_exists" lam
+      translate_quantifier ~loc ~env ~quant:"make_exists" ~pure:false lam
   (* choose (fun (x : ty) -> body) → make_select var body *)
   | Pexp_ident { txt = Lident "choose"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
@@ -1326,10 +1326,8 @@ let translate_thm_bindings ~loc bindings =
         let body_var = fresh_id "body" in
         mk_bind ~loc ty_expr ty_var
           (mk_bind ~loc inner_expr body_var
-             (A.eapply (A.evar "Result.ok")
-                [
-                  A.eapply (A.evar "make_forall") [ var_expr; A.evar body_var ];
-                ])))
+             (A.eapply (A.evar "make_forall")
+                [ var_expr; A.evar body_var ])))
       param_bindings body_expr
   in
   let unwrapped_goal =

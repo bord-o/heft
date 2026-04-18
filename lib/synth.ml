@@ -188,7 +188,10 @@ and enum_constructors ~extra (ctx : ctx) (ty : hol_type) (depth : int) :
               let cty =
                 match cconst with
                 | Const (_, t) -> type_substitution type_sub t
-                | _ -> type_substitution type_sub (type_of_var cconst)
+                | _ -> (
+                    match type_of_var cconst with
+                    | Ok ty -> type_substitution type_sub ty
+                    | Error _ -> type_substitution type_sub (TyVar "?"))
               in
               match arg_types_of cty target with
               | Some [] -> [ Const (cname, cty) ]
@@ -387,7 +390,7 @@ let make_constructor_equation g_var ind_ty carry_vars case_var con_name con_ty =
     List.map (fun (v, _, _) -> v) con_arg_vars
     @ List.map (fun (_, v, _) -> v) carry_vars
   in
-  make_foralls all_vars eq
+  Result.get_ok (make_foralls all_vars eq)
 
 (** Generate a complete synthesis goal.
 
@@ -443,7 +446,10 @@ let make_synthesis_goal ~(func_type : hol_type)
         let cty =
           match cconst with
           | Const (_, t) -> type_substitution type_sub t
-          | _ -> type_substitution type_sub (type_of_var cconst)
+          | _ -> (
+              match type_of_var cconst with
+              | Ok ty -> type_substitution type_sub ty
+              | Error _ -> type_substitution type_sub (TyVar "?"))
         in
         let case_ty = make_case_type ind_ty carry_tys ret_ty cty in
         let case_name = cname ^ "_case" in
@@ -478,4 +484,4 @@ let make_synthesis_goal ~(func_type : hol_type)
   let case_vars =
     constructor_info |> List.map (fun (_, _, _, case_var, _) -> case_var)
   in
-  List.fold_right make_exists case_vars body
+  Result.get_ok (make_existss case_vars body)

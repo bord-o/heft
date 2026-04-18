@@ -190,6 +190,7 @@ let%expect_test "basic8" =
     |}]
 
 (* let err = Result.get_ok *)
+let make_forall x b = make_forall x b |> Result.get_ok
 
 let%expect_test "basic9" =
   let a = make_var "A" bool_ty in
@@ -1108,6 +1109,8 @@ let%expect_test "basic4" =
   let name, _ = cost_of_tactic left_tac goal in
   print_endline name;
   [%expect {| left_tac |}]
+
+let make_exists x p = make_exists x p |> Result.get_ok
 
 let%expect_test "exists_tac_bool" =
   let p = make_var "P" bool_ty in

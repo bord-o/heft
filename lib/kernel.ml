@@ -590,7 +590,7 @@ let new_basic_type_definition tyname (absname, repname) (Sequent (asl, c)) =
 let make_fun_ty a b = TyCon ("fun", [ a; b ])
 
 let type_of_var = function
-  | Var (_, ty) -> ty
-  | _ -> failwith "type_of_var: not a variable"
+  | Var (_, ty) -> Ok ty
+  | tm -> Error (`NotAVar tm)
 
 (* --- *)

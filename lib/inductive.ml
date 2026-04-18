@@ -75,16 +75,18 @@ let make_induction_thm (ty : hol_type) (constructors : constructor_spec list) =
   let base_holds =
     bases |> List.map @@ fun c -> App (pred_var, Const (c.name, ty))
   in
-  let recursive_holds =
-    recursives |> List.map @@ fun c -> quantify_recursive c
+  let* recursive_holds =
+    recursives |> List.map (fun c -> quantify_recursive c)
+    |> Util.result_of_results []
+    |> Result.map List.rev
   in
   let all_premises = base_holds @ recursive_holds in
 
   let x = Var ("x", ty) in
-  let conclusion = make_forall x (App (pred_var, x)) in
+  let* conclusion = make_forall x (App (pred_var, x)) in
 
   let theorem_body = make_imps all_premises conclusion in
-  let theorem = make_forall pred_var theorem_body in
+  let* theorem = make_forall pred_var theorem_body in
 
   new_axiom theorem
 
@@ -141,7 +143,7 @@ let make_recursion_thm (ty : hol_type) (constructors : constructor_spec list) =
         (* Find recursive arguments and build g applications *)
         let recursive_calls =
           arg_vars
-          |> List.filter (fun v -> type_of_var v = ty)
+          |> List.filter (fun v -> type_of_var v = Ok ty)
           |> List.map (fun v -> Result.get_ok (make_app g_var v))
         in
 
@@ -157,7 +159,7 @@ let make_recursion_thm (ty : hol_type) (constructors : constructor_spec list) =
         let* equation = safe_make_eq g_applied case_applied in
 
         (* Quantify over all constructor arguments: ∀x0 x1 x2. ... *)
-        Ok (make_foralls arg_vars equation)
+        make_foralls arg_vars equation
   in
 
   (* Build all equations *)
@@ -175,10 +177,10 @@ let make_recursion_thm (ty : hol_type) (constructors : constructor_spec list) =
 
   let conjoined = make_conjs equations in
 
-  let body = make_exists g_var conjoined in
+  let* body = make_exists g_var conjoined in
 
   let all_case_vars = List.map snd case_vars in
-  let theorem = make_foralls all_case_vars body in
+  let* theorem = make_foralls all_case_vars body in
 
   new_axiom theorem
 
@@ -233,7 +235,7 @@ let make_distinct_thms (ty : hol_type) (constructors : constructor_spec list) =
 
       (* Quantify over all variables *)
       let all_vars = c1_vars @ c2_vars in
-      let theorem = make_foralls all_vars eq_false in
+      let* theorem = make_foralls all_vars eq_false in
 
       (* Assert as axiom *)
       new_axiom theorem)
@@ -291,7 +293,7 @@ let make_injective_thms (ty : hol_type) (constructors : constructor_spec list) =
 
       (* Quantify over all variables *)
       let all_vars = vars1 @ vars2 in
-      let theorem = make_foralls all_vars body in
+      let* theorem = make_foralls all_vars body in
 
       (* Assert as axiom *)
       new_axiom theorem)
@@ -304,7 +306,7 @@ let make_exhaustiveness_thm (ty : hol_type)
   let x = Var ("x", ty) in
   let make_disjunct c =
     match c.arg_types with
-    | [] -> Result.get_ok (safe_make_eq x (Const (c.name, ty)))
+    | [] -> safe_make_eq x (Const (c.name, ty))
     | arg_tys ->
         let arg_vars =
           arg_tys
@@ -317,18 +319,22 @@ let make_exhaustiveness_thm (ty : hol_type)
             (Const (c.name, con_ty))
             arg_vars
         in
-        let eq = Result.get_ok (safe_make_eq x con_applied) in
+        let* eq = safe_make_eq x con_applied in
         make_existss arg_vars eq
   in
-  let disjuncts = List.map make_disjunct constructors in
+  let* disjuncts =
+    constructors |> List.map make_disjunct
+    |> Util.result_of_results []
+    |> Result.map List.rev
+  in
   let body = make_disjs disjuncts in
-  let theorem = make_forall x body in
+  let* theorem = make_forall x body in
   new_axiom theorem
 
 let new_specification name ex_thm =
   let concl_tm = concl ex_thm in
   let* exists_var, body = destruct_exists concl_tm in
-  let var_type = type_of_var exists_var in
+  let* var_type = type_of_var exists_var in
   let* () = new_constant name var_type in
   let new_const = Const (name, var_type) in
   let* defining_property = vsubst [ (new_const, exists_var) ] body in
@@ -475,11 +481,6 @@ let define_inductive tyname params (constructors : constructor_spec list) =
   in
   Hashtbl.add the_inductives tyname def;
   Ok def
-
-let pp_thm th = print_newline @@ print_endline @@ Printing.pretty_print_thm th
-
-let pp_term trm =
-  print_newline @@ print_endline @@ Printing.pretty_print_hol_term trm
 
 (* Extract the inductive type being recursed on from branch terms *)
 let rec find_inductive_type_in_term = function

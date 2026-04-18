@@ -488,7 +488,7 @@ let%expect_test "choose_exists_from_assumption" =
   let thm =
     let x = make_var "x" bool_ty in
     let p_x = Result.get_ok (safe_make_eq x x) in
-    let exists_px = make_exists x p_x in
+    let* exists_px = make_exists x p_x in
     let* exists_assumed = assume exists_px in
     let* px_assumed = assume p_x in
     let* q_th = prove_hyp truth px_assumed in
@@ -548,7 +548,7 @@ let%expect_test "choose_with_real_predicate" =
     let x = make_var "x" bool_ty in
     let p_x = make_conj x (make_neg x) in
     (* x ∧ ¬x *)
-    let exists_th = axiom_for_test (make_exists x p_x) in
+    let exists_th = axiom_for_test (Result.get_ok (make_exists x p_x)) in
     let* px_assumed = assume p_x in
     let* x_th = conj_left px_assumed in
     let* neg_x_th = conj_right px_assumed in

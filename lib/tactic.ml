@@ -717,7 +717,7 @@ let generalize_tac (x : term) : tactic =
   let thm =
     if List.exists (var_free_in x) (asm_terms asms) then fail ()
     else
-      let gen_concl = make_forall x concl in
+      let* gen_concl = make_forall x concl in
       let gen_thm = perform (Subgoal (asms, gen_concl)) in
       spec x gen_thm
   in
@@ -1050,12 +1050,12 @@ let apply_tac : tactic =
                 let free_undet =
                   List.filter (fun v -> var_free_in v prem) typed_undetermined
                 in
-                let subgoal_term = make_foralls free_undet prem in
+                let* subgoal_term = make_foralls free_undet prem in
                 let sg_thm = perform (Subgoal (asms, subgoal_term)) in
-                if free_undet = [] then sg_thm
+                if free_undet = [] then Ok sg_thm
                 else
                   match specs free_undet sg_thm with
-                  | Ok thm -> thm
+                  | Ok thm -> Ok thm
                   | Error e ->
                       trace_error (print_error e);
                       fail ())
@@ -1063,7 +1063,8 @@ let apply_tac : tactic =
           List.fold_left
             (fun acc sg ->
               let* imp = acc in
-              mp imp sg)
+              let* sg' = sg in
+              mp imp sg')
             (Ok inst_thm) subgoal_thms
   in
   return_thm ~from:"apply_tac" thm
@@ -1111,7 +1112,7 @@ let apply_asm_tac : tactic =
         in
         if List.exists (fun v -> var_free_in v chosen_asm) free_undet then
           fail ();
-        let new_asm = make_foralls free_undet remainder in
+        let* new_asm = make_foralls free_undet remainder in
         if List.mem new_asm (asm_terms asms) then fail ();
         let asms' = perform (Name (new_asm, asms)) :: asms in
         let sub_thm = perform (Subgoal (asms', conc)) in
@@ -1254,7 +1255,7 @@ let rec cases_tac : tactic =
   let thm =
     match destruct_forall concl with
     | Ok (var, bod) ->
-        let ty = type_of_var var in
+        let* ty = type_of_var var in
         if compare ty bool_ty = 0 then bool_forall_cases asms var bod
         else Ok (induct_tac (asms, concl))
     | Error _ ->
@@ -1340,7 +1341,7 @@ and induct_tac : tactic =
         let discharged_concl =
           List.fold_left (fun c asm -> make_imp asm c) concl mentioning
         in
-        let forall_concl = make_forall var discharged_concl in
+        let* forall_concl = make_forall var discharged_concl in
         let non_mentioning =
           List.filter (fun (_, h) -> not (var_free_in var h)) asms
         in

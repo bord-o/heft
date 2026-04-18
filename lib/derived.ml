@@ -64,10 +64,15 @@ let make_forall_const var_ty =
   Const ("!", forall_ty)
 
 let make_forall var body =
-  let var_ty = type_of_var var in
-  App (make_forall_const var_ty, Lam (var, body))
+  let* var_ty = type_of_var var in
+  Ok (App (make_forall_const var_ty, Lam (var, body)))
 
-let make_foralls vars body = List.fold_right make_forall vars body
+let make_foralls vars body =
+  List.fold_right
+    (fun v acc ->
+      let* acc' = acc in
+      make_forall v acc')
+    vars (Ok body)
 
 (* ∧ = (λp q. (λf. f p q) = (λf. f T T)) *)
 let init_conj () =
@@ -123,7 +128,7 @@ let make_imps antecedents consequent =
 let init_false () =
   let p = Var ("p", bool_ty) in
   let f_var = Var ("F", bool_ty) in
-  let forall_p_p = make_forall p p in
+  let* forall_p_p = make_forall p p in
   let* def_eq = safe_make_eq f_var forall_p_p in
   new_basic_definition def_eq
 
@@ -152,7 +157,7 @@ let init_exists () =
   let x_var = Var ("x", a) in
   let p_x = App (p_var, x_var) in
   let not_p_x = make_neg p_x in
-  let forall_not_p = make_forall x_var not_p_x in
+  let* forall_not_p = make_forall x_var not_p_x in
   let not_forall_not_p = make_neg forall_not_p in
   let rhs = Lam (p_var, not_forall_not_p) in
   let* def_eq = safe_make_eq exists_var rhs in
@@ -164,8 +169,8 @@ let make_exists_const var_ty =
   Const ("?", exists_ty)
 
 let make_exists var body =
-  let var_ty = type_of_var var in
-  App (make_exists_const var_ty, Lam (var, body))
+  let* var_ty = type_of_var var in
+  Ok (App (make_exists_const var_ty, Lam (var, body)))
 
 (* ∨ = (λp q. ∀r. (p ==> r) ==> (q ==> r) ==> r) *)
 let init_disj () =
@@ -178,7 +183,7 @@ let init_disj () =
   let p_imp_r = make_imp p r in
   let q_imp_r = make_imp q r in
   let body = make_imp p_imp_r (make_imp q_imp_r r) in
-  let forall_r = make_forall r body in
+  let* forall_r = make_forall r body in
   let rhs = Lam (p, Lam (q, forall_r)) in
   let* def_eq = safe_make_eq disj_var rhs in
   new_basic_definition def_eq
@@ -193,7 +198,12 @@ let make_disjs = function
   | [ p ] -> p
   | p :: ps -> List.fold_left make_disj p ps
 
-let make_existss vars body = List.fold_right make_exists vars body
+let make_existss vars body =
+  List.fold_right
+    (fun v acc ->
+      let* acc' = acc in
+      make_exists v acc')
+    vars (Ok body)
 
 let make_neq l r =
   match safe_make_eq l r with Ok eq -> Ok (make_neg eq) | Error e -> Error e
@@ -201,7 +211,7 @@ let make_neq l r =
 (* ∀p. p /\ ¬p  *)
 let init_classical () =
   let p = Var ("p", bool_ty) in
-  let excl_middle = make_forall p (make_disj p (make_neg p)) in
+  let* excl_middle = make_forall p (make_disj p (make_neg p)) in
   new_axiom excl_middle
 
 let make_select_const () =
@@ -210,7 +220,7 @@ let make_select_const () =
   Const ("@", make_fun_ty pred_ty a)
 
 let make_select x body =
-  let var_ty = type_of_var x in
+  let* var_ty = type_of_var x in
   let pred_ty = make_fun_ty var_ty bool_ty in
   let select_ty = make_fun_ty pred_ty var_ty in
   let select = Const ("@", select_ty) in
@@ -224,12 +234,13 @@ let init_choice () =
   let x = Var ("_u", a) in
 
   let* px = make_app p x in
-  let exists_px = make_exists x px in
+  let* exists_px = make_exists x px in
   let* select_x = make_select x px in
   let* p_select = make_app p select_x in
   let impl = make_imp exists_px p_select in
 
-  new_axiom (make_forall p impl)
+  let* forall_p = make_forall p impl in
+  new_axiom forall_p
 
 let init_cond () =
   let a = TyVar "a" in
@@ -257,8 +268,8 @@ let make_cond_const ty =
   Const ("COND", cond_ty)
 
 let make_cond b t e =
-  let ty = type_of_var t in
-  App (App (App (make_cond_const ty, b), t), e)
+  let* ty = type_of_var t in
+  Ok (App (App (App (make_cond_const ty, b), t), e))
 
 let reset () =
   Hashtbl.clear the_inductives;
@@ -348,10 +359,6 @@ let collect_premises tm =
     | Error _ -> (List.rev acc, tm)
   in
   aux tm []
-
-let destruct_disj = function
-  | App (App (Const ("\\/", _), p), q) -> Ok (p, q)
-  | tm -> Error (`NotADisj tm)
 
 let is_imp t =
   match destruct_imp t with Error (`NotAnImp _) -> false | _ -> true
@@ -453,6 +460,7 @@ let eq_truth_elim th =
   eq_mp thm_sym truth
 
 (** [f : A -> B, x : A] should derive [|- f = \x. f x] when x is not free in f
+    TODO: make this an axiom once and then just instantiate it here
 *)
 let eta x f =
   if var_free_in x f then Error (`EtaVarFreeInTerm (x, f))
@@ -635,7 +643,7 @@ let gen tm th =
   (* don't necessarily need to check hyps, kernel should catch this 
        either way when the lambda rule is run *)
   let* forall_def = forall_def in
-  let var_typ = type_of_var tm in
+  let* var_typ = type_of_var tm in
   let* pred_lam = make_lam tm (concl th) in
   let* typed_forall = inst_type [ (make_vartype "a", var_typ) ] forall_def in
   let* eqt_th = eq_truth_intro th in
@@ -649,7 +657,7 @@ let gens tms th = fold_left_result (fun acc a -> gen a acc) th tms
 let spec tm th =
   let* forall_def = forall_def in
   let* quant_over = quantifier_of_forall (concl th) in
-  let quant_typ = type_of_var quant_over in
+  let* quant_typ = type_of_var quant_over in
   let* typed_forall = inst_type [ (make_vartype "a", quant_typ) ] forall_def in
   let* _, pred_lam = destruct_app (concl th) in
   let* forall_applied = unfold_definition typed_forall [ pred_lam ] in
@@ -837,7 +845,7 @@ let exists x tm th =
 (** [⊢ ∃x. P(x)], [{P(x)} ⊢ Q] should derive [⊢ Q] (where x not free in Q) *)
 let choose x exists_th q_th =
   let q = concl q_th in
-  let x_ty = type_of_var x in
+  let* x_ty = type_of_var x in
 
   let* _, pred_lam = destruct_app (concl exists_th) in
 

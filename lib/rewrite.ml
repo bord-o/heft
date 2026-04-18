@@ -19,16 +19,10 @@ let rec type_match (env : (hol_type * hol_type) list) ty_pat ty_target :
           (Some env) args1 args2
   | _ -> None
 
-let rec type_subst (tysub : (hol_type * hol_type) list) ty =
-  match ty with
-  | TyVar _ -> (
-      match List.assoc_opt ty tysub with Some ty' -> ty' | None -> ty)
-  | TyCon (name, args) -> TyCon (name, List.map (type_subst tysub) args)
-
 let rec term_type_subst (tysub : (hol_type * hol_type) list) tm =
   match tm with
-  | Var (name, ty) -> Var (name, type_subst tysub ty)
-  | Const (name, ty) -> Const (name, type_subst tysub ty)
+  | Var (name, ty) -> Var (name, type_substitution tysub ty)
+  | Const (name, ty) -> Const (name, type_substitution tysub ty)
   | App (f, x) -> App (term_type_subst tysub f, term_type_subst tysub x)
   | Lam (v, body) -> Lam (term_type_subst tysub v, term_type_subst tysub body)
 
@@ -75,7 +69,7 @@ let rec term_match (context_vars : term list) (bound : term list)
       match type_match env.type_sub ty target_ty with
       | None -> None
       | Some type_sub' -> (
-          let pattern' = Var (name, type_subst type_sub' ty) in
+          let pattern' = Var (name, type_substitution type_sub' ty) in
           match List.assoc_opt pattern' env.term_sub with
           | Some existing ->
               if alphaorder existing target = 0 then

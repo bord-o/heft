@@ -455,5 +455,5 @@ val new_basic_type_definition :
 val make_fun_ty : hol_type -> hol_type -> hol_type
 (** [make_fun_ty a b] returns the function type [a -> b]. *)
 
-val type_of_var : term -> hol_type
-(** Type of a variable. Raises if the term is not a [Var]. *)
+val type_of_var : term -> (hol_type, [> `NotAVar of term ]) result
+(** Type of a variable. Fails if the term is not a [Var]. *)
