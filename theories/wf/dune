@@ -4,4 +4,4 @@
  (wrapped false)
  (preprocess
   (pps ppx_heft))
- (libraries heft heft.ppx_heft heft.theories.nats))
+ (libraries heft heft.ppx_heft heft.theories.nats heft.theories.bools))

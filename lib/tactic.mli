@@ -460,6 +460,8 @@ val with_assumptions : tactic_combinator
 val with_rules : thm list -> tactic_combinator
 (** Answers [Rules] with the given list of theorems. *)
 
+val with_axioms : tactic_combinator
+
 val with_flip_rules : tactic_combinator
 (** Re-answers [Rules] with each equation from the outer handler flipped via
     [sym]. Non-equations are dropped. *)

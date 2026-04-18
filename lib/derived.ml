@@ -210,14 +210,18 @@ let make_select_const () =
   Const ("@", make_fun_ty pred_ty a)
 
 let make_select x body =
+  let var_ty = type_of_var x in
+  let pred_ty = make_fun_ty var_ty bool_ty in
+  let select_ty = make_fun_ty pred_ty var_ty in
+  let select = Const ("@", select_ty) in
   let* l = make_lam x body in
-  Ok (App (make_select_const (), l))
+  Ok (App (select, l))
 
 let init_choice () =
   let a = TyVar "a" in
   let p_ty = make_fun_ty a bool_ty in
-  let p = Var ("P", p_ty) in
-  let x = Var ("x", a) in
+  let p = Var ("p", p_ty) in
+  let x = Var ("_u", a) in
 
   let* px = make_app p x in
   let exists_px = make_exists x px in

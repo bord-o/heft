@@ -17,3 +17,13 @@ and proof =
   begin
     intros_tac >> eq_true_elim_tac >> assumption_tac
   end [@quiet]
+
+(* Just an alias that uses the lower level axiom *)
+let%thm axiom_of_choice (p : 'a -> bool) =
+  exists (fun (x : 'a) -> p x) ==> p (choose (fun (y : 'a) -> p y))
+
+and proof =
+  begin
+    with_first (with_axioms exact_tac)
+  end
+  [@quiet]

@@ -330,6 +330,10 @@ let with_rules (rules : thm list) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Rules, k -> continue k rules | v -> v
 
+let with_axioms : tactic_combinator =
+ fun tac goal ->
+  match tac goal with effect Rules, k -> continue k !the_axioms | v -> v
+
 let with_flip_rules : tactic_combinator =
  fun tac goal ->
   let rules = perform Rules in

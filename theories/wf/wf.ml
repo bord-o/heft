@@ -51,7 +51,7 @@ let%thm wf_num = wf nat_lt
 and proof =
   begin
     rewrite_at_tac "wf" >> beta_tac
-    >> with_info_trace (with_proven [ "nat_induct_strong" ] exact_tac)
+    >> with_proven [ "nat_induct_strong" ] exact_tac
   end
   [@quiet]
 
@@ -270,5 +270,110 @@ and proof =
     >> apply_at_tac "hIHprem" ~target:"hRzGz" @! "hIHprem'"
     >> apply_at_tac "hIHprem'" ~target:"hRzG'z"
     >> assumption_tac
+  end
+  [@quiet]
+
+let%thm wf_rec_rel_total (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
+    (x : 'a) =
+  wf r ==> exists (fun (v : 'b) -> wf_rec_rel r h x v)
+
+and proof =
+  begin
+    zero_tac >> with_repeat gen_tac >> intro_tac @! "hwf" >> simp_asm_tac
+    >> spec_asm_tac
+         [%term
+           fun (x : 'a) ->
+             exists (fun (v : 'b) ->
+                 wf_rec_rel
+                   (r : 'a -> 'a -> bool)
+                   (h : ('a -> 'b) -> 'a -> 'b)
+                   x v)]
+       @! "hIH"
+    >> generalize_tac [%term (x : 'a)]
+    >> apply_at_tac "hIH" >> intros_tac @! "hprem"
+    >> with_term
+         [%term
+           (h : ('a -> 'b) -> 'a -> 'b)
+             (fun (y : 'a) ->
+               choose (fun (x : 'b) ->
+                   wf_rec_rel
+                     (r : 'a -> 'a -> bool)
+                     (h : ('a -> 'b) -> 'a -> 'b)
+                     y x))
+             (x : 'a)]
+         exists_tac
+    >> apply_at_tac "wf_rec_rel_intro"
+    >> intros_tac @! "hryx"
+    >> apply_at_tac "hprem" ~target:"hryx" @! "hwfExists"
+    >> beta_tac
+    >> apply_at_tac "axiom_of_choice" ~target:"hwfExists" @! "hwfChosen"
+    >> with_assumptions (with_first exact_tac)
+  end
+  [@quiet]
+
+let%thm wf_rec (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b) =
+  wf r
+  ==> (wf_rec_cong r h
+      ==> exists (fun (f : 'a -> 'b) -> forall (fun (x : 'a) -> f x = h f x)))
+
+and proof =
+  begin
+    zero_tac
+    >> intros_tac @: [ "hwf"; "hcong" ]
+    >> apply_at_tac "wf_rec_rel_functional" ~target:"hwf" @! "hfunctional1"
+    >> apply_at_tac "hfunctional1" ~target:"hcong" @! "hfunctional2"
+    >> with_term
+         [%term
+           fun (x : 'a) ->
+             choose (fun (v : 'b) ->
+                 wf_rec_rel
+                   (r : 'a -> 'a -> bool)
+                   (h : ('a -> 'b) -> 'a -> 'b)
+                   x v)]
+         exists_tac
+    >> intros_tac
+    >> apply_at_tac "wf_rec_rel_total" ~target:"hwf" @! "hRxv"
+    >> spec_asm_tac [%term (h : ('a -> 'b) -> 'a -> 'b)] @! "hall1"
+    >> spec_asm_tac [%term (x : 'a)] @! "hwfExists"
+    >> apply_at_tac "axiom_of_choice" ~target:"hwfExists" @! "hwfChosen"
+    >> apply_at_tac "wf_rec_rel_elim" ~target:"hwfChosen" @! "hwfElim"
+    >> (elim_exists_asm_tac >> elim_conj_asm_tac) @: [ ""; "heq"; "hallR" ]
+    >> rewrite_at_tac "heq"
+    >> rewrite_at_tac "wf_rec_cong" ~target:"hcong"
+    >> beta_asm_tac
+    >> spec_asm_tac [%term (g : 'a -> 'b)] @! "h1"
+    >> spec_asm_tac
+         [%term
+           fun (x : 'a) ->
+             choose (fun (v : 'b) ->
+                 wf_rec_rel
+                   (r : 'a -> 'a -> bool)
+                   (h : ('a -> 'b) -> 'a -> 'b)
+                   x v)]
+       @! "h2"
+    >> spec_asm_tac [%term (x : 'a)] @! "hcongSpec"
+    >> apply_at_tac "hcongSpec" >> intros_tac @! "hrzx"
+    >> apply_at_tac "hallR" ~target:"hrzx" @! "hRzx"
+    >> with_named_asm_term "hall1" (spec_asm_tac [%term (z : 'a)])
+       @! "hrzExists"
+    >> apply_at_tac "axiom_of_choice" ~target:"hrzExists" @! "hrzChosen"
+    >> with_named_asm_term "hfunctional2" (spec_asm_tac [%term (z : 'a)])
+       @! "hfunc_z"
+    >> with_named_asm_term "hfunc_z"
+         (spec_asm_tac [%term (g : 'a -> 'b) (z : 'a)])
+       @! "hfunc_gz"
+    >> with_named_asm_term "hfunc_gz"
+         (spec_asm_tac
+            [%term
+              choose (fun (_u : 'b) ->
+                  wf_rec_rel
+                    (r : 'a -> 'a -> bool)
+                    (h : ('a -> 'b) -> 'a -> 'b)
+                    (z : 'a)
+                    _u)])
+       @! "hfunc_full"
+    >> apply_at_tac "hfunc_full" ~target:"hRzx" @! "hfunc_almost"
+    >> apply_at_tac "hfunc_almost" ~target:"hrzChosen"
+    >> with_assumptions (with_first exact_tac)
   end
   [@quiet]
