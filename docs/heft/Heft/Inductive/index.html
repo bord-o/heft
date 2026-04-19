@@ -40,6 +40,27 @@
     <span>[&gt; <span>`CantApplyNonFunctionType of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewAxiomNotAProp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-subst_term_eq"><a href="#val-subst_term_eq" class="anchor"></a><code><span><span class="keyword">val</span> subst_term_eq : 
+  <span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span>(<a href="../Kernel/index.html#type-thm">Kernel.thm</a>,
+    <span>[&gt; <span>`CantApplyNonFunctionType of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `CantDestructEquality</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `LamRuleCantApply</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `NotBothEquations</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `TypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
+    <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-subst_in_thm"><a href="#val-subst_in_thm" class="anchor"></a><code><span><span class="keyword">val</span> subst_in_thm : 
+  <span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span>(<a href="../Kernel/index.html#type-thm">Kernel.thm</a>,
+    <span>[&gt; <span>`CantApplyNonFunctionType of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `CantDestructEquality</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `EqMp</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `LamRuleCantApply</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `NotBothEquations</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `TypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
+    <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-new_specification"><a href="#val-new_specification" class="anchor"></a><code><span><span class="keyword">val</span> new_specification : 
   <span>string <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> <span class="arrow">&#45;&gt;</span></span>
@@ -47,9 +68,30 @@
     <span>[&gt; <span>`BadSubstitutionList of <span><span>(<a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a>)</span> list</span></span>
     <span><span>| `CantApplyNonFunctionType</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `CantCreateVariantForNonVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `CantDestructEquality</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `Clash</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `ConstantTermAlreadyDeclared</span> of string</span>
+    <span><span>| `DefinitionError</span> of string</span>
+    <span><span>| `EqMp</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `InvariantViolation</span> of string</span>
+    <span><span>| `LamRuleCantApply</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `MakeAppTypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
+    <span><span>| `MakeLamNotAVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewAxiomNotAProp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NewBasicDefinition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NewBasicDefinitionAlreadyDefined</span> of string</span>
+    <span><span>| `NotAForall</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotALam</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAProposition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAVar</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAnApp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAnApplication</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnExists</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotBothEquations</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `NotTrivialBetaRedex</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `OperationDoesntMatch</span> of string</span>
+    <span><span>| `RuleTrans</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `TypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
     <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-get_fun_arg_types"><a href="#val-get_fun_arg_types" class="anchor"></a><code><span><span class="keyword">val</span> get_fun_arg_types : <span><a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> <span class="arrow">&#45;&gt;</span></span> <span><a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> list</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-make_match_function"><a href="#val-make_match_function" class="anchor"></a><code><span><span class="keyword">val</span> make_match_function : 
   <span>string <span class="arrow">&#45;&gt;</span></span>
@@ -65,18 +107,23 @@
     <span><span>| `ConstantTermAlreadyDeclared</span> of string</span>
     <span><span>| `DefinitionError</span> of string</span>
     <span><span>| `EqMp</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `InvariantViolation</span> of string</span>
     <span><span>| `LamRuleCantApply</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `MakeAppTypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
+    <span><span>| `MakeLamNotAVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewAxiomNotAProp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewBasicDefinition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewBasicDefinitionAlreadyDefined</span> of string</span>
     <span><span>| `NotAForall</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotALam</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAProposition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAVar</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnApp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnApplication</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnExists</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotBothEquations</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `NotTrivialBetaRedex</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `OperationDoesntMatch</span> of string</span>
     <span><span>| `RuleTrans</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `TypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
     <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
@@ -94,14 +141,17 @@
     <span><span>| `ConstructorsAlreadyExist</span> of <span>string list</span></span>
     <span><span>| `DefinitionError</span> of string</span>
     <span><span>| `EqMp</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `InvariantViolation</span> of string</span>
     <span><span>| `LamRuleCantApply</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `MakeAppTypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
+    <span><span>| `MakeLamNotAVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewAxiomNotAProp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewBasicDefinition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewBasicDefinitionAlreadyDefined</span> of string</span>
     <span><span>| `NoBaseCase</span> of string</span>
     <span><span>| `NotAForall</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotALam</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAProposition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAVar</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnApp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnApplication</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
@@ -109,6 +159,7 @@
     <span><span>| `NotBothEquations</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `NotPositive</span> of string</span>
     <span><span>| `NotTrivialBetaRedex</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `OperationDoesntMatch</span> of string</span>
     <span><span>| `RuleTrans</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `TypeAlreadyDeclared</span> of string</span>
     <span><span>| `TypeAlreadyExists</span> of string</span>
@@ -134,18 +185,23 @@
     <span><span>| `ConstantTermAlreadyDeclared</span> of string</span>
     <span><span>| `DefinitionError</span> of string</span>
     <span><span>| `EqMp</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `InvariantViolation</span> of string</span>
     <span><span>| `LamRuleCantApply</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
+    <span><span>| `MakeAppTypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
+    <span><span>| `MakeLamNotAVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewAxiomNotAProp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewBasicDefinition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NewBasicDefinitionAlreadyDefined</span> of string</span>
     <span><span>| `NotAForall</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotALam</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAProposition</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAVar</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnApp</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnApplication</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAnExists</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotBothEquations</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `NotTrivialBetaRedex</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `OperationDoesntMatch</span> of string</span>
     <span><span>| `RuleTrans</span> of <a href="../Kernel/index.html#type-thm">Kernel.thm</a> * <a href="../Kernel/index.html#type-thm">Kernel.thm</a></span>
     <span><span>| `TypesDontAgree</span> of <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a> * <a href="../Kernel/index.html#type-hol_type">Kernel.hol_type</a></span>
     <span><span>| `UnexpectedLambdaForm</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
