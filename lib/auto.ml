@@ -240,9 +240,9 @@ let with_dfs' : tactic_combinator =
 let _ = (with_dfs', with_dfs'')
 
 let itauto_tac : tactic =
-  pick_tac
+  pick
     [
-      assumption_tac;
+      assumption;
       intro_tac;
       neg_intro_tac;
       gen_tac;
@@ -259,9 +259,9 @@ let itauto_tac : tactic =
     ]
 
 let ctauto_tac : tactic =
-  pick_tac
+  pick
     [
-      assumption_tac;
+      assumption;
       intro_tac;
       neg_intro_tac;
       gen_tac;

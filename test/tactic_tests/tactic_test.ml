@@ -9,7 +9,7 @@ let%expect_test "basic" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal ~asms:[ ("ha", a); ("hb", b) ] (make_conj a b) in
-  let proof = conj_tac >> assumption_tac >> assumption_tac in
+  let proof = conj_tac >> assumption >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -38,7 +38,7 @@ let%expect_test "basic2" =
 let%expect_test "basic3" =
   let a = make_var "A" bool_ty in
   let goal = ([], make_imp a a) in
-  let proof = intro_tac >> assumption_tac in
+  let proof = intro_tac >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -54,7 +54,7 @@ let%expect_test "basic4" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal ~asms:[ ("ha", a) ] (make_disj a b) in
-  let proof = left_tac >> assumption_tac in
+  let proof = left_tac >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -70,7 +70,7 @@ let%expect_test "basic5" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal ~asms:[ ("ha", a); ("hb", b) ] (make_disj a b) in
-  let proof = right_tac >> assumption_tac in
+  let proof = right_tac >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -92,7 +92,7 @@ let%expect_test "basic6" =
     make_goal ~asms:[ ("himp", imp_cab); ("himp2", imp_ab); ("ha", a) ] b
   in
   let proof =
-    with_nth_choice 1 (with_assumptions apply_tac) >> assumption_tac
+    with_nth_choice 1 (with_assumptions apply_tac) >> assumption
   in
   run_proof goal proof;
 
@@ -117,7 +117,7 @@ let%expect_test "new apply" =
     make_goal ~asms:[ ("himp", imp_cab); ("himp2", imp_ab); ("ha", a) ] b
   in
   let proof =
-    with_assumptions (with_nth_choice 1 apply_tac) >> assumption_tac
+    with_assumptions (with_nth_choice 1 apply_tac) >> assumption
   in
   run_proof goal proof;
 
@@ -142,7 +142,7 @@ let%expect_test "deep sequencing with conj" =
       (make_conj (make_conj a b) c)
   in
   let proof =
-    conj_tac >> conj_tac >> assumption_tac >> assumption_tac >> assumption_tac
+    conj_tac >> conj_tac >> assumption >> assumption >> assumption
   in
   run_proof goal proof;
   [%expect
@@ -160,7 +160,7 @@ let%expect_test "deep sequencing with conj" =
 let%expect_test "basic7" =
   let a = make_var "A" bool_ty in
   let goal = make_goal ~asms:[ ("hfalse", make_false ()) ] a in
-  let proof = ccontr_tac >> assumption_tac in
+  let proof = ccontr_tac >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -176,7 +176,7 @@ let%expect_test "basic7" =
 let%expect_test "basic8" =
   let a = make_var "A" bool_ty in
   let goal = make_goal ~asms:[ ("hfalse", make_false ()) ] a in
-  let proof = false_elim_tac >> assumption_tac in
+  let proof = false_elim_tac >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -195,7 +195,7 @@ let%expect_test "basic9" =
   let a = make_var "A" bool_ty in
   let x = make_var "x" bool_ty in
   let goal = ([], make_forall x (make_imp a a)) in
-  let proof = gen_tac >> intro_tac >> assumption_tac in
+  let proof = gen_tac >> intro_tac >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -212,8 +212,8 @@ let%expect_test "basic10" =
   let x = make_var "x" nat_ty in
   let goal = ([], make_forall x (make_imp a a)) in
   let proof =
-    induct_tac >> intro_tac >> assumption_tac >> gen_tac >> intro_tac
-    >> assumption_tac
+    induct_tac >> intro_tac >> assumption >> gen_tac >> intro_tac
+    >> assumption
   in
   run_proof goal proof;
 
@@ -238,14 +238,14 @@ let%expect_test "dfs_backtrack" =
       ~asms:[ ("hf", f) ]
       (make_disj (make_disj e (make_disj (make_disj c d) (make_disj a b))) f)
   in
-  let proof = with_best_first (try_ or_tac >> assumption_tac) in
+  let proof = with_best_first (try_ or_tac >> assumption) in
   run_proof goal proof;
   [%expect
     {|
     Proof:
       or_tac >>
       right_tac >>
-      assumption_tac
+      assumption
     F
     ========================================
     E ∨ C ∨ D ∨ A ∨ B ∨ F
@@ -262,7 +262,7 @@ let%expect_test "dfs_conj_backtrack" =
   let left = make_disj a b in
   let goal = make_goal ~asms:[ ("hb", b); ("hc", c) ] (make_conj left c) in
   let proof =
-    with_best_first (try_ conj_tac >> try_ or_tac >> assumption_tac)
+    with_best_first (try_ conj_tac >> try_ or_tac >> assumption)
   in
   run_proof goal proof;
 
@@ -270,10 +270,10 @@ let%expect_test "dfs_conj_backtrack" =
     {|
     Proof:
       conj_tac >>
-      assumption_tac >>
+      assumption >>
       or_tac >>
       right_tac >>
-      assumption_tac
+      assumption
     B
     C
     ========================================
@@ -293,12 +293,12 @@ let%expect_test "dfs_conj_assumptions" =
   let goal = ([], make_imp (make_conj p_imp_q q_imp_r) p_imp_r) in
   let proof =
     with_best_first
-      (pick_tac
+      (pick
          [
            intro_tac;
            elim_conj_asm_tac;
            with_assumptions apply_tac;
-           assumption_tac;
+           assumption;
          ])
   in
   run_proof goal proof;
@@ -311,7 +311,7 @@ let%expect_test "dfs_conj_assumptions" =
       elim_conj_asm_tac >>
       apply_tac >>
       apply_tac >>
-      assumption_tac
+      assumption
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
 
@@ -338,7 +338,7 @@ let%expect_test "complete_prop_automation" =
       elim_conj_asm_tac >>
       apply_asm_tac >>
       apply_tac >>
-      assumption_tac
+      assumption
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
 
@@ -356,12 +356,12 @@ let%expect_test "dfs_disj_assumptions" =
   let goal = ([], make_imp p_or_q (make_imp p_imp_r (make_imp q_imp_r r))) in
   let proof =
     with_best_first
-      (pick_tac
+      (pick
          [
            intro_tac;
            elim_disj_asm_tac;
            with_assumptions apply_tac;
-           assumption_tac;
+           assumption;
          ])
   in
   run_proof goal proof;
@@ -373,7 +373,7 @@ let%expect_test "dfs_disj_assumptions" =
       intro_tac >>
       elim_disj_asm_tac >>
       apply_tac >>
-      assumption_tac >>
+      assumption >>
       apply_tac >>
       apply_tac
     ========================================
@@ -401,10 +401,10 @@ let%expect_test "pauto_disj_elimination" =
       elim_disj_asm_tac >>
       intro_tac >>
       apply_asm_tac >>
-      assumption_tac >>
+      assumption >>
       intro_tac >>
       apply_asm_tac >>
-      assumption_tac
+      assumption
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
 
@@ -515,7 +515,7 @@ let%expect_test "excluded_middle_pauto" =
       neg_intro_tac >>
       contradict_asm_tac >>
       left_tac >>
-      assumption_tac
+      assumption
     ========================================
     P ∨ ¬P
 
@@ -540,7 +540,7 @@ let%expect_test "contraposition" =
       neg_intro_tac >>
       contradict_asm_tac >>
       apply_tac >>
-      assumption_tac
+      assumption
     ========================================
     (P ==> Q) ==> ¬Q ==> ¬P
 
@@ -569,12 +569,12 @@ let%expect_test "distribution_and_over_or" =
       elim_disj_asm_tac >>
       right_tac >>
       conj_tac >>
-      assumption_tac >>
-      assumption_tac >>
+      assumption >>
+      assumption >>
       left_tac >>
       conj_tac >>
       apply_tac >>
-      assumption_tac
+      assumption
     ========================================
     P ∧ Q ∨ R ==> P ∧ Q ∨ P ∧ R
 
@@ -603,15 +603,15 @@ let%expect_test "distribution_or_over_and" =
       elim_disj_asm_tac >>
       right_tac >>
       elim_conj_asm_tac >>
-      assumption_tac >>
+      assumption >>
       left_tac >>
-      assumption_tac >>
+      assumption >>
       elim_disj_asm_tac >>
       elim_conj_asm_tac >>
       right_tac >>
       apply_tac >>
       left_tac >>
-      assumption_tac
+      assumption
     ========================================
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
@@ -643,8 +643,8 @@ let%expect_test "de_morgan_and" =
       neg_intro_tac >>
       contradict_asm_tac >>
       conj_tac >>
-      assumption_tac >>
-      assumption_tac
+      assumption >>
+      assumption
     ========================================
     ¬P ∧ Q ==> ¬P ∨ ¬Q
 
@@ -671,11 +671,11 @@ let%expect_test "de_morgan_or" =
       neg_intro_tac >>
       contradict_asm_tac >>
       right_tac >>
-      assumption_tac >>
+      assumption >>
       neg_intro_tac >>
       contradict_asm_tac >>
       left_tac >>
-      assumption_tac
+      assumption
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
@@ -702,7 +702,7 @@ let%expect_test "de_morgan_or_converse" =
       neg_intro_tac >>
       contradict_asm_tac >>
       elim_disj_asm_tac >>
-      assumption_tac >>
+      assumption >>
       neg_elim_tac
     ========================================
     ¬P ∧ ¬Q ==> ¬P ∨ Q
@@ -730,7 +730,7 @@ let%expect_test "implication_as_disjunction" =
       intro_tac >>
       apply_asm_tac >>
       right_tac >>
-      assumption_tac
+      assumption
     ========================================
     (P ==> Q) ==> ¬P ∨ Q
 
@@ -751,7 +751,7 @@ let%expect_test "disjunction_as_implication" =
       intro_tac >>
       elim_disj_asm_tac >>
       intro_tac >>
-      assumption_tac >>
+      assumption >>
       intro_tac >>
       neg_elim_tac
     ========================================
@@ -852,12 +852,12 @@ let%expect_test "four_variable_distribution" =
       right_tac >>
       right_tac >>
       conj_tac >>
-      assumption_tac >>
-      assumption_tac >>
+      assumption >>
+      assumption >>
       left_tac >>
       conj_tac >>
       apply_tac >>
-      assumption_tac >>
+      assumption >>
       elim_disj_asm_tac >>
       right_tac >>
       right_tac >>
@@ -867,7 +867,7 @@ let%expect_test "four_variable_distribution" =
       apply_tac >>
       left_tac >>
       conj_tac >>
-      assumption_tac >>
+      assumption >>
       apply_tac
     ========================================
     A ∨ B ∧ C ∨ D ==> A ∧ C ∨ A ∧ D ∨ B ∧ C ∨ B ∧ D
@@ -899,7 +899,7 @@ let%expect_test "implication_chain" =
       apply_tac >>
       apply_asm_tac >>
       apply_asm_tac >>
-      assumption_tac
+      assumption
     ========================================
     (A ==> B) ==> (B ==> C) ==> (C ==> D) ==> A ==> D
 
@@ -929,7 +929,7 @@ let%expect_test "contraposition_chain" =
       contradict_asm_tac >>
       apply_tac >>
       apply_tac >>
-      assumption_tac
+      assumption
     ========================================
     (A ==> B) ==> (B ==> C) ==> ¬C ==> ¬A
 
@@ -949,7 +949,7 @@ let%expect_test "absorption_law" =
     Proof:
       intro_tac >>
       elim_conj_asm_tac >>
-      assumption_tac
+      assumption
     ========================================
     P ∧ P ∨ Q ==> P
 
@@ -970,8 +970,8 @@ let%expect_test "absorption_law_converse" =
       intro_tac >>
       conj_tac >>
       left_tac >>
-      assumption_tac >>
-      assumption_tac
+      assumption >>
+      assumption
     ========================================
     P ==> P ∧ P ∨ Q
 
@@ -1008,8 +1008,8 @@ let%expect_test "manual version " =
   (* let proof = with_best_first ctauto_tac in *)
   let proof =
     intro_tac >> conj_tac >> neg_intro_tac >> contradict_asm_tac >> left_tac
-    >> assumption_tac >> neg_intro_tac >> contradict_asm_tac >> right_tac
-    >> assumption_tac
+    >> assumption >> neg_intro_tac >> contradict_asm_tac >> right_tac
+    >> assumption
   in
   run_proof goal proof;
   [%expect
@@ -1040,11 +1040,11 @@ let%expect_test "dfs demorgans" =
       neg_intro_tac >>
       contradict_asm_tac >>
       right_tac >>
-      assumption_tac >>
+      assumption >>
       neg_intro_tac >>
       contradict_asm_tac >>
       left_tac >>
-      assumption_tac
+      assumption
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
@@ -1113,7 +1113,7 @@ let%expect_test "exists_tac_bool" =
   let p = make_var "P" bool_ty in
   let goal = make_goal ~asms:[ ("htrue", make_true ()) ] (make_exists p p) in
   (* ∃P. P *)
-  run_proof goal (with_term (make_true ()) exists_tac >> assumption_tac);
+  run_proof goal (with_term (make_true ()) exists_tac >> assumption);
   [%expect
     {|
     ========================================
@@ -1164,7 +1164,7 @@ let%expect_test "trans tac" =
   let eq_mn = Result.get_ok (safe_make_eq m n) in
   let goal = make_goal ~asms:[ ("heq", eq_mo); ("heq2", eq_on) ] eq_mn in
 
-  run_proof goal (with_term o trans_tac >> assumption_tac >> assumption_tac);
+  run_proof goal (with_term o trans_tac >> assumption >> assumption);
   [%expect
     {|
     m = o
@@ -1190,9 +1190,9 @@ let%expect_test "have_tac_basic" =
   let proof =
     with_term q have_tac
     >> with_first (with_assumptions (with_first_term apply_asm_tac))
-    >> assumption_tac
+    >> assumption
     >> with_first (with_assumptions (with_first_term apply_asm_tac))
-    >> assumption_tac
+    >> assumption
   in
   run_proof ~notrace:false goal proof;
 
@@ -1201,14 +1201,14 @@ let%expect_test "have_tac_basic" =
     no choices available
     Found matching assumption
     Assumption succeeded
-    assumption_tac
+    assumption
     apply_asm_tac
     no choices available
     no choices available
     no choices available
     Found matching assumption
     Assumption succeeded
-    assumption_tac
+    assumption
     apply_asm_tac
     have_tac
     P
@@ -1244,8 +1244,8 @@ let%expect_test "cases_tac bool forall imp" =
   let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
   let goal = ([], make_forall b (make_imp b_eq_t b_eq_t)) in
   let proof =
-    cases_tac >> intro_tac >> assumption_tac >> with_first intro_tac
-    >> assumption_tac
+    cases_tac >> intro_tac >> assumption >> with_first intro_tac
+    >> assumption
   in
   run_proof goal proof;
   [%expect
@@ -1330,7 +1330,7 @@ let%expect_test "cases_tac arbitrary bool expr" =
   let goal =
     make_goal' ([ a_eq_t; b ], Result.get_ok (safe_make_eq a (make_true ())))
   in
-  let proof = with_term a cases_tac >> assumption_tac >> assumption_tac in
+  let proof = with_term a cases_tac >> assumption >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1347,7 +1347,7 @@ let%expect_test "cases_tac preserves assumptions" =
   let p = make_var "P" bool_ty in
   let b = make_var "b" bool_ty in
   let goal = make_goal' ([ p ], make_forall b p) in
-  let proof = cases_tac >> assumption_tac >> assumption_tac in
+  let proof = cases_tac >> assumption >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1368,7 +1368,7 @@ let%expect_test "spec_asm_tac basic" =
   let p_a = App (make_var "P" (make_fun_ty nat_ty bool_ty), a) in
   let forall_px = make_forall x p_x in
   let goal = make_goal' ([ forall_px ], p_a) in
-  let proof = spec_asm_tac a >> assumption_tac in
+  let proof = spec_asm_tac a >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1387,7 +1387,7 @@ let%expect_test "sym_asm_tac basic" =
   let a_eq_b = safe_make_eq a b |> Result.get_ok in
   let b_eq_a = safe_make_eq b a |> Result.get_ok in
   let goal = make_goal' ([ a_eq_b ], b_eq_a) in
-  let proof = sym_asm_tac >> assumption_tac in
+  let proof = sym_asm_tac >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1403,7 +1403,7 @@ let%expect_test "eq_true_asm_tac" =
   let p = make_var "P" bool_ty in
   let p_eq_t = Result.get_ok (safe_make_eq p (make_true ())) in
   let goal = make_goal' ([ p ], p_eq_t) in
-  let proof = eq_true_asm_tac >> assumption_tac in
+  let proof = eq_true_asm_tac >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1421,8 +1421,8 @@ let%expect_test "destruct_tac" =
   let pn = Kernel.make_app p n |> Result.get_ok in
   let goal = make_goal' ([ pn ], pn) in
   let proof =
-    with_term n induct_tac >> intros_tac >> assumption_tac >> intros_tac
-    >> assumption_tac
+    with_term n induct_tac >> intros_tac >> assumption >> intros_tac
+    >> assumption
   in
   run_proof goal proof;
   [%expect
@@ -1494,7 +1494,7 @@ let%expect_test "apply_tac multiple premises isolated" =
   let r00 = Result.get_ok (make_app (Result.get_ok (make_app r zero)) zero) in
   let goal = make_goal' ([ p0; q0 ], r00) in
   run_proof goal
-    (with_rules [ thm ] apply_tac >> assumption_tac >> assumption_tac);
+    (with_rules [ thm ] apply_tac >> assumption >> assumption);
   [%expect
     {|
     P Zero
@@ -1566,7 +1566,7 @@ let%expect_test "apply_tac implication premise intact" =
   let ab = make_imp a b in
   let thm = Result.get_ok (new_axiom (make_imp ab c)) in
   let goal = make_goal' ([ ab ], c) in
-  run_proof goal (with_rules [ thm ] apply_tac >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_tac >> assumption);
   [%expect
     {|
     A ==> B
@@ -1630,7 +1630,7 @@ let%expect_test "apply_tac polymorphic with premise" =
   let goal_term = Result.get_ok (safe_make_eq zero suc_zero) in
   let suc_zero_eq_zero = Result.get_ok (safe_make_eq suc_zero zero) in
   let goal = make_goal' ([ suc_zero_eq_zero ], goal_term) in
-  run_proof goal (with_rules [ thm ] apply_tac >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_tac >> assumption);
   [%expect
     {|
     Suc Zero = Zero
@@ -1715,7 +1715,7 @@ let%expect_test "apply_tac polymorphic multiple type vars" =
       (make_app (Result.get_ok (make_app f_concrete zero)) (make_true ()))
   in
   let goal = make_goal' ([ f_zero_t ], g_zero_t) in
-  run_proof goal (with_rules [ thm ] apply_tac >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_tac >> assumption);
   [%expect
     {|
     f Zero T
@@ -1734,7 +1734,7 @@ let%expect_test "apply_asm_tac simple mp" =
   let pq = make_imp p q in
   let thm = Result.get_ok (new_axiom pq) in
   let goal = make_goal' ([ p; pq ], q) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
   [%expect
     {|
     P
@@ -1761,7 +1761,7 @@ let%expect_test "apply_asm_tac quantified" =
   let suc_zero = App (suc, zero) in
   let suc_zero_eq = Result.get_ok (safe_make_eq suc_zero suc_zero) in
   let goal = make_goal' ([ zero_eq ], suc_zero_eq) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
   [%expect
     {|
     Zero = Zero
@@ -1792,7 +1792,7 @@ let%expect_test "apply_asm_tac multiple premises" =
   run_proof goal
     (with_rules [ thm ] apply_asm_tac
     >> with_assumptions (with_first_term apply_asm_tac)
-    >> assumption_tac);
+    >> assumption);
   [%expect
     {|
     P (Suc (Suc (Suc Zero)))
@@ -1820,7 +1820,7 @@ let%expect_test "apply_asm_tac undetermined in remainder" =
   let q_zero = Result.get_ok (make_app q zero) in
   let goal = make_goal' ([ p3 ], q_zero) in
   run_proof goal
-    (with_rules [ thm ] apply_asm_tac >> spec_asm_tac zero >> assumption_tac);
+    (with_rules [ thm ] apply_asm_tac >> spec_asm_tac zero >> assumption);
   [%expect
     {|
     P (Suc (Suc (Suc Zero)))
@@ -1869,7 +1869,7 @@ let%expect_test "apply_asm_tac polymorphic simple" =
   let t_eq_f = Result.get_ok (safe_make_eq (make_true ()) (make_false ())) in
   let f_eq_t = Result.get_ok (safe_make_eq (make_false ()) (make_true ())) in
   let goal = make_goal' ([ t_eq_f ], f_eq_t) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
   [%expect
     {|
     T = F
@@ -1894,7 +1894,7 @@ let%expect_test "apply_asm_tac polymorphic to nat" =
   let zero_eq_suc = Result.get_ok (safe_make_eq zero suc_zero) in
   let suc_eq_zero = Result.get_ok (safe_make_eq suc_zero zero) in
   let goal = make_goal' ([ zero_eq_suc ], suc_eq_zero) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
   [%expect
     {|
     Zero = Suc Zero
@@ -1926,7 +1926,7 @@ let%expect_test "apply_asm_tac polymorphic undetermined in remainder" =
   let q_zero = Result.get_ok (make_app q_nat zero) in
   let goal = make_goal' ([ p_zero ], q_zero) in
   run_proof goal
-    (with_rules [ thm ] apply_asm_tac >> spec_asm_tac zero >> assumption_tac);
+    (with_rules [ thm ] apply_asm_tac >> spec_asm_tac zero >> assumption);
   [%expect
     {|
     P Zero
@@ -1967,7 +1967,7 @@ let%expect_test "apply_asm_tac polymorphic multiple type vars" =
       (make_app (Result.get_ok (make_app g_concrete zero)) (make_true ()))
   in
   let goal = make_goal' ([ f_zero_t ], g_zero_t) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption_tac);
+  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
   [%expect
     {|
     f Zero T
@@ -2078,7 +2078,7 @@ let%expect_test "fun_ext_tac polymorphic" =
 let%expect_test "eq_iff_tac basic" =
   let a = make_var "A" bool_ty in
   let goal = make_goal (Result.get_ok (safe_make_eq a a)) in
-  run_proof goal (eq_iff_tac >> assumption_tac >> assumption_tac);
+  run_proof goal (eq_iff_tac >> assumption >> assumption);
   [%expect
     {|
     ========================================
@@ -2095,10 +2095,10 @@ let%expect_test "eq_iff_tac conj comm" =
   let qp = make_conj q p in
   let goal = make_goal' ([ p; q ], Result.get_ok (safe_make_eq pq qp)) in
   run_proof goal
-    (eq_iff_tac >> elim_conj_asm_tac >> conj_tac >> assumption_tac
-   >> assumption_tac
+    (eq_iff_tac >> elim_conj_asm_tac >> conj_tac >> assumption
+   >> assumption
     >> with_first elim_conj_asm_tac
-    >> with_first conj_tac >> assumption_tac >> assumption_tac);
+    >> with_first conj_tac >> assumption >> assumption);
   [%expect
     {|
     ========================================
@@ -2118,9 +2118,9 @@ let%expect_test "eq_iff_tac preserves assumptions" =
   run_proof goal
     (eq_iff_tac
     >> with_first (with_assumptions (with_first_term apply_asm_tac))
-    >> assumption_tac
+    >> assumption
     >> with_first (with_assumptions (with_first_term apply_asm_tac))
-    >> assumption_tac);
+    >> assumption);
   [%expect
     {|
     R
@@ -2161,15 +2161,15 @@ let%expect_test "eq_iff_tac with automation" =
     Proof:
       conj_tac >>
       elim_conj_asm_tac >>
-      assumption_tac >>
+      assumption >>
       elim_conj_asm_tac >>
-      assumption_tac
+      assumption
     Proof:
       conj_tac >>
       elim_conj_asm_tac >>
-      assumption_tac >>
+      assumption >>
       elim_conj_asm_tac >>
-      assumption_tac
+      assumption
     ========================================
     P ∧ Q = Q ∧ P
 

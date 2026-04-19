@@ -1,11 +1,12 @@
 open Kernel
-open Derived
 open Printing
 open Effect
 open Effect.Deep
 open Result.Syntax
 open Rewrite
 open Fun
+
+module D = Derived
 
 type goal = (string * term) list * term [@@deriving show { with_path = false }]
 
@@ -192,7 +193,7 @@ let try_ : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Fail, _ -> perform (Subgoal goal) | v -> v
 
-let pick_tac (tacs : tactic list) : tactic =
+let pick (tacs : tactic list) : tactic =
  fun goal ->
   let tac = choose_tactics tacs in
   tac goal
@@ -287,7 +288,7 @@ let with_fuel_counter r : tactic_combinator =
       continue k ()
   | v -> v
 
-let show_tac : tactic =
+let show : tactic =
  fun goal ->
   Printing.display_goal ~pretty:true goal;
   perform (Subgoal goal)
@@ -342,7 +343,7 @@ let with_flip_rules : tactic_combinator =
       (fun r ->
         let r' =
           let* stripped = strip_forall r in
-          sym stripped
+          D.sym stripped
         in
         Result.to_option r')
       rules
@@ -401,16 +402,16 @@ let with_specialized ~(name : string) ~(specs : term list) : tactic_combinator =
       List.fold_left
         (fun acc r ->
           let* gen_thm = acc in
-          let* quant = quantifier_of_forall (concl gen_thm) in
+          let* quant = D.quantifier_of_forall (concl gen_thm) in
           let* quant_ty = type_of_term quant in
           let* r_ty = type_of_term r in
           match type_match [] quant_ty r_ty with
           | None ->
-              let* step = spec r gen_thm in
+              let* step = D.spec r gen_thm in
               Ok step
           | Some env ->
               let* typed_gen_thm = inst_type env gen_thm in
-              let* step = spec r typed_gen_thm in
+              let* step = D.spec r typed_gen_thm in
               Ok step)
         (Ok rule) specs
     in
@@ -453,9 +454,9 @@ let with_rules_and_assumptions (rules : thm list) : tactic_combinator =
 
 (* Tactics *)
 
-let assumption_tac : tactic =
+let assumption : tactic =
  fun (asms, concl) ->
-  register "assumption_tac" (Safe 1);
+  register "assumption" (Safe 1);
   match List.find_opt (fun (_, tm) -> tm = concl) asms with
   | None ->
       trace_error "assumption doesn't match the goal";
@@ -464,16 +465,16 @@ let assumption_tac : tactic =
       trace_dbg "Found matching assumption";
       let t = assume concl in
       trace_dbg "Assumption succeeded";
-      return_thm ~from:"assumption_tac" t
+      return_thm ~from:"assumption" t
 
-let truth_tac : tactic =
+let truth : tactic =
  fun (_asms, concl) ->
-  register "truth_tac" (Safe 1);
-  let t = make_true () in
+  register "truth" (Safe 1);
+  let t = D.make_true () in
   if t <> concl then (
     trace_error "goal is not T";
     fail ())
-  else truth
+  else D.truth
 
 let refl_tac : tactic =
  fun (_asms, concl) ->
@@ -494,11 +495,11 @@ let refl_tac : tactic =
 let false_elim_tac : tactic =
  fun (asms, concl) ->
   register "false_elim_tac" (Safe 1);
-  let false_tm = make_false () in
+  let false_tm = D.make_false () in
   if List.mem false_tm (List.map snd asms) then
     let thm =
       let* false_thm = assume false_tm in
-      let* thy = contr concl false_thm in
+      let* thy = D.contr concl false_thm in
       trace_info (Printing.pretty_print_thm thy);
       Ok thy
     in
@@ -508,18 +509,18 @@ let false_elim_tac : tactic =
 let neg_elim_tac : tactic =
  fun (asms, concl) ->
   register "neg_elim_tac" (Unsafe 3);
-  let negs = List.filter is_neg (asm_terms asms) in
+  let negs = List.filter D.is_neg (asm_terms asms) in
   if List.is_empty negs then fail ()
   else
     let thm =
       let chosen_neg = choose_terms negs in
-      let* p = term_of_negation chosen_neg in
+      let* p = D.term_of_negation chosen_neg in
       if List.mem p (asm_terms asms) then
         let* neg_thm = assume chosen_neg in
         let* p_thm = assume p in
-        let* false_thm = not_elim neg_thm in
-        let* false_proved = prove_hyp p_thm false_thm in
-        contr concl false_proved
+        let* false_thm = D.not_elim neg_thm in
+        let* false_proved = D.prove_hyp p_thm false_thm in
+        D.contr concl false_proved
       else fail ()
     in
     return_thm ~from:"neg_elim_tac" thm
@@ -540,14 +541,14 @@ let intro_tac : tactic =
  fun (asms, concl) ->
   register "intro_tac" (Safe 1);
   let thm =
-    let* hyp = side_of_op "==>" Left concl in
-    let* conc = side_of_op "==>" Right concl in
+    let* hyp = D.side_of_op "==>" Left concl in
+    let* conc = D.side_of_op "==>" Right concl in
     trace_dbg "destruct success";
 
     let body_thm =
       perform (Subgoal (perform (Name (hyp, asms)) :: asms, conc))
     in
-    let t = disch hyp body_thm in
+    let t = D.disch hyp body_thm in
     trace_dbg "disch success";
     t
   in
@@ -557,13 +558,13 @@ let conj_tac : tactic =
  fun (asms, concl) ->
   register "conj_tac" (Safe 1);
   let thm =
-    let* l, r = destruct_conj concl in
+    let* l, r = D.destruct_conj concl in
     trace_dbg "Destruct succeeded";
 
     let lthm = perform (Subgoal (asms, l)) in
     let rthm = perform (Subgoal (asms, r)) in
 
-    let* thm = conj lthm rthm in
+    let* thm = D.conj lthm rthm in
 
     trace_dbg "conj success";
     Ok thm
@@ -574,9 +575,9 @@ let left_tac : tactic =
  fun (asms, concl) ->
   register "left_tac" (Unsafe 6);
   let thm =
-    let* l, r = destruct_disj concl in
+    let* l, r = D.destruct_disj concl in
     let l_thm = perform (Subgoal (asms, l)) in
-    let t = disj_left r l_thm in
+    let t = D.disj_left r l_thm in
     trace_dbg "disj_left success";
     t
   in
@@ -586,9 +587,9 @@ let right_tac : tactic =
  fun (asms, concl) ->
   register "right_tac" (Unsafe 6);
   let thm =
-    let* l, r = destruct_disj concl in
+    let* l, r = D.destruct_disj concl in
     let r_thm = perform (Subgoal (asms, r)) in
-    let t = disj_right r_thm l in
+    let t = D.disj_right r_thm l in
     trace_dbg "disj_right success";
     t
   in
@@ -605,46 +606,46 @@ let neg_intro_tac : tactic =
  fun (asms, concl) ->
   register "neg_intro_tac" (Unsafe 4);
   let thm =
-    let* p = term_of_negation concl in
+    let* p = D.term_of_negation concl in
     if List.mem p (asm_terms asms) then fail ()
     else
-      let f = make_false () in
+      let f = D.make_false () in
       let goal' = (perform (Name (p, asms)) :: asms, f) in
       let sub_thm = perform (Subgoal goal') in
-      not_intro p sub_thm
+      D.not_intro p sub_thm
   in
   return_thm ~from:"neg_intro_tac" thm
 
 let elim_conj_asm_tac : tactic =
  fun (asms, concl) ->
   register "elim_conj_asm_tac" (Safe 1);
-  let conjs = List.filter (fun (_, a) -> is_conj a) asms in
+  let conjs = List.filter (fun (_, a) -> D.is_conj a) asms in
   if List.is_empty conjs then fail ()
   else
     let thm =
       let chosen = choose_terms (asm_terms conjs) in
-      let* l, r = destruct_conj chosen in
+      let* l, r = D.destruct_conj chosen in
       let filtered = List.filter (fun (_, a) -> a <> chosen) asms in
       let add_r = perform (Name (r, filtered)) :: filtered in
       let asms' = perform (Name (l, add_r)) :: add_r in
       let sub_thm = perform (Subgoal (asms', concl)) in
       let* conj_asm = assume chosen in
-      let* l_thm = conj_left conj_asm in
-      let* r_thm = conj_right conj_asm in
-      let* p_1 = prove_hyp r_thm sub_thm in
-      prove_hyp l_thm p_1
+      let* l_thm = D.conj_left conj_asm in
+      let* r_thm = D.conj_right conj_asm in
+      let* p_1 = D.prove_hyp r_thm sub_thm in
+      D.prove_hyp l_thm p_1
     in
     return_thm ~from:"elim_conj_asm_tac" thm
 
 let elim_disj_asm_tac : tactic =
  fun (asms, concl) ->
   register "elim_disj_asm_tac" (Unsafe 5);
-  let disjs = List.filter (compose is_disj snd) asms in
+  let disjs = List.filter (compose D.is_disj snd) asms in
   if List.is_empty disjs then fail ()
   else
     let thm =
       let chosen = choose_terms (asm_terms disjs) in
-      let* l, r = destruct_disj chosen in
+      let* l, r = D.destruct_disj chosen in
       let asms' = List.filter (fun (_, a) -> a <> chosen) asms in
 
       let left_goal = (perform (Name (l, asms')) :: asms', concl) in
@@ -654,30 +655,30 @@ let elim_disj_asm_tac : tactic =
       let rthm = perform (Subgoal right_goal) in
 
       let* disj_asm = assume chosen in
-      disj_cases disj_asm lthm rthm
+      D.disj_cases disj_asm lthm rthm
     in
     return_thm ~from:"elim_disj_asm_tac" thm
 
 let elim_exists_asm_tac : tactic =
  fun (asms, concl) ->
   register "elim_exists_asm_tac" (Safe 2);
-  let exists_asms = List.filter (compose is_exists snd) asms in
+  let exists_asms = List.filter (compose D.is_exists snd) asms in
   if List.is_empty exists_asms then fail ()
   else
     let thm =
       let chosen = choose_terms (asm_terms exists_asms) in
-      let* var, body = destruct_exists chosen in
+      let* var, body = D.destruct_exists chosen in
       let other_asms = List.filter (fun (_, a) -> a <> chosen) asms in
       let avoid =
-        all_vars_in concl
-        @ (List.map all_vars_in (asm_terms other_asms) |> List.flatten)
+        D.all_vars_in concl
+        @ (List.map D.all_vars_in (asm_terms other_asms) |> List.flatten)
       in
       let* var' = variant avoid var in
       let* body' = vsubst [ (var', var) ] body in
       let asms' = perform (Name (body', other_asms)) :: other_asms in
       let sub_thm = perform (Subgoal (asms', concl)) in
       let* exists_assumed = assume chosen in
-      let c = choose var' exists_assumed sub_thm in
+      let c = D.choose var' exists_assumed sub_thm in
       (match c with Ok _ -> trace_info "ok" | Error _ -> trace_info "error");
 
       trace_info "after choose";
@@ -688,14 +689,14 @@ let elim_exists_asm_tac : tactic =
 let ccontr_tac : tactic =
  fun (asms, concl) ->
   register "ccontr_tac" (Unsafe 10);
-  let false_tm = make_false () in
-  let neg_concl = make_neg concl in
+  let false_tm = D.make_false () in
+  let neg_concl = D.make_neg concl in
   if concl = false_tm || List.mem neg_concl (asm_terms asms) then fail ()
   else
     let thm =
       let goal' = (perform (Name (neg_concl, asms)) :: asms, false_tm) in
       let sub_thm = perform (Subgoal goal') in
-      ccontr concl sub_thm
+      D.ccontr concl sub_thm
     in
     return_thm ~from:"ccontr_tac" thm
 
@@ -703,11 +704,11 @@ let gen_tac : tactic =
  fun (asms, concl) ->
   register "gen_tac" (Safe 1);
   let thm =
-    let* x, body = destruct_forall concl in
+    let* x, body = D.destruct_forall concl in
     let* x' = variant (concl :: asm_terms asms) x in
     let* body' = vsubst [ (x', x) ] body in
     let body_thm = perform (Subgoal (asms, body')) in
-    gen x' body_thm
+    D.gen x' body_thm
   in
   return_thm ~from:"gen_tac" thm
 
@@ -717,9 +718,9 @@ let generalize_tac (x : term) : tactic =
   let thm =
     if List.exists (var_free_in x) (asm_terms asms) then fail ()
     else
-      let gen_concl = make_forall x concl in
+      let gen_concl = D.make_forall x concl in
       let gen_thm = perform (Subgoal (asms, gen_concl)) in
-      spec x gen_thm
+      D.spec x gen_thm
   in
   return_thm ~from:"generalize_tac" thm
 
@@ -727,13 +728,13 @@ let exists_tac : tactic =
  fun (asms, concl) ->
   register "exists_tac" (Unsafe 8);
   let thm =
-    let* x, body = destruct_exists concl in
+    let* x, body = D.destruct_exists concl in
     let chosen = choose_terms [] in
     let* chosen_sub_raw = vsubst [ (chosen, x) ] body in
-    let* beta_eq = deep_beta chosen_sub_raw in
-    let* chosen_sub = rhs beta_eq in
+    let* beta_eq = D.deep_beta chosen_sub_raw in
+    let* chosen_sub = D.rhs beta_eq in
     let body_thm = perform (Subgoal (asms, chosen_sub)) in
-    let* thm = exists_p x body chosen body_thm in
+    let* thm = D.exists_p x body chosen body_thm in
     trace_info
       (Printf.sprintf "success with chosen term: %s"
          (pretty_print_hol_term chosen));
@@ -746,7 +747,7 @@ let spec_asm_tac (tm : term) : tactic =
   register "spec_asm_tac" (Unsafe 3);
   let foralls =
     List.filter
-      (fun a -> match destruct_forall a with Ok _ -> true | _ -> false)
+      (fun a -> match D.destruct_forall a with Ok _ -> true | _ -> false)
       (asm_terms asms)
   in
   if List.is_empty foralls then fail ()
@@ -754,13 +755,13 @@ let spec_asm_tac (tm : term) : tactic =
     let thm =
       let chosen = choose_terms foralls in
       let* asm_thm = assume chosen in
-      let* specialized = spec tm asm_thm in
+      let* specialized = D.spec tm asm_thm in
       let spec_concl = Kernel.concl specialized in
       if List.mem spec_concl (asm_terms asms) then fail ()
       else
         let asms' = perform (Name (spec_concl, asms)) :: asms in
         let sub_thm = perform (Subgoal (asms', concl)) in
-        prove_hyp specialized sub_thm
+        D.prove_hyp specialized sub_thm
     in
     return_thm ~from:"spec_asm_tac" thm
 
@@ -771,26 +772,26 @@ let sym_tac : tactic =
     let* l, r = destruct_eq conc in
     let* flipped = safe_make_eq r l in
     let flip_thm = perform @@ Subgoal (asms, flipped) in
-    sym flip_thm
+    D.sym flip_thm
   in
   return_thm ~from:"sym_tac" thm
 
 let sym_asm_tac : tactic =
  fun (asms, concl) ->
   register "sym_asm_tac" (Safe 2);
-  let eqs = List.filter is_eq (asm_terms asms) in
+  let eqs = List.filter D.is_eq (asm_terms asms) in
   if List.is_empty eqs then fail ()
   else
     let thm =
       let chosen = choose_terms eqs in
       let* asm_thm = assume chosen in
-      let* flipped = sym asm_thm in
+      let* flipped = D.sym asm_thm in
       let flipped_concl = Kernel.concl flipped in
       if List.mem flipped_concl (asm_terms asms) then fail ()
       else
         let asms' = perform (Name (flipped_concl, asms)) :: asms in
         let sub_thm = perform (Subgoal (asms', concl)) in
-        prove_hyp flipped sub_thm
+        D.prove_hyp flipped sub_thm
     in
     return_thm ~from:"sym_asm_tac" thm
 
@@ -836,13 +837,13 @@ let fun_ext_tac : tactic =
         let* ext_thm =
           if l_is_lam then Ok ext_thm
           else
-            let* eta_l = eta x' l in
+            let* eta_l = D.eta x' l in
             trans eta_l ext_thm
         in
         if r_is_lam then Ok ext_thm
         else
-          let* eta_r = eta x' r in
-          let* sym_eta_r = sym eta_r in
+          let* eta_r = D.eta x' r in
+          let* sym_eta_r = D.sym eta_r in
           trans ext_thm sym_eta_r
     | _ -> fail ()
   in
@@ -875,7 +876,7 @@ let rewrite_tac : tactic =
     if alphaorder conc conc_rewritten = 0 then fail ();
 
     let subthm = perform @@ Subgoal (asms, conc_rewritten) in
-    let* rw_sym = sym rw_thm in
+    let* rw_sym = D.sym rw_thm in
     eq_mp rw_sym subthm
   in
   return_thm ~from:"rewrite_tac" thm
@@ -906,7 +907,7 @@ let rewrite_asm_tac : tactic =
     let sub_thm = perform @@ Subgoal (asms', conc) in
     let* asm_thm = assume chosen_asm in
     let* new_asm_thm = eq_mp rw_thm asm_thm in
-    prove_hyp new_asm_thm sub_thm
+    D.prove_hyp new_asm_thm sub_thm
   in
   return_thm ~from:"rewrite_asm_tac" thm
 
@@ -914,10 +915,10 @@ let beta_tac : tactic =
  fun (asms, conc) ->
   register "beta_tac" (Safe 1);
   let thm =
-    let* beta_thm = deep_beta conc in
+    let* beta_thm = D.deep_beta conc in
     let* _, conc_reduced = destruct_eq (concl beta_thm) in
     let subthm = perform @@ Subgoal (asms, conc_reduced) in
-    let* beta_sym = sym beta_thm in
+    let* beta_sym = D.sym beta_thm in
     eq_mp beta_sym subthm
   in
   return_thm ~from:"beta_tac" thm
@@ -933,7 +934,7 @@ let beta_asm_tac : tactic =
       |> List.filter (fun (_, a) -> a = chosen_asm)
       |> List.map fst |> List.hd
     in
-    let* beta_thm = deep_beta chosen_asm in
+    let* beta_thm = D.deep_beta chosen_asm in
     let* _, asm_reduced = destruct_eq (concl beta_thm) in
     if alphaorder chosen_asm asm_reduced = 0 then fail ();
 
@@ -945,7 +946,7 @@ let beta_asm_tac : tactic =
 
     let* asm_thm = assume chosen_asm in
     let* new_asm_thm = eq_mp beta_thm asm_thm in
-    prove_hyp new_asm_thm sub_thm
+    D.prove_hyp new_asm_thm sub_thm
   in
   return_thm ~from:"beta_asm_tac" thm
 
@@ -955,11 +956,11 @@ let eq_true_asm_tac : tactic =
   let thm =
     let chosen = choose_terms (asm_terms asms) in
     let* asm_thm = assume chosen in
-    let* eq_t = eq_truth_intro asm_thm in
+    let* eq_t = D.eq_truth_intro asm_thm in
     let new_asm = Kernel.concl eq_t in
     let asms' = perform (Name (new_asm, asms)) :: asms in
     let sub_thm = perform (Subgoal (asms', concl)) in
-    prove_hyp eq_t sub_thm
+    D.prove_hyp eq_t sub_thm
   in
   return_thm ~from:"eq_true_asm_tac" thm
 
@@ -969,11 +970,11 @@ let eq_true_elim_asm_tac : tactic =
   let thm =
     let chosen = choose_terms (asm_terms asms) in
     let* asm_thm = assume chosen in
-    let* p = eq_truth_elim asm_thm in
+    let* p = D.eq_truth_elim asm_thm in
     let new_asm = Kernel.concl p in
     let asms' = perform (Name (new_asm, asms)) :: asms in
     let sub_thm = perform (Subgoal (asms', concl)) in
-    prove_hyp p sub_thm
+    D.prove_hyp p sub_thm
   in
   return_thm ~from:"eq_true_elim_asm_tac" thm
 
@@ -983,7 +984,7 @@ let eq_true_elim_tac : tactic =
   let thm =
     let* l, _r = destruct_eq concl in
     let elim_thm = perform (Subgoal (asms, l)) in
-    eq_truth_intro elim_thm
+    D.eq_truth_intro elim_thm
   in
   return_thm ~from:"eq_true_elim_tac" thm
 
@@ -992,8 +993,8 @@ let eq_false_elim_tac : tactic =
   register "eq_false_elim_tac" (Safe 2);
   let thm =
     let* l, _r = destruct_eq concl in
-    let elim_thm = perform (Subgoal (asms, make_neg l)) in
-    eq_false_intro elim_thm
+    let elim_thm = perform (Subgoal (asms, D.make_neg l)) in
+    D.eq_false_intro elim_thm
   in
   return_thm ~from:"eq_false_elim_tac" thm
 
@@ -1013,8 +1014,8 @@ let apply_tac : tactic =
   let chosen_thm = choose_theorems lemmas in
   let avoid = conc :: asm_terms asms in
   let thm =
-    let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
-    let premises, final_conc = collect_premises (concl stripped_thm) in
+    let* stripped_thm, quant_vars = D.strip_foralls_acc chosen_thm avoid in
+    let premises, final_conc = D.collect_premises (concl stripped_thm) in
     match Rewrite.match_term final_conc conc with
     | None ->
         trace_info
@@ -1033,7 +1034,7 @@ let apply_tac : tactic =
         then fail ();
         if premises = [] then Ok inst_thm
         else
-          let inst_premises, _ = collect_premises (concl inst_thm) in
+          let inst_premises, _ = D.collect_premises (concl inst_thm) in
           let typed_undetermined =
             quant_vars
             |> List.filter (fun v ->
@@ -1050,11 +1051,11 @@ let apply_tac : tactic =
                 let free_undet =
                   List.filter (fun v -> var_free_in v prem) typed_undetermined
                 in
-                let subgoal_term = make_foralls free_undet prem in
+                let subgoal_term = D.make_foralls free_undet prem in
                 let sg_thm = perform (Subgoal (asms, subgoal_term)) in
                 if free_undet = [] then sg_thm
                 else
-                  match specs free_undet sg_thm with
+                  match D.specs free_undet sg_thm with
                   | Ok thm -> thm
                   | Error e ->
                       trace_error (print_error e);
@@ -1063,7 +1064,7 @@ let apply_tac : tactic =
           List.fold_left
             (fun acc sg ->
               let* imp = acc in
-              mp imp sg)
+              D.mp imp sg)
             (Ok inst_thm) subgoal_thms
   in
   return_thm ~from:"apply_tac" thm
@@ -1076,8 +1077,8 @@ let apply_asm_tac : tactic =
   let chosen_asm = choose_terms (asm_terms asms) in
   let avoid = conc :: asm_terms asms in
   let thm =
-    let* stripped_thm, quant_vars = strip_foralls_acc chosen_thm avoid in
-    let premises, _final_conc = collect_premises (concl stripped_thm) in
+    let* stripped_thm, quant_vars = D.strip_foralls_acc chosen_thm avoid in
+    let premises, _final_conc = D.collect_premises (concl stripped_thm) in
     if premises = [] then fail ();
     let first_premise = List.hd premises in
     match Rewrite.match_term first_premise chosen_asm with
@@ -1091,10 +1092,10 @@ let apply_asm_tac : tactic =
             (fun h -> not (List.mem h (List.map snd asms)))
             (hyp inst_thm)
         then fail ();
-        let inst_premises, inst_final = collect_premises (concl inst_thm) in
+        let inst_premises, inst_final = D.collect_premises (concl inst_thm) in
         let remainder =
           if List.length inst_premises = 1 then inst_final
-          else make_imps (List.tl inst_premises) inst_final
+          else D.make_imps (List.tl inst_premises) inst_final
         in
         let typed_undetermined =
           quant_vars
@@ -1111,14 +1112,14 @@ let apply_asm_tac : tactic =
         in
         if List.exists (fun v -> var_free_in v chosen_asm) free_undet then
           fail ();
-        let new_asm = make_foralls free_undet remainder in
+        let new_asm = D.make_foralls free_undet remainder in
         if List.mem new_asm (asm_terms asms) then fail ();
         let asms' = perform (Name (new_asm, asms)) :: asms in
         let sub_thm = perform (Subgoal (asms', conc)) in
         let* asm_thm = assume chosen_asm in
-        let* remainder_thm = mp inst_thm asm_thm in
-        let* gen_thm = gens (List.rev free_undet) remainder_thm in
-        prove_hyp gen_thm sub_thm
+        let* remainder_thm = D.mp inst_thm asm_thm in
+        let* gen_thm = D.gens (List.rev free_undet) remainder_thm in
+        D.prove_hyp gen_thm sub_thm
   in
   return_thm ~from:"apply_asm_tac" thm
 
@@ -1167,21 +1168,21 @@ let rewrite_at_tac (source : string) ?target =
 let contradict_asm_tac : tactic =
  fun (asms, concl) ->
   register "contradict_asm_tac" (Unsafe 5);
-  let false_tm = make_false () in
+  let false_tm = D.make_false () in
   if concl <> false_tm then fail ()
   else
-    let negs = List.filter is_neg (asm_terms asms) in
+    let negs = List.filter D.is_neg (asm_terms asms) in
     if List.is_empty negs then fail ()
     else
       let thm =
         let chosen = choose_terms negs in
-        let* p = term_of_negation chosen in
+        let* p = D.term_of_negation chosen in
         if List.mem p (asm_terms asms) then fail ()
         else
           let* neg_thm = assume chosen in
-          let* elim = not_elim neg_thm in
+          let* elim = D.not_elim neg_thm in
           let sub_thm = perform (Subgoal (asms, p)) in
-          prove_hyp sub_thm elim
+          D.prove_hyp sub_thm elim
       in
       return_thm ~from:"contradict_asm_tac" thm
 
@@ -1210,7 +1211,7 @@ let discriminate_tac : tactic =
   let attempts =
     equalities |> List.map @@ fun (asm, thms) -> try_distinct_tac asm thms
   in
-  let thm = Ok (with_first (pick_tac attempts) (asms, conc)) in
+  let thm = Ok (with_first (pick attempts) (asms, conc)) in
   return_thm ~from:"discriminate_tac" thm
 
 (* [cases_tac] and [induct_tac] are mutually recursive, and [cond_tac] depends
@@ -1227,32 +1228,32 @@ let rec cases_tac : tactic =
     in
     let* pred_lam = make_lam var bod in
     let* var_eq_val_assumed = assume var_eq_val in
-    let* val_eq_var = sym var_eq_val_assumed in
+    let* val_eq_var = D.sym var_eq_val_assumed in
     let* lam_eq = mk_comb (refl pred_lam |> Result.get_ok) val_eq_var in
-    let* beta_eq = conv_equality deep_beta lam_eq in
+    let* beta_eq = D.conv_equality D.deep_beta lam_eq in
     eq_mp beta_eq subgoal_thm
   in
   let bool_forall_cases asms var bod =
-    let* bc = spec var bool_cases in
-    let* case_t = bool_case_branch var bod (make_true ()) asms in
-    let* case_f = bool_case_branch var bod (make_false ()) asms in
-    let* result = disj_cases bc case_t case_f in
-    gen var result
+    let* bc = D.spec var D.bool_cases in
+    let* case_t = bool_case_branch var bod (D.make_true ()) asms in
+    let* case_f = bool_case_branch var bod (D.make_false ()) asms in
+    let* result = D.disj_cases bc case_t case_f in
+    D.gen var result
   in
   let bool_expr_cases asms concl tm =
-    let* bc = spec tm bool_cases in
-    let* tm_eq_t = safe_make_eq tm (make_true ()) in
-    let* tm_eq_f = safe_make_eq tm (make_false ()) in
+    let* bc = D.spec tm D.bool_cases in
+    let* tm_eq_t = safe_make_eq tm (D.make_true ()) in
+    let* tm_eq_f = safe_make_eq tm (D.make_false ()) in
     let t_thm =
       perform (Subgoal (perform (Name (tm_eq_t, asms)) :: asms, concl))
     in
     let f_thm =
       perform (Subgoal (perform (Name (tm_eq_f, asms)) :: asms, concl))
     in
-    disj_cases bc t_thm f_thm
+    D.disj_cases bc t_thm f_thm
   in
   let thm =
-    match destruct_forall concl with
+    match D.destruct_forall concl with
     | Ok (var, bod) ->
         let ty = type_of_var var in
         if compare ty bool_ty = 0 then bool_forall_cases asms var bod
@@ -1281,22 +1282,22 @@ and destruct_tac : tactic =
     let* _, def_ty_params = destruct_type ind_def.ty in
     let type_sub = List.combine def_ty_params ty_args in
     let* typed_exhaust = inst_type type_sub ind_def.exhaustiveness in
-    let* specced = spec tm typed_exhaust in
+    let* specced = D.spec tm typed_exhaust in
     let exhaust_fact = Kernel.concl specced in
     let sub_thm =
       perform (Subgoal (perform (Name (exhaust_fact, asms)) :: asms, concl))
     in
-    prove_hyp specced sub_thm
+    D.prove_hyp specced sub_thm
   in
   return_thm ~from:"destruct_tac" thm
 
 and induct_tac : tactic =
  fun (asms, concl) ->
   register "induct_tac" (Unsafe 8);
-  match destruct_forall concl with
+  match D.destruct_forall concl with
   | Ok _ ->
       let thm =
-        let* induction_var, bod = destruct_forall concl in
+        let* induction_var, bod = D.destruct_forall concl in
         let* ty = type_of_term induction_var in
         let* ty_name, ty_args = destruct_type ty in
         let inductive_def =
@@ -1312,9 +1313,9 @@ and induct_tac : tactic =
         let binder = make_var "pred_binder" ty in
         let* bod_with_binder = vsubst [ (binder, induction_var) ] bod in
         let* p = make_lam binder bod_with_binder in
-        let* inst_induction = spec p typed_induction in
+        let* inst_induction = D.spec p typed_induction in
         let cases, _conclusion =
-          collect_premises (Kernel.concl inst_induction)
+          D.collect_premises (Kernel.concl inst_induction)
         in
         let solved =
           cases
@@ -1325,7 +1326,7 @@ and induct_tac : tactic =
           List.fold_left
             (fun acc_thm (_goal, case_thm) ->
               let* acc = acc_thm in
-              mp acc case_thm)
+              D.mp acc case_thm)
             (Ok inst_induction) solved
         in
         Ok result
@@ -1338,19 +1339,19 @@ and induct_tac : tactic =
           List.filter (fun h -> var_free_in var h) (asm_terms asms)
         in
         let discharged_concl =
-          List.fold_left (fun c asm -> make_imp asm c) concl mentioning
+          List.fold_left (fun c asm -> D.make_imp asm c) concl mentioning
         in
-        let forall_concl = make_forall var discharged_concl in
+        let forall_concl = D.make_forall var discharged_concl in
         let non_mentioning =
           List.filter (fun (_, h) -> not (var_free_in var h)) asms
         in
         let induct_thm = induct_tac (non_mentioning, forall_concl) in
-        let* specced = spec var induct_thm in
+        let* specced = D.spec var induct_thm in
         List.fold_left
           (fun acc asm ->
             let* th = acc in
             let* assumed = assume asm in
-            mp th assumed)
+            D.mp th assumed)
           (Ok specced) mentioning
       in
       return_thm ~from:"induction_tac" thm
@@ -1387,7 +1388,7 @@ let have_tac : tactic =
     let with_assertion_thm =
       perform (Subgoal (perform (Name (assertion, asms)) :: asms, concl))
     in
-    prove_hyp asserted_thm with_assertion_thm
+    D.prove_hyp asserted_thm with_assertion_thm
   in
   return_thm ~from:"have_tac" thm
 
@@ -1395,9 +1396,9 @@ let have_premise_tac : tactic =
  fun (asms, concl) ->
   register "have_premise_tac" (Unsafe 5);
   let thm =
-    let imps = asms |> List.filter (compose is_imp snd) in
+    let imps = asms |> List.filter (compose D.is_imp snd) in
     let chosen_imp = choose_terms (asm_terms imps) in
-    let* prem, _ = destruct_imp chosen_imp in
+    let* prem, _ = D.destruct_imp chosen_imp in
     Ok (with_term prem have_tac (asms, concl))
   in
   return_thm ~from:"have_premise_tac" thm
@@ -1405,7 +1406,7 @@ let have_premise_tac : tactic =
 (* Simplification and Automation *)
 
 let intros_tac : tactic =
- fun goal -> with_repeat (with_first (pick_tac [ intro_tac; gen_tac ])) goal
+ fun goal -> with_repeat (with_first (pick [ intro_tac; gen_tac ])) goal
 
 let simp_tac ?(exclude = []) ?(with_asms = true) : tactic =
  fun goal ->
@@ -1429,25 +1430,25 @@ let simp_tac ?(exclude = []) ?(with_asms = true) : tactic =
   let thm =
     with_repeat
       (with_first
-      @@ pick_tac
+      @@ pick
            [
              with_rw rules rewrite_tac;
              with_repeat beta_tac;
              refl_tac;
-             truth_tac;
+             truth;
            ])
       goal
   in
   thm
 
 let auto_tac : tactic =
-  pick_tac
+  pick
     [
       simp_tac ~with_asms:true;
       gen_tac;
       intro_tac;
-      truth_tac;
-      assumption_tac;
+      truth;
+      assumption;
       neg_intro_tac;
       conj_tac;
       elim_conj_asm_tac;
@@ -1479,11 +1480,11 @@ let simp_asm_tac ?(exclude = []) ?(with_asms = true) ?(add = []) : tactic =
   let thm =
     with_repeat
       (with_first
-      @@ pick_tac
+      @@ pick
            [
              with_rw rules rewrite_asm_tac;
              with_repeat beta_asm_tac;
-             assumption_tac;
+             assumption;
            ])
       goal
   in
@@ -1496,7 +1497,7 @@ let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
   match tac goal with
   | effect Choose (Term _), k ->
       let r = Multicont.Deep.promote k in
-      let ty = type_of_existential goal |> Result.get_ok in
+      let ty = D.type_of_existential goal |> Result.get_ok in
       let terms = Synth.enumerate ~extra [] ty depth in
       trace_info
         (Printf.sprintf "enumerated %d unique terms" (List.length terms));

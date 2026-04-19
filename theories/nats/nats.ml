@@ -117,20 +117,20 @@ and proof =
        >> with_term [%term (n : nat)] destruct_tac
        >> elim_disj_asm_tac
        >> (simp_tac >> right_tac >> refl_tac)
-       >> (elim_exists_asm_tac >> simp_tac >> left_tac >> truth_tac))
+       >> (elim_exists_asm_tac >> simp_tac >> left_tac >> truth))
     >> (intros_tac @: [ "hIH" ]
        >> with_term [%term (n : nat)] destruct_tac
        >> elim_disj_asm_tac >> simp_tac >> sym_tac >> eq_false_elim_tac
        >> neg_intro_tac
        >> elim_disj_asm_tac @: [ "hfalse"; "hrest" ]
-       >> assumption_tac
+       >> assumption
        >> with_named_asm_term "hrest" sym_asm_tac @: [ "hrest'" ]
        >> discriminate_tac >> elim_exists_asm_tac >> simp_tac >> eq_iff_tac
        >> elim_disj_asm_tac @: [ "hlt_na"; "heq_na" ]
-       >> left_tac >> assumption_tac >> right_tac
+       >> left_tac >> assumption >> right_tac
        >> with_rules nat_def.injective apply_tac
-       >> assumption_tac >> elim_disj_asm_tac >> left_tac >> assumption_tac
-       >> right_tac >> apply_at_tac "eq_cong" >> assumption_tac)
+       >> assumption >> elim_disj_asm_tac >> left_tac >> assumption
+       >> right_tac >> apply_at_tac "eq_cong" >> assumption)
   end
   (* [@trace] *)
   [@quiet]

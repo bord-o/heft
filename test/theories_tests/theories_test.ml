@@ -6,7 +6,7 @@ open Auto
 
 let%expect_test "template" =
   let goal = make_goal [%term forall (fun (a : nat) -> true)] in
-  run_proof ~notrace:true goal (intros_tac >> truth_tac);
+  run_proof ~notrace:true goal (intros_tac >> truth);
   [%expect
     {|
     ========================================
@@ -37,7 +37,7 @@ let%expect_test "Suc injective" =
   run_proof ~name:"Suc_inj" goal
     (intros_tac
     >> (apply_tac |> with_rules Nats.nat_def.injective)
-    >> assumption_tac);
+    >> assumption);
 
   [%expect
     {|
@@ -109,11 +109,11 @@ let%expect_test "cancellation" =
             plus x y = plus x z ==> (y = z))]
   in
   run_proof goal
-    (induct_tac >> simp_tac >> intros_tac >> assumption_tac >> intros_tac
+    (induct_tac >> simp_tac >> intros_tac >> assumption >> intros_tac
    >> simp_asm_tac
     >> with_first (with_proven [ "Suc_inj" ] apply_asm_tac)
     >> with_first (with_assumptions apply_asm_tac)
-    >> assumption_tac);
+    >> assumption);
   [%expect
     {|
     ========================================
@@ -131,13 +131,13 @@ let%expect_test "cancellation rev" =
             plus y x = plus z x ==> (y = z))]
   in
   run_proof goal
-    (induct_tac >> gen_tac >> simp_tac >> intros_tac >> assumption_tac
+    (induct_tac >> gen_tac >> simp_tac >> intros_tac >> assumption
    >> intros_tac
     >> with_proven [ "plus_Suc" ] rewrite_asm_tac
     >> with_proven [ "plus_Suc" ] rewrite_asm_tac
     >> with_proven [ "Suc_inj" ] apply_asm_tac
     >> with_first (with_assumptions apply_tac)
-    >> assumption_tac);
+    >> assumption);
 
   [%expect
     {|
@@ -467,7 +467,7 @@ let%expect_test "x - n + n = x" =
     >> intros_tac
     >> with_proven [ "plus_Suc" ] rewrite_tac
     >> with_proven [ "minus_Suc_Suc" ] rewrite_tac
-    >> assumption_tac);
+    >> assumption);
   [%expect
     {|
     ========================================
@@ -541,7 +541,7 @@ let%expect_test "le nat test" =
 let%expect_test "le nat test2" =
   let goal = make_goal [%term not (nat_le 3n 1n)] in
   run_proof ~pretty:true ~notrace:true goal
-    (simp_tac >> neg_intro_tac >> assumption_tac);
+    (simp_tac >> neg_intro_tac >> assumption);
 
   [%expect
     {|
@@ -716,7 +716,7 @@ let%expect_test "nat_le_flip" =
           >> (intros_tac
              >> simp_asm_tac ~with_asms:false
              >> simp_tac
-             >> with_assumptions (with_first (apply_tac >> assumption_tac)));
+             >> with_assumptions (with_first (apply_tac >> assumption)));
         ]);
   [%expect
     {|
@@ -737,7 +737,7 @@ let%expect_test "sort correct lemma" =
   run_proof ~name:"sort_correct_lemma" goal
     (induct_tac >>> (intros_tac >> simp_tac)
     >>= [
-          conj_tac >>> truth_tac;
+          conj_tac >>> truth;
           cond_tac >>> (simp_tac >> conj_tac)
           >>= [
                 with_term [%term (n1 : nat list)] induct_tac
@@ -746,23 +746,23 @@ let%expect_test "sort correct lemma" =
                       with_term [%term nat_le (n0' : nat) (n : nat)] cases_tac
                       >>> simp_tac
                       >>= [
-                            simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
-                            truth_tac;
+                            simp_asm_tac >> elim_conj_asm_tac >> assumption;
+                            truth;
                           ];
                     ];
                 spec_asm_tac [%term (n : nat)]
                 >> with_assumptions apply_tac >> simp_asm_tac
-                >> elim_conj_asm_tac >> assumption_tac;
+                >> elim_conj_asm_tac >> assumption;
                 with_proven [ "nat_le_flip" ] apply_asm_tac >> simp_tac;
                 conj_tac
                 >>= [
                       with_term [%term (n1 : nat list)] induct_tac
                       >>> (intros_tac >> simp_tac)
                       >>= [
-                            simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
+                            simp_asm_tac >> elim_conj_asm_tac >> assumption;
                           ];
                       spec_asm_tac [%term (n1 : nat)]
-                      >> simp_asm_tac >> elim_conj_asm_tac >> assumption_tac;
+                      >> simp_asm_tac >> elim_conj_asm_tac >> assumption;
                     ];
               ];
         ]);
@@ -783,7 +783,7 @@ let%expect_test "sort correct" =
   run_proof goal
     (induct_tac >> simp_tac >> intros_tac >> simp_tac
     >> with_proven [ "sort_correct_lemma" ] apply_tac
-    >> assumption_tac);
+    >> assumption);
 
   [%expect
     {|
@@ -806,7 +806,7 @@ let%expect_test "option not None" =
     >> with_term [%term (o : 'a option)] destruct_tac
     >> elim_disj_asm_tac >> neg_elim_tac >> elim_exists_asm_tac
     >> with_term [%term (a0 : 'a)] exists_tac
-    >> assumption_tac);
+    >> assumption);
   [%expect
     {|
     ========================================
@@ -1237,7 +1237,7 @@ let%expect_test "not_lt_is_le" =
    >> intros_tac >> simp_tac >> eq_false_elim_tac >> neg_intro_tac
    >> sym_asm_tac
     >> with_first (with_assumptions rewrite_tac)
-    >> truth_tac >> intros_tac >> simp_tac
+    >> truth >> intros_tac >> simp_tac
     >> with_term [%term (b : nat)] destruct_tac
     >> elim_disj_asm_tac >> simp_tac >> eq_true_elim_tac >> refl_tac
     >> elim_exists_asm_tac >> simp_tac);
@@ -1255,7 +1255,7 @@ let%expect_test "equality simp rules" =
     (make_goal [%term true = false = false])
     (eq_false_elim_tac >> neg_intro_tac
     >> with_assumptions @@ with_flip_rules rewrite_tac
-    >> truth_tac);
+    >> truth);
   run_proof ~simp:true ~name:"eq_false_false"
     (make_goal [%term false = false = true])
     (eq_true_elim_tac >> refl_tac);
@@ -1272,7 +1272,7 @@ let%expect_test "equality simp rules" =
     (make_goal [%term (not true) = false])
     (eq_false_elim_tac
     >> with_term [%term true] have_tac
-    >> truth_tac >> neg_intro_tac >> neg_elim_tac);
+    >> truth >> neg_intro_tac >> neg_elim_tac);
 
   [%expect
     {|
@@ -1343,7 +1343,7 @@ let%expect_test "lt_implies_le" =
     >> simp_tac >> simp_asm_tac
     >> spec_asm_tac [%term (a0 : nat)]
     >> with_assumptions (with_first_term apply_asm_tac)
-    >> assumption_tac);
+    >> assumption);
   [%expect
     {|
     ========================================
@@ -1359,9 +1359,9 @@ let assumption_reasoning_tac =
   try_
     (with_no_automation_trace
        (with_best_first
-          (pick_tac
+          (pick
              [
-               simp_tac; simp_asm_tac; false_elim_tac; assumption_tac; truth_tac;
+               simp_tac; simp_asm_tac; false_elim_tac; assumption; truth;
              ])))
 
 let%expect_test "lt_trans" =
@@ -1386,7 +1386,7 @@ let%expect_test "lt_trans" =
           >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
           >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
-          >> assumption_tac;
+          >> assumption;
         ]);
   [%expect
     {|
@@ -1419,7 +1419,7 @@ let%expect_test "le_trans" =
           >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "le_Suc_Suc" ] rewrite_tac
           >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
-          >> assumption_tac;
+          >> assumption;
         ]);
   [%expect
     {|
@@ -1453,7 +1453,7 @@ let%expect_test "le_lt_trans" =
           >> spec_asm_tac [%term (n0'' : nat)]
           >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
           >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
-          >> assumption_tac;
+          >> assumption;
         ]);
   [%expect
     {|
@@ -1487,7 +1487,7 @@ let%expect_test "lt_le_trans" =
           >> spec_asm_tac [%term (n0' : nat)]
           >> spec_asm_tac [%term (n0'' : nat)]
           >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
-          >> assumption_tac;
+          >> assumption;
         ]);
   [%expect
     {|
@@ -1515,7 +1515,7 @@ let%expect_test "le_antisym" =
     >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm_tac))
     >> spec_asm_tac [%term (n0' : nat)]
     >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
-    >> assumption_tac);
+    >> assumption);
   [%expect
     {|
     ========================================
@@ -1592,7 +1592,7 @@ let%expect_test "sub_le" =
     >> with_proven [ "sub_Suc_Suc" ] rewrite_tac
     >> spec_asm_tac [%term (n0' : nat)]
     >> with_proven [ "le_weaken_Suc" ] apply_tac
-    >> assumption_tac);
+    >> assumption);
   [%expect
     {|
     ========================================
@@ -1610,7 +1610,7 @@ let%expect_test "sub_lt" =
       with_term [%term (b : nat)] induct_tac
       >>> intros_tac >> assumption_reasoning_tac
       >> with_term [%term (a : nat)] destruct_tac
-      >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac >> assumption_tac
+      >> elim_disj_asm_tac >> simp_asm_tac >> simp_tac >> assumption
       >> elim_exists_asm_tac
       >> with_first (with_assumptions rewrite_tac)
       >> with_first (with_assumptions rewrite_tac)
@@ -1623,7 +1623,7 @@ let%expect_test "sub_lt" =
       >> spec_asm_tac [%term (a0 : nat)]
       >> simp_asm_tac >> simp_tac
       >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
-      >> assumption_tac
+      >> assumption
     end
   in
   ignore sub_lt;
@@ -1693,9 +1693,9 @@ let%expect_test "lt_total" =
             spec_asm_tac [%term (n0' : nat)]
             >> elim_disj_asm_tac >> left_tac
             >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
-            >> assumption_tac >> right_tac
+            >> assumption >> right_tac
             >> with_proven [ "le_Suc_Suc" ] rewrite_tac
-            >> assumption_tac;
+            >> assumption;
           ]
     end
     [@notrace]
@@ -1727,9 +1727,9 @@ let%expect_test "le_total" =
           spec_asm_tac [%term (n0' : nat)]
           >> elim_disj_asm_tac >> left_tac
           >> with_proven [ "le_Suc_Suc" ] rewrite_tac
-          >> assumption_tac >> right_tac
+          >> assumption >> right_tac
           >> with_proven [ "le_Suc_Suc" ] rewrite_tac
-          >> assumption_tac;
+          >> assumption;
         ]);
   [%expect
     {|
@@ -1790,14 +1790,14 @@ let%expect_test "div unfold" =
       >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
       >> with_term [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)] have_tac
       >> with_proven [ "sub_lt" ] apply_tac
-      >> assumption_tac >> assumption_tac
+      >> assumption >> assumption
       >> with_term
            [%term
              exists (fun (x' : nat) ->
                  div_aux (a : nat) (sub (a : nat) (b : nat)) (b : nat) = Some x')]
            have_tac
       >> with_proven [ "div_fuel_sufficient" ] apply_tac
-      >> assumption_tac >> assumption_tac >> elim_exists_asm_tac
+      >> assumption >> assumption >> elim_exists_asm_tac
       >> with_first (with_assumptions rewrite_tac)
       >> with_first (with_definition [ "match_option" ] rewrite_tac)
       >> beta_tac
@@ -1813,9 +1813,9 @@ let%expect_test "div unfold" =
                  = Some x)]
            have_tac
       >> with_proven [ "div_fuel_sufficient" ] apply_tac
-      >> assumption_tac
+      >> assumption
       >> with_proven [ "lt_Suc_self" ] rewrite_tac
-      >> truth_tac >> elim_exists_asm_tac
+      >> truth >> elim_exists_asm_tac
       >> with_term
            [%term
              div_aux
@@ -1827,7 +1827,7 @@ let%expect_test "div unfold" =
              = Some (x : nat)]
            have_tac
       >> with_proven [ "div_fuel_irrel" ] apply_tac
-      >> assumption_tac
+      >> assumption
       >> with_term
            [%term
              plus
@@ -1838,7 +1838,7 @@ let%expect_test "div unfold" =
       >> with_proven [ "sub_add_cancel" ] apply_tac
       >> with_proven [ "le_lt_Suc" ] rewrite_tac
       >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
-      >> assumption_tac
+      >> assumption
       >> with_nth_choice 0 @@ with_proven [ "plus_comm" ] rewrite_asm_tac
       >> with_first (with_assumptions rewrite_asm_tac)
       >> with_first (with_assumptions rewrite_asm_tac)
@@ -2296,7 +2296,7 @@ let%expect_test "div_le" =
              else Suc (div (sub (k : nat) (m : nat)) (m : nat))]
            have_tac
       >> with_first (with_proven [ "div_unfold" ] apply_tac)
-      >> assumption_tac
+      >> assumption
       >> with_first (with_assumptions rewrite_tac)
       >> with_first (with_assumptions rewrite_tac)
       >> simp_tac
@@ -2308,7 +2308,7 @@ let%expect_test "div_le" =
              else Suc (div (sub (k : nat) (m : nat)) (m : nat))]
            have_tac
       >> with_first (with_proven [ "div_unfold" ] apply_tac)
-      >> assumption_tac
+      >> assumption
       >> with_first (with_assumptions rewrite_tac)
       >> with_first (with_assumptions rewrite_tac)
       >> simp_tac ~exclude:[ "div"; "div_unfold" ]
@@ -2316,7 +2316,7 @@ let%expect_test "div_le" =
       >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
       >> with_term [%term nat_lt (sub (k : nat) (m : nat)) (k : nat)] have_tac
       >> with_proven [ "sub_lt" ] apply_tac
-      >> assumption_tac >> assumption_tac
+      >> assumption >> assumption
       >> with_specialized ~name:"lt_le_trans"
            ~specs:
              [
@@ -2329,11 +2329,11 @@ let%expect_test "div_le" =
       >> with_first
            (with_proven [ "lt_Suc_le" ]
               (with_info_trace (with_flip_rules rewrite_tac)))
-      >> assumption_tac
+      >> assumption
       >> spec_asm_tac [%term sub (k : nat) (m : nat)]
       >> spec_asm_tac [%term (m : nat)]
       >> with_repeat (with_assumptions (with_first_term apply_asm_tac))
-      >> assumption_tac
+      >> assumption
     end
   in
   ignore div_le;
@@ -2443,7 +2443,7 @@ let%expect_test "merge sort sufficient" =
                 ]
               apply_tac
          >> with_first (with_assumptions rewrite_tac)
-         >> truth_tac >> assumption_tac)
+         >> truth >> assumption)
       >> with_term
            [%term
              nat_lt
@@ -2460,7 +2460,7 @@ let%expect_test "merge sort sufficient" =
                (length (xs : nat list))]
            have_tac
       >> with_first (with_proven [ "sub_lt" ] apply_tac)
-      >> assumption_tac
+      >> assumption
       >> with_proven [ "div_le" ] apply_tac
       >> simp_tac >> simp_tac
       >> with_first (with_proven [ "lt_Suc_le" ] rewrite_asm_tac)
@@ -2473,7 +2473,7 @@ let%expect_test "merge sort sufficient" =
                [%term (n0 : nat)];
              ]
            apply_tac
-      >> assumption_tac >> assumption_tac
+      >> assumption >> assumption
       >> with_repeat
            (with_first (with_assumptions (with_first_term apply_asm_tac)))
       >> with_repeat elim_exists_asm_tac

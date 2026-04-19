@@ -38,7 +38,7 @@ val with_repeat : tactic_combinator
 
 ### Layer 3: Choice (performs Choose)
 ```ocaml
-val pick_tac : tactic list -> tactic
+val pick : tactic list -> tactic
 ```
 
 ### Layer 4: Search (handle Choose + Subgoal)
@@ -83,18 +83,18 @@ val prove : ?name:string -> goal -> tactic -> proof_state
 prove goal (
   intro_tac >>
   (conj_tac  >>
-    assumption_tac >>
-    intro_tac >> assumption_tac
+    assumption >>
+    intro_tac >> assumption
   ])
 )
 ```
 
 ### Automation
 ```ocaml
-let auto tacs = pick_tac tacs
+let auto tacs = pick tacs
 
 prove goal (
-  with_dfs (auto [intro_tac; conj_tac; assumption_tac])
+  with_dfs (auto [intro_tac; conj_tac; assumption])
 )
 ```
 
@@ -104,7 +104,7 @@ prove goal (
   intro_tac >>
   conj_tac >> 
     with_dfs (auto structural_tacs) >>
-    assumption_tac
+    assumption
 )
 ```
 
@@ -113,7 +113,7 @@ prove goal (
 prove goal (
   with_dfs (
     repeat simp_step >> 
-    auto [intro_tac; conj_tac; assumption_tac]
+    auto [intro_tac; conj_tac; assumption]
   )
 )
 ```
@@ -122,7 +122,7 @@ prove goal (
 ```ocaml
 prove goal (
   with_proven "add_comm" (
-      with_dfs (auto [simp_tac; apply_tac; assumption_tac])
+      with_dfs (auto [simp_tac; apply_tac; assumption])
     )
 )
 ```

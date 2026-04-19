@@ -15,7 +15,7 @@ Coq's `apply` unifies the conclusion of a hypothesis with the goal and instantia
 apply_asm_tac
 
 (* Right — convert assumptions to Rules, then apply_thm_tac does matching *)
-with_assumptions (with_first (apply_thm_tac >> assumption_tac))
+with_assumptions (with_first (apply_thm_tac >> assumption))
 ```
 
 The `with_first` is often necessary because `apply_thm_tac` will try each theorem via `Choose`, and without `with_first` it just takes the first one (which may not be the right one).
@@ -153,7 +153,7 @@ In Coq terms: prefer `induction n` on `∀n. P n` over `intros n; destruct n` wh
 | `intro_tac` | Intro one `==>` | `intro` (implication only) |
 | `gen_tac` | Intro one `∀` | `intro` (universal only) |
 | `intros_tac` | Repeat intro/gen | `intros` |
-| `assumption_tac` | Exact match in asms | `assumption` |
+| `assumption` | Exact match in asms | `assumption` |
 | `refl_tac` | Prove `x = x` | `reflexivity` |
 | `simp_tac` | Unfold + rewrite goal | `simp` |
 | `simp_asm_tac` | Simplify assumptions | `simp at h` |
@@ -170,7 +170,7 @@ In Coq terms: prefer `induction n` on `∀n. P n` over `intros n; destruct n` wh
 | `rewrite_asm_tac` | Rewrite assumption with rules | `rewrite ... in h` |
 | `false_elim_tac` | Close goal from `F` | `contradiction` (literal F only) |
 | `neg_elim_tac` | Contradiction from P, ¬P | `contradiction` |
-| `truth_tac` | Prove `T` | `trivial` |
+| `truth` | Prove `T` | `trivial` |
 | `ccontr_tac` | Classical contradiction | `by_contra` |
 
 ## Combinators Quick Reference

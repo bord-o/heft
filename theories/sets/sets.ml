@@ -33,7 +33,7 @@ let%thm mem_empty (x : 'a) = not (mem x empty_set)
 
 and proof =
   begin
-    intros_tac >> simp_tac >> neg_intro_tac >> assumption_tac
+    intros_tac >> simp_tac >> neg_intro_tac >> assumption
   end
   [@quiet] [@simp]
 
@@ -67,9 +67,9 @@ let%thm disj_comm (a : bool) (b : bool) = (a || b) = (b || a)
 
 and proof =
   begin
-    intros_tac >> eq_iff_tac >> elim_disj_asm_tac >> right_tac >> assumption_tac
-    >> left_tac >> assumption_tac >> elim_disj_asm_tac >> right_tac
-    >> assumption_tac >> left_tac >> assumption_tac
+    intros_tac >> eq_iff_tac >> elim_disj_asm_tac >> right_tac >> assumption
+    >> left_tac >> assumption >> elim_disj_asm_tac >> right_tac
+    >> assumption >> left_tac >> assumption
   end
   [@quiet]
 
@@ -78,8 +78,8 @@ let%thm conj_comm (a : bool) (b : bool) = (a && b) = (b && a)
 and proof =
   begin
     intros_tac >> eq_iff_tac >> elim_conj_asm_tac >> conj_tac
-    >>> try_ assumption_tac >> elim_conj_asm_tac >> conj_tac
-    >>> try_ assumption_tac
+    >>> try_ assumption >> elim_conj_asm_tac >> conj_tac
+    >>> try_ assumption
   end
   [@quiet]
 
@@ -121,7 +121,7 @@ and proof =
   begin
     intros_tac >> simp_tac
     >> with_term [%term (s : 'a set)] destruct_tac
-    >> elim_exists_asm_tac >> simp_tac >> intros_tac >> assumption_tac
+    >> elim_exists_asm_tac >> simp_tac >> intros_tac >> assumption
   end
   [@quiet]
 
@@ -142,7 +142,7 @@ and proof =
     >> simp_tac >> intros_tac >> simp_asm_tac
     >> apply_asm_to_asm_tac ~asm_thm:0 ~asm_to:2
     >> apply_asm_to_asm_tac ~asm_thm:2 ~asm_to:0
-    >> assumption_tac
+    >> assumption
   end
   [@quiet]
 
@@ -153,8 +153,8 @@ and proof =
     with_term [%term (s : 'a set)] induct_tac
     >> intros_tac >> simp_tac
     >> with_proven [ "set_inj" ] apply_tac
-    >> fun_ext_tac >> eq_iff_tac >> left_tac >> assumption_tac
-    >> elim_disj_asm_tac >> assumption_tac >> false_elim_tac
+    >> fun_ext_tac >> eq_iff_tac >> left_tac >> assumption
+    >> elim_disj_asm_tac >> assumption >> false_elim_tac
   end
   [@quiet]
 
@@ -166,8 +166,8 @@ and proof =
     >> with_term [%term (s : 'a set)] destruct_tac
     >> elim_exists_asm_tac >> simp_tac
     >> with_proven [ "set_inj" ] apply_tac
-    >> fun_ext_tac >> eq_iff_tac >> conj_tac >> assumption_tac >> truth_tac
-    >> elim_conj_asm_tac >> assumption_tac
+    >> fun_ext_tac >> eq_iff_tac >> conj_tac >> assumption >> truth
+    >> elim_conj_asm_tac >> assumption
   end
   [@quiet]
 
@@ -198,8 +198,8 @@ and proof =
     >> with_term [%term (s2 : 'a set)] destruct_elim_tac @: [ "hs2" ]
     >> simp_all_tac >> apply_at_tac "set_inj" >> fun_ext_tac
     >> eq_iff_tac @: [ "ha0'"; "ha0" ]
-    >> (apply_at_tac "hsubset2" ~target:"ha0'" >> assumption_tac)
-    >> (apply_at_tac "hsubset1" ~target:"ha0" >> assumption_tac)
+    >> (apply_at_tac "hsubset2" ~target:"ha0'" >> assumption)
+    >> (apply_at_tac "hsubset1" ~target:"ha0" >> assumption)
   end
   [@quiet]
 
@@ -213,7 +213,7 @@ and proof =
     >> with_term [%term (s2 : 'a set)] destruct_elim_tac @: [ "hs2" ]
     >> simp_all_tac
     >> apply_at_tac "hmem" ~target:"hsubset"
-    >> assumption_tac
+    >> assumption
   end
   [@quiet]
 
@@ -224,7 +224,7 @@ and proof =
     intros_tac
     >> with_term [%term (s1 : 'a set)] destruct_elim_tac @: [ "hs1" ]
     >> with_term [%term (s2 : 'a set)] destruct_elim_tac @: [ "hs2" ]
-    >> simp_all_tac >> intros_tac >> left_tac >> assumption_tac
+    >> simp_all_tac >> intros_tac >> left_tac >> assumption
   end
   [@quiet]
 
@@ -235,7 +235,7 @@ and proof =
     intros_tac
     >> with_term [%term (s1 : 'a set)] destruct_elim_tac @: [ "hs1" ]
     >> with_term [%term (s2 : 'a set)] destruct_elim_tac @: [ "hs2" ]
-    >> simp_tac >> intros_tac >> right_tac >> assumption_tac
+    >> simp_tac >> intros_tac >> right_tac >> assumption
   end
   [@quiet]
 
@@ -246,7 +246,7 @@ and proof =
     intros_tac
     >> with_term [%term (s1 : 'a set)] destruct_elim_tac @: [ "hs1" ]
     >> with_term [%term (s2 : 'a set)] destruct_elim_tac @: [ "hs2" ]
-    >> simp_tac >> intros_tac >> elim_conj_asm_tac >> assumption_tac
+    >> simp_tac >> intros_tac >> elim_conj_asm_tac >> assumption
   end
   [@quiet]
 
@@ -257,7 +257,7 @@ and proof =
     intros_tac
     >> with_term [%term (s1 : 'a set)] destruct_elim_tac @: [ "hs1" ]
     >> with_term [%term (s2 : 'a set)] destruct_elim_tac @: [ "hs2" ]
-    >> simp_tac >> intros_tac >> elim_conj_asm_tac >> assumption_tac
+    >> simp_tac >> intros_tac >> elim_conj_asm_tac >> assumption
   end
   [@quiet]
 
@@ -273,10 +273,10 @@ and proof =
     >> eq_iff_tac @: [ "hleft"; "hright" ]
     >> with_no_automation_trace
          (with_best_first
-            (pick_tac [ elim_disj_asm_tac; or_tac; assumption_tac ]))
+            (pick [ elim_disj_asm_tac; or_tac; assumption ]))
     >> with_no_automation_trace
          (with_best_first
-            (pick_tac [ elim_disj_asm_tac; or_tac; assumption_tac ]))
+            (pick [ elim_disj_asm_tac; or_tac; assumption ]))
   end
   [@quiet]
 
@@ -293,10 +293,10 @@ and proof =
     >> eq_iff_tac @: [ "hleft"; "hright" ]
     >> with_no_automation_trace
          (with_best_first
-            (pick_tac [ elim_conj_asm_tac; conj_tac; assumption_tac ]))
+            (pick [ elim_conj_asm_tac; conj_tac; assumption ]))
     >> with_no_automation_trace
          (with_best_first
-            (pick_tac [ elim_conj_asm_tac; conj_tac; assumption_tac ]))
+            (pick [ elim_conj_asm_tac; conj_tac; assumption ]))
   end
   [@quiet]
 
@@ -307,7 +307,7 @@ and proof =
     intros_tac
     >> with_term [%term (s1 : 'a set)] destruct_elim_tac @: [ "hs1" ]
     >> with_term [%term (s2 : 'a set)] destruct_elim_tac @: [ "hs2" ]
-    >> simp_tac >> intros_tac >> elim_conj_asm_tac >> assumption_tac
+    >> simp_tac >> intros_tac >> elim_conj_asm_tac >> assumption
   end
   [@quiet]
 
@@ -364,21 +364,21 @@ and proof =
     >> eq_iff_tac @: [ "hleft"; "hright" ]
     >> with_no_automation_trace
          (with_best_first
-            (pick_tac
+            (pick
                [
                  elim_conj_asm_tac;
                  conj_tac;
-                 assumption_tac;
+                 assumption;
                  elim_disj_asm_tac;
                  or_tac;
                ]))
     >> with_no_automation_trace
          (with_best_first
-            (pick_tac
+            (pick
                [
                  elim_conj_asm_tac;
                  conj_tac;
-                 assumption_tac;
+                 assumption;
                  elim_disj_asm_tac;
                  or_tac;
                ]))
@@ -398,21 +398,21 @@ and proof =
     >> eq_iff_tac @: [ "hleft"; "hright" ]
     >> with_no_automation_trace
          (with_best_first
-            (pick_tac
+            (pick
                [
                  elim_conj_asm_tac;
                  conj_tac;
-                 assumption_tac;
+                 assumption;
                  elim_disj_asm_tac;
                  or_tac;
                ]))
     >> with_no_automation_trace
          (with_best_first
-            (pick_tac
+            (pick
                [
                  elim_conj_asm_tac;
                  conj_tac;
-                 assumption_tac;
+                 assumption;
                  elim_disj_asm_tac;
                  or_tac;
                ]))

@@ -26,8 +26,8 @@ and proof =
     >> rewrite_at_tac "lt_Suc_or_eq" ~target:"hlt"
     >> elim_disj_asm_tac @: [ "hlt_mn"; "heq_mn" ]
     >> apply_at_tac "hIH" ~target:"hlt_mn"
-    >> assumption_tac >> rewrite_at_tac "heq_mn" >> apply_at_tac "hstrong"
-    >> assumption_tac
+    >> assumption >> rewrite_at_tac "heq_mn" >> apply_at_tac "hstrong"
+    >> assumption
     >> rewrite_at_tac "hfalse" ~target:"hlt"
     >> false_elim_tac
     (* TODO make apply handle nested quantification better*)
@@ -36,7 +36,7 @@ and proof =
     >> with_named_asm_term "hstrong" (spec_asm_tac [%term (n : nat)])
        @: [ "hstrong'" ]
     >> apply_at_tac "hstrong'" ~target:"hweak'"
-    >> assumption_tac
+    >> assumption
   end
   (* [@trace] *)
   [@quiet]
@@ -221,7 +221,7 @@ and proof =
     >> apply_at_tac "wf_rec_rel_intro"
     >> intros_tac @: [ "hryy" ]
     >> apply_at_tac "hallrel" ~target:"hryy"
-    >> assumption_tac >> assumption_tac
+    >> assumption >> assumption
   end
   [@quiet]
 
@@ -269,7 +269,7 @@ and proof =
     >> apply_at_tac "hIH" ~target:"hrzx" @! "hIHprem"
     >> apply_at_tac "hIHprem" ~target:"hRzGz" @! "hIHprem'"
     >> apply_at_tac "hIHprem'" ~target:"hRzG'z"
-    >> assumption_tac
+    >> assumption
   end
   [@quiet]
 

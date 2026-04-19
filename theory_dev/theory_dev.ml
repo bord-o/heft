@@ -43,7 +43,7 @@ and proof =
     >> eq_iff_tac @: [ "himp"; "heq" ]
     >> eq_false_elim_tac
     >> with_rule (neg_def |> Result.get_ok) rewrite_tac
-    >> beta_tac >> assumption_tac >> rewrite_at_tac "heq" >> intros_tac
+    >> beta_tac >> assumption >> rewrite_at_tac "heq" >> intros_tac
     >> false_elim_tac
   end
   [@quiet]
@@ -149,7 +149,7 @@ and proof =
   begin
     noop_tac >> intros_tac >> eq_false_elim_tac >> neg_intro_tac >> sym_asm_tac
     >> with_rules Nats.nat_def.distinct (with_first rewrite_asm_tac)
-    >> assumption_tac
+    >> assumption
   end
   [@quiet]
 
@@ -158,7 +158,7 @@ let%thm false_or_false = (false || false) = false
 and proof =
   begin
     noop_tac >> eq_false_elim_tac >> neg_intro_tac >> elim_disj_asm_tac
-    >>> assumption_tac
+    >>> assumption
   end
   [@quiet]
 
@@ -174,7 +174,7 @@ let%thm t_or_f = (true || false) = true
 
 and proof =
   begin
-    noop_tac >> eq_true_elim_tac >> left_tac >> truth_tac
+    noop_tac >> eq_true_elim_tac >> left_tac >> truth
   end
   [@quiet]
 

@@ -164,10 +164,10 @@ val return_thm :
 
 (** {1 Tactics} *)
 
-val assumption_tac : tactic
+val assumption : tactic
 (** Closes the goal if its conclusion matches an assumption. *)
 
-val truth_tac : tactic
+val truth : tactic
 (** Closes a goal whose conclusion is [T]. *)
 
 val refl_tac : tactic
@@ -396,7 +396,7 @@ val try_ : tactic_combinator
 (** Converts [Fail] into a [Subgoal] for the current goal, letting a tactic
     sequence continue past a failing step. *)
 
-val pick_tac : tactic list -> tactic
+val pick : tactic list -> tactic
 (** Performs a [Choose] among the given tactics and runs the result. *)
 
 val solve : tactic_combinator
@@ -437,7 +437,7 @@ val with_fuel_counter : int ref -> tactic_combinator
 (** Increments the given counter on each [Register]. Does not enforce a limit.
 *)
 
-val show_tac : tactic
+val show : tactic
 (** Prints the current goal and leaves it open *)
 
 val with_info_trace : tactic_combinator
@@ -501,7 +501,7 @@ val intros_tac : tactic
 val simp_tac : ?exclude:string list -> ?with_asms:bool -> tactic
 (** Repeatedly rewrites the goal using the definitions and simp lemmas
     registered in [Rules], plus any theorems provided by an outer [Rules]
-    handler. Also runs [beta_tac], [refl_tac], and [truth_tac]. [exclude] skips
+    handler. Also runs [beta_tac], [refl_tac], and [truth]. [exclude] skips
     definitions and simps by name. [with_asms] (default [true]) includes the
     goal's assumptions as rewrites. *)
 

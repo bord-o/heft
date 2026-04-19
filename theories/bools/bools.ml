@@ -15,7 +15,7 @@ let%def andb (a : bool) (b : bool) : bool =
 let%thm eq_true_intro (p : bool) = p ==> (p = true)
 and proof =
   begin
-    intros_tac >> eq_true_elim_tac >> assumption_tac
+    intros_tac >> eq_true_elim_tac >> assumption
   end [@quiet]
 
 (* Just an alias that uses the lower level axiom *)
