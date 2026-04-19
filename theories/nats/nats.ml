@@ -134,3 +134,12 @@ and proof =
   end
   (* [@trace] *)
   [@quiet]
+
+let%thm plus_Suc (m : nat) (n : nat) = 
+    plus m (Suc n) = Suc (plus m n)
+and proof =
+    begin
+        induct_tac >> gen_tac >> simp_tac >> intros_tac >> simp_tac
+    end
+    [@simp]
+    [@quiet]
