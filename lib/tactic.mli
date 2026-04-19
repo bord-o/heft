@@ -337,7 +337,7 @@ val have_tac : tactic
     the current assumptions, then prove the original goal with [p] added as an
     assumption. *)
 
-val assert_premise_tac : tactic
+val have_premise_tac : tactic
 
 (** {1 Proof Runner} *)
 

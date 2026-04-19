@@ -1391,16 +1391,16 @@ let have_tac : tactic =
   in
   return_thm ~from:"have_tac" thm
 
-let assert_premise_tac : tactic =
+let have_premise_tac : tactic =
  fun (asms, concl) ->
-  register "assert_premise_tac" (Unsafe 5);
+  register "have_premise_tac" (Unsafe 5);
   let thm =
     let imps = asms |> List.filter (compose is_imp snd) in
     let chosen_imp = choose_terms (asm_terms imps) in
     let* prem, _ = destruct_imp chosen_imp in
     Ok (with_term prem have_tac (asms, concl))
   in
-  return_thm ~from:"assert_premise_tac" thm
+  return_thm ~from:"have_premise_tac" thm
 
 (* Simplification and Automation *)
 

@@ -69,7 +69,7 @@ and proof =
                 forall (fun (a : 'a) ->
                     (m : 'a -> 'b) a = b ==> (p : 'a -> bool) a)])
        @: [ "hwfspec" ]
-    >> with_named_asm_term "hwfspec" assert_premise_tac @: [ "hprem" ]
+    >> with_named_asm_term "hwfspec" have_premise_tac @: [ "hprem" ]
     >> intros_tac @: [ "hall"; "heq" ]
     >> with_named_asm_term "hwfr" (spec_asm_tac [%term (a : 'a)])
        @: [ "hwfr_a" ]
