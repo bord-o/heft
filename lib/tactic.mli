@@ -179,7 +179,7 @@ val false_elim_tac : tactic
 val neg_elim_tac : tactic
 (** Closes any goal if both [P] and [~P] appear as assumptions. *)
 
-val zero_tac : tactic
+val noop_tac : tactic
 (** Does nothing *)
 
 val sorry_tac : tactic

@@ -524,11 +524,11 @@ let neg_elim_tac : tactic =
     in
     return_thm ~from:"neg_elim_tac" thm
 
-let zero_tac : tactic =
+let noop_tac : tactic =
  fun goal ->
-  register "zero_tac" (Safe 10);
+  register "noop_tac" (Safe 10);
   let thm = perform (Subgoal goal) in
-  return_thm ~from:"zero_tac" (Ok thm)
+  return_thm ~from:"noop_tac" (Ok thm)
 
 let sorry_tac : tactic =
  fun (_, conc) ->

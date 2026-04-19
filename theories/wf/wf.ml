@@ -142,7 +142,7 @@ let%thm wf_not_sym (r : 'a -> 'a -> bool) =
 
 and proof =
   begin
-    zero_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac
+    noop_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac
     >> spec_asm_tac
          [%term
            fun (a : 'a) ->
@@ -165,7 +165,7 @@ let%thm wf_irrefl (r : 'a -> 'a -> bool) =
 
 and proof =
   begin
-    zero_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac
+    noop_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac
     >> spec_asm_tac
          [%term fun (x : 'a) -> not ((r : 'a -> 'a -> bool) (x : 'a) (x : 'a))]
        @! "hContraSpec"
@@ -181,7 +181,7 @@ and proof =
 (*   wf r ==> forall (fun (x : 'a) (y : 'a) -> not (r x y && r y x)) *)
 (* and proof = *)
 (*   begin *)
-(*     zero_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac >> gen_tac *)
+(*     noop_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac >> gen_tac *)
 (*     >> gen_tac *)
 (*     >> spec_asm_tac [%term fun (z : 'a) -> z = (x : 'a) || z = (y : 'a)] *)
 (*        @! "hContraSpec" *)
@@ -279,7 +279,7 @@ let%thm wf_rec_rel_total (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
 
 and proof =
   begin
-    zero_tac >> with_repeat gen_tac >> intro_tac @! "hwf" >> simp_asm_tac
+    noop_tac >> with_repeat gen_tac >> intro_tac @! "hwf" >> simp_asm_tac
     >> spec_asm_tac
          [%term
            fun (x : 'a) ->
@@ -318,7 +318,7 @@ let%thm wf_rec (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b) =
 
 and proof =
   begin
-    zero_tac
+    noop_tac
     >> intros_tac @: [ "hwf"; "hcong" ]
     >> apply_at_tac "wf_rec_rel_functional" ~target:"hwf" @! "hfunctional1"
     >> apply_at_tac "hfunctional1" ~target:"hcong" @! "hfunctional2"
