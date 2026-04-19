@@ -190,6 +190,6 @@ and proof =
     >> rewrite_at "refl_eq_true" >> rewrite_at "t_or_f"
     >> simp ~exclude:[ "min_pair_spec" ]
   end
-(* [@quiet] *)
+  [@quiet]
 
 let () = ()

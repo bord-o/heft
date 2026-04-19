@@ -1299,26 +1299,26 @@ let%expect_test "not_le_is_lt" =
     |}]
 
 let%expect_test "lt_implies_le" =
-  let goal =
-    make_goal
-      [%term forall (fun (a : nat) (b : nat) -> nat_lt a b ==> nat_le a b)]
+  let%thm lt_implies_le (a : nat) (b : nat) = nat_lt a b ==> nat_le a b
+  and proof =
+    begin
+      with_term [%term (a : nat)] induct
+      >> with_no_automation_trace auto_dfs
+      >> (intros @: [ "hIH"; "hlt" ]
+         >> simp
+         >> with_term [%term (b : nat)] destruct_elim @: [ "hzero"; ""; "hsuc" ]
+         >> (simp_asm >> false_elim)
+         >> (simp_all >> apply_at "hIH" ~target:"hlt" @! "hle" >> assumption))
+    end
   in
-  run_proof ~name:"lt_implies_le" ~notrace:true goal
-    (induct
-    >> with_no_automation_trace auto_dfs
-    >> intros >> simp
-    >> with_term [%term (b : nat)] destruct
-    >> elim_disj_asm >> simp >> simp_asm >> elim_exists_asm >> simp >> simp_asm
-    >> spec_asm [%term (a0 : nat)]
-    >> with_assumptions (with_first_term apply_asm)
-    >> assumption);
+  ignore lt_implies_le;
   [%expect
     {|
     ========================================
     ∀x. ∀b. nat_lt x b ==> nat_le x b
 
     Proof Complete!
-    with fuel: 232
+    with fuel: 209
     |}]
 
 (* (* ===== Group 5: Transitivity ===== *) *)
