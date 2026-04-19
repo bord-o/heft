@@ -1081,7 +1081,7 @@ let%expect_test "basic4" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal ~asms:[ ("ha", a) ] (make_disj a b) in
-  let name, _ = cost_oftic left goal in
+  let name, _ = cost_of_tactic left goal in
   print_endline name;
   [%expect {| left |}]
 

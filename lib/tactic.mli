@@ -82,7 +82,7 @@ type _ Effect.t +=
 val as_chosen_list : 'a choosable -> 'a list
 (** Extracts the underlying list from a [choosable]. *)
 
-val cost_oftic : tactic -> goal -> string * cost
+val cost_of_tactic : tactic -> goal -> string * cost
 (** Runs a tactic just far enough to extract its name and first [Register] cost.
     The tactic must perform [Register] before any other effect. *)
 

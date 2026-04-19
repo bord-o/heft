@@ -76,7 +76,7 @@ let step (tac : tactic) (goal : goal) : step_result =
             List.combine
               (ts
               |> List.map @@ fun t ->
-                 let _, cost = cost_oftic t goal in
+                 let _, cost = cost_of_tactic t goal in
                  CTactic (goal, cost, t))
               choosable
         | Unknown _ ->

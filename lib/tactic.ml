@@ -47,7 +47,7 @@ let as_chosen_list : type a. a choosable -> a list = function
   | Tactic tacs -> tacs
   | Unknown xs -> xs
 
-let cost_oftic (tac : tactic) (goal : goal) =
+let cost_of_tactic (tac : tactic) (goal : goal) =
   match tac goal with
   | effect Register info, _k -> (info.name, info.cost)
   | _ -> failwith "Register must be first call of tactic"
