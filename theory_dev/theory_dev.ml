@@ -110,4 +110,98 @@ let%def min_pair_chosen : (nat, nat) pair -> nat =
   choose (fun (f : (nat, nat) pair -> nat) ->
       forall (fun (x : (nat, nat) pair) -> f x = min_pair f x))
 
+let%thm min_pair_chosen_eq (x : (nat, nat) pair) =
+  min_pair_chosen x = min_pair min_pair_chosen x
+
+and proof =
+  begin
+    zero_tac >> intros_tac >> rewrite_at_tac "min_pair_chosen"
+  end
+  [@quiet]
+
+let min_pair_spec =
+  Inductive.new_specification "min_pair_spec"
+    (Rules.get_proven "min_pair_wf_rec" |> Option.get)
+  |> Result.get_ok
+
+(* let () = Printing.print_thm min_pair_spec *)
+
+let%thm min_pair_uncurried (x : (nat, nat) pair) =
+  min_pair_spec x
+  =
+  match x with
+  | Pair (l, r) ->
+      if l = 0n || r = 0n then 0n
+      else Suc (min_pair_spec (Pair (pred l, pred r)))
+
+and proof =
+  begin
+    zero_tac
+    >> rewrite_at_tac "min_pair_spec"
+    >> beta_tac >> rewrite_at_tac "min_pair" >> beta_tac >> gen_tac >> refl_tac
+  end
+  [@quiet]
+
+(* let () = List.iter Printing.print_thm Nats.nat_def.distinct *)
+let%thm nat_distinct_flip (m : nat) = Suc m = Zero = F
+
+and proof =
+  begin
+    zero_tac >> intros_tac >> eq_false_elim_tac >> neg_intro_tac >> sym_asm_tac
+    >> with_rules Nats.nat_def.distinct (with_first rewrite_asm_tac)
+    >> assumption_tac
+  end
+  [@quiet]
+
+let%thm false_or_false = (false || false) = false
+
+and proof =
+  begin
+    zero_tac >> eq_false_elim_tac >> neg_intro_tac >> elim_disj_asm_tac
+    >>> assumption_tac
+  end
+  [@quiet]
+
+let%thm refl_eq_true (x : 'a) = x = x = true
+
+and proof =
+  begin
+    zero_tac >> intros_tac >> eq_true_elim_tac >> refl_tac
+  end
+  [@quiet]
+
+let%thm t_or_f = (true || false) = true
+
+and proof =
+  begin
+    zero_tac >> eq_true_elim_tac >> left_tac >> truth_tac
+  end
+  [@quiet]
+
+let%thm min_pair_test = min_pair_spec (Pair (2n, 3n)) = 2n
+
+and proof =
+  begin
+    zero_tac
+    >> rewrite_at_tac "min_pair_uncurried"
+    >> simp_tac ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at_tac "nat_distinct_flip"
+    >> rewrite_at_tac "nat_distinct_flip"
+    >> rewrite_at_tac "false_or_false"
+    >> simp_tac ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at_tac "min_pair_uncurried"
+    >> simp_tac ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at_tac "nat_distinct_flip"
+    >> rewrite_at_tac "nat_distinct_flip"
+    >> rewrite_at_tac "false_or_false"
+    >> simp_tac ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at_tac "min_pair_uncurried"
+    >> simp_tac ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at_tac "nat_distinct_flip"
+    >> rewrite_at_tac "refl_eq_true"
+    >> rewrite_at_tac "t_or_f"
+    >> simp_tac ~exclude:[ "min_pair_spec" ]
+  end
+(* [@quiet] *)
+
 let () = ()

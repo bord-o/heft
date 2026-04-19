@@ -325,14 +325,71 @@ let make_exhaustiveness_thm (ty : hol_type)
   let theorem = make_forall x body in
   new_axiom theorem
 
+let subst_term_eq eq_thm tm =
+  let* a, _b = destruct_eq (concl eq_thm) in
+  let rec build tm =
+    if alphaorder tm a = 0 then Ok eq_thm
+    else
+      match tm with
+      | Var _ | Const _ -> refl tm
+      | App (f, x) ->
+          let* f_eq = build f in
+          let* x_eq = build x in
+          mk_comb f_eq x_eq
+      | Lam (v, body) ->
+          if var_free_in v a then refl tm
+          else
+            let* body_eq = build body in
+            lam v body_eq
+  in
+  build tm
+
+let subst_in_thm eq_thm p_thm =
+  let p_tm = concl p_thm in
+  let* cong_eq = subst_term_eq eq_thm p_tm in
+  eq_mp cong_eq p_thm
+
 let new_specification name ex_thm =
+  (* Soundness checks *)
+  let* () =
+    match hyp ex_thm with
+    | [] -> Ok ()
+    | _ ->
+        Error
+          (`InvariantViolation
+             "new_specification: existence theorem has hypotheses")
+  in
   let concl_tm = concl ex_thm in
+  let* () =
+    match frees concl_tm with
+    | [] -> Ok ()
+    | _ ->
+        Error
+          (`InvariantViolation
+             "new_specification: existence theorem has free term variables")
+  in
+
   let* exists_var, body = destruct_exists concl_tm in
   let var_type = type_of_var exists_var in
-  let* () = new_constant name var_type in
-  let new_const = Const (name, var_type) in
-  let* defining_property = vsubst [ (new_const, exists_var) ] body in
-  let* thm = new_axiom defining_property in
+
+  let* pred_lam = make_lam exists_var body in
+
+  let* choice_tm = make_select exists_var body in
+
+  let const_var = Var (name, var_type) in
+  let* def_eq_tm = safe_make_eq const_var choice_tm in
+  let* def_thm = new_basic_definition def_eq_tm in
+
+  let* choice_def_thm = choice_def in
+  let* typed_choice =
+    inst_type [ (make_vartype "a", var_type) ] choice_def_thm
+  in
+  let* specced = spec pred_lam typed_choice in
+  let* selected = mp specced ex_thm in
+
+  let* def_sym = sym def_thm in
+  let* thm = subst_in_thm def_sym selected in
+
   Hashtbl.add the_specifications name thm;
   Rules.add_def name thm;
   Ok thm
