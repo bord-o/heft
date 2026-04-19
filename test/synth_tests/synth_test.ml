@@ -720,7 +720,7 @@ let%expect_test "synth mult" =
     ∃nil_case. ∃suc_case. (∀n. g Zero n = nil_case n) ==> (∀m. ∀n. g (Suc m) n = suc_case n (g m n)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
     Proof Complete!
-    with fuel: 592
+    with fuel: 620
     |}]
 
 let%expect_test "synth sum" =
@@ -979,7 +979,7 @@ let%expect_test "synth mult via make_synthesis_goal" =
     ∃Zero_case. ∃Suc_case. (∀y0. g Zero y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
     Proof Complete!
-    with fuel: 592
+    with fuel: 620
     |}]
 
 (* ======================================================================= *)
@@ -1311,12 +1311,16 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
-      beta_tac >>
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
       rewrite_tac >>
-      beta_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
+      rewrite_tac >>
       conj_tac >>
       refl_tac >>
       refl_tac
@@ -1332,7 +1336,7 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Pair (Suc Zero) (Suc (Suc Zero))) (Cons (Pair (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc Zero))))) Nil)) = Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc Zero))))))))) ∧ g (Cons (Pair (Suc (Suc (Suc (Suc (Suc Zero))))) Zero) Nil) = Suc (Suc (Suc (Suc (Suc Zero))))
 
     Proof Complete!
-    with fuel: 30569
+    with fuel: 30825
     |}]
 
 let%expect_test "synth insert via make_synthesis_goal" =

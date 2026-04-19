@@ -26,7 +26,7 @@ let%expect_test "basic nat" =
     plus 2 3 = 5
 
     Proof Complete!
-    with fuel: 29
+    with fuel: 27
     |}]
 
 let%expect_test "Suc injective" =
@@ -63,7 +63,7 @@ let%expect_test "plus Suc lemma" =
     ∀x. ∀y. plus x (Suc y) = Suc (plus x y)
 
     Proof Complete!
-    with fuel: 69
+    with fuel: 74
     |}]
 
 let%expect_test "Suc injective rev" =
