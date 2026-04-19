@@ -1180,7 +1180,7 @@ let make_goal' (unnamed, conc) =
   let asms = unnamed |> List.map (fun p -> ("", p)) in
   make_goal ~asms conc
 
-let%expect_test "assert_tac_basic" =
+let%expect_test "have_tac_basic" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let r = make_var "R" bool_ty in
@@ -1188,7 +1188,7 @@ let%expect_test "assert_tac_basic" =
   let qr = make_imp q r in
   let goal = make_goal' ([ p; pq; qr ], r) in
   let proof =
-    with_term q assert_tac
+    with_term q have_tac
     >> with_first (with_assumptions (with_first_term apply_asm_tac))
     >> assumption_tac
     >> with_first (with_assumptions (with_first_term apply_asm_tac))
@@ -1210,7 +1210,7 @@ let%expect_test "assert_tac_basic" =
     Assumption succeeded
     assumption_tac
     apply_asm_tac
-    assert_tac
+    have_tac
     P
     P ==> Q
     Q ==> R

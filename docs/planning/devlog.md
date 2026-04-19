@@ -142,7 +142,7 @@ let%expect_test "merge unfolding lemma" =
     >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
     >> cond_tac
     >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> with_arbitrary_term suf assert_tac
+    >> with_arbitrary_term suf have_tac
     >> with_proven [ "merge_fuel_sufficient" ] apply_thm_tac
     >> simp_tac >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
@@ -153,7 +153,7 @@ let%expect_test "merge unfolding lemma" =
     >> with_first (with_assumptions rewrite_tac)
     >> simp_tac
     >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> with_arbitrary_term suf2 assert_tac
+    >> with_arbitrary_term suf2 have_tac
     >> with_proven [ "merge_fuel_sufficient" ] apply_thm_tac
     >> simp_tac
     >> with_proven [ "plus_suc" ] rewrite_tac
@@ -478,12 +478,12 @@ A tactic for proof by contradiction. With contradict H,
 4    H: A |- ~B gives H: B |- ~A
 
 ```
-Translating this to my system, I can have exfalso_tac as `assert_tac F >> [subgoal] >> false_elim_tac`
+Translating this to my system, I can have exfalso_tac as `have_tac F >> [subgoal] >> false_elim_tac`
 
 - Case one is just `exfalso >> contradict_asm_tac`
 - Case two is `neg_intro` to get `~A, B |- F`, then `contradict_asm_tac` to get `B |- A`
-- Case three is just `assert_tac ~A`
-- Case four is `neg_intro` to get  `A, B |- F`, then `assert_tac ~A >> [subgoal >> neg_elim_tac` 
+- Case three is just `have_tac ~A`
+- Case four is `neg_intro` to get  `A, B |- F`, then `have_tac ~A >> [subgoal >> neg_elim_tac` 
 
 Essentially if the goal is a negation we call neg_intro to get it in an assumption, say `A`, then we take a chosen assumption (other than `A`), say `B`. If it's a negation, we contradict_asm, otherwise we just assert its negation (`~B`).
 

@@ -332,7 +332,7 @@ val induct_tac : tactic
     induction runs on the resulting [!x. ...] goal, and the assumptions are
     re-introduced. *)
 
-val assert_tac : tactic
+val have_tac : tactic
 (** Chooses a term [p] via [Choose] and produces two subgoals: prove [p] under
     the current assumptions, then prove the original goal with [p] added as an
     assumption. *)

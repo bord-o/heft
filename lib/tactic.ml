@@ -1378,9 +1378,9 @@ and cond_tac : tactic =
       let tm = choose_terms terms in
       with_term tm cases_tac (asms, concl)
 
-let assert_tac : tactic =
+let have_tac : tactic =
  fun (asms, concl) ->
-  register "assert_tac" (Unsafe 5);
+  register "have_tac" (Unsafe 5);
   let thm =
     let assertion = choose_terms [] in
     let asserted_thm = perform (Subgoal (asms, assertion)) in
@@ -1389,7 +1389,7 @@ let assert_tac : tactic =
     in
     prove_hyp asserted_thm with_assertion_thm
   in
-  return_thm ~from:"assert_tac" thm
+  return_thm ~from:"have_tac" thm
 
 let assert_premise_tac : tactic =
  fun (asms, concl) ->
@@ -1398,7 +1398,7 @@ let assert_premise_tac : tactic =
     let imps = asms |> List.filter (compose is_imp snd) in
     let chosen_imp = choose_terms (asm_terms imps) in
     let* prem, _ = destruct_imp chosen_imp in
-    Ok (with_term prem assert_tac (asms, concl))
+    Ok (with_term prem have_tac (asms, concl))
   in
   return_thm ~from:"assert_premise_tac" thm
 

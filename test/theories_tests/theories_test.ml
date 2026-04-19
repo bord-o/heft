@@ -1271,7 +1271,7 @@ let%expect_test "equality simp rules" =
   run_proof ~simp:true ~name:"neg_true_false"
     (make_goal [%term (not true) = false])
     (eq_false_elim_tac
-    >> with_term [%term true] assert_tac
+    >> with_term [%term true] have_tac
     >> truth_tac >> neg_intro_tac >> neg_elim_tac);
 
   [%expect
@@ -1788,14 +1788,14 @@ let%expect_test "div unfold" =
       >> with_repeat @@ with_assumptions rewrite_tac
       >> with_repeat @@ with_proven [ "cond_false" ] rewrite_tac
       >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
-      >> with_term [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)] assert_tac
+      >> with_term [%term nat_lt (sub (a : nat) (b : nat)) (a : nat)] have_tac
       >> with_proven [ "sub_lt" ] apply_tac
       >> assumption_tac >> assumption_tac
       >> with_term
            [%term
              exists (fun (x' : nat) ->
                  div_aux (a : nat) (sub (a : nat) (b : nat)) (b : nat) = Some x')]
-           assert_tac
+           have_tac
       >> with_proven [ "div_fuel_sufficient" ] apply_tac
       >> assumption_tac >> assumption_tac >> elim_exists_asm_tac
       >> with_first (with_assumptions rewrite_tac)
@@ -1811,7 +1811,7 @@ let%expect_test "div unfold" =
                    (sub (a : nat) (b : nat))
                    (b : nat)
                  = Some x)]
-           assert_tac
+           have_tac
       >> with_proven [ "div_fuel_sufficient" ] apply_tac
       >> assumption_tac
       >> with_proven [ "lt_Suc_self" ] rewrite_tac
@@ -1825,7 +1825,7 @@ let%expect_test "div unfold" =
                (sub (a : nat) (b : nat))
                (b : nat)
              = Some (x : nat)]
-           assert_tac
+           have_tac
       >> with_proven [ "div_fuel_irrel" ] apply_tac
       >> assumption_tac
       >> with_term
@@ -1834,7 +1834,7 @@ let%expect_test "div unfold" =
                (sub (a : nat) (Suc (sub (a : nat) (b : nat))))
                (Suc (sub (a : nat) (b : nat)))
              = (a : nat)]
-           assert_tac
+           have_tac
       >> with_proven [ "sub_add_cancel" ] apply_tac
       >> with_proven [ "le_lt_Suc" ] rewrite_tac
       >> with_proven [ "lt_Suc_Suc" ] rewrite_tac
@@ -2084,7 +2084,7 @@ let%expect_test "merge unfolding lemma" =
                  (a1' : nat list)
                  (Cons ((a0 : nat), (a1 : nat list)))
                = Some x)]
-         assert_tac
+         have_tac
     >> with_proven [ "merge_fuel_sufficient" ] apply_tac
     >> simp_tac >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
@@ -2106,7 +2106,7 @@ let%expect_test "merge unfolding lemma" =
                  (Cons ((a0' : nat), (a1' : nat list)))
                  (a1 : nat list)
                = Some x)]
-         assert_tac
+         have_tac
     >> apply_at_tac "merge_fuel_sufficient"
     >> simp_tac >> elim_exists_asm_tac
     >> with_first (with_assumptions rewrite_tac)
@@ -2248,7 +2248,7 @@ let%expect_test "div_pos" =
              =
              if nat_lt (Suc (n0 : nat)) 2n then 0n
              else Suc (div (sub (Suc (n0 : nat)) 2n) 2n)]
-           assert_tac
+           have_tac
       >> with_first (with_proven [ "div_unfold" ] apply_tac)
       >> simp_tac
       >> with_assumptions rewrite_tac
@@ -2294,7 +2294,7 @@ let%expect_test "div_le" =
              =
              if nat_lt (k : nat) (m : nat) then 0n
              else Suc (div (sub (k : nat) (m : nat)) (m : nat))]
-           assert_tac
+           have_tac
       >> with_first (with_proven [ "div_unfold" ] apply_tac)
       >> assumption_tac
       >> with_first (with_assumptions rewrite_tac)
@@ -2306,17 +2306,15 @@ let%expect_test "div_le" =
              =
              if nat_lt (k : nat) (m : nat) then 0n
              else Suc (div (sub (k : nat) (m : nat)) (m : nat))]
-           assert_tac
+           have_tac
       >> with_first (with_proven [ "div_unfold" ] apply_tac)
       >> assumption_tac
       >> with_first (with_assumptions rewrite_tac)
       >> with_first (with_assumptions rewrite_tac)
       >> simp_tac ~exclude:[ "div"; "div_unfold" ]
-      >> with_term
-           [%term nat_le (sub (k : nat) (m : nat)) (n0 : nat)]
-           assert_tac
+      >> with_term [%term nat_le (sub (k : nat) (m : nat)) (n0 : nat)] have_tac
       >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm_tac)
-      >> with_term [%term nat_lt (sub (k : nat) (m : nat)) (k : nat)] assert_tac
+      >> with_term [%term nat_lt (sub (k : nat) (m : nat)) (k : nat)] have_tac
       >> with_proven [ "sub_lt" ] apply_tac
       >> assumption_tac >> assumption_tac
       >> with_specialized ~name:"lt_le_trans"
@@ -2366,7 +2364,7 @@ let%expect_test "div_lt" =
              =
              if nat_lt (Suc (Suc (a0 : nat))) 2n then 0n
              else Suc (div (sub (Suc (Suc (a0 : nat))) 2n) 2n)]
-           assert_tac
+           have_tac
       >> with_first (with_proven [ "div_unfold" ] apply_tac)
       >> simp_tac
       >> with_term [%term (a0 : nat)] destruct_tac
@@ -2428,7 +2426,7 @@ let%expect_test "merge sort sufficient" =
                 (length
                    (take (div (length (xs : nat list)) 2n) (xs : nat list)))
                 (n0 : nat)]
-            assert_tac
+            have_tac
          >> with_first (with_proven [ "not_le_is_lt" ] rewrite_asm_tac)
          >> with_first (with_proven [ "div_lt" ] apply_asm_tac)
          >> with_proven [ "length_take" ] rewrite_tac
@@ -2451,7 +2449,7 @@ let%expect_test "merge sort sufficient" =
              nat_lt
                (length (drop (div (length (xs : nat list)) 2n) (xs : nat list)))
                (n0 : nat)]
-           assert_tac
+           have_tac
       >> with_first (with_proven [ "not_le_is_lt" ] rewrite_asm_tac)
       >> with_first (with_proven [ "div_pos" ] apply_asm_tac)
       >> with_proven [ "length_drop" ] rewrite_tac
@@ -2460,7 +2458,7 @@ let%expect_test "merge sort sufficient" =
              nat_lt
                (sub (length (xs : nat list)) (div (length (xs : nat list)) 2n))
                (length (xs : nat list))]
-           assert_tac
+           have_tac
       >> with_first (with_proven [ "sub_lt" ] apply_tac)
       >> assumption_tac
       >> with_proven [ "div_le" ] apply_tac
@@ -2544,7 +2542,7 @@ let%expect_test "merge sort unfold" =
              = Some
                  (merge_sort
                     (take (div (length (xs : nat list)) 2n) (xs : nat list)))]
-           assert_tac
+           have_tac
       >> with_definition [ "merge_sort" ] rewrite_tac
       >> beta_tac
       >> with_term
@@ -2558,7 +2556,7 @@ let%expect_test "merge sort unfold" =
                             (xs : nat list))))
                    (take (div (length (xs : nat list)) 2n) (xs : nat list))
                  = Some z)]
-           assert_tac
+           have_tac
       >> with_proven [ "merge_sort_fuel_sufficient" ] apply_tac
       >> simp_tac >> elim_exists_asm_tac
       >> with_assumptions rewrite_tac
@@ -2575,7 +2573,7 @@ let%expect_test "merge sort unfold" =
                      (length
                         (take (div (length (xs : nat list)) 2n) (xs : nat list)))))
              = length (xs : nat list)]
-           assert_tac
+           have_tac
       >> with_proven [ "plus_comm" ] rewrite_tac
       >> with_proven [ "sub_add_cancel" ] apply_tac
       >> with_proven [ "length_take" ] rewrite_tac

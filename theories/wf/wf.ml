@@ -17,7 +17,7 @@ and proof =
          [%term
            forall (fun (n : nat) (m : nat) ->
                nat_lt m n ==> (p : nat -> bool) m)]
-         assert_tac
+         have_tac
        @: [ "hweak" ]
     >> induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac
     >> intros_tac @: [ "hIH"; "hlt" ]
