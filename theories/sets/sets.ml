@@ -68,8 +68,8 @@ let%thm disj_comm (a : bool) (b : bool) = (a || b) = (b || a)
 and proof =
   begin
     intros_tac >> eq_iff_tac >> elim_disj_asm_tac >> right_tac >> assumption
-    >> left_tac >> assumption >> elim_disj_asm_tac >> right_tac
-    >> assumption >> left_tac >> assumption
+    >> left_tac >> assumption >> elim_disj_asm_tac >> right_tac >> assumption
+    >> left_tac >> assumption
   end
   [@quiet]
 
@@ -78,8 +78,7 @@ let%thm conj_comm (a : bool) (b : bool) = (a && b) = (b && a)
 and proof =
   begin
     intros_tac >> eq_iff_tac >> elim_conj_asm_tac >> conj_tac
-    >>> try_ assumption >> elim_conj_asm_tac >> conj_tac
-    >>> try_ assumption
+    >>> try_ assumption >> elim_conj_asm_tac >> conj_tac >>> try_ assumption
   end
   [@quiet]
 
@@ -153,8 +152,8 @@ and proof =
     with_term [%term (s : 'a set)] induct_tac
     >> intros_tac >> simp_tac
     >> with_proven [ "set_inj" ] apply_tac
-    >> fun_ext_tac >> eq_iff_tac >> left_tac >> assumption
-    >> elim_disj_asm_tac >> assumption >> false_elim_tac
+    >> fun_ext_tac >> eq_iff_tac >> left_tac >> assumption >> elim_disj_asm_tac
+    >> assumption >> false_elim_tac
   end
   [@quiet]
 
@@ -272,11 +271,9 @@ and proof =
     >> simp_tac >> apply_at_tac "set_inj" >> fun_ext_tac
     >> eq_iff_tac @: [ "hleft"; "hright" ]
     >> with_no_automation_trace
-         (with_best_first
-            (pick [ elim_disj_asm_tac; or_tac; assumption ]))
+         (with_best_first (pick [ elim_disj_asm_tac; or_tac; assumption ]))
     >> with_no_automation_trace
-         (with_best_first
-            (pick [ elim_disj_asm_tac; or_tac; assumption ]))
+         (with_best_first (pick [ elim_disj_asm_tac; or_tac; assumption ]))
   end
   [@quiet]
 
@@ -292,11 +289,9 @@ and proof =
     >> simp_tac >> apply_at_tac "set_inj" >> fun_ext_tac
     >> eq_iff_tac @: [ "hleft"; "hright" ]
     >> with_no_automation_trace
-         (with_best_first
-            (pick [ elim_conj_asm_tac; conj_tac; assumption ]))
+         (with_best_first (pick [ elim_conj_asm_tac; conj_tac; assumption ]))
     >> with_no_automation_trace
-         (with_best_first
-            (pick [ elim_conj_asm_tac; conj_tac; assumption ]))
+         (with_best_first (pick [ elim_conj_asm_tac; conj_tac; assumption ]))
   end
   [@quiet]
 

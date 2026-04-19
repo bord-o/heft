@@ -131,8 +131,7 @@ let%expect_test "cancellation rev" =
             plus y x = plus z x ==> (y = z))]
   in
   run_proof goal
-    (induct_tac >> gen_tac >> simp_tac >> intros_tac >> assumption
-   >> intros_tac
+    (induct_tac >> gen_tac >> simp_tac >> intros_tac >> assumption >> intros_tac
     >> with_proven [ "plus_Suc" ] rewrite_asm_tac
     >> with_proven [ "plus_Suc" ] rewrite_asm_tac
     >> with_proven [ "Suc_inj" ] apply_asm_tac
@@ -758,9 +757,7 @@ let%expect_test "sort correct lemma" =
                 >>= [
                       with_term [%term (n1 : nat list)] induct_tac
                       >>> (intros_tac >> simp_tac)
-                      >>= [
-                            simp_asm_tac >> elim_conj_asm_tac >> assumption;
-                          ];
+                      >>= [ simp_asm_tac >> elim_conj_asm_tac >> assumption ];
                       spec_asm_tac [%term (n1 : nat)]
                       >> simp_asm_tac >> elim_conj_asm_tac >> assumption;
                     ];
@@ -1359,10 +1356,7 @@ let assumption_reasoning_tac =
   try_
     (with_no_automation_trace
        (with_best_first
-          (pick
-             [
-               simp_tac; simp_asm_tac; false_elim_tac; assumption; truth;
-             ])))
+          (pick [ simp_tac; simp_asm_tac; false_elim_tac; assumption; truth ])))
 
 let%expect_test "lt_trans" =
   let goal =

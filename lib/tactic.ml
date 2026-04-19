@@ -5,7 +5,6 @@ open Effect.Deep
 open Result.Syntax
 open Rewrite
 open Fun
-
 module D = Derived
 
 type goal = (string * term) list * term [@@deriving show { with_path = false }]
@@ -1431,12 +1430,8 @@ let simp_tac ?(exclude = []) ?(with_asms = true) : tactic =
     with_repeat
       (with_first
       @@ pick
-           [
-             with_rw rules rewrite_tac;
-             with_repeat beta_tac;
-             refl_tac;
-             truth;
-           ])
+           [ with_rw rules rewrite_tac; with_repeat beta_tac; refl_tac; truth ]
+      )
       goal
   in
   thm
@@ -1482,9 +1477,7 @@ let simp_asm_tac ?(exclude = []) ?(with_asms = true) ?(add = []) : tactic =
       (with_first
       @@ pick
            [
-             with_rw rules rewrite_asm_tac;
-             with_repeat beta_asm_tac;
-             assumption;
+             with_rw rules rewrite_asm_tac; with_repeat beta_asm_tac; assumption;
            ])
       goal
   in

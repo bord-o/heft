@@ -2,7 +2,6 @@ open Heft
 open Kernel
 open Result.Syntax
 open Tactic
-
 module D = Derived
 
 let () = print_endline "initializing theory conds"

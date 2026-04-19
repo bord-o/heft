@@ -91,9 +91,7 @@ let%expect_test "basic6" =
   let goal =
     make_goal ~asms:[ ("himp", imp_cab); ("himp2", imp_ab); ("ha", a) ] b
   in
-  let proof =
-    with_nth_choice 1 (with_assumptions apply_tac) >> assumption
-  in
+  let proof = with_nth_choice 1 (with_assumptions apply_tac) >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -116,9 +114,7 @@ let%expect_test "new apply" =
   let goal =
     make_goal ~asms:[ ("himp", imp_cab); ("himp2", imp_ab); ("ha", a) ] b
   in
-  let proof =
-    with_assumptions (with_nth_choice 1 apply_tac) >> assumption
-  in
+  let proof = with_assumptions (with_nth_choice 1 apply_tac) >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -141,9 +137,7 @@ let%expect_test "deep sequencing with conj" =
       ~asms:[ ("ha", a); ("hb", b); ("hc", c) ]
       (make_conj (make_conj a b) c)
   in
-  let proof =
-    conj_tac >> conj_tac >> assumption >> assumption >> assumption
-  in
+  let proof = conj_tac >> conj_tac >> assumption >> assumption >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -212,8 +206,7 @@ let%expect_test "basic10" =
   let x = make_var "x" nat_ty in
   let goal = ([], make_forall x (make_imp a a)) in
   let proof =
-    induct_tac >> intro_tac >> assumption >> gen_tac >> intro_tac
-    >> assumption
+    induct_tac >> intro_tac >> assumption >> gen_tac >> intro_tac >> assumption
   in
   run_proof goal proof;
 
@@ -261,9 +254,7 @@ let%expect_test "dfs_conj_backtrack" =
   (* Goal: (A ∨ B) ∧ C, only have [B; C] *)
   let left = make_disj a b in
   let goal = make_goal ~asms:[ ("hb", b); ("hc", c) ] (make_conj left c) in
-  let proof =
-    with_best_first (try_ conj_tac >> try_ or_tac >> assumption)
-  in
+  let proof = with_best_first (try_ conj_tac >> try_ or_tac >> assumption) in
   run_proof goal proof;
 
   [%expect
@@ -295,10 +286,7 @@ let%expect_test "dfs_conj_assumptions" =
     with_best_first
       (pick
          [
-           intro_tac;
-           elim_conj_asm_tac;
-           with_assumptions apply_tac;
-           assumption;
+           intro_tac; elim_conj_asm_tac; with_assumptions apply_tac; assumption;
          ])
   in
   run_proof goal proof;
@@ -358,10 +346,7 @@ let%expect_test "dfs_disj_assumptions" =
     with_best_first
       (pick
          [
-           intro_tac;
-           elim_disj_asm_tac;
-           with_assumptions apply_tac;
-           assumption;
+           intro_tac; elim_disj_asm_tac; with_assumptions apply_tac; assumption;
          ])
   in
   run_proof goal proof;
@@ -1244,8 +1229,7 @@ let%expect_test "cases_tac bool forall imp" =
   let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
   let goal = ([], make_forall b (make_imp b_eq_t b_eq_t)) in
   let proof =
-    cases_tac >> intro_tac >> assumption >> with_first intro_tac
-    >> assumption
+    cases_tac >> intro_tac >> assumption >> with_first intro_tac >> assumption
   in
   run_proof goal proof;
   [%expect
@@ -1493,8 +1477,7 @@ let%expect_test "apply_tac multiple premises isolated" =
   let q0 = Result.get_ok (make_app q zero) in
   let r00 = Result.get_ok (make_app (Result.get_ok (make_app r zero)) zero) in
   let goal = make_goal' ([ p0; q0 ], r00) in
-  run_proof goal
-    (with_rules [ thm ] apply_tac >> assumption >> assumption);
+  run_proof goal (with_rules [ thm ] apply_tac >> assumption >> assumption);
   [%expect
     {|
     P Zero
@@ -2095,8 +2078,7 @@ let%expect_test "eq_iff_tac conj comm" =
   let qp = make_conj q p in
   let goal = make_goal' ([ p; q ], Result.get_ok (safe_make_eq pq qp)) in
   run_proof goal
-    (eq_iff_tac >> elim_conj_asm_tac >> conj_tac >> assumption
-   >> assumption
+    (eq_iff_tac >> elim_conj_asm_tac >> conj_tac >> assumption >> assumption
     >> with_first elim_conj_asm_tac
     >> with_first conj_tac >> assumption >> assumption);
   [%expect
