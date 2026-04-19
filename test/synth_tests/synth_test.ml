@@ -17,9 +17,7 @@ let%expect_test "synth goal setup" =
             ==> ((g : 'a list -> nat) [] = Zero))]
   in
 
-  let proof =
-    with_term [%term 0n] exists_tac >> intro_tac >> simp_tac ~with_asms:true
-  in
+  let proof = with_term [%term 0n] exists >> intro >> simp ~with_asms:true in
 
   run_proof goal proof;
   [%expect
@@ -59,22 +57,20 @@ let%expect_test "synth goal setup full" =
   (* print_endline @@ Printing.pretty_print_hol_type cons_ty; *)
 
   let proof =
-    with_term zero exists_tac
-    >> with_term cons_witness exists_tac
-    >> intros_tac >> auto_dfs_tac
+    with_term zero exists >> with_term cons_witness exists >> intros >> auto_dfs
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      conj >>
+      refl >>
+      refl
     ========================================
     ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
 
@@ -520,30 +516,30 @@ let%expect_test "synth goal enumerate" =
 
   let proof =
     with_best_first
-      (try_ (with_synthetic_term 5 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term 5 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term 5 (with_info_trace exists))
+      >> try_ (with_synthetic_term 5 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      conj >>
+      refl >>
+      refl
     success with chosen term: λa. λl. λn. Suc n
     success with chosen term: Zero
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
 
@@ -575,28 +571,28 @@ let%expect_test "synth append" =
   in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term 5 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term 2 (with_info_trace exists))
+      >> try_ (with_synthetic_term 5 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      conj >>
+      refl >>
+      refl
     success with chosen term: λa. λl. λl0. Cons a l0
     success with chosen term: λl. l
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃nil_case. ∃cons_case. (∀ys. g Nil ys = nil_case ys) ==> (∀x. ∀xs. ∀ys. g (Cons x xs) ys = cons_case x xs (g xs ys)) ==> g Nil (Cons x Nil) = Cons x Nil ∧ g (Cons x Nil) (Cons y Nil) = Cons x (Cons y Nil)
 
@@ -629,37 +625,37 @@ let%expect_test "synth reverse" =
   in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term ~extra 2 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term ~extra 6 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term ~extra 2 (with_info_trace exists))
+      >> try_ (with_synthetic_term ~extra 6 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      refl
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      refl
     success with chosen term: λa. λl. λl0. append l0 (Cons a Nil)
     success with chosen term: Nil
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x (Cons y Nil)) = Cons y (Cons x Nil)
 
@@ -684,38 +680,38 @@ let%expect_test "synth mult" =
   in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term ~extra:extras 3 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term ~extra:extras 4 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term ~extra:extras 3 (with_info_trace exists))
+      >> try_ (with_synthetic_term ~extra:extras 4 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      conj >>
+      refl >>
+      refl
     success with chosen term: plus
     success with chosen term: λn. Zero
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃nil_case. ∃suc_case. (∀n. g Zero n = nil_case n) ==> (∀m. ∀n. g (Suc m) n = suc_case n (g m n)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
@@ -740,37 +736,37 @@ let%expect_test "synth sum" =
   in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term ~extra:extras 5 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term ~extra:extras 5 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term ~extra:extras 5 (with_info_trace exists))
+      >> try_ (with_synthetic_term ~extra:extras 5 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      refl
     success with chosen term: plus
     success with chosen term: Zero
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x (g xs)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
@@ -807,30 +803,30 @@ let%expect_test "synth length via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term 5 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term 5 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term 5 (with_info_trace exists))
+      >> try_ (with_synthetic_term 5 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      conj >>
+      refl >>
+      refl
     success with chosen term: λn. λn0. Suc n0
     success with chosen term: Zero
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) Nil) = Suc Zero ∧ g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)) = Suc (Suc Zero)
 
@@ -849,40 +845,37 @@ let%expect_test "synth sum via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_
-         (with_synthetic_term ~extra:plus_extra 5 (with_info_trace exists_tac))
-      >> try_
-           (with_synthetic_term ~extra:plus_extra 5
-              (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term ~extra:plus_extra 5 (with_info_trace exists))
+      >> try_ (with_synthetic_term ~extra:plus_extra 5 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      refl
     success with chosen term: plus
     success with chosen term: Zero
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
@@ -903,25 +896,25 @@ let%expect_test "synth append via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term 6 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term 2 (with_info_trace exists))
+      >> try_ (with_synthetic_term 6 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      refl
     success with chosen term: λn. λl. λl0. Cons n l0
     success with chosen term: λl. l
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Nil_case. ∃Cons_case. (∀y0. g Nil y0 = Nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (Cons c0 c1) y0 = Cons_case c0 y0 (g c1 y0)) ==> g (Cons (Suc Zero) Nil) (Cons (Suc (Suc Zero)) Nil) = Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)
 
@@ -940,41 +933,38 @@ let%expect_test "synth mult via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_
-         (with_synthetic_term ~extra:plus_extra 3 (with_info_trace exists_tac))
-      >> try_
-           (with_synthetic_term ~extra:plus_extra 5
-              (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term ~extra:plus_extra 3 (with_info_trace exists))
+      >> try_ (with_synthetic_term ~extra:plus_extra 5 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      conj >>
+      refl >>
+      refl
     success with chosen term: plus
     success with chosen term: λn. Zero
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Zero_case. ∃Suc_case. (∀y0. g Zero y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
 
@@ -993,35 +983,32 @@ let%expect_test "synth reverse via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_
-         (with_synthetic_term ~extra:append_extra 3
-            (with_info_trace exists_tac))
+      (try_ (with_synthetic_term ~extra:append_extra 3 (with_info_trace exists))
       >> try_
-           (with_synthetic_term ~extra:append_extra 6
-              (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+           (with_synthetic_term ~extra:append_extra 6 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      refl
     success with chosen term: λn. λl. append l (Cons n Nil)
     success with chosen term: Nil
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)) = Cons (Suc (Suc Zero)) (Cons (Suc Zero) Nil)
 
@@ -1052,27 +1039,27 @@ let%expect_test "synth stutter via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term 6 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term 2 (with_info_trace exists))
+      >> try_ (with_synthetic_term 6 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      refl
     success with chosen term: λn. λl. Cons n (Cons n l)
     success with chosen term: Nil
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Cons (Suc Zero) (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc Zero))) Nil)))))
 
@@ -1107,37 +1094,37 @@ let%expect_test "synth map via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term 6 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term 2 (with_info_trace exists))
+      >> try_ (with_synthetic_term 6 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      conj >>
+      refl >>
+      refl
     success with chosen term: λn. λf. λl. Cons (f n) l
     success with chosen term: λf. Nil
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Nil_case. ∃Cons_case. (∀y0. g Nil y0 = Nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (Cons c0 c1) y0 = Cons_case c0 y0 (g c1 y0)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) Suc = Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc (Suc Zero)))) Nil)) ∧ g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) (plus (Suc (Suc Zero))) = Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc (Suc Zero)))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) Nil))
 
@@ -1164,27 +1151,27 @@ let%expect_test "synth replicate via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term 2 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term 4 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term 2 (with_info_trace exists))
+      >> try_ (with_synthetic_term 4 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      refl
     success with chosen term: λn. λl. Cons n l
     success with chosen term: λn. Nil
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Zero_case. ∃Suc_case. (∀y0. g Zero y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc (Suc Zero))))) = Cons (Suc (Suc (Suc (Suc (Suc Zero))))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) Nil))
 
@@ -1224,11 +1211,11 @@ let%expect_test "synth replicate via make_synthesis_goal" =
 (*     with_best_first *)
 (*       (try_ *)
 (*          (with_info_trace *)
-(*             (with_synthetic_term ~extra:extras 3 (with_info_trace exists_tac))) *)
+(*             (with_synthetic_term ~extra:extras 3 (with_info_trace exists))) *)
 (*       >> try_ *)
 (*            (with_info_trace *)
-(*               (with_synthetic_term ~extra:extras 7 (with_info_trace exists_tac))) *)
-(*       >> intros_tac >> auto_dfs_tac) *)
+(*               (with_synthetic_term ~extra:extras 7 (with_info_trace exists))) *)
+(*       >> intros >> auto_dfs) *)
 (*   in *)
 (*   run_proof goal proof; *)
 (*   [%expect {| |}] *)
@@ -1275,63 +1262,63 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term ~extra:extras 3 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term ~extra:extras 6 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term ~extra:extras 3 (with_info_trace exists))
+      >> try_ (with_synthetic_term ~extra:extras 6 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      conj >>
+      refl >>
+      refl
     success with chosen term: λp. plus (plus (fst p) (snd p))
     success with chosen term: Zero
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Pair (Suc Zero) (Suc (Suc Zero))) (Cons (Pair (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc Zero))))) Nil)) = Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc Zero))))))))) ∧ g (Cons (Pair (Suc (Suc (Suc (Suc (Suc Zero))))) Zero) Nil) = Suc (Suc (Suc (Suc (Suc Zero))))
 
@@ -1372,9 +1359,9 @@ let%expect_test "synth insert via make_synthesis_goal" =
   let _goal = ([], goal_tm) in
   let _proof =
     with_best_first
-      (try_ (with_synthetic_term ~extra:extras 6 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term ~extra:extras 8 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term ~extra:extras 6 (with_info_trace exists))
+      >> try_ (with_synthetic_term ~extra:extras 8 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   ();
   (* run_proof goal proof; *)
@@ -1406,59 +1393,59 @@ let%expect_test "synth isort via make_synthesis_goal" =
   let goal = ([], goal_tm) in
   let proof =
     with_best_first
-      (try_ (with_synthetic_term ~extra:extras 4 (with_info_trace exists_tac))
-      >> try_ (with_synthetic_term ~extra:extras 5 (with_info_trace exists_tac))
-      >> intros_tac >> auto_dfs_tac)
+      (try_ (with_synthetic_term ~extra:extras 4 (with_info_trace exists))
+      >> try_ (with_synthetic_term ~extra:extras 5 (with_info_trace exists))
+      >> intros >> auto_dfs)
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      beta_tac >>
-      rewrite_tac >>
-      conj_tac >>
-      refl_tac >>
-      refl_tac
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      rewrite >>
+      beta >>
+      rewrite >>
+      conj >>
+      refl >>
+      refl
     success with chosen term: λn. λl. insert l n
     success with chosen term: Nil
     Proof:
-      exists_tac >>
-      exists_tac >>
-      intro_tac >>
-      intro_tac >>
-      auto_dfs_tac
+      exists >>
+      exists >>
+      intro >>
+      intro >>
+      auto_dfs
     ========================================
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc (Suc (Suc Zero))) (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil))) = Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil)) ∧ g Nil = Nil
 

@@ -15,6 +15,6 @@ let%thm eq_cong (f : 'a -> 'b) (x : 'a) (y : 'a) = x = y ==> (f x = f y)
 
 and proof =
   begin
-    intros_tac >> simp_tac
+    intros >> simp
   end
   [@quiet]

@@ -158,14 +158,14 @@ What if add 0 n = n isn't explicitely quantified forall n?
 use inst!
 
 ok so moving forward:
-    1. rewrite_exact_tac 
+    1. rewrite_exact 
         handles when the goal exactly matches a rule
         uses choice to pick a rule
         need to handle theorem buliding
-    2. rewrite_tac 
+    2. rewrite 
         uses choice among the possible rewrite locations
         need to look for possible matching subterms and build theorems
-    3. simp_tac 
+    3. simp 
         repeats rewriting until failure
 
  *)

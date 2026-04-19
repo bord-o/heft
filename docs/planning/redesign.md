@@ -81,10 +81,10 @@ val prove : ?name:string -> goal -> tactic -> proof_state
 ### Manual Proof
 ```ocaml
 prove goal (
-  intro_tac >>
-  (conj_tac  >>
+  intro >>
+  (conj  >>
     assumption >>
-    intro_tac >> assumption
+    intro >> assumption
   ])
 )
 ```
@@ -94,16 +94,16 @@ prove goal (
 let auto tacs = pick tacs
 
 prove goal (
-  with_dfs (auto [intro_tac; conj_tac; assumption])
+  with_dfs (auto [intro; conj; assumption])
 )
 ```
 
 ### Hybrid
 ```ocaml
 prove goal (
-  intro_tac >>
-  conj_tac >> 
-    with_dfs (auto structural_tacs) >>
+  intro >>
+  conj >> 
+    with_dfs (auto structurals) >>
     assumption
 )
 ```
@@ -113,7 +113,7 @@ prove goal (
 prove goal (
   with_dfs (
     repeat simp_step >> 
-    auto [intro_tac; conj_tac; assumption]
+    auto [intro; conj; assumption]
   )
 )
 ```
@@ -122,7 +122,7 @@ prove goal (
 ```ocaml
 prove goal (
   with_proven "add_comm" (
-      with_dfs (auto [simp_tac; apply_tac; assumption])
+      with_dfs (auto [simp; apply; assumption])
     )
 )
 ```

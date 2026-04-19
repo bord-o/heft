@@ -1360,7 +1360,7 @@ let translate_thm_bindings ~loc bindings =
         let has_simp = has_attr "simp" tactic_expr in
         let has_quiet = has_attr "quiet" tactic_expr in
         let has_trace = has_attr "trace" tactic_expr in
-        let clean_tactic =
+        let cleantic =
           {
             tactic_expr with
             pexp_attributes =
@@ -1382,7 +1382,7 @@ let translate_thm_bindings ~loc bindings =
                    A.pexp_construct { txt = Lident "false"; loc } None );
                ]
              else [])
-          @ [ (Nolabel, A.evar goal_var); (Nolabel, clean_tactic) ]
+          @ [ (Nolabel, A.evar goal_var); (Nolabel, cleantic) ]
         in
         let run_proof_expr = A.pexp_apply (A.evar "run_proof") args in
         A.pexp_let Nonrecursive

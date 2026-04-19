@@ -76,7 +76,7 @@ let step (tac : tactic) (goal : goal) : step_result =
             List.combine
               (ts
               |> List.map @@ fun t ->
-                 let _, cost = cost_of_tactic t goal in
+                 let _, cost = cost_oftic t goal in
                  CTactic (goal, cost, t))
               choosable
         | Unknown _ ->
@@ -239,55 +239,55 @@ let with_dfs' : tactic_combinator =
 
 let _ = (with_dfs', with_dfs'')
 
-let itauto_tac : tactic =
+let itauto : tactic =
   pick
     [
       assumption;
-      intro_tac;
-      neg_intro_tac;
-      gen_tac;
-      conj_tac;
-      elim_conj_asm_tac;
-      elim_disj_asm_tac;
-      false_elim_tac;
-      neg_elim_tac;
-      with_assumptions apply_tac;
-      contradict_asm_tac;
-      with_assumptions (with_first_term apply_asm_tac);
-      left_tac;
-      right_tac;
+      intro;
+      neg_intro;
+      gen;
+      conj;
+      elim_conj_asm;
+      elim_disj_asm;
+      false_elim;
+      neg_elim;
+      with_assumptions apply;
+      contradict_asm;
+      with_assumptions (with_first_term apply_asm);
+      left;
+      right;
     ]
 
-let ctauto_tac : tactic =
+let ctauto : tactic =
   pick
     [
       assumption;
-      intro_tac;
-      neg_intro_tac;
-      gen_tac;
-      conj_tac;
-      elim_conj_asm_tac;
-      elim_disj_asm_tac;
-      false_elim_tac;
-      neg_elim_tac;
-      with_assumptions apply_tac;
-      contradict_asm_tac;
-      with_assumptions (with_first_term apply_asm_tac);
-      left_tac;
-      right_tac;
-      ccontr_tac;
+      intro;
+      neg_intro;
+      gen;
+      conj;
+      elim_conj_asm;
+      elim_disj_asm;
+      false_elim;
+      neg_elim;
+      with_assumptions apply;
+      contradict_asm;
+      with_assumptions (with_first_term apply_asm);
+      left;
+      right;
+      ccontr;
     ]
 
-let ctauto_dfs_tac : tactic = with_dfs ctauto_tac
+let ctauto_dfs : tactic = with_dfs ctauto
 
-let auto_dfs_tac : tactic =
+let auto_dfs : tactic =
  fun goal ->
-  let thm = with_dfs auto_tac goal in
-  return_thm ~from:"auto_dfs_tac" (Ok thm)
+  let thm = with_dfs auto goal in
+  return_thm ~from:"auto_dfs" (Ok thm)
 
-let destruct_elim_tac =
-  destruct_tac @! "ignore"
-  >>> try_ (with_first elim_disj_asm_tac)
-  >>> try_ (with_repeat (with_first elim_exists_asm_tac))
+let destruct_elim =
+  destruct @! "ignore"
+  >>> try_ (with_first elim_disj_asm)
+  >>> try_ (with_repeat (with_first elim_exists_asm))
 
-let simp_all_tac = try_ simp_asm_tac >> try_ simp_tac
+let simp_all = try_ simp_asm >> try_ simp

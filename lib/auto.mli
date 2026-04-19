@@ -98,23 +98,22 @@ val with_bfs : tactic_combinator
 
 (** {1 Automation Tactics} *)
 
-val itauto_tac : tactic
+val itauto : tactic
 (** Choice over the basic intuitionistic propositional tactics. Wrap with a
     search combinator to drive automation. *)
 
-val ctauto_tac : tactic
-(** Like [itauto_tac], extended with [ccontr_tac] for classical propositional
-    logic. *)
+val ctauto : tactic
+(** Like [itauto], extended with [ccontr] for classical propositional logic. *)
 
-val ctauto_dfs_tac : tactic
-(** [ctauto_tac] wrapped with [with_dfs]. *)
+val ctauto_dfs : tactic
+(** [ctauto] wrapped with [with_dfs]. *)
 
-val auto_dfs_tac : tactic
-(** [auto_tac] wrapped with [with_dfs]. *)
+val auto_dfs : tactic
+(** [auto] wrapped with [with_dfs]. *)
 
-val destruct_elim_tac : tactic
-(** A variation of [destruct_tac] which also eliminates the existentials it
+val destruct_elim : tactic
+(** A variation of [destruct] which also eliminates the existentials it
     generates *)
 
-val simp_all_tac : tactic
-(** A combination of [simp_asm_tac] and [simp_tac] *)
+val simp_all : tactic
+(** A combination of [simp_asm] and [simp] *)

@@ -87,23 +87,23 @@ let%thm plus_x_Zero (x : nat) =
     plus x Zero = x
 and proof =
   begin
-    induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+    induct >> simp >> gen >> intro >> simp
   end [@quiet] [@simp]
 
 let%thm plus_assoc (x : nat ) (y:nat) (z:nat) = 
     plus x (plus y z) = plus (plus x y) z
 and proof =
   begin
-    induct_tac >> intros_tac >> simp_tac >> intros_tac >> simp_tac
+    induct >> intros >> simp >> intros >> simp
   end [@quiet]
 
 let%thm lt_Zero_false (m : nat) = nat_lt m Zero = false
 
 and proof =
   begin
-    induct_tac
-    >> with_no_automation_trace auto_dfs_tac
-    >> with_no_automation_trace auto_dfs_tac
+    induct
+    >> with_no_automation_trace auto_dfs
+    >> with_no_automation_trace auto_dfs
   end
   [@simp] [@quiet]
 
@@ -112,25 +112,25 @@ let%thm lt_Suc_or_eq (m : nat) (n : nat) =
 
 and proof =
   begin
-    induct_tac
-    >> (intros_tac >> simp_tac >> sym_tac >> eq_true_elim_tac
-       >> with_term [%term (n : nat)] destruct_tac
-       >> elim_disj_asm_tac
-       >> (simp_tac >> right_tac >> refl_tac)
-       >> (elim_exists_asm_tac >> simp_tac >> left_tac >> truth))
-    >> (intros_tac @: [ "hIH" ]
-       >> with_term [%term (n : nat)] destruct_tac
-       >> elim_disj_asm_tac >> simp_tac >> sym_tac >> eq_false_elim_tac
-       >> neg_intro_tac
-       >> elim_disj_asm_tac @: [ "hfalse"; "hrest" ]
+    induct
+    >> (intros >> simp >> sym >> eq_true_elim
+       >> with_term [%term (n : nat)] destruct
+       >> elim_disj_asm
+       >> (simp >> right >> refl)
+       >> (elim_exists_asm >> simp >> left >> truth))
+    >> (intros @: [ "hIH" ]
+       >> with_term [%term (n : nat)] destruct
+       >> elim_disj_asm >> simp >> sym >> eq_false_elim
+       >> neg_intro
+       >> elim_disj_asm @: [ "hfalse"; "hrest" ]
        >> assumption
-       >> with_named_asm_term "hrest" sym_asm_tac @: [ "hrest'" ]
-       >> discriminate_tac >> elim_exists_asm_tac >> simp_tac >> eq_iff_tac
-       >> elim_disj_asm_tac @: [ "hlt_na"; "heq_na" ]
-       >> left_tac >> assumption >> right_tac
-       >> with_rules nat_def.injective apply_tac
-       >> assumption >> elim_disj_asm_tac >> left_tac >> assumption
-       >> right_tac >> apply_at_tac "eq_cong" >> assumption)
+       >> with_named_asm_term "hrest" sym_asm @: [ "hrest'" ]
+       >> discriminate >> elim_exists_asm >> simp >> eq_iff
+       >> elim_disj_asm @: [ "hlt_na"; "heq_na" ]
+       >> left >> assumption >> right
+       >> with_rules nat_def.injective apply
+       >> assumption >> elim_disj_asm >> left >> assumption
+       >> right >> apply_at "eq_cong" >> assumption)
   end
   (* [@trace] *)
   [@quiet]
@@ -139,7 +139,7 @@ let%thm plus_Suc (m : nat) (n : nat) =
     plus m (Suc n) = Suc (plus m n)
 and proof =
     begin
-        induct_tac >> gen_tac >> simp_tac >> intros_tac >> simp_tac
+        induct >> gen >> simp >> intros >> simp
     end
     [@simp]
     [@quiet]

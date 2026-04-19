@@ -9,7 +9,7 @@ let%expect_test "basic" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal ~asms:[ ("ha", a); ("hb", b) ] (make_conj a b) in
-  let proof = conj_tac >> assumption >> assumption in
+  let proof = conj >> assumption >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -25,7 +25,7 @@ let%expect_test "basic" =
 let%expect_test "basic2" =
   let a = make_var "A" bool_ty in
   let goal = ([], safe_make_eq a a |> Result.get_ok) in
-  run_proof goal refl_tac;
+  run_proof goal refl;
   [%expect
     {|
     ========================================
@@ -38,7 +38,7 @@ let%expect_test "basic2" =
 let%expect_test "basic3" =
   let a = make_var "A" bool_ty in
   let goal = ([], make_imp a a) in
-  let proof = intro_tac >> assumption in
+  let proof = intro >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -54,7 +54,7 @@ let%expect_test "basic4" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal ~asms:[ ("ha", a) ] (make_disj a b) in
-  let proof = left_tac >> assumption in
+  let proof = left >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -70,7 +70,7 @@ let%expect_test "basic5" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal ~asms:[ ("ha", a); ("hb", b) ] (make_disj a b) in
-  let proof = right_tac >> assumption in
+  let proof = right >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -91,7 +91,7 @@ let%expect_test "basic6" =
   let goal =
     make_goal ~asms:[ ("himp", imp_cab); ("himp2", imp_ab); ("ha", a) ] b
   in
-  let proof = with_nth_choice 1 (with_assumptions apply_tac) >> assumption in
+  let proof = with_nth_choice 1 (with_assumptions apply) >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -114,7 +114,7 @@ let%expect_test "new apply" =
   let goal =
     make_goal ~asms:[ ("himp", imp_cab); ("himp2", imp_ab); ("ha", a) ] b
   in
-  let proof = with_assumptions (with_nth_choice 1 apply_tac) >> assumption in
+  let proof = with_assumptions (with_nth_choice 1 apply) >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -137,7 +137,7 @@ let%expect_test "deep sequencing with conj" =
       ~asms:[ ("ha", a); ("hb", b); ("hc", c) ]
       (make_conj (make_conj a b) c)
   in
-  let proof = conj_tac >> conj_tac >> assumption >> assumption >> assumption in
+  let proof = conj >> conj >> assumption >> assumption >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -154,7 +154,7 @@ let%expect_test "deep sequencing with conj" =
 let%expect_test "basic7" =
   let a = make_var "A" bool_ty in
   let goal = make_goal ~asms:[ ("hfalse", make_false ()) ] a in
-  let proof = ccontr_tac >> assumption in
+  let proof = ccontr >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -170,7 +170,7 @@ let%expect_test "basic7" =
 let%expect_test "basic8" =
   let a = make_var "A" bool_ty in
   let goal = make_goal ~asms:[ ("hfalse", make_false ()) ] a in
-  let proof = false_elim_tac >> assumption in
+  let proof = false_elim >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -189,7 +189,7 @@ let%expect_test "basic9" =
   let a = make_var "A" bool_ty in
   let x = make_var "x" bool_ty in
   let goal = ([], make_forall x (make_imp a a)) in
-  let proof = gen_tac >> intro_tac >> assumption in
+  let proof = gen >> intro >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -205,9 +205,7 @@ let%expect_test "basic10" =
   let a = make_var "A" bool_ty in
   let x = make_var "x" nat_ty in
   let goal = ([], make_forall x (make_imp a a)) in
-  let proof =
-    induct_tac >> intro_tac >> assumption >> gen_tac >> intro_tac >> assumption
-  in
+  let proof = induct >> intro >> assumption >> gen >> intro >> assumption in
   run_proof goal proof;
 
   [%expect
@@ -231,13 +229,13 @@ let%expect_test "dfs_backtrack" =
       ~asms:[ ("hf", f) ]
       (make_disj (make_disj e (make_disj (make_disj c d) (make_disj a b))) f)
   in
-  let proof = with_best_first (try_ or_tac >> assumption) in
+  let proof = with_best_first (try_ or_ >> assumption) in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      or_tac >>
-      right_tac >>
+      or >>
+      right >>
       assumption
     F
     ========================================
@@ -254,16 +252,16 @@ let%expect_test "dfs_conj_backtrack" =
   (* Goal: (A ∨ B) ∧ C, only have [B; C] *)
   let left = make_disj a b in
   let goal = make_goal ~asms:[ ("hb", b); ("hc", c) ] (make_conj left c) in
-  let proof = with_best_first (try_ conj_tac >> try_ or_tac >> assumption) in
+  let proof = with_best_first (try_ conj >> try_ or_ >> assumption) in
   run_proof goal proof;
 
   [%expect
     {|
     Proof:
-      conj_tac >>
+      conj >>
       assumption >>
-      or_tac >>
-      right_tac >>
+      or >>
+      right >>
       assumption
     B
     C
@@ -284,21 +282,18 @@ let%expect_test "dfs_conj_assumptions" =
   let goal = ([], make_imp (make_conj p_imp_q q_imp_r) p_imp_r) in
   let proof =
     with_best_first
-      (pick
-         [
-           intro_tac; elim_conj_asm_tac; with_assumptions apply_tac; assumption;
-         ])
+      (pick [ intro; elim_conj_asm; with_assumptions apply; assumption ])
   in
   run_proof goal proof;
 
   [%expect
     {|
     Proof:
-      intro_tac >>
-      intro_tac >>
-      elim_conj_asm_tac >>
-      apply_tac >>
-      apply_tac >>
+      intro >>
+      intro >>
+      elim_conj_asm >>
+      apply >>
+      apply >>
       assumption
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
@@ -315,17 +310,17 @@ let%expect_test "complete_prop_automation" =
   let q_imp_r = make_imp q r in
   let p_imp_r = make_imp p r in
   let goal = ([], make_imp (make_conj p_imp_q q_imp_r) p_imp_r) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
 
   [%expect
     {|
     Proof:
-      intro_tac >>
-      intro_tac >>
-      elim_conj_asm_tac >>
-      apply_asm_tac >>
-      apply_tac >>
+      intro >>
+      intro >>
+      elim_conj_asm >>
+      apply_asm >>
+      apply >>
       assumption
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
@@ -344,23 +339,20 @@ let%expect_test "dfs_disj_assumptions" =
   let goal = ([], make_imp p_or_q (make_imp p_imp_r (make_imp q_imp_r r))) in
   let proof =
     with_best_first
-      (pick
-         [
-           intro_tac; elim_disj_asm_tac; with_assumptions apply_tac; assumption;
-         ])
+      (pick [ intro; elim_disj_asm; with_assumptions apply; assumption ])
   in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      intro_tac >>
-      intro_tac >>
-      elim_disj_asm_tac >>
-      apply_tac >>
+      intro >>
+      intro >>
+      intro >>
+      elim_disj_asm >>
+      apply >>
       assumption >>
-      apply_tac >>
-      apply_tac
+      apply >>
+      apply
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
 
@@ -376,19 +368,19 @@ let%expect_test "pauto_disj_elimination" =
   let p_imp_r = make_imp p r in
   let q_imp_r = make_imp q r in
   let goal = ([], make_imp p_or_q (make_imp p_imp_r (make_imp q_imp_r r))) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      intro_tac >>
-      elim_disj_asm_tac >>
-      intro_tac >>
-      apply_asm_tac >>
+      intro >>
+      intro >>
+      elim_disj_asm >>
+      intro >>
+      apply_asm >>
       assumption >>
-      intro_tac >>
-      apply_asm_tac >>
+      intro >>
+      apply_asm >>
       assumption
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
@@ -397,12 +389,12 @@ let%expect_test "pauto_disj_elimination" =
     with fuel: 300
     |}]
 
-let%expect_test "false_elim_tac_test" =
+let%expect_test "false_elim_test" =
   (* ⊥ in assumptions, prove anything *)
   let p = make_var "P" bool_ty in
   let false_tm = make_false () in
   let goal = ([], make_imp false_tm p) in
-  let proof = intro_tac >> false_elim_tac in
+  let proof = intro >> false_elim in
   run_proof goal proof;
   [%expect
     {|
@@ -413,12 +405,12 @@ let%expect_test "false_elim_tac_test" =
     with fuel: 2
     |}]
 
-let%expect_test "neg_elim_tac_test" =
+let%expect_test "neg_elim_test" =
   (* P and ¬P in assumptions, prove anything *)
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let goal = ([], make_imp p (make_imp (make_neg p) q)) in
-  let proof = with_repeat intro_tac >> neg_elim_tac in
+  let proof = with_repeat intro >> neg_elim in
   run_proof goal proof;
   [%expect
     {|
@@ -429,12 +421,12 @@ let%expect_test "neg_elim_tac_test" =
     with fuel: 6
     |}]
 
-let%expect_test "neg_intro_tac_test" =
+let%expect_test "neg_intro_test" =
   (* Goal is ¬P, reduce to [P] ⊢ ⊥ *)
   (* Prove: P ⟹ ¬¬P *)
   let p = make_var "P" bool_ty in
   let goal = ([], make_imp p (make_neg (make_neg p))) in
-  let proof = intro_tac >> neg_intro_tac >> neg_elim_tac in
+  let proof = intro >> neg_intro >> neg_elim in
   run_proof goal proof;
   [%expect
     {|
@@ -445,17 +437,17 @@ let%expect_test "neg_intro_tac_test" =
     with fuel: 8
     |}]
 
-let%expect_test "ccontr_tac_test" =
+let%expect_test "ccontr_test" =
   (* Classical: assume ¬P, derive ⊥, conclude P *)
   (* Prove: ¬¬P ⟹ P (requires classical logic) *)
   let p = make_var "P" bool_ty in
   let goal = ([], make_imp (make_neg (make_neg p)) p) in
-  let proof = intro_tac >> ccontr_tac >> with_best_first neg_elim_tac in
+  let proof = intro >> ccontr >> with_best_first neg_elim in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      neg_elim_tac
+      neg_elim
     ========================================
     ¬¬P ==> P
 
@@ -471,9 +463,9 @@ let%expect_test "modus_tollens" =
     ([], make_imp (make_imp p q) (make_imp (make_neg q) (make_neg p)))
   in
   let proof =
-    intro_tac >> intro_tac >> neg_intro_tac
-    >> with_first (with_assumptions (with_first_term apply_asm_tac))
-    >> neg_elim_tac
+    intro >> intro >> neg_intro
+    >> with_first (with_assumptions (with_first_term apply_asm))
+    >> neg_elim
   in
   run_proof goal proof;
   [%expect
@@ -489,17 +481,17 @@ let%expect_test "excluded_middle_pauto" =
   (* P ∨ ¬P (requires classical logic) *)
   let p = make_var "P" bool_ty in
   let goal = ([], make_disj p (make_neg p)) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      ccontr_tac >>
-      contradict_asm_tac >>
-      right_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      left_tac >>
+      ccontr >>
+      contradict_asm >>
+      right >>
+      neg_intro >>
+      contradict_asm >>
+      left >>
       assumption
     ========================================
     P ∨ ¬P
@@ -515,16 +507,16 @@ let%expect_test "contraposition" =
   let goal =
     ([], make_imp (make_imp p q) (make_imp (make_neg q) (make_neg p)))
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      intro_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      apply_tac >>
+      intro >>
+      intro >>
+      neg_intro >>
+      contradict_asm >>
+      apply >>
       assumption
     ========================================
     (P ==> Q) ==> ¬Q ==> ¬P
@@ -544,21 +536,21 @@ let%expect_test "distribution_and_over_or" =
         (make_conj p (make_disj q r))
         (make_disj (make_conj p q) (make_conj p r)) )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      elim_conj_asm_tac >>
-      elim_disj_asm_tac >>
-      right_tac >>
-      conj_tac >>
+      intro >>
+      elim_conj_asm >>
+      elim_disj_asm >>
+      right >>
+      conj >>
       assumption >>
       assumption >>
-      left_tac >>
-      conj_tac >>
-      apply_tac >>
+      left >>
+      conj >>
+      apply >>
       assumption
     ========================================
     P ∧ Q ∨ R ==> P ∧ Q ∨ P ∧ R
@@ -578,24 +570,24 @@ let%expect_test "distribution_or_over_and" =
         (make_disj p (make_conj q r))
         (make_conj (make_disj p q) (make_disj p r)) )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      conj_tac >>
-      elim_disj_asm_tac >>
-      right_tac >>
-      elim_conj_asm_tac >>
+      intro >>
+      conj >>
+      elim_disj_asm >>
+      right >>
+      elim_conj_asm >>
       assumption >>
-      left_tac >>
+      left >>
       assumption >>
-      elim_disj_asm_tac >>
-      elim_conj_asm_tac >>
-      right_tac >>
-      apply_tac >>
-      left_tac >>
+      elim_disj_asm >>
+      elim_conj_asm >>
+      right >>
+      apply >>
+      left >>
       assumption
     ========================================
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
@@ -613,21 +605,21 @@ let%expect_test "de_morgan_and" =
       make_imp (make_neg (make_conj p q)) (make_disj (make_neg p) (make_neg q))
     )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      ccontr_tac >>
-      contradict_asm_tac >>
-      right_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      left_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      conj_tac >>
+      intro >>
+      ccontr >>
+      contradict_asm >>
+      right >>
+      neg_intro >>
+      contradict_asm >>
+      left >>
+      neg_intro >>
+      contradict_asm >>
+      conj >>
       assumption >>
       assumption
     ========================================
@@ -646,20 +638,20 @@ let%expect_test "de_morgan_or" =
       make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
     )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      conj_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      right_tac >>
+      intro >>
+      conj >>
+      neg_intro >>
+      contradict_asm >>
+      right >>
       assumption >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      left_tac >>
+      neg_intro >>
+      contradict_asm >>
+      left >>
       assumption
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
@@ -677,18 +669,18 @@ let%expect_test "de_morgan_or_converse" =
       make_imp (make_conj (make_neg p) (make_neg q)) (make_neg (make_disj p q))
     )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      elim_conj_asm_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      elim_disj_asm_tac >>
+      intro >>
+      elim_conj_asm >>
+      neg_intro >>
+      contradict_asm >>
+      elim_disj_asm >>
       assumption >>
-      neg_elim_tac
+      neg_elim
     ========================================
     ¬P ∧ ¬Q ==> ¬P ∨ Q
 
@@ -701,20 +693,20 @@ let%expect_test "implication_as_disjunction" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let goal = ([], make_imp (make_imp p q) (make_disj (make_neg p) q)) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      ccontr_tac >>
-      contradict_asm_tac >>
-      intro_tac >>
-      left_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      intro_tac >>
-      apply_asm_tac >>
-      right_tac >>
+      ccontr >>
+      contradict_asm >>
+      intro >>
+      left >>
+      neg_intro >>
+      contradict_asm >>
+      intro >>
+      apply_asm >>
+      right >>
       assumption
     ========================================
     (P ==> Q) ==> ¬P ∨ Q
@@ -728,17 +720,17 @@ let%expect_test "disjunction_as_implication" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let goal = ([], make_imp (make_disj (make_neg p) q) (make_imp p q)) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      elim_disj_asm_tac >>
-      intro_tac >>
+      intro >>
+      elim_disj_asm >>
+      intro >>
       assumption >>
-      intro_tac >>
-      neg_elim_tac
+      intro >>
+      neg_elim
     ========================================
     ¬P ∨ Q ==> P ==> Q
 
@@ -750,16 +742,16 @@ let%expect_test "triple_negation" =
   (* ¬¬¬P ⟹ ¬P - intuitionistic *)
   let p = make_var "P" bool_ty in
   let goal = ([], make_imp (make_neg (make_neg (make_neg p))) (make_neg p)) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      neg_intro_tac >>
-      neg_elim_tac
+      intro >>
+      neg_intro >>
+      contradict_asm >>
+      neg_intro >>
+      neg_elim
     ========================================
     ¬¬¬P ==> ¬P
 
@@ -772,14 +764,14 @@ let%expect_test "explosion" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let goal = ([], make_imp p (make_imp (make_neg p) q)) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      intro_tac >>
-      neg_elim_tac
+      intro >>
+      intro >>
+      neg_elim
     ========================================
     P ==> ¬P ==> Q
 
@@ -792,17 +784,17 @@ let%expect_test "complex_nested" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let goal = ([], make_imp (make_imp (make_imp p q) p) p) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      ccontr_tac >>
-      contradict_asm_tac >>
-      apply_tac >>
-      intro_tac >>
-      neg_elim_tac
+      intro >>
+      ccontr >>
+      contradict_asm >>
+      apply >>
+      intro >>
+      neg_elim
     ========================================
     ((P ==> Q) ==> P) ==> P
 
@@ -824,36 +816,36 @@ let%expect_test "four_variable_distribution" =
            (make_disj (make_conj a d)
               (make_disj (make_conj b c) (make_conj b d)))) )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      elim_conj_asm_tac >>
-      elim_disj_asm_tac >>
-      right_tac >>
-      elim_disj_asm_tac >>
-      right_tac >>
-      right_tac >>
-      conj_tac >>
+      intro >>
+      elim_conj_asm >>
+      elim_disj_asm >>
+      right >>
+      elim_disj_asm >>
+      right >>
+      right >>
+      conj >>
       assumption >>
       assumption >>
-      left_tac >>
-      conj_tac >>
-      apply_tac >>
+      left >>
+      conj >>
+      apply >>
       assumption >>
-      elim_disj_asm_tac >>
-      right_tac >>
-      right_tac >>
-      left_tac >>
-      conj_tac >>
-      apply_tac >>
-      apply_tac >>
-      left_tac >>
-      conj_tac >>
+      elim_disj_asm >>
+      right >>
+      right >>
+      left >>
+      conj >>
+      apply >>
+      apply >>
+      left >>
+      conj >>
       assumption >>
-      apply_tac
+      apply
     ========================================
     A ∨ B ∧ C ∨ D ==> A ∧ C ∨ A ∧ D ∨ B ∧ C ∨ B ∧ D
 
@@ -872,18 +864,18 @@ let%expect_test "implication_chain" =
       make_imp (make_imp a b)
         (make_imp (make_imp b c) (make_imp (make_imp c d) (make_imp a d))) )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      intro_tac >>
-      intro_tac >>
-      intro_tac >>
-      apply_tac >>
-      apply_asm_tac >>
-      apply_asm_tac >>
+      intro >>
+      intro >>
+      intro >>
+      intro >>
+      apply >>
+      apply_asm >>
+      apply_asm >>
       assumption
     ========================================
     (A ==> B) ==> (B ==> C) ==> (C ==> D) ==> A ==> D
@@ -902,18 +894,18 @@ let%expect_test "contraposition_chain" =
       make_imp (make_imp a b)
         (make_imp (make_imp b c) (make_imp (make_neg c) (make_neg a))) )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      intro_tac >>
-      intro_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      apply_tac >>
-      apply_tac >>
+      intro >>
+      intro >>
+      intro >>
+      neg_intro >>
+      contradict_asm >>
+      apply >>
+      apply >>
       assumption
     ========================================
     (A ==> B) ==> (B ==> C) ==> ¬C ==> ¬A
@@ -927,13 +919,13 @@ let%expect_test "absorption_law" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let goal = ([], make_imp (make_conj p (make_disj p q)) p) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      elim_conj_asm_tac >>
+      intro >>
+      elim_conj_asm >>
       assumption
     ========================================
     P ∧ P ∨ Q ==> P
@@ -947,14 +939,14 @@ let%expect_test "absorption_law_converse" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let goal = ([], make_imp p (make_conj p (make_disj p q))) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      conj_tac >>
-      left_tac >>
+      intro >>
+      conj >>
+      left >>
       assumption >>
       assumption
     ========================================
@@ -967,13 +959,13 @@ let%expect_test "absorption_law_converse" =
 let%expect_test "not_false_is_true" =
   (* ¬⊥ *)
   let goal = ([], make_neg (make_false ())) in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      neg_intro_tac >>
-      false_elim_tac
+      neg_intro >>
+      false_elim
     ========================================
     ¬F
 
@@ -990,11 +982,10 @@ let%expect_test "manual version " =
       make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
     )
   in
-  (* let proof = with_best_first ctauto_tac in *)
+  (* let proof = with_best_first ctauto in *)
   let proof =
-    intro_tac >> conj_tac >> neg_intro_tac >> contradict_asm_tac >> left_tac
-    >> assumption >> neg_intro_tac >> contradict_asm_tac >> right_tac
-    >> assumption
+    intro >> conj >> neg_intro >> contradict_asm >> left >> assumption
+    >> neg_intro >> contradict_asm >> right >> assumption
   in
   run_proof goal proof;
   [%expect
@@ -1015,20 +1006,20 @@ let%expect_test "dfs demorgans" =
       make_imp (make_neg (make_disj p q)) (make_conj (make_neg p) (make_neg q))
     )
   in
-  let proof = with_best_first ctauto_tac in
+  let proof = with_best_first ctauto in
   run_proof goal proof;
   [%expect
     {|
     Proof:
-      intro_tac >>
-      conj_tac >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      right_tac >>
+      intro >>
+      conj >>
+      neg_intro >>
+      contradict_asm >>
+      right >>
       assumption >>
-      neg_intro_tac >>
-      contradict_asm_tac >>
-      left_tac >>
+      neg_intro >>
+      contradict_asm >>
+      left >>
       assumption
     ========================================
     ¬P ∨ Q ==> ¬P ∧ ¬Q
@@ -1059,7 +1050,7 @@ let%expect_test "rewrite_basic" =
         (safe_make_eq (App (App (add, zero), two)) (App (App (add, one), one)))
     )
   in
-  let proof = with_rules [ eq_thm ] rewrite_tac >> sorry_tac in
+  let proof = with_rules [ eq_thm ] rewrite >> sorry in
   run_proof goal proof;
 
   [%expect
@@ -1075,7 +1066,7 @@ let%expect_test "rewrite_basic" =
   let x = make_var "x" nat_ty in
   let zero_plus_x = make_plus zero x |> Result.get_ok in
   let goal = ([], make_forall x (Result.get_ok (safe_make_eq zero_plus_x x))) in
-  let proof = gen_tac >> simp_tac in
+  let proof = gen >> simp in
   run_proof goal proof;
   [%expect
     {|
@@ -1090,15 +1081,15 @@ let%expect_test "basic4" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal ~asms:[ ("ha", a) ] (make_disj a b) in
-  let name, _ = cost_of_tactic left_tac goal in
+  let name, _ = cost_oftic left goal in
   print_endline name;
-  [%expect {| left_tac |}]
+  [%expect {| left |}]
 
-let%expect_test "exists_tac_bool" =
+let%expect_test "exists_bool" =
   let p = make_var "P" bool_ty in
   let goal = make_goal ~asms:[ ("htrue", make_true ()) ] (make_exists p p) in
   (* ∃P. P *)
-  run_proof goal (with_term (make_true ()) exists_tac >> assumption);
+  run_proof goal (with_term (make_true ()) exists >> assumption);
   [%expect
     {|
     ========================================
@@ -1108,12 +1099,12 @@ let%expect_test "exists_tac_bool" =
     with fuel: 9
     |}]
 
-let%expect_test "exists_tac_refl" =
+let%expect_test "exists_refl" =
   let n = Var ("n", nat_ty) in
   let eq_nn = Result.get_ok (safe_make_eq n n) in
   let goal = ([], make_exists n eq_nn) in
   (* ∃n. n = n *)
-  run_proof goal (with_term zero exists_tac >>> refl_tac);
+  run_proof goal (with_term zero exists >>> refl);
   [%expect
     {|
     ========================================
@@ -1123,14 +1114,13 @@ let%expect_test "exists_tac_refl" =
     with fuel: 9
     |}]
 
-let%expect_test "exists_tac_nested" =
+let%expect_test "exists_nested" =
   let m = Var ("m", nat_ty) in
   let n = Var ("n", nat_ty) in
   let eq_mn = Result.get_ok (safe_make_eq m n) in
   let goal = ([], make_exists m (make_exists n eq_mn)) in
   (* ∃m. ∃n. m = n *)
-  run_proof goal
-    (with_term zero exists_tac >> with_term zero exists_tac >>> refl_tac);
+  run_proof goal (with_term zero exists >> with_term zero exists >>> refl);
   [%expect
     {|
     ========================================
@@ -1149,7 +1139,7 @@ let%expect_test "trans tac" =
   let eq_mn = Result.get_ok (safe_make_eq m n) in
   let goal = make_goal ~asms:[ ("heq", eq_mo); ("heq2", eq_on) ] eq_mn in
 
-  run_proof goal (with_term o trans_tac >> assumption >> assumption);
+  run_proof goal (with_term o trans >> assumption >> assumption);
   [%expect
     {|
     m = o
@@ -1165,7 +1155,7 @@ let make_goal' (unnamed, conc) =
   let asms = unnamed |> List.map (fun p -> ("", p)) in
   make_goal ~asms conc
 
-let%expect_test "have_tac_basic" =
+let%expect_test "have_basic" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let r = make_var "R" bool_ty in
@@ -1173,10 +1163,10 @@ let%expect_test "have_tac_basic" =
   let qr = make_imp q r in
   let goal = make_goal' ([ p; pq; qr ], r) in
   let proof =
-    with_term q have_tac
-    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    with_term q have
+    >> with_first (with_assumptions (with_first_term apply_asm))
     >> assumption
-    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> with_first (with_assumptions (with_first_term apply_asm))
     >> assumption
   in
   run_proof ~notrace:false goal proof;
@@ -1187,15 +1177,15 @@ let%expect_test "have_tac_basic" =
     Found matching assumption
     Assumption succeeded
     assumption
-    apply_asm_tac
+    apply_asm
     no choices available
     no choices available
     no choices available
     Found matching assumption
     Assumption succeeded
     assumption
-    apply_asm_tac
-    have_tac
+    apply_asm
+    have
     P
     P ==> Q
     Q ==> R
@@ -1206,13 +1196,13 @@ let%expect_test "have_tac_basic" =
     with fuel: 17
     |}]
 
-(* ---- cases_tac tests ---- *)
+(* ---- cases tests ---- *)
 
-let%expect_test "cases_tac bool forall refl" =
+let%expect_test "cases bool forall refl" =
   (* ∀b. b = b — trivial, both cases solved by refl *)
   let b = make_var "b" bool_ty in
   let goal = ([], make_forall b (Result.get_ok (safe_make_eq b b))) in
-  let proof = cases_tac >> refl_tac >> with_first refl_tac in
+  let proof = cases >> refl >> with_first refl in
   run_proof goal proof;
   [%expect
     {|
@@ -1223,14 +1213,12 @@ let%expect_test "cases_tac bool forall refl" =
     with fuel: 10
     |}]
 
-let%expect_test "cases_tac bool forall imp" =
+let%expect_test "cases bool forall imp" =
   (* ∀b. b = T ==> b = T — each case trivially true *)
   let b = make_var "b" bool_ty in
   let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
   let goal = ([], make_forall b (make_imp b_eq_t b_eq_t)) in
-  let proof =
-    cases_tac >> intro_tac >> assumption >> with_first intro_tac >> assumption
-  in
+  let proof = cases >> intro >> assumption >> with_first intro >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1241,16 +1229,13 @@ let%expect_test "cases_tac bool forall imp" =
     with fuel: 12
     |}]
 
-let%expect_test "cases_tac bool forall with body" =
+let%expect_test "cases bool forall with body" =
   (* ∀b. b = T ∨ b = F — classic bool exhaustion *)
   let b = make_var "b" bool_ty in
   let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
   let b_eq_f = Result.get_ok (safe_make_eq b (make_false ())) in
   let goal = ([], make_forall b (make_disj b_eq_t b_eq_f)) in
-  let proof =
-    cases_tac >> left_tac >> refl_tac >> with_first right_tac
-    >> with_first refl_tac
-  in
+  let proof = cases >> left >> refl >> with_first right >> with_first refl in
   run_proof goal proof;
   [%expect
     {|
@@ -1261,22 +1246,17 @@ let%expect_test "cases_tac bool forall with body" =
     with fuel: 22
     |}]
 
-let%expect_test "cases_tac bool forall conj" =
+let%expect_test "cases bool forall conj" =
   (* ∀b. (b = T ∨ b = F) ∧ (b = T ∨ b = F) *)
   let b = make_var "b" bool_ty in
   let b_eq_t = Result.get_ok (safe_make_eq b (make_true ())) in
   let b_eq_f = Result.get_ok (safe_make_eq b (make_false ())) in
   let disj = make_disj b_eq_t b_eq_f in
   let goal = ([], make_forall b (make_conj disj disj)) in
-  let case_proof =
-    conj_tac >> left_tac >> refl_tac >> with_first left_tac
-    >> with_first refl_tac
-  in
+  let case_proof = conj >> left >> refl >> with_first left >> with_first refl in
   let proof =
-    cases_tac >> case_proof
-    >> with_first
-         (conj_tac >> right_tac >> refl_tac >> with_first right_tac
-        >> with_first refl_tac)
+    cases >> case_proof
+    >> with_first (conj >> right >> refl >> with_first right >> with_first refl)
   in
   run_proof goal proof;
   [%expect
@@ -1288,13 +1268,12 @@ let%expect_test "cases_tac bool forall conj" =
     with fuel: 38
     |}]
 
-let%expect_test "cases_tac inductive delegates to induct_tac" =
-  (* ∀x:nat. x = x — cases on nat should delegate to induct_tac *)
+let%expect_test "cases inductive delegates to induct" =
+  (* ∀x:nat. x = x — cases on nat should delegate to induct *)
   let x = make_var "x" nat_ty in
   let goal = ([], make_forall x (Result.get_ok (safe_make_eq x x))) in
   let proof =
-    cases_tac >> refl_tac >> with_first gen_tac >> with_first intro_tac
-    >> with_first refl_tac
+    cases >> refl >> with_first gen >> with_first intro >> with_first refl
   in
   run_proof goal proof;
   [%expect
@@ -1306,7 +1285,7 @@ let%expect_test "cases_tac inductive delegates to induct_tac" =
     with fuel: 20
     |}]
 
-let%expect_test "cases_tac arbitrary bool expr" =
+let%expect_test "cases arbitrary bool expr" =
   (* Given A ∨ B, case split on A to add A=T or A=F as assumption *)
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
@@ -1314,7 +1293,7 @@ let%expect_test "cases_tac arbitrary bool expr" =
   let goal =
     make_goal' ([ a_eq_t; b ], Result.get_ok (safe_make_eq a (make_true ())))
   in
-  let proof = with_term a cases_tac >> assumption >> assumption in
+  let proof = with_term a cases >> assumption >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1326,12 +1305,12 @@ let%expect_test "cases_tac arbitrary bool expr" =
     with fuel: 10
     |}]
 
-let%expect_test "cases_tac preserves assumptions" =
+let%expect_test "cases preserves assumptions" =
   (* {P} ⊢ ∀b. P — case split on b, P should be available in both subgoals *)
   let p = make_var "P" bool_ty in
   let b = make_var "b" bool_ty in
   let goal = make_goal' ([ p ], make_forall b p) in
-  let proof = cases_tac >> assumption >> assumption in
+  let proof = cases >> assumption >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1343,7 +1322,7 @@ let%expect_test "cases_tac preserves assumptions" =
     with fuel: 10
     |}]
 
-let%expect_test "spec_asm_tac basic" =
+let%expect_test "spec_asm basic" =
   (* ∀x. P x as assumption, goal is P a *)
   let nat_ty = Kernel.TyCon ("nat", []) in
   let x = make_var "x" nat_ty in
@@ -1352,7 +1331,7 @@ let%expect_test "spec_asm_tac basic" =
   let p_a = App (make_var "P" (make_fun_ty nat_ty bool_ty), a) in
   let forall_px = make_forall x p_x in
   let goal = make_goal' ([ forall_px ], p_a) in
-  let proof = spec_asm_tac a >> assumption in
+  let proof = spec_asm a >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1364,14 +1343,14 @@ let%expect_test "spec_asm_tac basic" =
     with fuel: 4
     |}]
 
-let%expect_test "sym_asm_tac basic" =
+let%expect_test "sym_asm basic" =
   let nat_ty = Kernel.TyCon ("nat", []) in
   let a = make_var "a" nat_ty in
   let b = make_var "b" nat_ty in
   let a_eq_b = safe_make_eq a b |> Result.get_ok in
   let b_eq_a = safe_make_eq b a |> Result.get_ok in
   let goal = make_goal' ([ a_eq_b ], b_eq_a) in
-  let proof = sym_asm_tac >> assumption in
+  let proof = sym_asm >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1383,11 +1362,11 @@ let%expect_test "sym_asm_tac basic" =
     with fuel: 3
     |}]
 
-let%expect_test "eq_true_asm_tac" =
+let%expect_test "eq_true_asm" =
   let p = make_var "P" bool_ty in
   let p_eq_t = Result.get_ok (safe_make_eq p (make_true ())) in
   let goal = make_goal' ([ p ], p_eq_t) in
-  let proof = eq_true_asm_tac >> assumption in
+  let proof = eq_true_asm >> assumption in
   run_proof goal proof;
   [%expect
     {|
@@ -1399,14 +1378,13 @@ let%expect_test "eq_true_asm_tac" =
     with fuel: 3
     |}]
 
-let%expect_test "destruct_tac" =
+let%expect_test "destruct" =
   let n = make_var "n" nat_ty in
   let p = make_var "P" (TyCon ("fun", [ nat_ty; bool_ty ])) in
   let pn = Kernel.make_app p n |> Result.get_ok in
   let goal = make_goal' ([ pn ], pn) in
   let proof =
-    with_term n induct_tac >> intros_tac >> assumption >> intros_tac
-    >> assumption
+    with_term n induct >> intros >> assumption >> intros >> assumption
   in
   run_proof goal proof;
   [%expect
@@ -1419,14 +1397,14 @@ let%expect_test "destruct_tac" =
     with fuel: 27
     |}]
 
-(* ===== apply_tac tests ===== *)
+(* ===== apply tests ===== *)
 
-let%expect_test "apply_tac direct match" =
+let%expect_test "apply direct match" =
   let x = make_var "x" nat_ty in
-  let thm = Result.get_ok (gen x (Result.get_ok (refl x))) in
+  let thm = Result.get_ok (Derived.gen x (Result.get_ok (Kernel.refl x))) in
   let three = nat_of_int 3 in
   let goal = make_goal (Result.get_ok (safe_make_eq three three)) in
-  run_proof goal (with_rules [ thm ] apply_tac);
+  run_proof goal (with_rules [ thm ] apply);
   [%expect
     {|
     ========================================
@@ -1436,7 +1414,7 @@ let%expect_test "apply_tac direct match" =
     with fuel: 5
     |}]
 
-let%expect_test "apply_tac single premise" =
+let%expect_test "apply single premise" =
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
   let x_eq_y = Result.get_ok (safe_make_eq x y) in
@@ -1449,7 +1427,7 @@ let%expect_test "apply_tac single premise" =
   let thm = Result.get_ok (new_axiom thm_term) in
   let suc_zero = App (suc, zero) in
   let goal = make_goal (Result.get_ok (safe_make_eq suc_zero suc_zero)) in
-  run_proof goal (with_rules [ thm ] apply_tac >> refl_tac);
+  run_proof goal (with_rules [ thm ] apply >> refl);
   [%expect
     {|
     ========================================
@@ -1459,7 +1437,7 @@ let%expect_test "apply_tac single premise" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_tac multiple premises isolated" =
+let%expect_test "apply multiple premises isolated" =
   let nat_ty = nat_ty in
   let a = make_var "a" nat_ty in
   let b = make_var "b" nat_ty in
@@ -1477,7 +1455,7 @@ let%expect_test "apply_tac multiple premises isolated" =
   let q0 = Result.get_ok (make_app q zero) in
   let r00 = Result.get_ok (make_app (Result.get_ok (make_app r zero)) zero) in
   let goal = make_goal' ([ p0; q0 ], r00) in
-  run_proof goal (with_rules [ thm ] apply_tac >> assumption >> assumption);
+  run_proof goal (with_rules [ thm ] apply >> assumption >> assumption);
   [%expect
     {|
     P Zero
@@ -1489,7 +1467,7 @@ let%expect_test "apply_tac multiple premises isolated" =
     with fuel: 7
     |}]
 
-let%expect_test "apply_tac undetermined variable" =
+let%expect_test "apply undetermined variable" =
   let nat_ty = nat_ty in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
@@ -1503,7 +1481,7 @@ let%expect_test "apply_tac undetermined variable" =
   let three = nat_of_int 3 in
   let q3 = Result.get_ok (make_app q three) in
   let goal = make_goal q3 in
-  run_proof goal (with_rules [ thm ] apply_tac >> gen_tac >> sorry_tac);
+  run_proof goal (with_rules [ thm ] apply >> gen >> sorry);
   [%expect
     {|
     ========================================
@@ -1513,7 +1491,7 @@ let%expect_test "apply_tac undetermined variable" =
     with fuel: 7
     |}]
 
-let%expect_test "apply_tac undetermined per premise" =
+let%expect_test "apply undetermined per premise" =
   let nat_ty = nat_ty in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
@@ -1531,8 +1509,8 @@ let%expect_test "apply_tac undetermined per premise" =
   let r5 = Result.get_ok (make_app r five) in
   let goal = make_goal r5 in
   run_proof goal
-    (with_rules [ thm ] apply_tac
-    >> gen_tac >> sorry_tac >> with_first gen_tac >> with_first sorry_tac);
+    (with_rules [ thm ] apply >> gen >> sorry >> with_first gen
+   >> with_first sorry);
   [%expect
     {|
     ========================================
@@ -1542,14 +1520,14 @@ let%expect_test "apply_tac undetermined per premise" =
     with fuel: 9
     |}]
 
-let%expect_test "apply_tac implication premise intact" =
+let%expect_test "apply implication premise intact" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let c = make_var "C" bool_ty in
   let ab = make_imp a b in
   let thm = Result.get_ok (new_axiom (make_imp ab c)) in
   let goal = make_goal' ([ ab ], c) in
-  run_proof goal (with_rules [ thm ] apply_tac >> assumption);
+  run_proof goal (with_rules [ thm ] apply >> assumption);
   [%expect
     {|
     A ==> B
@@ -1560,11 +1538,11 @@ let%expect_test "apply_tac implication premise intact" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_tac no premises" =
+let%expect_test "apply no premises" =
   let t = make_true () in
   let thm = Derived.truth in
   let goal = make_goal t in
-  run_proof goal (with_rules [ thm ] apply_tac);
+  run_proof goal (with_rules [ thm ] apply);
   [%expect
     {|
     ========================================
@@ -1574,21 +1552,21 @@ let%expect_test "apply_tac no premises" =
     with fuel: 5
     |}]
 
-let%expect_test "apply_tac match failure" =
+let%expect_test "apply match failure" =
   let thm = Derived.truth in
   let goal = make_goal (make_false ()) in
-  run_proof goal (with_rules [ thm ] apply_tac);
+  run_proof goal (with_rules [ thm ] apply);
   [%expect {| F |}]
 
-let%expect_test "apply_tac polymorphic no premises" =
+let%expect_test "apply polymorphic no premises" =
   (* ∀(x:'a). x = x applied to T = T — type 'a instantiated to bool *)
   let a = TyVar "a" in
   let x = make_var "x" a in
-  let thm = Result.get_ok (gen x (Result.get_ok (refl x))) in
+  let thm = Result.get_ok (Derived.gen x (Result.get_ok (Kernel.refl x))) in
   let goal =
     make_goal (Result.get_ok (safe_make_eq (make_true ()) (make_true ())))
   in
-  run_proof goal (with_rules [ thm ] apply_tac);
+  run_proof goal (with_rules [ thm ] apply);
   [%expect
     {|
     ========================================
@@ -1598,7 +1576,7 @@ let%expect_test "apply_tac polymorphic no premises" =
     with fuel: 5
     |}]
 
-let%expect_test "apply_tac polymorphic with premise" =
+let%expect_test "apply polymorphic with premise" =
   (* ∀(x:'a)(y:'a). x = y ==> y = x applied to goal Zero = Suc Zero
      type 'a instantiated to nat, subgoal: Suc Zero = Zero *)
   let a = TyVar "a" in
@@ -1613,7 +1591,7 @@ let%expect_test "apply_tac polymorphic with premise" =
   let goal_term = Result.get_ok (safe_make_eq zero suc_zero) in
   let suc_zero_eq_zero = Result.get_ok (safe_make_eq suc_zero zero) in
   let goal = make_goal' ([ suc_zero_eq_zero ], goal_term) in
-  run_proof goal (with_rules [ thm ] apply_tac >> assumption);
+  run_proof goal (with_rules [ thm ] apply >> assumption);
   [%expect
     {|
     Suc Zero = Zero
@@ -1624,13 +1602,13 @@ let%expect_test "apply_tac polymorphic with premise" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_tac polymorphic to nat" =
+let%expect_test "apply polymorphic to nat" =
   (* ∀(x:'a). x = x applied to Zero = Zero — type 'a instantiated to nat *)
   let a = TyVar "a" in
   let x = make_var "x" a in
-  let thm = Result.get_ok (gen x (Result.get_ok (refl x))) in
+  let thm = Result.get_ok (Derived.gen x (Result.get_ok (Kernel.refl x))) in
   let goal = make_goal (Result.get_ok (safe_make_eq zero zero)) in
-  run_proof goal (with_rules [ thm ] apply_tac);
+  run_proof goal (with_rules [ thm ] apply);
   [%expect
     {|
     ========================================
@@ -1640,7 +1618,7 @@ let%expect_test "apply_tac polymorphic to nat" =
     with fuel: 5
     |}]
 
-let%expect_test "apply_tac polymorphic undetermined" =
+let%expect_test "apply polymorphic undetermined" =
   (* ∀(x:'a)(y:'a). P x ==> Q y where P : 'a -> bool, Q : 'a -> bool
      Goal: Q Zero — 'a instantiated to nat, y=Zero determined, x undetermined
      Subgoal should be ∀x. P x *)
@@ -1657,7 +1635,7 @@ let%expect_test "apply_tac polymorphic undetermined" =
   let q_nat = make_var "Q" (make_fun_ty nat_ty bool_ty) in
   let q_zero = Result.get_ok (make_app q_nat zero) in
   let goal = make_goal q_zero in
-  run_proof goal (with_rules [ thm ] apply_tac >> gen_tac >> sorry_tac);
+  run_proof goal (with_rules [ thm ] apply >> gen >> sorry);
   [%expect
     {|
     ========================================
@@ -1667,7 +1645,7 @@ let%expect_test "apply_tac polymorphic undetermined" =
     with fuel: 7
     |}]
 
-let%expect_test "apply_tac polymorphic multiple type vars" =
+let%expect_test "apply polymorphic multiple type vars" =
   (* ∀(x:'a)(y:'b). f x y ==> g x y where f : 'a -> 'b -> bool, g : 'a -> 'b -> bool
      Goal: g Zero T — 'a=nat, 'b=bool, x=Zero, y=T all determined
      Subgoal: f Zero T *)
@@ -1698,7 +1676,7 @@ let%expect_test "apply_tac polymorphic multiple type vars" =
       (make_app (Result.get_ok (make_app f_concrete zero)) (make_true ()))
   in
   let goal = make_goal' ([ f_zero_t ], g_zero_t) in
-  run_proof goal (with_rules [ thm ] apply_tac >> assumption);
+  run_proof goal (with_rules [ thm ] apply >> assumption);
   [%expect
     {|
     f Zero T
@@ -1709,15 +1687,15 @@ let%expect_test "apply_tac polymorphic multiple type vars" =
     with fuel: 6
     |}]
 
-(* ===== apply_asm_tac tests ===== *)
+(* ===== apply_asm tests ===== *)
 
-let%expect_test "apply_asm_tac simple mp" =
+let%expect_test "apply_asm simple mp" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let pq = make_imp p q in
   let thm = Result.get_ok (new_axiom pq) in
   let goal = make_goal' ([ p; pq ], q) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
+  run_proof goal (with_rules [ thm ] apply_asm >> assumption);
   [%expect
     {|
     P
@@ -1728,7 +1706,7 @@ let%expect_test "apply_asm_tac simple mp" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_asm_tac quantified" =
+let%expect_test "apply_asm quantified" =
   let nat_ty = nat_ty in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
@@ -1744,7 +1722,7 @@ let%expect_test "apply_asm_tac quantified" =
   let suc_zero = App (suc, zero) in
   let suc_zero_eq = Result.get_ok (safe_make_eq suc_zero suc_zero) in
   let goal = make_goal' ([ zero_eq ], suc_zero_eq) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
+  run_proof goal (with_rules [ thm ] apply_asm >> assumption);
   [%expect
     {|
     Zero = Zero
@@ -1755,7 +1733,7 @@ let%expect_test "apply_asm_tac quantified" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_asm_tac multiple premises" =
+let%expect_test "apply_asm multiple premises" =
   let nat_ty = nat_ty in
   let x = make_var "x" nat_ty in
   let p = make_var "P" (make_fun_ty nat_ty bool_ty) in
@@ -1773,8 +1751,8 @@ let%expect_test "apply_asm_tac multiple premises" =
   let r3 = Result.get_ok (make_app r three) in
   let goal = make_goal' ([ p3; q3 ], r3) in
   run_proof goal
-    (with_rules [ thm ] apply_asm_tac
-    >> with_assumptions (with_first_term apply_asm_tac)
+    (with_rules [ thm ] apply_asm
+    >> with_assumptions (with_first_term apply_asm)
     >> assumption);
   [%expect
     {|
@@ -1787,7 +1765,7 @@ let%expect_test "apply_asm_tac multiple premises" =
     with fuel: 11
     |}]
 
-let%expect_test "apply_asm_tac undetermined in remainder" =
+let%expect_test "apply_asm undetermined in remainder" =
   let nat_ty = nat_ty in
   let x = make_var "x" nat_ty in
   let y = make_var "y" nat_ty in
@@ -1802,8 +1780,7 @@ let%expect_test "apply_asm_tac undetermined in remainder" =
   let p3 = Result.get_ok (make_app p three) in
   let q_zero = Result.get_ok (make_app q zero) in
   let goal = make_goal' ([ p3 ], q_zero) in
-  run_proof goal
-    (with_rules [ thm ] apply_asm_tac >> spec_asm_tac zero >> assumption);
+  run_proof goal (with_rules [ thm ] apply_asm >> spec_asm zero >> assumption);
   [%expect
     {|
     P (Suc (Suc (Suc Zero)))
@@ -1814,12 +1791,12 @@ let%expect_test "apply_asm_tac undetermined in remainder" =
     with fuel: 9
     |}]
 
-let%expect_test "apply_asm_tac no match" =
+let%expect_test "apply_asm no match" =
   let t = make_true () in
   let f = make_false () in
   let thm = Result.get_ok (new_axiom (make_imp t f)) in
   let goal = make_goal' ([ f ], f) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac);
+  run_proof goal (with_rules [ thm ] apply_asm);
   [%expect
     {|
        F
@@ -1827,11 +1804,11 @@ let%expect_test "apply_asm_tac no match" =
     F
     |}]
 
-let%expect_test "apply_asm_tac no premises fails" =
+let%expect_test "apply_asm no premises fails" =
   let a = make_var "A" bool_ty in
   let thm = Result.get_ok (new_axiom a) in
   let goal = make_goal' ([ a ], a) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac);
+  run_proof goal (with_rules [ thm ] apply_asm);
   [%expect
     {|
        A
@@ -1839,7 +1816,7 @@ let%expect_test "apply_asm_tac no premises fails" =
     A
     |}]
 
-let%expect_test "apply_asm_tac polymorphic simple" =
+let%expect_test "apply_asm polymorphic simple" =
   (* ∀(x:'a)(y:'a). x = y ==> y = x with assumption T = F
      type 'a instantiated to bool, new assumption: F = T *)
   let a = TyVar "a" in
@@ -1852,7 +1829,7 @@ let%expect_test "apply_asm_tac polymorphic simple" =
   let t_eq_f = Result.get_ok (safe_make_eq (make_true ()) (make_false ())) in
   let f_eq_t = Result.get_ok (safe_make_eq (make_false ()) (make_true ())) in
   let goal = make_goal' ([ t_eq_f ], f_eq_t) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
+  run_proof goal (with_rules [ thm ] apply_asm >> assumption);
   [%expect
     {|
     T = F
@@ -1863,7 +1840,7 @@ let%expect_test "apply_asm_tac polymorphic simple" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_asm_tac polymorphic to nat" =
+let%expect_test "apply_asm polymorphic to nat" =
   (* ∀(x:'a)(y:'a). x = y ==> y = x with assumption Zero = Suc Zero
      type 'a instantiated to nat, new assumption: Suc Zero = Zero *)
   let a = TyVar "a" in
@@ -1877,7 +1854,7 @@ let%expect_test "apply_asm_tac polymorphic to nat" =
   let zero_eq_suc = Result.get_ok (safe_make_eq zero suc_zero) in
   let suc_eq_zero = Result.get_ok (safe_make_eq suc_zero zero) in
   let goal = make_goal' ([ zero_eq_suc ], suc_eq_zero) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
+  run_proof goal (with_rules [ thm ] apply_asm >> assumption);
   [%expect
     {|
     Zero = Suc Zero
@@ -1888,7 +1865,7 @@ let%expect_test "apply_asm_tac polymorphic to nat" =
     with fuel: 6
     |}]
 
-let%expect_test "apply_asm_tac polymorphic undetermined in remainder" =
+let%expect_test "apply_asm polymorphic undetermined in remainder" =
   (* ∀(x:'a)(y:'a). P x ==> Q y with assumption P Zero
      'a instantiated to nat, x=Zero determined, y undetermined
      New assumption: ∀y. Q y *)
@@ -1908,8 +1885,7 @@ let%expect_test "apply_asm_tac polymorphic undetermined in remainder" =
   let p_zero = Result.get_ok (make_app p_nat zero) in
   let q_zero = Result.get_ok (make_app q_nat zero) in
   let goal = make_goal' ([ p_zero ], q_zero) in
-  run_proof goal
-    (with_rules [ thm ] apply_asm_tac >> spec_asm_tac zero >> assumption);
+  run_proof goal (with_rules [ thm ] apply_asm >> spec_asm zero >> assumption);
   [%expect
     {|
     P Zero
@@ -1920,7 +1896,7 @@ let%expect_test "apply_asm_tac polymorphic undetermined in remainder" =
     with fuel: 9
     |}]
 
-let%expect_test "apply_asm_tac polymorphic multiple type vars" =
+let%expect_test "apply_asm polymorphic multiple type vars" =
   (* ∀(x:'a)(y:'b). f x y ==> g x y with assumption f Zero T
      'a=nat, 'b=bool determined. New assumption: g Zero T *)
   let a = TyVar "a" in
@@ -1950,7 +1926,7 @@ let%expect_test "apply_asm_tac polymorphic multiple type vars" =
       (make_app (Result.get_ok (make_app g_concrete zero)) (make_true ()))
   in
   let goal = make_goal' ([ f_zero_t ], g_zero_t) in
-  run_proof goal (with_rules [ thm ] apply_asm_tac >> assumption);
+  run_proof goal (with_rules [ thm ] apply_asm >> assumption);
   [%expect
     {|
     f Zero T
@@ -1961,14 +1937,14 @@ let%expect_test "apply_asm_tac polymorphic multiple type vars" =
     with fuel: 6
     |}]
 
-(* ===== fun_ext_tac tests ===== *)
+(* ===== fun_ext tests ===== *)
 
-let%expect_test "fun_ext_tac basic" =
+let%expect_test "fun_ext basic" =
   let nat_ty = nat_ty in
   let n = make_var "n" nat_ty in
   let id_fn = Lam (n, n) in
   let goal = make_goal (Result.get_ok (safe_make_eq id_fn id_fn)) in
-  run_proof goal (fun_ext_tac >> refl_tac);
+  run_proof goal (fun_ext >> refl);
   [%expect
     {|
     ========================================
@@ -1978,14 +1954,14 @@ let%expect_test "fun_ext_tac basic" =
     with fuel: 3
     |}]
 
-let%expect_test "fun_ext_tac two different lambdas" =
+let%expect_test "fun_ext two different lambdas" =
   let nat_ty = nat_ty in
   let n = make_var "n" nat_ty in
   let m = make_var "m" nat_ty in
   let f = Lam (n, App (suc, n)) in
   let g = Lam (m, App (suc, m)) in
   let goal = make_goal (Result.get_ok (safe_make_eq f g)) in
-  run_proof goal (fun_ext_tac >> refl_tac);
+  run_proof goal (fun_ext >> refl);
   [%expect
     {|
     ========================================
@@ -1995,25 +1971,25 @@ let%expect_test "fun_ext_tac two different lambdas" =
     with fuel: 3
     |}]
 
-let%expect_test "fun_ext_tac non function fails" =
+let%expect_test "fun_ext non function fails" =
   let a = make_var "A" bool_ty in
   let b = make_var "B" bool_ty in
   let goal = make_goal (Result.get_ok (safe_make_eq a b)) in
-  run_proof goal fun_ext_tac;
+  run_proof goal fun_ext;
   [%expect {| A = B |}]
 
-let%expect_test "fun_ext_tac not equality fails" =
+let%expect_test "fun_ext not equality fails" =
   let a = make_var "A" bool_ty in
   let goal = make_goal a in
-  run_proof goal fun_ext_tac;
+  run_proof goal fun_ext;
   [%expect {| A |}]
 
-let%expect_test "fun_ext_tac freshens variable" =
+let%expect_test "fun_ext freshens variable" =
   let nat_ty = nat_ty in
   let x = make_var "_ext_x" nat_ty in
   let f = Lam (x, x) in
   let goal = make_goal' ([ x ], Result.get_ok (safe_make_eq f f)) in
-  run_proof goal (fun_ext_tac >> refl_tac);
+  run_proof goal (fun_ext >> refl);
   [%expect
     {|
     ========================================
@@ -2023,13 +1999,13 @@ let%expect_test "fun_ext_tac freshens variable" =
     with fuel: 3
     |}]
 
-let%expect_test "fun_ext_tac bool to bool" =
+let%expect_test "fun_ext bool to bool" =
   let p = make_var "p" bool_ty in
   let q = make_var "q" bool_ty in
   let f = Lam (p, p) in
   let g = Lam (q, q) in
   let goal = make_goal (Result.get_ok (safe_make_eq f g)) in
-  run_proof goal (fun_ext_tac >> refl_tac);
+  run_proof goal (fun_ext >> refl);
   [%expect
     {|
     ========================================
@@ -2039,14 +2015,14 @@ let%expect_test "fun_ext_tac bool to bool" =
     with fuel: 3
     |}]
 
-let%expect_test "fun_ext_tac polymorphic" =
+let%expect_test "fun_ext polymorphic" =
   let a = TyVar "a" in
   let x = make_var "x" a in
   let y = make_var "y" a in
   let f = Lam (x, x) in
   let g = Lam (y, y) in
   let goal = make_goal (Result.get_ok (safe_make_eq f g)) in
-  run_proof goal (fun_ext_tac >> refl_tac);
+  run_proof goal (fun_ext >> refl);
   [%expect
     {|
     ========================================
@@ -2056,12 +2032,12 @@ let%expect_test "fun_ext_tac polymorphic" =
     with fuel: 3
     |}]
 
-(* ===== eq_iff_tac tests ===== *)
+(* ===== eq_iff tests ===== *)
 
-let%expect_test "eq_iff_tac basic" =
+let%expect_test "eq_iff basic" =
   let a = make_var "A" bool_ty in
   let goal = make_goal (Result.get_ok (safe_make_eq a a)) in
-  run_proof goal (eq_iff_tac >> assumption >> assumption);
+  run_proof goal (eq_iff >> assumption >> assumption);
   [%expect
     {|
     ========================================
@@ -2071,16 +2047,15 @@ let%expect_test "eq_iff_tac basic" =
     with fuel: 3
     |}]
 
-let%expect_test "eq_iff_tac conj comm" =
+let%expect_test "eq_iff conj comm" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let pq = make_conj p q in
   let qp = make_conj q p in
   let goal = make_goal' ([ p; q ], Result.get_ok (safe_make_eq pq qp)) in
   run_proof goal
-    (eq_iff_tac >> elim_conj_asm_tac >> conj_tac >> assumption >> assumption
-    >> with_first elim_conj_asm_tac
-    >> with_first conj_tac >> assumption >> assumption);
+    (eq_iff >> elim_conj_asm >> conj >> assumption >> assumption
+   >> with_first elim_conj_asm >> with_first conj >> assumption >> assumption);
   [%expect
     {|
     ========================================
@@ -2090,7 +2065,7 @@ let%expect_test "eq_iff_tac conj comm" =
     with fuel: 9
     |}]
 
-let%expect_test "eq_iff_tac preserves assumptions" =
+let%expect_test "eq_iff preserves assumptions" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let r = make_var "R" bool_ty in
@@ -2098,10 +2073,10 @@ let%expect_test "eq_iff_tac preserves assumptions" =
   let rq = make_imp r q in
   let goal = make_goal' ([ r; rp; rq ], Result.get_ok (safe_make_eq p q)) in
   run_proof goal
-    (eq_iff_tac
-    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    (eq_iff
+    >> with_first (with_assumptions (with_first_term apply_asm))
     >> assumption
-    >> with_first (with_assumptions (with_first_term apply_asm_tac))
+    >> with_first (with_assumptions (with_first_term apply_asm))
     >> assumption);
   [%expect
     {|
@@ -2115,42 +2090,41 @@ let%expect_test "eq_iff_tac preserves assumptions" =
     with fuel: 13
     |}]
 
-let%expect_test "eq_iff_tac non bool fails" =
+let%expect_test "eq_iff non bool fails" =
   let nat_ty = nat_ty in
   let a = make_var "a" nat_ty in
   let b = make_var "b" nat_ty in
   let goal = make_goal (Result.get_ok (safe_make_eq a b)) in
-  run_proof goal eq_iff_tac;
+  run_proof goal eq_iff;
   [%expect {| a = b |}]
 
-let%expect_test "eq_iff_tac not equality fails" =
+let%expect_test "eq_iff not equality fails" =
   let a = make_var "A" bool_ty in
   let goal = make_goal a in
-  run_proof goal eq_iff_tac;
+  run_proof goal eq_iff;
   [%expect {| A |}]
 
-let%expect_test "eq_iff_tac with automation" =
+let%expect_test "eq_iff with automation" =
   let p = make_var "P" bool_ty in
   let q = make_var "Q" bool_ty in
   let pq = make_conj p q in
   let qp = make_conj q p in
   let goal = make_goal (Result.get_ok (safe_make_eq pq qp)) in
   run_proof goal
-    (eq_iff_tac >> with_best_first ctauto_tac
-    >> with_first (with_best_first ctauto_tac));
+    (eq_iff >> with_best_first ctauto >> with_first (with_best_first ctauto));
   [%expect
     {|
     Proof:
-      conj_tac >>
-      elim_conj_asm_tac >>
+      conj >>
+      elim_conj_asm >>
       assumption >>
-      elim_conj_asm_tac >>
+      elim_conj_asm >>
       assumption
     Proof:
-      conj_tac >>
-      elim_conj_asm_tac >>
+      conj >>
+      elim_conj_asm >>
       assumption >>
-      elim_conj_asm_tac >>
+      elim_conj_asm >>
       assumption
     ========================================
     P ∧ Q = Q ∧ P
@@ -2163,7 +2137,7 @@ let%expect_test "example" =
   let%thm _test (p : bool) (q : bool) = p ==> (q ==> (p && q))
   and proof =
     begin
-      gen_tac >> gen_tac >> intro_tac @: [ "hp" ] >> intro_tac @: [ "hq" ]
+      gen >> gen >> intro @: [ "hp" ] >> intro @: [ "hq" ]
     end
   in
   ();
@@ -2180,7 +2154,7 @@ let%expect_test "with_names elim_conj" =
   let%thm _test (p : bool) (q : bool) = (p && q) ==> (q && p)
   and proof =
     begin
-      gen_tac >> gen_tac >> intro_tac >> elim_conj_asm_tac @: [ "hp"; "hq" ]
+      gen >> gen >> intro >> elim_conj_asm @: [ "hp"; "hq" ]
     end
   in
   ();
@@ -2197,8 +2171,7 @@ let%expect_test "with_names partial fallback" =
     p ==> (q ==> (r ==> (p && q && r)))
   and proof =
     begin
-      gen_tac >> gen_tac >> gen_tac >> intro_tac @: [ "hp" ] >> intro_tac
-      >> intro_tac
+      gen >> gen >> gen >> intro @: [ "hp" ] >> intro >> intro
     end
   in
   ();

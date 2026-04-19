@@ -7,7 +7,7 @@
    and structuring the specs as a conjunction of goals that should
    hold under an implementation we can solve a synthesis problem
    by providing a proof powerful enough to solve basic rewriting goals
-   (auto_dfs_tac) and running the whole thing under a handler like
+   (auto_dfs) and running the whole thing under a handler like
    with_best_first to try all of the enumerated terms under the spec.
 
  *)
@@ -254,7 +254,7 @@ and enum_applications ~extra (ctx : ctx) (ty : hol_type) (depth : int) :
     ∃nil_case. ∃cons_case. ... (equations for each constructor) ==> (conjunction
     of test cases)
 
-    The generated goal can be solved by exists_tac with enumeration followed by
+    The generated goal can be solved by exists with enumeration followed by
     intros and simplification. *)
 
 (** Decompose a curried function type into argument types and return type. e.g.

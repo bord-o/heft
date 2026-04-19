@@ -29,7 +29,7 @@ let%thm nat_pair_measure_wf = wf nat_pair_measure
 
 and proof =
   begin
-    noop_tac >> rewrite_at_tac "nat_pair_measure" >> apply_at_tac "wf_measure"
+    noop >> rewrite_at "nat_pair_measure" >> apply_at "wf_measure"
   end
   [@quiet]
 
@@ -37,14 +37,13 @@ let%thm neg_eq_false (p : bool) = p = false = not p
 
 and proof =
   begin
-    noop_tac >> intros_tac
-    >> with_rule (neg_def |> Result.get_ok) rewrite_tac
-    >> beta_tac
-    >> eq_iff_tac @: [ "himp"; "heq" ]
-    >> eq_false_elim_tac
-    >> with_rule (neg_def |> Result.get_ok) rewrite_tac
-    >> beta_tac >> assumption >> rewrite_at_tac "heq" >> intros_tac
-    >> false_elim_tac
+    noop >> intros
+    >> with_rule (neg_def |> Result.get_ok) rewrite
+    >> beta
+    >> eq_iff @: [ "himp"; "heq" ]
+    >> eq_false_elim
+    >> with_rule (neg_def |> Result.get_ok) rewrite
+    >> beta >> assumption >> rewrite_at "heq" >> intros >> false_elim
   end
   [@quiet]
 
@@ -53,9 +52,9 @@ let%thm demorgons_eq_false (p : bool) (q : bool) =
 
 and proof =
   begin
-    noop_tac >> intros_tac @! "heq"
-    >> rewrite_at_tac "neg_eq_false" ~target:"heq"
-    >> with_no_automation_trace ctauto_dfs_tac
+    noop >> intros @! "heq"
+    >> rewrite_at "neg_eq_false" ~target:"heq"
+    >> with_no_automation_trace ctauto_dfs
   end
   [@quiet]
 
@@ -63,31 +62,23 @@ let%thm min_pair_cong = wf_rec_cong nat_pair_measure min_pair
 
 and proof =
   begin
-    noop_tac
-    >> rewrite_at_tac "wf_rec_cong"
-    >> with_repeat beta_tac >> intros_tac @! "hcong"
+    noop >> rewrite_at "wf_rec_cong" >> with_repeat beta >> intros @! "hcong"
     (* walking through the definition to get to the measured parts *)
-    >> (rewrite_at_tac "min_pair" >> rewrite_at_tac "min_pair"
-      >> with_repeat beta_tac
-       >> with_term [%term (x : (nat, nat) pair)] destruct_elim_tac
-          @: [ ""; "heq" ]
-       >> simp_tac
-       >> cond_tac @: [ "htrue"; "hfalse" ]
-       >> simp_tac >> simp_tac >> apply_at_tac "eq_cong" >> apply_at_tac "hcong"
-       )
+    >> (rewrite_at "min_pair" >> rewrite_at "min_pair" >> with_repeat beta
+       >> with_term [%term (x : (nat, nat) pair)] destruct_elim @: [ ""; "heq" ]
+       >> simp
+       >> cond @: [ "htrue"; "hfalse" ]
+       >> simp >> simp >> apply_at "eq_cong" >> apply_at "hcong")
     (* if ~(a0 = 0 \/ a1 = Zero) then ∃n0. a0 = Suc n0 /\ ∃n1. a1 = Suc a1 *)
-    >> (apply_at_tac "demorgons_eq_false" ~target:"hfalse"
-       >> elim_conj_asm_tac @: [ "ha0"; "ha0" ]
-       >> with_term [%term (a0 : nat)] destruct_elim_tac
+    >> (apply_at "demorgons_eq_false" ~target:"hfalse"
+       >> elim_conj_asm @: [ "ha0"; "ha0" ]
+       >> with_term [%term (a0 : nat)] destruct_elim
           @: [ "ha0Zero"; ""; "ha0Nonzero" ]
-       >>> with_term [%term (a1 : nat)] destruct_elim_tac
+       >>> with_term [%term (a1 : nat)] destruct_elim
            @: [ "ha1Zero"; ""; "ha1Nonzero" ]
-       >> with_first neg_elim_tac >> with_first neg_elim_tac
-       >> with_first neg_elim_tac >> simp_tac
-       >> rewrite_at_tac "lt_Suc_or_eq"
-       >> left_tac
-       >> rewrite_at_tac "lt_Suc_or_eq"
-       >> right_tac >> refl_tac)
+       >> with_first neg_elim >> with_first neg_elim >> with_first neg_elim
+       >> simp >> rewrite_at "lt_Suc_or_eq" >> left >> rewrite_at "lt_Suc_or_eq"
+       >> right >> refl)
   end
   [@quiet]
 
@@ -97,12 +88,12 @@ let%thm min_pair_wf_rec =
 
 and proof =
   begin
-    noop_tac
+    noop
     >> with_specialized ~name:"wf_rec"
          ~specs:[ [%term nat_pair_measure]; [%term min_pair] ]
-         apply_tac
-    >> with_proven [ "nat_pair_measure_wf" ] exact_tac
-    >> with_proven [ "min_pair_cong" ] exact_tac
+         apply
+    >> with_proven [ "nat_pair_measure_wf" ] exact
+    >> with_proven [ "min_pair_cong" ] exact
   end
   [@quiet]
 
@@ -115,7 +106,7 @@ let%thm min_pair_chosen_eq (x : (nat, nat) pair) =
 
 and proof =
   begin
-    noop_tac >> intros_tac >> rewrite_at_tac "min_pair_chosen"
+    noop >> intros >> rewrite_at "min_pair_chosen"
   end
   [@quiet]
 
@@ -136,9 +127,8 @@ let%thm min_pair_uncurried (x : (nat, nat) pair) =
 
 and proof =
   begin
-    noop_tac
-    >> rewrite_at_tac "min_pair_spec"
-    >> beta_tac >> rewrite_at_tac "min_pair" >> beta_tac >> gen_tac >> refl_tac
+    noop >> rewrite_at "min_pair_spec" >> beta >> rewrite_at "min_pair" >> beta
+    >> gen >> refl
   end
   [@quiet]
 
@@ -147,8 +137,8 @@ let%thm nat_distinct_flip (m : nat) = Suc m = Zero = F
 
 and proof =
   begin
-    noop_tac >> intros_tac >> eq_false_elim_tac >> neg_intro_tac >> sym_asm_tac
-    >> with_rules Nats.nat_def.distinct (with_first rewrite_asm_tac)
+    noop >> intros >> eq_false_elim >> neg_intro >> sym_asm
+    >> with_rules Nats.nat_def.distinct (with_first rewrite_asm)
     >> assumption
   end
   [@quiet]
@@ -157,8 +147,7 @@ let%thm false_or_false = (false || false) = false
 
 and proof =
   begin
-    noop_tac >> eq_false_elim_tac >> neg_intro_tac >> elim_disj_asm_tac
-    >>> assumption
+    noop >> eq_false_elim >> neg_intro >> elim_disj_asm >>> assumption
   end
   [@quiet]
 
@@ -166,7 +155,7 @@ let%thm refl_eq_true (x : 'a) = x = x = true
 
 and proof =
   begin
-    noop_tac >> intros_tac >> eq_true_elim_tac >> refl_tac
+    noop >> intros >> eq_true_elim >> refl
   end
   [@quiet]
 
@@ -174,7 +163,7 @@ let%thm t_or_f = (true || false) = true
 
 and proof =
   begin
-    noop_tac >> eq_true_elim_tac >> left_tac >> truth
+    noop >> eq_true_elim >> left >> truth
   end
   [@quiet]
 
@@ -182,25 +171,24 @@ let%thm min_pair_test = min_pair_spec (Pair (2n, 3n)) = 2n
 
 and proof =
   begin
-    noop_tac
-    >> rewrite_at_tac "min_pair_uncurried"
-    >> simp_tac ~exclude:[ "min_pair_spec" ]
-    >> rewrite_at_tac "nat_distinct_flip"
-    >> rewrite_at_tac "nat_distinct_flip"
-    >> rewrite_at_tac "false_or_false"
-    >> simp_tac ~exclude:[ "min_pair_spec" ]
-    >> rewrite_at_tac "min_pair_uncurried"
-    >> simp_tac ~exclude:[ "min_pair_spec" ]
-    >> rewrite_at_tac "nat_distinct_flip"
-    >> rewrite_at_tac "nat_distinct_flip"
-    >> rewrite_at_tac "false_or_false"
-    >> simp_tac ~exclude:[ "min_pair_spec" ]
-    >> rewrite_at_tac "min_pair_uncurried"
-    >> simp_tac ~exclude:[ "min_pair_spec" ]
-    >> rewrite_at_tac "nat_distinct_flip"
-    >> rewrite_at_tac "refl_eq_true"
-    >> rewrite_at_tac "t_or_f"
-    >> simp_tac ~exclude:[ "min_pair_spec" ]
+    noop
+    >> rewrite_at "min_pair_uncurried"
+    >> simp ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at "nat_distinct_flip"
+    >> rewrite_at "nat_distinct_flip"
+    >> rewrite_at "false_or_false"
+    >> simp ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at "min_pair_uncurried"
+    >> simp ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at "nat_distinct_flip"
+    >> rewrite_at "nat_distinct_flip"
+    >> rewrite_at "false_or_false"
+    >> simp ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at "min_pair_uncurried"
+    >> simp ~exclude:[ "min_pair_spec" ]
+    >> rewrite_at "nat_distinct_flip"
+    >> rewrite_at "refl_eq_true" >> rewrite_at "t_or_f"
+    >> simp ~exclude:[ "min_pair_spec" ]
   end
 (* [@quiet] *)
 

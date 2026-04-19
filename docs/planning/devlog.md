@@ -43,40 +43,40 @@ let%expect_test "merge fuel sufficient" =
   let consa01' = Elaborator.term_from_string prg "consa01'" in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
-    induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
-    >> simp_tac
-    >> with_arbitrary_term xs destruct_tac
-    >> elim_disj_asm_tac >> simp_tac
-    >> with_arbitrary_term ys exists_tac
-    >> refl_tac
-    >> with_repeat elim_exists_asm_tac
-    >> simp_tac
-    >> with_arbitrary_term ys destruct_tac
-    >> elim_disj_asm_tac >> simp_tac
-    >> with_arbitrary_term consa01 exists_tac
-    >> refl_tac
-    >> with_repeat elim_exists_asm_tac
-    >> simp_tac >> cond_tac >> simp_tac
-    >> with_first (with_assumptions rewrite_asm_tac)
-    >> with_first (with_assumptions rewrite_asm_tac)
-    >> with_proven [ "length_cons" ] rewrite_asm_tac
-    >> with_proven [ "add_suc_l" ] rewrite_asm_tac
-    >> with_proven [ "lt_suc_suc" ] rewrite_asm_tac
-    >> spec_asm_tac a1 >> spec_asm_tac consa01' >> mp_asm_tac
-    >> elim_exists_asm_tac >> simp_tac
-    >> with_arbitrary_term wit exists_tac
-    >> refl_tac >> simp_tac
-    >> with_first (with_assumptions rewrite_asm_tac)
-    >> with_first (with_assumptions rewrite_asm_tac)
-    >> with_proven [ "plus_comm" ] rewrite_asm_tac
-    >> with_proven [ "length_cons" ] rewrite_asm_tac
-    >> with_proven [ "add_suc_l" ] rewrite_asm_tac
-    >> with_proven [ "plus_comm" ] rewrite_asm_tac
-    >> with_proven [ "lt_suc_suc" ] rewrite_asm_tac
-    >> spec_asm_tac consa01 >> spec_asm_tac a1' >> mp_asm_tac
-    >> elim_exists_asm_tac >> simp_tac
-    >> with_arbitrary_term wit2 exists_tac
-    >> refl_tac
+    induct >> intros >> simp_asm >> false_elim >> intros
+    >> simp
+    >> with_arbitrary_term xs destruct
+    >> elim_disj_asm >> simp
+    >> with_arbitrary_term ys exists
+    >> refl
+    >> with_repeat elim_exists_asm
+    >> simp
+    >> with_arbitrary_term ys destruct
+    >> elim_disj_asm >> simp
+    >> with_arbitrary_term consa01 exists
+    >> refl
+    >> with_repeat elim_exists_asm
+    >> simp >> cond >> simp
+    >> with_first (with_assumptions rewrite_asm)
+    >> with_first (with_assumptions rewrite_asm)
+    >> with_proven [ "length_cons" ] rewrite_asm
+    >> with_proven [ "add_suc_l" ] rewrite_asm
+    >> with_proven [ "lt_suc_suc" ] rewrite_asm
+    >> spec_asm a1 >> spec_asm consa01' >> mp_asm
+    >> elim_exists_asm >> simp
+    >> with_arbitrary_term wit exists
+    >> refl >> simp
+    >> with_first (with_assumptions rewrite_asm)
+    >> with_first (with_assumptions rewrite_asm)
+    >> with_proven [ "plus_comm" ] rewrite_asm
+    >> with_proven [ "length_cons" ] rewrite_asm
+    >> with_proven [ "add_suc_l" ] rewrite_asm
+    >> with_proven [ "plus_comm" ] rewrite_asm
+    >> with_proven [ "lt_suc_suc" ] rewrite_asm
+    >> spec_asm consa01 >> spec_asm a1' >> mp_asm
+    >> elim_exists_asm >> simp
+    >> with_arbitrary_term wit2 exists
+    >> refl
   in
   run_proof ~name:"merge_fuel_sufficient" ~notrace:true goal proof;
   [%expect
@@ -125,50 +125,50 @@ let%expect_test "merge unfolding lemma" =
   let ys = Elaborator.term_from_string prg "ys" in
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
-    intros_tac
-    >> with_arbitrary_term xs destruct_tac
-    >> with_arbitrary_term ys destruct_tac
-    >> with_repeat elim_disj_asm_tac
-    >> simp_tac
-    >> with_repeat elim_exists_asm_tac
-    >> simp_tac
-    >> with_repeat elim_exists_asm_tac
-    >> simp_tac
-    >> with_repeat elim_exists_asm_tac
-    >> with_definition [ "merge" ] rewrite_tac
-    >> beta_tac
-    >> with_first (with_definition [ "merge_aux" ] rewrite_tac)
-    >> with_repeat (with_first (with_assumptions rewrite_tac))
-    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> cond_tac
-    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> with_arbitrary_term suf have_tac
-    >> with_proven [ "merge_fuel_sufficient" ] apply_thm_tac
-    >> simp_tac >> elim_exists_asm_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> with_definition [ "merge" ] rewrite_tac
-    >> beta_tac
-    >> with_proven [ "length_cons" ] rewrite_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> simp_tac
-    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> with_arbitrary_term suf2 have_tac
-    >> with_proven [ "merge_fuel_sufficient" ] apply_thm_tac
-    >> simp_tac
-    >> with_proven [ "plus_suc" ] rewrite_tac
-    >> simp_tac >> elim_exists_asm_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> simp_tac ~exclude:[ "merge"; "merge_aux" ]
-    >> with_definition [ "merge" ] rewrite_tac
-    >> beta_tac
-    >> with_proven [ "length_cons" ] rewrite_tac
-    >> with_first (with_proven [ "plus_suc" ] rewrite_asm_tac)
-    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
-    >> with_first (with_proven [ "plus_suc" ] rewrite_tac)
-    >> with_first (with_proven [ "plus_comm" ] rewrite_tac)
-    >> with_first (with_assumptions rewrite_tac)
-    >> simp_tac
+    intros
+    >> with_arbitrary_term xs destruct
+    >> with_arbitrary_term ys destruct
+    >> with_repeat elim_disj_asm
+    >> simp
+    >> with_repeat elim_exists_asm
+    >> simp
+    >> with_repeat elim_exists_asm
+    >> simp
+    >> with_repeat elim_exists_asm
+    >> with_definition [ "merge" ] rewrite
+    >> beta
+    >> with_first (with_definition [ "merge_aux" ] rewrite)
+    >> with_repeat (with_first (with_assumptions rewrite))
+    >> simp ~exclude:[ "merge"; "merge_aux" ]
+    >> cond
+    >> simp ~exclude:[ "merge"; "merge_aux" ]
+    >> with_arbitrary_term suf have
+    >> with_proven [ "merge_fuel_sufficient" ] apply_thm
+    >> simp >> elim_exists_asm
+    >> with_first (with_assumptions rewrite)
+    >> simp ~exclude:[ "merge"; "merge_aux" ]
+    >> with_definition [ "merge" ] rewrite
+    >> beta
+    >> with_proven [ "length_cons" ] rewrite
+    >> with_first (with_assumptions rewrite)
+    >> simp
+    >> simp ~exclude:[ "merge"; "merge_aux" ]
+    >> with_arbitrary_term suf2 have
+    >> with_proven [ "merge_fuel_sufficient" ] apply_thm
+    >> simp
+    >> with_proven [ "plus_suc" ] rewrite
+    >> simp >> elim_exists_asm
+    >> with_first (with_assumptions rewrite)
+    >> simp ~exclude:[ "merge"; "merge_aux" ]
+    >> with_definition [ "merge" ] rewrite
+    >> beta
+    >> with_proven [ "length_cons" ] rewrite
+    >> with_first (with_proven [ "plus_suc" ] rewrite_asm)
+    >> with_first (with_proven [ "plus_comm" ] rewrite)
+    >> with_first (with_proven [ "plus_suc" ] rewrite)
+    >> with_first (with_proven [ "plus_comm" ] rewrite)
+    >> with_first (with_assumptions rewrite)
+    >> simp
   in
   run_proof ~name:"merge_unfold" ~notrace:true goal proof;
   [%expect
@@ -210,19 +210,19 @@ I should also note that I ran into some difficulty when trying to compute with m
 
 ```ocaml
   let proof =
-    rw_def "merge_sort_aux" >> simp_tac ~exclude
+    rw_def "merge_sort_aux" >> simp ~exclude
     >> with_repeat @@ rw_def "div"
     >> with_repeat @@ rw_def "div_aux"
-    >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude
-    >> rw_def "merge_sort_aux" >> simp_tac ~exclude
+    >> simp ~exclude >> rw_def "merge_sort_aux" >> simp ~exclude
+    >> rw_def "merge_sort_aux" >> simp ~exclude
     >> with_repeat @@ rw_def "div"
     >> with_repeat @@ rw_def "div_aux"
-    >> simp_tac ~exclude >> rw_def "merge_sort_aux" >> simp_tac ~exclude
-    >> rw_def "merge_sort_aux" >> simp_tac ~exclude >> rw_thm "merge_unfold"
-    >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude
-    >> rw_thm "merge_unfold" >> simp_tac ~exclude >> rw_thm "merge_unfold"
-    >> simp_tac ~exclude >> rw_thm "merge_unfold" >> simp_tac ~exclude
-    >> rw_thm "merge_unfold" >> simp_tac ~exclude
+    >> simp ~exclude >> rw_def "merge_sort_aux" >> simp ~exclude
+    >> rw_def "merge_sort_aux" >> simp ~exclude >> rw_thm "merge_unfold"
+    >> simp ~exclude >> rw_thm "merge_unfold" >> simp ~exclude
+    >> rw_thm "merge_unfold" >> simp ~exclude >> rw_thm "merge_unfold"
+    >> simp ~exclude >> rw_thm "merge_unfold" >> simp ~exclude
+    >> rw_thm "merge_unfold" >> simp ~exclude
 ```
 
 I believe that this is a common pattern in HOL light, where the simplifier is quite naive like mine, and there is no generic `compute` for these types of tests.
@@ -259,16 +259,16 @@ let%expect_test "merge sort sufficient" =
   (* let right_oblig = Elaborator.term_from_string prg "right_oblig" in *)
   let goal = ([], List.hd (Elaborator.goals_from_string prg)) in
   let proof =
-    induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac >> intros_tac
-    >> with_first (with_definition [ "merge_sort_aux" ] rewrite_tac)
-    >> beta_tac >> cond_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> simp_tac ~exclude:[ "merge_sort_aux"; "take"; "drop"; "div"; "merge" ]
-    >> with_arbitrary_term xs exists_tac
-    >> refl_tac
-    >> with_first (with_assumptions rewrite_tac)
-    >> simp_tac ~exclude:[ "merge_sort_aux"; "take"; "drop"; "div"; "merge" ]
-    >> spec_asm_tac left >> spec_asm_tac right >> sorry_tac
+    induct >> intros >> simp_asm >> false_elim >> intros
+    >> with_first (with_definition [ "merge_sort_aux" ] rewrite)
+    >> beta >> cond
+    >> with_first (with_assumptions rewrite)
+    >> simp ~exclude:[ "merge_sort_aux"; "take"; "drop"; "div"; "merge" ]
+    >> with_arbitrary_term xs exists
+    >> refl
+    >> with_first (with_assumptions rewrite)
+    >> simp ~exclude:[ "merge_sort_aux"; "take"; "drop"; "div"; "merge" ]
+    >> spec_asm left >> spec_asm right >> sorry
   in
   run_proof ~name:"merge_sort_fuel_sufficient" ~notrace:true goal proof;
   [%expect
@@ -422,10 +422,10 @@ let goal =
 in
 run_proof goal
   begin
-    induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
-    >> sym_asm_tac
-    >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
-    >> false_elim_tac
+    induct >> intros >> refl >> intros >> simp_asm
+    >> sym_asm
+    >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm)
+    >> false_elim
   end;
 ```
 
@@ -439,10 +439,10 @@ I still have plans for some dedicated proof syntax and for subtype definitions. 
 let%thm length_zero_imp_nil (xs : 'a list) =
     length xs = Zero ==> (xs = Nil),
     begin
-      induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
-      >> sym_asm_tac
-      >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
-      >> false_elim_tac
+      induct >> intros >> refl >> intros >> simp_asm
+      >> sym_asm
+      >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm)
+      >> false_elim
     end [@simp] [@quiet]
 ```
 
@@ -453,10 +453,10 @@ let%thm length_zero_imp_nil (xs : 'a list) =
     length xs = Zero ==> (xs = Nil)
 and proof = 
     begin
-      induct_tac >> intros_tac >> refl_tac >> intros_tac >> simp_asm_tac
-      >> sym_asm_tac
-      >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm_tac)
-      >> false_elim_tac
+      induct >> intros >> refl >> intros >> simp_asm
+      >> sym_asm
+      >> with_first (with_rules NatTheory.nat_def.distinct rewrite_asm)
+      >> false_elim
     end [@simp] [@quiet]
 ```
 
@@ -464,7 +464,7 @@ Where the [@simp] annotations are used in the run_proof call.
 
 ## Friday, April 10
 
-I'm looking at adding some more tactics to improve the ergonomics of my prover. I've added a discriminate tactic for goals with distinct constructor equality (`Suc n = Zero`), but I want to improve my contradiction reasoning a bit. Right now I have a contradict_asm_tac which can prove things like `~P |- F` using a subgoal of ` |- P`, but Rocq's contradict tactic is much stronger and handles 3 more distinct  cases in addition to the one that my tactic does.
+I'm looking at adding some more tactics to improve the ergonomics of my prover. I've added a discriminate tactic for goals with distinct constructor equality (`Suc n = Zero`), but I want to improve my contradiction reasoning a bit. Right now I have a contradict_asm which can prove things like `~P |- F` using a subgoal of ` |- P`, but Rocq's contradict tactic is much stronger and handles 3 more distinct  cases in addition to the one that my tactic does.
 
 
 From Rocq's documentation:
@@ -478,12 +478,12 @@ A tactic for proof by contradiction. With contradict H,
 4    H: A |- ~B gives H: B |- ~A
 
 ```
-Translating this to my system, I can have exfalso_tac as `have_tac F >> [subgoal] >> false_elim_tac`
+Translating this to my system, I can have exfalso as `have F >> [subgoal] >> false_elim`
 
-- Case one is just `exfalso >> contradict_asm_tac`
-- Case two is `neg_intro` to get `~A, B |- F`, then `contradict_asm_tac` to get `B |- A`
-- Case three is just `have_tac ~A`
-- Case four is `neg_intro` to get  `A, B |- F`, then `have_tac ~A >> [subgoal >> neg_elim_tac` 
+- Case one is just `exfalso >> contradict_asm`
+- Case two is `neg_intro` to get `~A, B |- F`, then `contradict_asm` to get `B |- A`
+- Case three is just `have ~A`
+- Case four is `neg_intro` to get  `A, B |- F`, then `have ~A >> [subgoal >> neg_elim` 
 
 Essentially if the goal is a negation we call neg_intro to get it in an assumption, say `A`, then we take a chosen assumption (other than `A`), say `B`. If it's a negation, we contradict_asm, otherwise we just assert its negation (`~B`).
 

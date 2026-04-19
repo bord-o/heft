@@ -922,7 +922,7 @@ let%thm thm_plus_x_zero (x : nat) = plus x Zero = x
 
 and proof =
   begin
-    induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+    induct >> simp >> gen >> intro >> simp
   end
   [@quiet]
 
@@ -942,8 +942,7 @@ let%thm thm_multi_arg (x : nat) (y : nat) = plus x y = plus y x
 
 and proof =
   begin
-    with_term [%term (x : nat)] induct_tac
-    >> intros_tac >> simp_tac >> intros_tac >> simp_tac
+    with_term [%term (x : nat)] induct >> intros >> simp >> intros >> simp
   end
   [@quiet]
 
@@ -955,7 +954,7 @@ let%thm thm_no_params = plus 2n 3n = 5n
 
 and proof =
   begin
-    simp_tac
+    simp
   end
   [@quiet]
 
@@ -967,7 +966,7 @@ let%thm thm_poly (xs : 'a list) = length xs = length xs
 
 and proof =
   begin
-    gen_tac >> refl_tac
+    gen >> refl
   end
   [@quiet]
 
@@ -979,7 +978,7 @@ let%thm _unsaved (n : nat) = plus n Zero = n
 
 and proof =
   begin
-    induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+    induct >> simp >> gen >> intro >> simp
   end
   [@quiet]
 
@@ -991,7 +990,7 @@ let%expect_test "let%thm inside expect_test" =
   let%thm local_thm (n : nat) = plus n Zero = n
   and proof =
     begin
-      induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+      induct >> simp >> gen >> intro >> simp
     end
     [@quiet]
   in
@@ -1003,7 +1002,7 @@ let%expect_test "let%thm with notrace inside expect_test" =
   let%thm _notrace_thm (x : nat) = plus x Zero = x
   and proof =
     begin
-      induct_tac >> simp_tac >> gen_tac >> intro_tac >> simp_tac
+      induct >> simp >> gen >> intro >> simp
     end
     [@notrace]
   in

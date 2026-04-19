@@ -82,7 +82,7 @@ type _ Effect.t +=
 val as_chosen_list : 'a choosable -> 'a list
 (** Extracts the underlying list from a [choosable]. *)
 
-val cost_of_tactic : tactic -> goal -> string * cost
+val cost_oftic : tactic -> goal -> string * cost
 (** Runs a tactic just far enough to extract its name and first [Register] cost.
     The tactic must perform [Register] before any other effect. *)
 
@@ -102,7 +102,7 @@ val trace_proof : string -> unit
 
 val choose_terms : term list -> term
 val choose_theorems : thm list -> thm
-val choose_tactics : tactic list -> tactic
+val choosetics : tactic list -> tactic
 val choose_unknowns : 'a list -> 'a
 
 val return_thm :
@@ -170,174 +170,174 @@ val assumption : tactic
 val truth : tactic
 (** Closes a goal whose conclusion is [T]. *)
 
-val refl_tac : tactic
+val refl : tactic
 (** Closes a goal of the form [t = t]. *)
 
-val false_elim_tac : tactic
+val false_elim : tactic
 (** Closes any goal if [F] is among the assumptions. *)
 
-val neg_elim_tac : tactic
+val neg_elim : tactic
 (** Closes any goal if both [P] and [~P] appear as assumptions. *)
 
-val noop_tac : tactic
+val noop : tactic
 (** Does nothing *)
 
-val sorry_tac : tactic
+val sorry : tactic
 (** Closes the goal by admitting it as a new axiom. Use to skip a proof
     obligation while developing. {b Unsound}. *)
 
-val intro_tac : tactic
+val intro : tactic
 (** Transforms a goal [P ==> Q] into [Q] with [P] added to the assumptions. *)
 
-val conj_tac : tactic
+val conj : tactic
 (** Splits a goal [P /\ Q] into subgoals [P] and [Q]. *)
 
-val left_tac : tactic
+val left : tactic
 (** Reduces a goal [P \/ Q] to the subgoal [P]. {b Unsafe}: not complete for
     disjunction. *)
 
-val right_tac : tactic
+val right : tactic
 (** Reduces a goal [P \/ Q] to the subgoal [Q]. {b Unsafe}: not complete for
     disjunction. *)
 
-val or_tac : tactic
-(** Performs a [Choose] between [left_tac] and [right_tac]. *)
+val or_ : tactic
+(** Performs a [Choose] between [left] and [right]. *)
 
-val neg_intro_tac : tactic
+val neg_intro : tactic
 (** Transforms a goal [~P] into a subgoal [F] with [P] added to the assumptions.
 *)
 
-val elim_conj_asm_tac : tactic
+val elim_conj_asm : tactic
 (** Replaces a conjunction [P /\ Q] among the assumptions with [P] and [Q]. *)
 
-val elim_disj_asm_tac : tactic
+val elim_disj_asm : tactic
 (** Case-splits on a disjunction [P \/ Q] among the assumptions, producing two
     subgoals. *)
 
-val elim_exists_asm_tac : tactic
+val elim_exists_asm : tactic
 (** Eliminates an existential [?x. P x] from the assumptions, introducing a
     fresh witness. The existential is selected via [Choose]. *)
 
-val ccontr_tac : tactic
+val ccontr : tactic
 (** Proof by classical contradiction: reduces a goal [P] to [F] under the added
     assumption [~P]. *)
 
-val gen_tac : tactic
+val gen : tactic
 (** Strips a universal quantifier from a goal [!x. P x], leaving the subgoal
     [P x]. *)
 
-val generalize_tac : term -> tactic
+val generalize : term -> tactic
 
-val exists_tac : tactic
+val exists : tactic
 (** Reduces a goal [?x. P x] to [P t] for a witness [t] chosen via [Choose]. *)
 
-val spec_asm_tac : term -> tactic
-(** [spec_asm_tac t] specializes a universally quantified assumption [!x. P x]
-    with [t], adding [P t] as a new assumption. The assumption to specialize is
+val spec_asm : term -> tactic
+(** [spec_asm t] specializes a universally quantified assumption [!x. P x] with
+    [t], adding [P t] as a new assumption. The assumption to specialize is
     selected via [Choose]. *)
 
-val sym_tac : tactic
+val sym : tactic
 (** Rewrites a goal [l = r] to [r = l]. *)
 
-val sym_asm_tac : tactic
+val sym_asm : tactic
 (** Replaces an equality assumption [a = b] (chosen via [Choose]) with [b = a].
 *)
 
-val trans_tac : tactic
+val trans : tactic
 (** Proves a goal [l = r] by choosing an intermediate term [m] and creating
     subgoals [l = m] and [m = r]. *)
 
-val fun_ext_tac : tactic
+val fun_ext : tactic
 (** Reduces a function equality [f = g] to pointwise equality [f x = g x] for a
     fresh [x]. *)
 
-val eq_iff_tac : tactic
+val eq_iff : tactic
 (** Reduces a boolean equality [P = Q] to two subgoals: [P] under [Q], and [Q]
     under [P]. *)
 
-val discriminate_tac : tactic
+val discriminate : tactic
 (** Closes a goal by deriving a contradiction from an equality assumption
     between distinct constructors of an inductive type. *)
 
-val rewrite_tac : tactic
+val rewrite : tactic
 (** Rewrites a subterm of the goal with a theorem chosen from [Rules]. Fails if
     no rewrite makes progress. *)
 
-val rewrite_asm_tac : tactic
+val rewrite_asm : tactic
 (** Rewrites a subterm of an assumption with a theorem chosen from [Rules]. The
     assumption is selected via [Choose]. *)
 
-val beta_tac : tactic
+val beta : tactic
 (** Beta-reduces the goal. Fails if no beta redex is found. *)
 
-val beta_asm_tac : tactic
+val beta_asm : tactic
 (** Beta-reduces an assumption chosen via [Choose]. *)
 
-val eq_true_asm_tac : tactic
+val eq_true_asm : tactic
 (** For a boolean assumption [P] (not already an equality), adds [P = T] as an
     assumption. *)
 
-val eq_true_elim_asm_tac : tactic
+val eq_true_elim_asm : tactic
 (** For an assumption [P = T], adds [P] as an assumption. *)
 
-val eq_true_elim_tac : tactic
+val eq_true_elim : tactic
 (** Reduces a goal [P = T] to a subgoal [P]. *)
 
-val eq_false_elim_tac : tactic
+val eq_false_elim : tactic
 (** Reduces a goal [P = F] to a subgoal [~P]. *)
 
-val exact_tac : tactic
+val exact : tactic
 (** UNDER CONSTRUCTION *)
 
-val apply_tac : tactic
+val apply : tactic
 (** Backward chaining. Chooses a theorem from [Rules], strips its outer
     quantifiers, and matches its conclusion against the goal. Each remaining
     premise becomes a subgoal, quantified over variables that matching did not
     determine. *)
 
-val apply_asm_tac : tactic
+val apply_asm : tactic
 (** Forward chaining on an assumption. Chooses a theorem from [Rules] and an
     assumption, then matches the theorem's first premise against the assumption.
     The assumption is replaced with the remainder of the theorem, quantified
     over variables that matching did not determine. *)
 
-val apply_asm_to_asm_tac : asm_thm:int -> asm_to:int -> tactic
+val apply_asm_to_asm : asm_thm:int -> asm_to:int -> tactic
 (** Apply the assumption at index [asm_thm] to the assumption at index [asm_to]
-    using [apply_asm_tac] *)
+    using [apply_asm] *)
 
-val apply_at_tac : string -> ?target:string -> tactic
-val rewrite_at_tac : string -> ?target:string -> tactic
+val apply_at : string -> ?target:string -> tactic
+val rewrite_at : string -> ?target:string -> tactic
 
-val contradict_asm_tac : tactic
+val contradict_asm : tactic
 (** For a goal [F], finds a negation [~P] among the assumptions (via [Choose])
     and creates a subgoal [P]. *)
 
-val cases_tac : tactic
+val cases : tactic
 (** Case splits. For a goal [!b:bool. P b], produces subgoals for [P T] and
-    [P F]. For a goal [!x:t. P x] where [t] is inductive, delegates to
-    [induct_tac]. Otherwise chooses a boolean term [e] via [Choose] and adds
-    [e = T] / [e = F] as alternative assumptions. *)
+    [P F]. For a goal [!x:t. P x] where [t] is inductive, delegates to [induct].
+    Otherwise chooses a boolean term [e] via [Choose] and adds [e = T] / [e = F]
+    as alternative assumptions. *)
 
-val destruct_tac : tactic
+val destruct : tactic
 (** Case analysis via exhaustiveness. Chooses a term [t] of some inductive type
     and adds the exhaustiveness disjunction for [t] (e.g.
     [t = C1 \/ ?a. t = C2 a \/ ...]) as an assumption. Follow with
-    [elim_disj_asm_tac] and [elim_exists_asm_tac] to split the cases. Unlike
-    [induct_tac], produces no induction hypothesis. *)
+    [elim_disj_asm] and [elim_exists_asm] to split the cases. Unlike [induct],
+    produces no induction hypothesis. *)
 
-val induct_tac : tactic
+val induct : tactic
 (** Structural induction on an inductive type. For a goal [!x. P x], produces
     one subgoal per constructor. For a goal with a free variable [x], the
     variable is chosen via [Choose], mentioning assumptions are discharged,
     induction runs on the resulting [!x. ...] goal, and the assumptions are
     re-introduced. *)
 
-val have_tac : tactic
+val have : tactic
 (** Chooses a term [p] via [Choose] and produces two subgoals: prove [p] under
     the current assumptions, then prove the original goal with [p] added as an
     assumption. *)
 
-val have_premise_tac : tactic
+val have_premise : tactic
 
 (** {1 Proof Runner} *)
 
@@ -388,9 +388,9 @@ val with_term : term -> tactic_combinator
 (** [with_term t] resolves any [Choose (Term _)] by returning [t], regardless of
     the offered options. *)
 
-val cond_tac : tactic
+val cond : tactic
 (** Finds [COND] applications in the goal, chooses one of their conditions via
-    [Choose], and delegates to [cases_tac] on the chosen condition. *)
+    [Choose], and delegates to [cases] on the chosen condition. *)
 
 val try_ : tactic_combinator
 (** Converts [Fail] into a [Subgoal] for the current goal, letting a tactic
@@ -495,25 +495,25 @@ val with_rules_and_assumptions : thm list -> tactic_combinator
 
 (** {1 Simplification and Automation} *)
 
-val intros_tac : tactic
-(** Repeatedly applies [intro_tac] or [gen_tac] until neither makes progress. *)
+val intros : tactic
+(** Repeatedly applies [intro] or [gen] until neither makes progress. *)
 
-val simp_tac : ?exclude:string list -> ?with_asms:bool -> tactic
+val simp : ?exclude:string list -> ?with_asms:bool -> tactic
 (** Repeatedly rewrites the goal using the definitions and simp lemmas
     registered in [Rules], plus any theorems provided by an outer [Rules]
-    handler. Also runs [beta_tac], [refl_tac], and [truth]. [exclude] skips
-    definitions and simps by name. [with_asms] (default [true]) includes the
-    goal's assumptions as rewrites. *)
+    handler. Also runs [beta], [refl], and [truth]. [exclude] skips definitions
+    and simps by name. [with_asms] (default [true]) includes the goal's
+    assumptions as rewrites. *)
 
-val auto_tac : tactic
+val auto : tactic
 (** Performs a [Choose] among simplification, introduction rules, elimination
     rules, and assumption-apply. Intended to be wrapped with a search
     combinator. *)
 
-val simp_asm_tac :
+val simp_asm :
   ?exclude:string list -> ?with_asms:bool -> ?add:thm list -> tactic
-(** Like [simp_tac], but rewrites assumptions instead of the goal. [add]
-    provides extra rules. *)
+(** Like [simp], but rewrites assumptions instead of the goal. [add] provides
+    extra rules. *)
 
 (** {1 Term Synthesis} *)
 

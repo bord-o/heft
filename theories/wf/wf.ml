@@ -12,30 +12,28 @@ let%thm nat_induct_strong (p : nat -> bool) =
 
 and proof =
   begin
-    intros_tac @: [ "hstrong" ]
+    intros @: [ "hstrong" ]
     >> with_term
          [%term
            forall (fun (n : nat) (m : nat) ->
                nat_lt m n ==> (p : nat -> bool) m)]
-         have_tac
+         have
        @: [ "hweak" ]
-    >> induct_tac >> intros_tac >> simp_asm_tac >> false_elim_tac
-    >> intros_tac @: [ "hIH"; "hlt" ]
-    >> with_term [%term nat_lt (m : nat) (Suc (n0 : nat))] cases_tac
+    >> induct >> intros >> simp_asm >> false_elim
+    >> intros @: [ "hIH"; "hlt" ]
+    >> with_term [%term nat_lt (m : nat) (Suc (n0 : nat))] cases
        @: [ "htrue"; "hfalse" ]
-    >> rewrite_at_tac "lt_Suc_or_eq" ~target:"hlt"
-    >> elim_disj_asm_tac @: [ "hlt_mn"; "heq_mn" ]
-    >> apply_at_tac "hIH" ~target:"hlt_mn"
-    >> assumption >> rewrite_at_tac "heq_mn" >> apply_at_tac "hstrong"
-    >> assumption
-    >> rewrite_at_tac "hfalse" ~target:"hlt"
-    >> false_elim_tac
+    >> rewrite_at "lt_Suc_or_eq" ~target:"hlt"
+    >> elim_disj_asm @: [ "hlt_mn"; "heq_mn" ]
+    >> apply_at "hIH" ~target:"hlt_mn"
+    >> assumption >> rewrite_at "heq_mn" >> apply_at "hstrong" >> assumption
+    >> rewrite_at "hfalse" ~target:"hlt"
+    >> false_elim
     (* TODO make apply handle nested quantification better*)
-    >> with_named_asm_term "hweak" (spec_asm_tac [%term (n : nat)])
-       @: [ "hweak'" ]
-    >> with_named_asm_term "hstrong" (spec_asm_tac [%term (n : nat)])
+    >> with_named_asm_term "hweak" (spec_asm [%term (n : nat)]) @: [ "hweak'" ]
+    >> with_named_asm_term "hstrong" (spec_asm [%term (n : nat)])
        @: [ "hstrong'" ]
-    >> apply_at_tac "hstrong'" ~target:"hweak'"
+    >> apply_at "hstrong'" ~target:"hweak'"
     >> assumption
   end
   (* [@trace] *)
@@ -50,8 +48,7 @@ let%thm wf_num = wf nat_lt
 
 and proof =
   begin
-    rewrite_at_tac "wf" >> beta_tac
-    >> with_proven [ "nat_induct_strong" ] exact_tac
+    rewrite_at "wf" >> beta >> with_proven [ "nat_induct_strong" ] exact
   end
   [@quiet]
 
@@ -60,28 +57,26 @@ let%thm wf_measure_gen (r : 'b -> 'b -> bool) (m : 'a -> 'b) =
 
 and proof =
   begin
-    rewrite_at_tac "wf" >> beta_tac >> rewrite_at_tac "wf" >> beta_tac
-    >> intros_tac @: [ "hwflam"; "hwfr" ]
+    rewrite_at "wf" >> beta >> rewrite_at "wf" >> beta
+    >> intros @: [ "hwflam"; "hwfr" ]
     >> with_named_asm_term "hwflam"
-         (spec_asm_tac
+         (spec_asm
             [%term
               fun (b : 'b) ->
                 forall (fun (a : 'a) ->
                     (m : 'a -> 'b) a = b ==> (p : 'a -> bool) a)])
        @: [ "hwfspec" ]
-    >> with_named_asm_term "hwfspec" have_premise_tac @: [ "hprem" ]
-    >> intros_tac @: [ "hall"; "heq" ]
-    >> with_named_asm_term "hwfr" (spec_asm_tac [%term (a : 'a)])
-       @: [ "hwfr_a" ]
-    >> apply_at_tac "hwfr_a" >> intros_tac @: [ "hr" ]
-    >> rewrite_at_tac "heq" ~target:"hr"
-    >> apply_at_tac "hall" ~target:"hr" @: [ "hall'" ]
-    >> apply_at_tac "hall'" >> refl_tac
-    >> apply_at_tac "hwfspec" ~target:"hprem" @: [ "hall'" ]
-    >> with_named_asm_term "hall'"
-         (spec_asm_tac [%term (m : 'a -> 'b) (x : 'a)])
+    >> with_named_asm_term "hwfspec" have_premise @: [ "hprem" ]
+    >> intros @: [ "hall"; "heq" ]
+    >> with_named_asm_term "hwfr" (spec_asm [%term (a : 'a)]) @: [ "hwfr_a" ]
+    >> apply_at "hwfr_a" >> intros @: [ "hr" ]
+    >> rewrite_at "heq" ~target:"hr"
+    >> apply_at "hall" ~target:"hr" @: [ "hall'" ]
+    >> apply_at "hall'" >> refl
+    >> apply_at "hwfspec" ~target:"hprem" @: [ "hall'" ]
+    >> with_named_asm_term "hall'" (spec_asm [%term (m : 'a -> 'b) (x : 'a)])
        @: [ "hfinal" ]
-    >> apply_at_tac "hfinal" >> refl_tac
+    >> apply_at "hfinal" >> refl
   end
   [@quiet]
 
@@ -94,9 +89,8 @@ let%thm wf_measure (m : 'a -> nat) = wf (measure m)
 
 and proof =
   begin
-    rewrite_at_tac "measure" >> beta_tac >> gen_tac
-    >> apply_at_tac "wf_measure_gen"
-    >> with_proven [ "wf_num" ] exact_tac
+    rewrite_at "measure" >> beta >> gen >> apply_at "wf_measure_gen"
+    >> with_proven [ "wf_num" ] exact
   end
   [@quiet]
 
@@ -118,7 +112,7 @@ let%thm wf_rec_rel_intro (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
 
 and proof =
   begin
-    intros_tac @: [ "hall" ] >> simp_tac >> intros_tac @: [ "himp" ]
+    intros @: [ "hall" ] >> simp >> intros @: [ "himp" ]
     >> with_specialized ~name:"himp"
          ~specs:
            [
@@ -126,14 +120,14 @@ and proof =
              [%term (h : ('a -> 'b) -> 'a -> 'b) (g : 'a -> 'b) (a : 'a)];
              [%term (g : 'a -> 'b)];
            ]
-         apply_tac
-    >> intros_tac @! "hrya"
-    >> apply_at_tac "hall" ~target:"hrya" @! "hwfgy"
-    >> rewrite_at_tac "wf_rec_rel" ~target:"hwfgy"
-    >> with_named_asm_term "hwfgy" simp_asm_tac
-    >> apply_at_tac "hwfgy"
-    >> with_assumptions (with_first exact_tac)
-    >> refl_tac
+         apply
+    >> intros @! "hrya"
+    >> apply_at "hall" ~target:"hrya" @! "hwfgy"
+    >> rewrite_at "wf_rec_rel" ~target:"hwfgy"
+    >> with_named_asm_term "hwfgy" simp_asm
+    >> apply_at "hwfgy"
+    >> with_assumptions (with_first exact)
+    >> refl
   end
   [@quiet]
 
@@ -142,21 +136,21 @@ let%thm wf_not_sym (r : 'a -> 'a -> bool) =
 
 and proof =
   begin
-    noop_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac
-    >> spec_asm_tac
+    noop >> gen >> intro @! "hIH" >> simp_asm
+    >> spec_asm
          [%term
            fun (a : 'a) ->
              forall (fun (x : 'a) ->
                  (r : 'a -> 'a -> bool) (a : 'a) x
                  ==> not ((r : 'a -> 'a -> bool) x (a : 'a)))]
        @! "hContraSpec"
-    >> apply_at_tac "hContraSpec"
-    >> intros_tac @: [ "hprem"; "hrxx" ]
-    >> neg_intro_tac @! "hneg"
-    >> with_named_asm_term "hprem" (spec_asm_tac [%term (x' : 'a)]) @! "hprem'"
-    >> apply_at_tac "hprem'" ~target:"hneg" @! "hprem_disch"
-    >> apply_at_tac "hprem_disch" ~target:"hneg" @! "hprem_disch'"
-    >> neg_elim_tac
+    >> apply_at "hContraSpec"
+    >> intros @: [ "hprem"; "hrxx" ]
+    >> neg_intro @! "hneg"
+    >> with_named_asm_term "hprem" (spec_asm [%term (x' : 'a)]) @! "hprem'"
+    >> apply_at "hprem'" ~target:"hneg" @! "hprem_disch"
+    >> apply_at "hprem_disch" ~target:"hneg" @! "hprem_disch'"
+    >> neg_elim
   end
   [@quiet]
 
@@ -165,14 +159,13 @@ let%thm wf_irrefl (r : 'a -> 'a -> bool) =
 
 and proof =
   begin
-    noop_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac
-    >> spec_asm_tac
+    noop >> gen >> intro @! "hIH" >> simp_asm
+    >> spec_asm
          [%term fun (x : 'a) -> not ((r : 'a -> 'a -> bool) (x : 'a) (x : 'a))]
        @! "hContraSpec"
-    >> apply_at_tac "hContraSpec" >> intros_tac @: [ "hprem" ]
-    >> neg_intro_tac @! "hneg"
-    >> apply_at_tac "hprem" ~target:"hneg"
-    >> neg_elim_tac
+    >> apply_at "hContraSpec" >> intros @: [ "hprem" ] >> neg_intro @! "hneg"
+    >> apply_at "hprem" ~target:"hneg"
+    >> neg_elim
   end
   [@quiet]
 
@@ -181,12 +174,12 @@ and proof =
 (*   wf r ==> forall (fun (x : 'a) (y : 'a) -> not (r x y && r y x)) *)
 (* and proof = *)
 (*   begin *)
-(*     noop_tac >> gen_tac >> intro_tac @! "hIH" >> simp_asm_tac >> gen_tac *)
-(*     >> gen_tac *)
-(*     >> spec_asm_tac [%term fun (z : 'a) -> z = (x : 'a) || z = (y : 'a)] *)
+(*     noop >> gen >> intro @! "hIH" >> simp_asm >> gen *)
+(*     >> gen *)
+(*     >> spec_asm [%term fun (z : 'a) -> z = (x : 'a) || z = (y : 'a)] *)
 (*        @! "hContraSpec" *)
-(*     >> neg_intro_tac *)
-(*     >> elim_conj_asm_tac @: [ "hleft"; "hright" ] *)
+(*     >> neg_intro *)
+(*     >> elim_conj_asm @: [ "hleft"; "hright" ] *)
 (*   end *)
 
 let%thm wf_rec_rel_elim (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
@@ -197,8 +190,8 @@ let%thm wf_rec_rel_elim (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
 
 and proof =
   begin
-    intros_tac @! "hwf" >> simp_asm_tac
-    >> spec_asm_tac
+    intros @! "hwf" >> simp_asm
+    >> spec_asm
          [%term
            fun (a : 'a) (b : 'b) ->
              exists (fun (g : 'a -> 'b) ->
@@ -210,17 +203,17 @@ and proof =
                            y (g y))
                  && b = (h : ('a -> 'b) -> 'a -> 'b) g a)]
        @! "hwfSpec"
-    >> apply_at_tac "hwfSpec"
-    >> intros_tac @: [ "hallPrem"; "heqPrem" ]
-    >> with_term [%term (g : 'a -> 'b)] exists_tac
-    >> conj_tac >> intros_tac @: [ "hrya" ]
-    >> apply_at_tac "hallPrem" ~target:"hrya"
-    >> elim_exists_asm_tac @! "hgElim"
-    >> elim_conj_asm_tac @: [ "heqg"; "hallrel" ]
-    >> rewrite_at_tac "heqg"
-    >> apply_at_tac "wf_rec_rel_intro"
-    >> intros_tac @: [ "hryy" ]
-    >> apply_at_tac "hallrel" ~target:"hryy"
+    >> apply_at "hwfSpec"
+    >> intros @: [ "hallPrem"; "heqPrem" ]
+    >> with_term [%term (g : 'a -> 'b)] exists
+    >> conj >> intros @: [ "hrya" ]
+    >> apply_at "hallPrem" ~target:"hrya"
+    >> elim_exists_asm @! "hgElim"
+    >> elim_conj_asm @: [ "heqg"; "hallrel" ]
+    >> rewrite_at "heqg"
+    >> apply_at "wf_rec_rel_intro"
+    >> intros @: [ "hryy" ]
+    >> apply_at "hallrel" ~target:"hryy"
     >> assumption >> assumption
   end
   [@quiet]
@@ -233,9 +226,9 @@ let%thm wf_rec_rel_functional (r : 'a -> 'a -> bool)
 
 and proof =
   begin
-    with_repeat gen_tac >> intro_tac @! "hwf" >> intro_tac @! "hcong"
-    >> simp_asm_tac ~exclude:[ "wf_rec_cong"; "wf_rec_rel" ]
-    >> spec_asm_tac
+    with_repeat gen >> intro @! "hwf" >> intro @! "hcong"
+    >> simp_asm ~exclude:[ "wf_rec_cong"; "wf_rec_rel" ]
+    >> spec_asm
          [%term
            fun (x : 'a) ->
              forall (fun (v : 'b) (v' : 'b) ->
@@ -249,26 +242,26 @@ and proof =
                         x v'
                      ==> (v = v')))]
        @! "hwf'"
-    >> generalize_tac [%term (v' : 'b)]
-    >> generalize_tac [%term (v : 'b)]
-    >> generalize_tac [%term (x : 'a)]
-    >> apply_at_tac "hwf'"
-    >> intros_tac @: [ "hIH"; "hRxv"; "hRxv'" ]
-    >> (apply_at_tac "wf_rec_rel_elim" ~target:"hRxv'"
-       >> elim_exists_asm_tac >> elim_conj_asm_tac)
+    >> generalize [%term (v' : 'b)]
+    >> generalize [%term (v : 'b)]
+    >> generalize [%term (x : 'a)]
+    >> apply_at "hwf'"
+    >> intros @: [ "hIH"; "hRxv"; "hRxv'" ]
+    >> (apply_at "wf_rec_rel_elim" ~target:"hRxv'"
+       >> elim_exists_asm >> elim_conj_asm)
        @: [ ""; ""; "hRxv'Eq"; "hRxv'Elim" ]
-    >> (apply_at_tac "wf_rec_rel_elim" ~target:"hRxv"
-       >> elim_exists_asm_tac >> elim_conj_asm_tac)
+    >> (apply_at "wf_rec_rel_elim" ~target:"hRxv"
+       >> elim_exists_asm >> elim_conj_asm)
        @: [ ""; ""; "hRxvEq"; "hRxvElim" ]
-    >> rewrite_at_tac "hRxvEq" >> rewrite_at_tac "hRxv'Eq"
-    >> rewrite_at_tac "wf_rec_cong" ~target:"hcong"
-    >> beta_asm_tac >> apply_at_tac "hcong" >> intros_tac @! "hrzx"
+    >> rewrite_at "hRxvEq" >> rewrite_at "hRxv'Eq"
+    >> rewrite_at "wf_rec_cong" ~target:"hcong"
+    >> beta_asm >> apply_at "hcong" >> intros @! "hrzx"
     (* TODO: allow discharging multiple premises in one tactic to avoid intermediate names*)
-    >> apply_at_tac "hRxvElim" ~target:"hrzx" @! "hRzGz"
-    >> apply_at_tac "hRxv'Elim" ~target:"hrzx" @! "hRzG'z"
-    >> apply_at_tac "hIH" ~target:"hrzx" @! "hIHprem"
-    >> apply_at_tac "hIHprem" ~target:"hRzGz" @! "hIHprem'"
-    >> apply_at_tac "hIHprem'" ~target:"hRzG'z"
+    >> apply_at "hRxvElim" ~target:"hrzx" @! "hRzGz"
+    >> apply_at "hRxv'Elim" ~target:"hrzx" @! "hRzG'z"
+    >> apply_at "hIH" ~target:"hrzx" @! "hIHprem"
+    >> apply_at "hIHprem" ~target:"hRzGz" @! "hIHprem'"
+    >> apply_at "hIHprem'" ~target:"hRzG'z"
     >> assumption
   end
   [@quiet]
@@ -279,8 +272,8 @@ let%thm wf_rec_rel_total (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
 
 and proof =
   begin
-    noop_tac >> with_repeat gen_tac >> intro_tac @! "hwf" >> simp_asm_tac
-    >> spec_asm_tac
+    noop >> with_repeat gen >> intro @! "hwf" >> simp_asm
+    >> spec_asm
          [%term
            fun (x : 'a) ->
              exists (fun (v : 'b) ->
@@ -289,8 +282,8 @@ and proof =
                    (h : ('a -> 'b) -> 'a -> 'b)
                    x v)]
        @! "hIH"
-    >> generalize_tac [%term (x : 'a)]
-    >> apply_at_tac "hIH" >> intros_tac @! "hprem"
+    >> generalize [%term (x : 'a)]
+    >> apply_at "hIH" >> intros @! "hprem"
     >> with_term
          [%term
            (h : ('a -> 'b) -> 'a -> 'b)
@@ -301,13 +294,13 @@ and proof =
                      (h : ('a -> 'b) -> 'a -> 'b)
                      y x))
              (x : 'a)]
-         exists_tac
-    >> apply_at_tac "wf_rec_rel_intro"
-    >> intros_tac @! "hryx"
-    >> apply_at_tac "hprem" ~target:"hryx" @! "hwfExists"
-    >> beta_tac
-    >> apply_at_tac "axiom_of_choice" ~target:"hwfExists" @! "hwfChosen"
-    >> with_assumptions (with_first exact_tac)
+         exists
+    >> apply_at "wf_rec_rel_intro"
+    >> intros @! "hryx"
+    >> apply_at "hprem" ~target:"hryx" @! "hwfExists"
+    >> beta
+    >> apply_at "axiom_of_choice" ~target:"hwfExists" @! "hwfChosen"
+    >> with_assumptions (with_first exact)
   end
   [@quiet]
 
@@ -318,10 +311,10 @@ let%thm wf_rec (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b) =
 
 and proof =
   begin
-    noop_tac
-    >> intros_tac @: [ "hwf"; "hcong" ]
-    >> apply_at_tac "wf_rec_rel_functional" ~target:"hwf" @! "hfunctional1"
-    >> apply_at_tac "hfunctional1" ~target:"hcong" @! "hfunctional2"
+    noop
+    >> intros @: [ "hwf"; "hcong" ]
+    >> apply_at "wf_rec_rel_functional" ~target:"hwf" @! "hfunctional1"
+    >> apply_at "hfunctional1" ~target:"hcong" @! "hfunctional2"
     >> with_term
          [%term
            fun (x : 'a) ->
@@ -330,19 +323,19 @@ and proof =
                    (r : 'a -> 'a -> bool)
                    (h : ('a -> 'b) -> 'a -> 'b)
                    x v)]
-         exists_tac
-    >> intros_tac
-    >> apply_at_tac "wf_rec_rel_total" ~target:"hwf" @! "hRxv"
-    >> spec_asm_tac [%term (h : ('a -> 'b) -> 'a -> 'b)] @! "hall1"
-    >> spec_asm_tac [%term (x : 'a)] @! "hwfExists"
-    >> apply_at_tac "axiom_of_choice" ~target:"hwfExists" @! "hwfChosen"
-    >> apply_at_tac "wf_rec_rel_elim" ~target:"hwfChosen" @! "hwfElim"
-    >> (elim_exists_asm_tac >> elim_conj_asm_tac) @: [ ""; "heq"; "hallR" ]
-    >> rewrite_at_tac "heq"
-    >> rewrite_at_tac "wf_rec_cong" ~target:"hcong"
-    >> beta_asm_tac
-    >> spec_asm_tac [%term (g : 'a -> 'b)] @! "h1"
-    >> spec_asm_tac
+         exists
+    >> intros
+    >> apply_at "wf_rec_rel_total" ~target:"hwf" @! "hRxv"
+    >> spec_asm [%term (h : ('a -> 'b) -> 'a -> 'b)] @! "hall1"
+    >> spec_asm [%term (x : 'a)] @! "hwfExists"
+    >> apply_at "axiom_of_choice" ~target:"hwfExists" @! "hwfChosen"
+    >> apply_at "wf_rec_rel_elim" ~target:"hwfChosen" @! "hwfElim"
+    >> (elim_exists_asm >> elim_conj_asm) @: [ ""; "heq"; "hallR" ]
+    >> rewrite_at "heq"
+    >> rewrite_at "wf_rec_cong" ~target:"hcong"
+    >> beta_asm
+    >> spec_asm [%term (g : 'a -> 'b)] @! "h1"
+    >> spec_asm
          [%term
            fun (x : 'a) ->
              choose (fun (v : 'b) ->
@@ -351,19 +344,17 @@ and proof =
                    (h : ('a -> 'b) -> 'a -> 'b)
                    x v)]
        @! "h2"
-    >> spec_asm_tac [%term (x : 'a)] @! "hcongSpec"
-    >> apply_at_tac "hcongSpec" >> intros_tac @! "hrzx"
-    >> apply_at_tac "hallR" ~target:"hrzx" @! "hRzx"
-    >> with_named_asm_term "hall1" (spec_asm_tac [%term (z : 'a)])
-       @! "hrzExists"
-    >> apply_at_tac "axiom_of_choice" ~target:"hrzExists" @! "hrzChosen"
-    >> with_named_asm_term "hfunctional2" (spec_asm_tac [%term (z : 'a)])
+    >> spec_asm [%term (x : 'a)] @! "hcongSpec"
+    >> apply_at "hcongSpec" >> intros @! "hrzx"
+    >> apply_at "hallR" ~target:"hrzx" @! "hRzx"
+    >> with_named_asm_term "hall1" (spec_asm [%term (z : 'a)]) @! "hrzExists"
+    >> apply_at "axiom_of_choice" ~target:"hrzExists" @! "hrzChosen"
+    >> with_named_asm_term "hfunctional2" (spec_asm [%term (z : 'a)])
        @! "hfunc_z"
-    >> with_named_asm_term "hfunc_z"
-         (spec_asm_tac [%term (g : 'a -> 'b) (z : 'a)])
+    >> with_named_asm_term "hfunc_z" (spec_asm [%term (g : 'a -> 'b) (z : 'a)])
        @! "hfunc_gz"
     >> with_named_asm_term "hfunc_gz"
-         (spec_asm_tac
+         (spec_asm
             [%term
               choose (fun (_u : 'b) ->
                   wf_rec_rel
@@ -372,8 +363,8 @@ and proof =
                     (z : 'a)
                     _u)])
        @! "hfunc_full"
-    >> apply_at_tac "hfunc_full" ~target:"hRzx" @! "hfunc_almost"
-    >> apply_at_tac "hfunc_almost" ~target:"hrzChosen"
-    >> with_assumptions (with_first exact_tac)
+    >> apply_at "hfunc_full" ~target:"hRzx" @! "hfunc_almost"
+    >> apply_at "hfunc_almost" ~target:"hrzChosen"
+    >> with_assumptions (with_first exact)
   end
   [@quiet]

@@ -27,7 +27,7 @@ let not_f_eq_t =
   in
   D.make_exn thm
 
-let t_eq_t = D.make_exn (D.eq_truth_intro (Result.get_ok (refl t)))
+let t_eq_t = D.make_exn (D.eq_truth_intro (Result.get_ok (Kernel.refl t)))
 
 let t_eq_f =
   let thm =
@@ -49,7 +49,7 @@ let f_eq_t =
   in
   D.make_exn thm
 
-let f_eq_f = D.make_exn (D.eq_truth_intro (Result.get_ok (refl f)))
+let f_eq_f = D.make_exn (D.eq_truth_intro (Result.get_ok (Kernel.refl f)))
 
 let t_imp_eq =
   let thm =
@@ -108,7 +108,7 @@ let select_eq =
     let* x_eq_a = safe_make_eq x a in
     let* pred = make_lam x x_eq_a in
     let* specced = D.spec pred choice in
-    let* a_eq_a = refl a in
+    let* a_eq_a = Kernel.refl a in
     let* exists_witness = D.exists_p x x_eq_a a a_eq_a in
     let* applied = D.mp specced exists_witness in
     let* beta_th = D.deep_beta (concl applied) in
@@ -121,27 +121,23 @@ let goal = make_goal [%term (if true then (t1 : 'a) else (t2 : 'a)) = (t1 : 'a)]
 
 let () =
   run_proof ~notrace:true ~name:"cond_true" ~simp:true ~quiet:true goal
-    (with_rule (D.cond_def |> Result.get_ok) rewrite_tac
-    >> beta_tac
-    >> with_rule t_eq_t rewrite_tac
-    >> with_rule t_eq_f rewrite_tac
-    >> with_rule f_imp_eq rewrite_tac
-    >> with_rule conj_t_eq rewrite_tac
-    >> with_rule t_imp_eq rewrite_tac
-    >> with_rule select_eq rewrite_tac
-    >> refl_tac)
+    (with_rule (D.cond_def |> Result.get_ok) rewrite
+    >> beta >> with_rule t_eq_t rewrite >> with_rule t_eq_f rewrite
+    >> with_rule f_imp_eq rewrite
+    >> with_rule conj_t_eq rewrite
+    >> with_rule t_imp_eq rewrite
+    >> with_rule select_eq rewrite
+    >> refl)
 
 let goal =
   make_goal [%term (if false then (t1 : 'a) else (t2 : 'a)) = (t2 : 'a)]
 
 let () =
   run_proof ~notrace:true ~name:"cond_false" ~simp:true ~quiet:true goal
-    (with_rule (D.cond_def |> Result.get_ok) rewrite_tac
-    >> beta_tac
-    >> with_rule f_eq_t rewrite_tac
-    >> with_rule f_eq_f rewrite_tac
-    >> with_rule f_imp_eq rewrite_tac
-    >> with_rule t_conj_eq rewrite_tac
-    >> with_rule t_imp_eq rewrite_tac
-    >> with_rule select_eq rewrite_tac
-    >> refl_tac)
+    (with_rule (D.cond_def |> Result.get_ok) rewrite
+    >> beta >> with_rule f_eq_t rewrite >> with_rule f_eq_f rewrite
+    >> with_rule f_imp_eq rewrite
+    >> with_rule t_conj_eq rewrite
+    >> with_rule t_imp_eq rewrite
+    >> with_rule select_eq rewrite
+    >> refl)

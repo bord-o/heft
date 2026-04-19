@@ -97,31 +97,29 @@ let andb'_true_elim2 =
     forall (fun (b : mybool) (c : mybool) -> andb' b c = True ==> (c = True))]
 
 let%expect_test "basics" =
-  run_proof (make_goal all_zero_test1) simp_tac;
-  run_proof (make_goal all_zero_test2) simp_tac;
-  run_proof (make_goal compute_day_test) simp_tac;
-  run_proof (make_goal compute_two_days) simp_tac;
-  run_proof (make_goal test_orb'1) simp_tac;
-  run_proof (make_goal test_orb'2) simp_tac;
-  run_proof (make_goal test_orb'3) simp_tac;
-  run_proof (make_goal test_orb'4) simp_tac;
-  run_proof (make_goal test_orb'5) simp_tac;
-  run_proof (make_goal test_nandb'1) simp_tac;
-  run_proof (make_goal test_nandb'2) simp_tac;
-  run_proof (make_goal test_nandb'3) simp_tac;
-  run_proof (make_goal test_nandb'4) simp_tac;
-  run_proof (make_goal test_andthreeb1) simp_tac;
-  run_proof (make_goal test_andthreeb2) simp_tac;
-  run_proof (make_goal test_andthreeb3) simp_tac;
-  run_proof (make_goal test_andthreeb4) simp_tac;
+  run_proof (make_goal all_zero_test1) simp;
+  run_proof (make_goal all_zero_test2) simp;
+  run_proof (make_goal compute_day_test) simp;
+  run_proof (make_goal compute_two_days) simp;
+  run_proof (make_goal test_orb'1) simp;
+  run_proof (make_goal test_orb'2) simp;
+  run_proof (make_goal test_orb'3) simp;
+  run_proof (make_goal test_orb'4) simp;
+  run_proof (make_goal test_orb'5) simp;
+  run_proof (make_goal test_nandb'1) simp;
+  run_proof (make_goal test_nandb'2) simp;
+  run_proof (make_goal test_nandb'3) simp;
+  run_proof (make_goal test_nandb'4) simp;
+  run_proof (make_goal test_andthreeb1) simp;
+  run_proof (make_goal test_andthreeb2) simp;
+  run_proof (make_goal test_andthreeb3) simp;
+  run_proof (make_goal test_andthreeb4) simp;
 
-  run_proof (make_goal plus_id_example) auto_dfs_tac;
-  run_proof (make_goal andb'_comm) (induct_tac >>> (induct_tac >>> simp_tac));
+  run_proof (make_goal plus_id_example) auto_dfs;
+  run_proof (make_goal andb'_comm) (induct >>> (induct >>> simp));
   run_proof
     (make_goal andb'_true_elim2)
-    (induct_tac
-    >>> (induct_tac
-        >>> (intros_tac >>> try_ refl_tac >> simp_asm_tac ~with_asms:false)));
+    (induct >>> (induct >>> (intros >>> try_ refl >> simp_asm ~with_asms:false)));
   (* TODO: conditionals *)
   [%expect
     {|
@@ -211,12 +209,12 @@ let%expect_test "basics" =
     Proof Complete!
     with fuel: 41
     Proof:
-      gen_tac >>
-      gen_tac >>
-      intro_tac >>
-      rewrite_tac >>
-      rewrite_tac >>
-      refl_tac
+      gen >>
+      gen >>
+      intro >>
+      rewrite >>
+      rewrite >>
+      refl
     ========================================
     ∀m. ∀n. m = n ==> plus m m = plus n n
 

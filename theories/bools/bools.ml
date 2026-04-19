@@ -15,7 +15,7 @@ let%def andb (a : bool) (b : bool) : bool =
 let%thm eq_true_intro (p : bool) = p ==> (p = true)
 and proof =
   begin
-    intros_tac >> eq_true_elim_tac >> assumption
+    intros >> eq_true_elim >> assumption
   end [@quiet]
 
 (* Just an alias that uses the lower level axiom *)
@@ -24,6 +24,6 @@ let%thm axiom_of_choice (p : 'a -> bool) =
 
 and proof =
   begin
-    with_first (with_axioms exact_tac)
+    with_first (with_axioms exact)
   end
   [@quiet]
