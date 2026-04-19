@@ -1,6 +1,4 @@
 open Heft
-open Kernel
-open Derived
 open Tactic
 
 (* [@@@warning "-26-27-32-33"] *)

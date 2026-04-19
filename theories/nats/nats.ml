@@ -1,7 +1,6 @@
 open Heft
 open Kernel
 open Result.Syntax
-open Derived
 open Tactic
 open Auto
 

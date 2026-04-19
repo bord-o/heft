@@ -1,6 +1,5 @@
 open Heft
 open Kernel
-open Derived
 open Tactic
 
 let%expect_test "variable with type annotation" =

@@ -1,6 +1,4 @@
 open Heft
-open Kernel
-open Derived
 open Tactic
 
 let () = print_endline "initializing theory functions"

@@ -1,6 +1,5 @@
 open Heft
 open Kernel
-open Derived
 
 let () = print_endline "initializing theory lists"
 let a = make_vartype "a"

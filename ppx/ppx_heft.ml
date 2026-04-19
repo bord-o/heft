@@ -21,12 +21,13 @@ let rec translate_type ~loc ct =
   match ct.ptyp_desc with
   | Ptyp_constr ({ txt = Lident name; _ }, []) ->
       let v = fresh_id "ty" in
-      (v, A.eapply (A.evar "make_type") [ A.estring name; A.elist [] ])
+      (v, A.eapply (A.evar "Kernel.make_type") [ A.estring name; A.elist [] ])
   | Ptyp_constr ({ txt = Lident name; _ }, args) ->
       let bindings, arg_vars = translate_type_args ~loc args in
       let v = fresh_id "ty" in
       let final =
-        A.eapply (A.evar "make_type")
+        A.eapply
+          (A.evar "Kernel.make_type")
           [ A.estring name; A.elist (List.map A.evar arg_vars) ]
       in
       let wrapped =
@@ -41,7 +42,7 @@ let rec translate_type ~loc ct =
       let v = fresh_id "ty" in
       let final =
         A.eapply (A.evar "Result.ok")
-          [ A.eapply (A.evar "make_fun_ty") [ A.evar lv; A.evar rv ] ]
+          [ A.eapply (A.evar "Kernel.make_fun_ty") [ A.evar lv; A.evar rv ] ]
       in
       let wrapped = mk_bind ~loc le lv (mk_bind ~loc re rv final) in
       (v, wrapped)
@@ -49,7 +50,7 @@ let rec translate_type ~loc ct =
       let v = fresh_id "ty" in
       ( v,
         A.eapply (A.evar "Result.ok")
-          [ A.eapply (A.evar "make_vartype") [ A.estring name ] ] )
+          [ A.eapply (A.evar "Kernel.make_vartype") [ A.estring name ] ] )
   | _ -> Location.raise_errorf ~loc:ct.ptyp_loc "unsupported type"
 
 and translate_type_args ~loc args =
@@ -90,21 +91,23 @@ let rec translate_type_raw ~loc ct =
   match ct.ptyp_desc with
   | Ptyp_constr ({ txt = Lident name; _ }, []) ->
       A.pexp_construct
-        { txt = Lident "TyCon"; loc }
+        { txt = Ldot (Lident "Kernel", "TyCon"); loc }
         (Some (A.pexp_tuple [ A.estring name; A.elist [] ]))
   | Ptyp_constr ({ txt = Lident name; _ }, args) ->
       let arg_exprs = List.map (translate_type_raw ~loc) args in
       A.pexp_construct
-        { txt = Lident "TyCon"; loc }
+        { txt = Ldot (Lident "Kernel", "TyCon"); loc }
         (Some (A.pexp_tuple [ A.estring name; A.elist arg_exprs ]))
   | Ptyp_arrow (_, l, r) ->
       let le = translate_type_raw ~loc l in
       let re = translate_type_raw ~loc r in
       A.pexp_construct
-        { txt = Lident "TyCon"; loc }
+        { txt = Ldot (Lident "Kernel", "TyCon"); loc }
         (Some (A.pexp_tuple [ A.estring "fun"; A.elist [ le; re ] ]))
   | Ptyp_var name ->
-      A.pexp_construct { txt = Lident "TyVar"; loc } (Some (A.estring name))
+      A.pexp_construct
+        { txt = Ldot (Lident "Kernel", "TyVar"); loc }
+        (Some (A.estring name))
   | _ -> Location.raise_errorf ~loc:ct.ptyp_loc "unsupported type in [%%%%term]"
 
 let rec translate_expr ~loc ~env (input : expression) =
@@ -116,7 +119,10 @@ let rec translate_expr ~loc ~env (input : expression) =
       let ty_var, ty_expr = translate_type ~loc core_type in
       mk_bind ~loc ty_expr ty_var
         (A.eapply (A.evar "Result.ok")
-           [ A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ] ])
+           [
+             A.eapply (A.evar "Kernel.make_var")
+               [ A.estring name; A.evar ty_var ];
+           ])
   (* General type annotation on arbitrary expression: (expr : ty) *)
   | Pexp_constraint (inner_expr, _core_type) ->
       translate_expr ~loc ~env inner_expr
@@ -128,14 +134,19 @@ let rec translate_expr ~loc ~env (input : expression) =
           mk_bind ~loc ty_expr ty_var
             (A.eapply (A.evar "Result.ok")
                [
-                 A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ];
+                 A.eapply (A.evar "Kernel.make_var")
+                   [ A.estring name; A.evar ty_var ];
                ])
       | Some (Runtime (rt_var, _)) ->
           A.eapply (A.evar "Result.ok")
-            [ A.eapply (A.evar "make_var") [ A.estring name; A.evar rt_var ] ]
+            [
+              A.eapply (A.evar "Kernel.make_var")
+                [ A.estring name; A.evar rt_var ];
+            ]
       | Some (Prebuilt ocaml_var) ->
           A.eapply (A.evar "Result.ok") [ A.evar ocaml_var ]
-      | None -> A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ])
+      | None ->
+          A.eapply (A.evar "Kernel.make_const") [ A.estring name; A.elist [] ])
   (* Lambda: fun (x : ty) (y : ty) -> body *)
   | Pexp_function _ -> (
       match extract_fun_params_and_body input with
@@ -145,12 +156,12 @@ let rec translate_expr ~loc ~env (input : expression) =
             "lambda parameters must be annotated: fun (x : ty) -> body")
   (* true/false → HOL constants T/F *)
   | Pexp_construct ({ txt = Lident "true"; _ }, None) ->
-      A.eapply (A.evar "make_const") [ A.estring "T"; A.elist [] ]
+      A.eapply (A.evar "Kernel.make_const") [ A.estring "T"; A.elist [] ]
   | Pexp_construct ({ txt = Lident "false"; _ }, None) ->
-      A.eapply (A.evar "make_const") [ A.estring "F"; A.elist [] ]
+      A.eapply (A.evar "Kernel.make_const") [ A.estring "F"; A.elist [] ]
   (* [] → Nil *)
   | Pexp_construct ({ txt = Lident "[]"; _ }, None) ->
-      A.eapply (A.evar "make_const") [ A.estring "Nil"; A.elist [] ]
+      A.eapply (A.evar "Kernel.make_const") [ A.estring "Nil"; A.elist [] ]
   (* x :: xs → Cons x xs *)
   | Pexp_construct ({ txt = Lident "::"; _ }, Some arg) ->
       let hd, tl =
@@ -159,7 +170,7 @@ let rec translate_expr ~loc ~env (input : expression) =
         | _ -> Location.raise_errorf ~loc "malformed :: expression"
       in
       let const_expr =
-        A.eapply (A.evar "make_const") [ A.estring "Cons"; A.elist [] ]
+        A.eapply (A.evar "Kernel.make_const") [ A.estring "Cons"; A.elist [] ]
       in
       let func_var = fresh_id "app" in
       List.fold_left
@@ -179,14 +190,14 @@ let rec translate_expr ~loc ~env (input : expression) =
       |> fst
   (* Nullary constructor → HOL constant *)
   | Pexp_construct ({ txt = Lident name; _ }, None) ->
-      A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
+      A.eapply (A.evar "Kernel.make_const") [ A.estring name; A.elist [] ]
   (* Constructor with arguments → HOL constant applied to args *)
   | Pexp_construct ({ txt = Lident name; _ }, Some arg) ->
       let args =
         match arg.pexp_desc with Pexp_tuple args -> args | _ -> [ arg ]
       in
       let const_expr =
-        A.eapply (A.evar "make_const") [ A.estring name; A.elist [] ]
+        A.eapply (A.evar "Kernel.make_const") [ A.estring name; A.elist [] ]
       in
       let func_var = fresh_id "app" in
       List.fold_left
@@ -214,7 +225,7 @@ let rec translate_expr ~loc ~env (input : expression) =
               "nat literal must be a non-negative integer"
       in
       let zero =
-        A.eapply (A.evar "make_const") [ A.estring "Zero"; A.elist [] ]
+        A.eapply (A.evar "Kernel.make_const") [ A.estring "Zero"; A.elist [] ]
       in
       let rec wrap k acc =
         if k = 0 then acc
@@ -224,7 +235,8 @@ let rec translate_expr ~loc ~env (input : expression) =
           wrap (k - 1)
             (mk_bind ~loc acc acc_var
                (mk_bind ~loc
-                  (A.eapply (A.evar "make_const")
+                  (A.eapply
+                     (A.evar "Kernel.make_const")
                      [ A.estring "Suc"; A.elist [] ])
                   suc_var
                   (A.eapply
@@ -235,7 +247,7 @@ let rec translate_expr ~loc ~env (input : expression) =
   (* if/then/else → COND cond then_branch else_branch *)
   | Pexp_ifthenelse (cond, then_br, Some else_br) ->
       let cond_const =
-        A.eapply (A.evar "make_const") [ A.estring "COND"; A.elist [] ]
+        A.eapply (A.evar "Kernel.make_const") [ A.estring "COND"; A.elist [] ]
       in
       let all_args = [ cond; then_br; else_br ] in
       let func_var = fresh_id "app" in
@@ -269,7 +281,7 @@ and translate_lambda ~loc ~env pats body =
       let env = (name, Annotated core_type) :: env in
       let ty_var, ty_expr = translate_type ~loc core_type in
       let var_expr =
-        A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
+        A.eapply (A.evar "Kernel.make_var") [ A.estring name; A.evar ty_var ]
       in
       let inner = translate_lambda ~loc ~env rest body in
       let body_var = fresh_id "body" in
@@ -277,7 +289,8 @@ and translate_lambda ~loc ~env pats body =
       mk_bind ~loc ty_expr ty_var
         (mk_bind ~loc inner body_var
            (mk_bind ~loc
-              (A.eapply (A.evar "make_lam") [ var_expr; A.evar body_var ])
+              (A.eapply (A.evar "Kernel.make_lam")
+                 [ var_expr; A.evar body_var ])
               lam_var
               (A.eapply (A.evar "Result.ok") [ A.evar lam_var ])))
 
@@ -288,34 +301,35 @@ and translate_apply ~loc ~env func args =
   (* forall (fun (x : ty) -> body) → make_forall var body *)
   | Pexp_ident { txt = Lident "forall"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
-      translate_quantifier ~loc ~env ~quant:"make_forall" lam
+      translate_quantifier ~loc ~env ~quant:"Derived.make_forall" lam
   (* exists (fun (x : ty) -> body) → make_exists var body *)
   | Pexp_ident { txt = Lident "exists"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
-      translate_quantifier ~loc ~env ~quant:"make_exists" lam
+      translate_quantifier ~loc ~env ~quant:"Derived.make_exists" lam
   (* choose (fun (x : ty) -> body) → make_select var body *)
   | Pexp_ident { txt = Lident "choose"; _ }, [ (Nolabel, lam) ]
     when is_fun_expr lam ->
-      translate_quantifier ~loc ~env ~quant:"make_select" ~pure:false lam
+      translate_quantifier ~loc ~env ~quant:"Derived.make_select" ~pure:false
+        lam
   (* not p → make_neg p *)
   | Pexp_ident { txt = Lident "not"; _ }, [ (Nolabel, p) ] ->
       let p_expr = translate_expr ~loc ~env p in
       let p_var = fresh_id "arg" in
       mk_bind ~loc p_expr p_var
         (A.eapply (A.evar "Result.ok")
-           [ A.eapply (A.evar "make_neg") [ A.evar p_var ] ])
+           [ A.eapply (A.evar "Derived.make_neg") [ A.evar p_var ] ])
   (* p = q → safe_make_eq p q *)
   | Pexp_ident { txt = Lident "="; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
       translate_binary_result ~loc ~env ~fn:"Heft.Rewrite.smart_make_eq" lhs rhs
   (* p ==> q → make_imp p q (pure) *)
   | Pexp_ident { txt = Lident "==>"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
-      translate_binary_pure ~loc ~env ~fn:"make_imp" lhs rhs
+      translate_binary_pure ~loc ~env ~fn:"Derived.make_imp" lhs rhs
   (* p && q → make_conj p q (pure) *)
   | Pexp_ident { txt = Lident "&&"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
-      translate_binary_pure ~loc ~env ~fn:"make_conj" lhs rhs
+      translate_binary_pure ~loc ~env ~fn:"Derived.make_conj" lhs rhs
   (* p || q → make_disj p q (pure) *)
   | Pexp_ident { txt = Lident "||"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
-      translate_binary_pure ~loc ~env ~fn:"make_disj" lhs rhs
+      translate_binary_pure ~loc ~env ~fn:"Derived.make_disj" lhs rhs
   (* General application: f x y → make_app (make_app f x) y *)
   | _ ->
       let all_args = List.map (fun (_, arg) -> arg) args in
@@ -355,7 +369,7 @@ and translate_quantifier_params ~loc ~env ~quant ~pure pats body =
       let env = (name, Annotated core_type) :: env in
       let ty_var, ty_expr = translate_type ~loc core_type in
       let var_expr =
-        A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
+        A.eapply (A.evar "Kernel.make_var") [ A.estring name; A.evar ty_var ]
       in
       let inner =
         translate_quantifier_params ~loc ~env ~quant ~pure rest body
@@ -395,7 +409,9 @@ and translate_match ~loc ~env scrutinee cases =
   let type_name, scr_ct_opt = extract_match_type_info ~loc ~env scrutinee in
   let match_fn_name = "match_" ^ type_name in
   let match_expr =
-    A.eapply (A.evar "make_const") [ A.estring match_fn_name; A.elist [] ]
+    A.eapply
+      (A.evar "Kernel.make_const")
+      [ A.estring match_fn_name; A.elist [] ]
   in
   let scr_expr = translate_expr ~loc ~env scrutinee in
   (* Compute tysub at runtime for polymorphic types *)
@@ -412,7 +428,7 @@ and translate_match ~loc ~env scrutinee cases =
                A.pexp_field
                  (A.eapply (A.evar "Hashtbl.find")
                     [ A.evar "Kernel.the_inductives"; A.estring type_name ])
-                 { txt = Lident "ty"; loc };
+                 { txt = Ldot (Lident "Kernel", "ty"); loc };
                scr_ty_expr;
              ])
           [
@@ -513,7 +529,8 @@ and translate_match_case ~loc ~env ~tysub_var case =
               let lam_v = fresh_id "mlam" in
               let expr =
                 mk_bind ~loc inner_expr inner_var
-                  (A.eapply (A.evar "make_lam") [ A.evar pv; A.evar inner_var ])
+                  (A.eapply (A.evar "Kernel.make_lam")
+                     [ A.evar pv; A.evar inner_var ])
               in
               (expr, lam_v))
             var_data (body_expr, body_v)
@@ -525,7 +542,7 @@ and translate_match_case ~loc ~env ~tysub_var case =
                 [
                   A.value_binding ~pat:(A.pvar pv)
                     ~expr:
-                      (A.eapply (A.evar "make_var")
+                      (A.eapply (A.evar "Kernel.make_var")
                          [ A.estring name; A.evar ty_v ]);
                 ]
                 acc)
@@ -726,7 +743,7 @@ let translate_def ~(loc : location) ~(path : label)
       (fun (_, ct) acc ->
         let arg_e = translate_type_raw ~loc ct in
         let acc_e = acc in
-        A.eapply (A.evar "make_fun_ty") [ arg_e; acc_e ])
+        A.eapply (A.evar "Kernel.make_fun_ty") [ arg_e; acc_e ])
       param_bindings
       (translate_type_raw ~loc ret_type)
   in
@@ -745,12 +762,14 @@ let translate_def ~(loc : location) ~(path : label)
             let ty_v, ty_e = translate_type ~loc ct in
             let lam_v = fresh_id "deflam" in
             let var_expr =
-              A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_v ]
+              A.eapply (A.evar "Kernel.make_var")
+                [ A.estring name; A.evar ty_v ]
             in
             let expr =
               mk_bind ~loc ty_e ty_v
                 (mk_bind ~loc inner_expr inner_var
-                   (A.eapply (A.evar "make_lam") [ var_expr; A.evar inner_var ]))
+                   (A.eapply (A.evar "Kernel.make_lam")
+                      [ var_expr; A.evar inner_var ]))
             in
             (expr, lam_v))
           param_bindings (body_expr, body_v)
@@ -764,15 +783,16 @@ let translate_def ~(loc : location) ~(path : label)
       [ A.value_binding ~pat:(A.pvar full_ty_v) ~expr:full_type_expr ]
       (mk_bind ~loc rhs_chain rhs_v
          (let def_var =
-            A.eapply (A.evar "make_var") [ A.estring fn_name; A.evar full_ty_v ]
+            A.eapply (A.evar "Kernel.make_var")
+              [ A.estring fn_name; A.evar full_ty_v ]
           in
           let eq_v = fresh_id "defeq" in
           let def_thm_v = fresh_id "defthm" in
           mk_bind ~loc
-            (A.eapply (A.evar "safe_make_eq") [ def_var; A.evar rhs_v ])
+            (A.eapply (A.evar "Kernel.safe_make_eq") [ def_var; A.evar rhs_v ])
             eq_v
             (mk_bind ~loc
-               (A.eapply (A.evar "new_basic_definition") [ A.evar eq_v ])
+               (A.eapply (A.evar "Kernel.new_basic_definition") [ A.evar eq_v ])
                def_thm_v
                (A.pexp_sequence
                   (A.eapply
@@ -937,7 +957,9 @@ let translate_primrec ~(loc : location) ~(path : label)
   let expanded_ret_type_expr =
     List.fold_right
       (fun (_, ct) acc ->
-        A.eapply (A.evar "make_fun_ty") [ translate_type_raw ~loc ct; acc ])
+        A.eapply
+          (A.evar "Kernel.make_fun_ty")
+          [ translate_type_raw ~loc ct; acc ])
       non_rec_params
       (translate_type_raw ~loc ret_type)
   in
@@ -1117,7 +1139,7 @@ let translate_primrec ~(loc : location) ~(path : label)
                  (fun (name, _, _, _, rv, _) ->
                    A.value_binding ~pat:(A.pvar rv)
                      ~expr:
-                       (A.eapply (A.evar "make_var")
+                       (A.eapply (A.evar "Kernel.make_var")
                           [ A.estring ("_r_" ^ name); A.evar ret_ty_v ]))
                  pv_data)
               inner
@@ -1131,7 +1153,7 @@ let translate_primrec ~(loc : location) ~(path : label)
                  (fun (name, _, pty, pv, _, _) ->
                    A.value_binding ~pat:(A.pvar pv)
                      ~expr:
-                       (A.eapply (A.evar "make_var")
+                       (A.eapply (A.evar "Kernel.make_var")
                           [ A.estring name; A.evar pty ]))
                  pv_data)
               with_rvs
@@ -1239,7 +1261,7 @@ let translate_primrec ~(loc : location) ~(path : label)
              [
                A.value_binding ~pat:(A.pvar pv)
                  ~expr:
-                   (A.eapply (A.evar "make_var")
+                   (A.eapply (A.evar "Kernel.make_var")
                       [ A.estring name; A.evar ty_v ]);
              ]
              acc))
@@ -1261,7 +1283,7 @@ let translate_primrec ~(loc : location) ~(path : label)
                            A.evar "Kernel.the_inductives";
                            A.estring ind_type_name;
                          ])
-                      { txt = Lident "ty"; loc };
+                      { txt = Ldot (Lident "Kernel", "ty"); loc };
                     scr_type_expr;
                   ])
                [
@@ -1321,14 +1343,16 @@ let translate_thm_bindings ~loc bindings =
       (fun (name, ct) inner_expr ->
         let ty_var, ty_expr = translate_type ~loc ct in
         let var_expr =
-          A.eapply (A.evar "make_var") [ A.estring name; A.evar ty_var ]
+          A.eapply (A.evar "Kernel.make_var") [ A.estring name; A.evar ty_var ]
         in
         let body_var = fresh_id "body" in
         mk_bind ~loc ty_expr ty_var
           (mk_bind ~loc inner_expr body_var
              (A.eapply (A.evar "Result.ok")
                 [
-                  A.eapply (A.evar "make_forall") [ var_expr; A.evar body_var ];
+                  A.eapply
+                    (A.evar "Derived.make_forall")
+                    [ var_expr; A.evar body_var ];
                 ])))
       param_bindings body_expr
   in
@@ -1338,7 +1362,7 @@ let translate_thm_bindings ~loc bindings =
   let save_name = not (String.length thm_name > 0 && thm_name.[0] = '_') in
   let expr =
     match bindings with
-    | [ _ ] -> A.eapply (A.evar "make_goal") [ unwrapped_goal ]
+    | [ _ ] -> A.eapply (A.evar "Tactic.make_goal") [ unwrapped_goal ]
     | [ _; proof_binding ] ->
         let proof_name =
           match proof_binding.pvb_pat.ppat_desc with
@@ -1384,11 +1408,11 @@ let translate_thm_bindings ~loc bindings =
              else [])
           @ [ (Nolabel, A.evar goal_var); (Nolabel, cleantic) ]
         in
-        let run_proof_expr = A.pexp_apply (A.evar "run_proof") args in
+        let run_proof_expr = A.pexp_apply (A.evar "Tactic.run_proof") args in
         A.pexp_let Nonrecursive
           [
             A.value_binding ~pat:(A.pvar goal_var)
-              ~expr:(A.eapply (A.evar "make_goal") [ unwrapped_goal ]);
+              ~expr:(A.eapply (A.evar "Tactic.make_goal") [ unwrapped_goal ]);
           ]
           (A.pexp_sequence run_proof_expr (A.evar goal_var))
     | _ ->

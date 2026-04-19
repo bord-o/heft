@@ -1,5 +1,4 @@
 open Heft
-open Derived
 open Kernel
 open Tactic
 open Synth
