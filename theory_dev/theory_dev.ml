@@ -253,4 +253,55 @@ arguments through Pairs
 
 *)
 
+let%wfrec merge_wf (p : (nat list, nat list) pair) : nat list =
+  match p with
+  | Pair (xs, ys) -> (
+      match (xs : nat list) with
+      | [] -> ys
+      | x' :: xs' -> (
+          match (ys : nat list) with
+          | [] -> xs
+          | y' :: ys' ->
+              if nat_lt x' y' then x' :: merge_wf (Pair (xs', ys))
+              else y' :: merge_wf (Pair (xs, ys'))))
+
+and measure =
+ fun (p : (nat list, nat list) pair) ->
+  match p with Pair (l, r) -> plus (length l) (length r)
+
+and proof =
+  begin
+    noop >> rewrite_at "wf_rec_cong" >> with_repeat beta >> intros @! "hcong"
+    >> rewrite_at "merge_wf_functional"
+    >> rewrite_at "merge_wf_functional"
+    >> with_repeat beta
+    >> with_term [%term (x : (nat list, nat list) pair)] destruct_elim
+       @: [ ""; "heq" ]
+    >> simp
+    >> with_term [%term (a0 : nat list)] destruct_elim
+       @: [ "ha0nil"; ""; ""; "ha0cons" ]
+    >> simp >> simp
+    >> with_term [%term (a1 : nat list)] destruct_elim
+       @: [ "ha1nil"; ""; ""; "ha1cons" ]
+    >> simp >> simp
+    >> cond @: [ "htrue"; "hfalse" ]
+    >> (simp >> apply_at "eq_cong" >> apply_at "hcong" >> rewrite_at "heq"
+      >> simp >> rewrite_at "lt_Suc_or_eq" >> right >> refl)
+    >> (simp >> apply_at "eq_cong" >> apply_at "hcong" >> rewrite_at "heq"
+      >> simp >> rewrite_at "lt_Suc_or_eq" >> right >> refl)
+  end
+  [@quiet]
+
+(* let () = !Rules.definitions  |> List.iter (fun (n, _) -> print_endline n) *)
+
+let%thm merge_wf_test (xs : nat list)  =
+    merge_wf_fix (Pair (xs, [])) = xs
+and proof = 
+    begin
+        noop
+        >> gen
+        >> rewrite_at "merge_wf"
+    end
+
+
 let () = ()

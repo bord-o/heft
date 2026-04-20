@@ -1,0 +1,12 @@
+(library
+ (name wfrec_tests)
+ (libraries
+  heft
+  heft.ppx_heft
+  heft.theories.nats
+  heft.theories.wf
+  heft.theories.pairs
+  heft.theories.conds)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect ppx_heft)))

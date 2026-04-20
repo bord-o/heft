@@ -695,6 +695,67 @@ let extract_def_parts expr =
   in
   go [] expr
 
+(* Shared helper: generates the expression that defines a HOL constant via
+   new_basic_definition and registers it in Rules.definitions.
+   Returns an OCaml expression of type (thm, _) result. *)
+let build_def_expr ~loc ~def_name ~param_bindings ~ret_type ~env ~body =
+  let (module A) = Ast_builder.make loc in
+  let full_type_expr =
+    List.fold_right
+      (fun (_, ct) acc ->
+        A.eapply
+          (A.evar "Kernel.make_fun_ty")
+          [ translate_type_raw ~loc ct; acc ])
+      param_bindings
+      (translate_type_raw ~loc ret_type)
+  in
+  let body_expr = translate_expr ~loc ~env body in
+  let rhs_chain, rhs_v =
+    if param_bindings = [] then (body_expr, fresh_id "defbody")
+    else
+      let body_v = fresh_id "defbody" in
+      let chain, _ =
+        List.fold_right
+          (fun (name, ct) (inner_expr, inner_var) ->
+            let ty_v, ty_e = translate_type ~loc ct in
+            let lam_v = fresh_id "deflam" in
+            let var_expr =
+              A.eapply (A.evar "Kernel.make_var")
+                [ A.estring name; A.evar ty_v ]
+            in
+            let expr =
+              mk_bind ~loc ty_e ty_v
+                (mk_bind ~loc inner_expr inner_var
+                   (A.eapply (A.evar "Kernel.make_lam")
+                      [ var_expr; A.evar inner_var ]))
+            in
+            (expr, lam_v))
+          param_bindings (body_expr, body_v)
+      in
+      (chain, fresh_id "deflam")
+  in
+  let full_ty_v = fresh_id "defty" in
+  A.pexp_let Nonrecursive
+    [ A.value_binding ~pat:(A.pvar full_ty_v) ~expr:full_type_expr ]
+    (mk_bind ~loc rhs_chain rhs_v
+       (let def_var =
+          A.eapply (A.evar "Kernel.make_var")
+            [ A.estring def_name; A.evar full_ty_v ]
+        in
+        let eq_v = fresh_id "defeq" in
+        let def_thm_v = fresh_id "defthm" in
+        mk_bind ~loc
+          (A.eapply (A.evar "Kernel.safe_make_eq") [ def_var; A.evar rhs_v ])
+          eq_v
+          (mk_bind ~loc
+             (A.eapply (A.evar "Kernel.new_basic_definition") [ A.evar eq_v ])
+             def_thm_v
+             (A.pexp_sequence
+                (A.eapply
+                   (A.evar "Heft.Rules.add_def")
+                   [ A.estring def_name; A.evar def_thm_v ])
+                (A.eapply (A.evar "Result.ok") [ A.evar def_thm_v ])))))
+
 let translate_def ~(loc : location) ~(path : label)
     (payload : structure_item list) =
   let (module A) = Ast_builder.make loc in
@@ -737,68 +798,9 @@ let translate_def ~(loc : location) ~(path : label)
               "[%%%%def] parameters must be annotated: (x : ty)")
       params
   in
-  (* Build the full type: arg1 -> arg2 -> ... -> ret *)
-  let full_type_expr =
-    List.fold_right
-      (fun (_, ct) acc ->
-        let arg_e = translate_type_raw ~loc ct in
-        let acc_e = acc in
-        A.eapply (A.evar "Kernel.make_fun_ty") [ arg_e; acc_e ])
-      param_bindings
-      (translate_type_raw ~loc ret_type)
-  in
-  (* Build the env for body translation *)
   let env = List.map (fun (name, ct) -> (name, Annotated ct)) param_bindings in
-  (* Translate body *)
-  let body_expr = translate_expr ~loc ~env body in
-  (* Build the RHS term: either lambda-wrapped (function) or bare (constant) *)
-  let rhs_chain, rhs_v =
-    if param_bindings = [] then (body_expr, fresh_id "defbody")
-    else
-      let body_v = fresh_id "defbody" in
-      let chain, _ =
-        List.fold_right
-          (fun (name, ct) (inner_expr, inner_var) ->
-            let ty_v, ty_e = translate_type ~loc ct in
-            let lam_v = fresh_id "deflam" in
-            let var_expr =
-              A.eapply (A.evar "Kernel.make_var")
-                [ A.estring name; A.evar ty_v ]
-            in
-            let expr =
-              mk_bind ~loc ty_e ty_v
-                (mk_bind ~loc inner_expr inner_var
-                   (A.eapply (A.evar "Kernel.make_lam")
-                      [ var_expr; A.evar inner_var ]))
-            in
-            (expr, lam_v))
-          param_bindings (body_expr, body_v)
-      in
-      (chain, fresh_id "deflam")
-  in
-  (* Build: Var(fn_name, full_type) = rhs_term, then new_basic_definition *)
-  let full_ty_v = fresh_id "defty" in
   let def_expr =
-    A.pexp_let Nonrecursive
-      [ A.value_binding ~pat:(A.pvar full_ty_v) ~expr:full_type_expr ]
-      (mk_bind ~loc rhs_chain rhs_v
-         (let def_var =
-            A.eapply (A.evar "Kernel.make_var")
-              [ A.estring fn_name; A.evar full_ty_v ]
-          in
-          let eq_v = fresh_id "defeq" in
-          let def_thm_v = fresh_id "defthm" in
-          mk_bind ~loc
-            (A.eapply (A.evar "Kernel.safe_make_eq") [ def_var; A.evar rhs_v ])
-            eq_v
-            (mk_bind ~loc
-               (A.eapply (A.evar "Kernel.new_basic_definition") [ A.evar eq_v ])
-               def_thm_v
-               (A.pexp_sequence
-                  (A.eapply
-                     (A.evar "Heft.Rules.add_def")
-                     [ A.estring fn_name; A.evar def_thm_v ])
-                  (A.eapply (A.evar "Result.ok") [ A.evar def_thm_v ])))))
+    build_def_expr ~loc ~def_name:fn_name ~param_bindings ~ret_type ~env ~body
   in
   let unwrapped = A.eapply (A.evar "Heft.Printing.unwrap_thm") [ def_expr ] in
   A.pstr_value Nonrecursive
@@ -1307,6 +1309,386 @@ let translate_primrec ~(loc : location) ~(path : label)
 
 let thm_attrs = [ "simp"; "quiet"; "trace" ]
 
+(* Helper to build a right-associative chain of (>>) tactic sequencing *)
+let build_tactic_chain ~loc exprs =
+  let (module A) = Ast_builder.make loc in
+  match List.rev exprs with
+  | [] -> A.evar "Tactic.noop"
+  | last :: rest ->
+      List.fold_left
+        (fun acc e -> A.eapply (A.evar "Tactic.( >> )") [ e; acc ])
+        last rest
+
+(* Helper to build a synthetic ident expression *)
+let mk_ident ~loc name =
+  {
+    pexp_desc = Pexp_ident { txt = Lident name; loc };
+    pexp_loc = loc;
+    pexp_loc_stack = [];
+    pexp_attributes = [];
+  }
+
+(* Helper to build a synthetic application expression *)
+let mk_apply ~loc f args =
+  {
+    pexp_desc = Pexp_apply (f, List.map (fun a -> (Nolabel, a)) args);
+    pexp_loc = loc;
+    pexp_loc_stack = [];
+    pexp_attributes = [];
+  }
+
+(* Helper to build a synthetic constraint expression: (expr : ty) *)
+let mk_constraint ~loc expr ct =
+  {
+    pexp_desc = Pexp_constraint (expr, ct);
+    pexp_loc = loc;
+    pexp_loc_stack = [];
+    pexp_attributes = [];
+  }
+
+(* Helper to build a labeled application *)
+let mk_labeled_apply ~loc f args =
+  {
+    pexp_desc = Pexp_apply (f, args);
+    pexp_loc = loc;
+    pexp_loc_stack = [];
+    pexp_attributes = [];
+  }
+
+(* Replace recursive calls to fn_name in an expression with calls to a
+   variable named replacement_var. Validates that each recursive call has
+   exactly one argument. *)
+let rec replace_wfrec_calls fn_name replacement_var expr =
+  let go = replace_wfrec_calls fn_name replacement_var in
+  match expr.pexp_desc with
+  | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident fn; _ }; _ }, args)
+    when fn = fn_name ->
+      if List.length args <> 1 then
+        Location.raise_errorf ~loc:expr.pexp_loc
+          "[%%%%wfrec] recursive call to '%s' must have exactly one argument, \
+           got %d"
+          fn_name (List.length args);
+      let arg = snd (List.hd args) in
+      {
+        expr with
+        pexp_desc =
+          Pexp_apply
+            ( {
+                expr with
+                pexp_desc =
+                  Pexp_ident
+                    { txt = Lident replacement_var; loc = expr.pexp_loc };
+              },
+              [ (Nolabel, go arg) ] );
+      }
+  | Pexp_apply (f, args) ->
+      {
+        expr with
+        pexp_desc = Pexp_apply (go f, List.map (fun (l, e) -> (l, go e)) args);
+      }
+  | Pexp_construct (lid, Some arg) ->
+      { expr with pexp_desc = Pexp_construct (lid, Some (go arg)) }
+  | Pexp_tuple es -> { expr with pexp_desc = Pexp_tuple (List.map go es) }
+  | Pexp_ifthenelse (c, t, Some e) ->
+      { expr with pexp_desc = Pexp_ifthenelse (go c, go t, Some (go e)) }
+  | Pexp_match (scr, cases) ->
+      {
+        expr with
+        pexp_desc =
+          Pexp_match
+            (go scr, List.map (fun c -> { c with pc_rhs = go c.pc_rhs }) cases);
+      }
+  | Pexp_constraint (inner, ct) ->
+      { expr with pexp_desc = Pexp_constraint (go inner, ct) }
+  | Pexp_function (params, constr, Pfunction_body body) ->
+      {
+        expr with
+        pexp_desc = Pexp_function (params, constr, Pfunction_body (go body));
+      }
+  | Pexp_ident { txt = Lident fn; _ } when fn = fn_name ->
+      Location.raise_errorf ~loc:expr.pexp_loc
+        "[%%%%wfrec] recursive reference to '%s' must be a function call with \
+         exactly one argument"
+        fn_name
+  | _ -> expr
+
+let translate_wfrec ~(loc : location) ~(path : label)
+    (payload : structure_item list) =
+  let (module A) = Ast_builder.make loc in
+  let _ = path in
+  let bindings =
+    match payload with
+    | [ { pstr_desc = Pstr_value (Nonrecursive, bindings); _ } ] -> bindings
+    | _ ->
+        Location.raise_errorf ~loc
+          "[%%%%wfrec] expects exactly three bindings joined by 'and'"
+  in
+  if List.length bindings <> 3 then
+    Location.raise_errorf ~loc
+      "[%%%%wfrec] expects exactly three bindings (function, measure, proof), \
+       got %d"
+      (List.length bindings);
+  let fn_vb = List.nth bindings 0 in
+  let measure_vb = List.nth bindings 1 in
+  let proof_vb = List.nth bindings 2 in
+  (* --- Parse function binding --- *)
+  let fn_name =
+    match fn_vb.pvb_pat.ppat_desc with
+    | Ppat_var { txt = name; _ } -> name
+    | _ ->
+        Location.raise_errorf ~loc:fn_vb.pvb_pat.ppat_loc
+          "[%%%%wfrec] first binding must be a simple function name"
+  in
+  let params, ret_type_opt, fn_body = extract_def_parts fn_vb.pvb_expr in
+  let constraint_type =
+    match fn_vb.pvb_constraint with
+    | Some (Pvc_constraint { locally_abstract_univars = _; typ }) -> Some typ
+    | _ -> None
+  in
+  let ret_ct =
+    match (ret_type_opt, constraint_type) with
+    | Some ct, _ -> ct
+    | None, Some ct -> ct
+    | None, None ->
+        Location.raise_errorf ~loc
+          "[%%%%wfrec] requires a return type annotation"
+  in
+  if List.length params <> 1 then
+    Location.raise_errorf ~loc
+      "[%%%%wfrec] expects exactly one parameter, got %d" (List.length params);
+  let param_name, param_ct = extract_pat_binding (List.hd params) in
+  (* --- Validate measure binding --- *)
+  (match measure_vb.pvb_pat.ppat_desc with
+  | Ppat_var { txt = "measure"; _ } -> ()
+  | Ppat_var { txt = name; _ } ->
+      Location.raise_errorf ~loc:measure_vb.pvb_pat.ppat_loc
+        "[%%%%wfrec] second binding must be named 'measure', got '%s'" name
+  | _ ->
+      Location.raise_errorf ~loc:measure_vb.pvb_pat.ppat_loc
+        "[%%%%wfrec] second binding must be named 'measure'");
+  let measure_expr = measure_vb.pvb_expr in
+  (* --- Validate proof binding --- *)
+  (match proof_vb.pvb_pat.ppat_desc with
+  | Ppat_var { txt = "proof"; _ } -> ()
+  | Ppat_var { txt = name; _ } ->
+      Location.raise_errorf ~loc:proof_vb.pvb_pat.ppat_loc
+        "[%%%%wfrec] third binding must be named 'proof', got '%s'" name
+  | _ ->
+      Location.raise_errorf ~loc:proof_vb.pvb_pat.ppat_loc
+        "[%%%%wfrec] third binding must be named 'proof'");
+  let tactic_expr = proof_vb.pvb_expr in
+  (* --- Derived names --- *)
+  let functional_name = fn_name ^ "_functional" in
+  let measure_name = fn_name ^ "_measure" in
+  let cong_name = fn_name ^ "_cong" in
+  let fix_name = fn_name ^ "_fix" in
+  (* Build the f parameter type: param_type -> ret_type *)
+  let f_ct =
+    {
+      ptyp_desc = Ptyp_arrow (Nolabel, param_ct, ret_ct);
+      ptyp_loc = loc;
+      ptyp_loc_stack = [];
+      ptyp_attributes = [];
+    }
+  in
+  (* --- Step 1: Define <name>_functional --- *)
+  let replaced_body = replace_wfrec_calls fn_name "f" fn_body in
+  let functional_params = [ ("f", f_ct); (param_name, param_ct) ] in
+  let functional_env =
+    List.map (fun (n, ct) -> (n, Annotated ct)) functional_params
+  in
+  let functional_def_expr =
+    build_def_expr ~loc ~def_name:functional_name
+      ~param_bindings:functional_params ~ret_type:ret_ct ~env:functional_env
+      ~body:replaced_body
+  in
+  let functional_step =
+    A.eapply (A.evar "ignore")
+      [ A.eapply (A.evar "Heft.Printing.unwrap_thm") [ functional_def_expr ] ]
+  in
+  (* --- Step 2: Define <name>_measure --- *)
+  let measure_body = mk_apply ~loc (mk_ident ~loc "measure") [ measure_expr ] in
+  let measure_def_expr =
+    build_def_expr ~loc ~def_name:measure_name ~param_bindings:[]
+      ~ret_type:
+        {
+          ptyp_desc =
+            Ptyp_arrow
+              ( Nolabel,
+                param_ct,
+                {
+                  ptyp_desc =
+                    Ptyp_arrow
+                      ( Nolabel,
+                        param_ct,
+                        {
+                          ptyp_desc =
+                            Ptyp_constr ({ txt = Lident "bool"; loc }, []);
+                          ptyp_loc = loc;
+                          ptyp_loc_stack = [];
+                          ptyp_attributes = [];
+                        } );
+                  ptyp_loc = loc;
+                  ptyp_loc_stack = [];
+                  ptyp_attributes = [];
+                } );
+          ptyp_loc = loc;
+          ptyp_loc_stack = [];
+          ptyp_attributes = [];
+        }
+      ~env:[] ~body:measure_body
+  in
+  let measure_step =
+    A.eapply (A.evar "ignore")
+      [ A.eapply (A.evar "Heft.Printing.unwrap_thm") [ measure_def_expr ] ]
+  in
+  (* --- Step 3: Prove wf measure --- *)
+  let wf_measure_step =
+    mk_labeled_apply ~loc
+      (A.evar "Heft.Wfrec.prove_wf_measure")
+      [ (Labelled "name", A.estring fn_name) ]
+  in
+  (* --- Step 4: Prove cong theorem (user's tactic) --- *)
+  let cong_goal_expr =
+    translate_expr ~loc ~env:[]
+      (mk_apply ~loc
+         (mk_ident ~loc "wf_rec_cong")
+         [ mk_ident ~loc measure_name; mk_ident ~loc functional_name ])
+  in
+  let unwrapped_cong_goal =
+    A.eapply (A.evar "Heft.Printing.unwrap_term") [ cong_goal_expr ]
+  in
+  let has_attr name expr =
+    List.exists
+      (fun (attr : attribute) -> attr.attr_name.txt = name)
+      expr.pexp_attributes
+  in
+  let has_simp = has_attr "simp" tactic_expr in
+  let has_quiet = has_attr "quiet" tactic_expr in
+  let has_trace = has_attr "trace" tactic_expr in
+  let cleantic =
+    {
+      tactic_expr with
+      pexp_attributes =
+        List.filter
+          (fun (attr : attribute) ->
+            not (List.mem attr.attr_name.txt thm_attrs))
+          tactic_expr.pexp_attributes;
+    }
+  in
+  let goal_var = fresh_id "goal" in
+  let bool_expr b =
+    A.pexp_construct { txt = Lident (if b then "true" else "false"); loc } None
+  in
+  let cong_args =
+    [ (Labelled "name", A.estring cong_name) ]
+    @ (if has_simp then [ (Labelled "simp", bool_expr true) ] else [])
+    @ (if has_quiet then [ (Labelled "quiet", bool_expr true) ] else [])
+    @ (if has_trace then [ (Labelled "notrace", bool_expr false) ] else [])
+    @ [ (Nolabel, A.evar goal_var); (Nolabel, cleantic) ]
+  in
+  let cong_step =
+    A.eapply (A.evar "ignore")
+      [
+        A.pexp_let Nonrecursive
+          [
+            A.value_binding ~pat:(A.pvar goal_var)
+              ~expr:
+                (A.eapply (A.evar "Tactic.make_goal") [ unwrapped_cong_goal ]);
+          ]
+          (A.pexp_sequence
+             (A.pexp_apply (A.evar "Tactic.run_proof") cong_args)
+             (A.evar goal_var));
+      ]
+  in
+  (* --- Step 5: Prove existence and introduce fixpoint --- *)
+  let define_wfrec_step =
+    mk_labeled_apply ~loc
+      (A.evar "Heft.Wfrec.define_wfrec")
+      [
+        (Labelled "name", A.estring fn_name);
+        (Labelled "arg_type", translate_type_raw ~loc param_ct);
+        (Labelled "ret_type", translate_type_raw ~loc ret_ct);
+      ]
+  in
+  (* --- Step 6: Prove unfolding lemma ---
+     Goal: ∀x. <name>_fix x = <body with recursive calls replaced by <name>_fix>
+     Proof: rewrite_at fix >> beta >> rewrite_at functional >> beta >> gen >> refl *)
+  let unfolding_body = replace_wfrec_calls fn_name fix_name fn_body in
+  let unfolding_env = [ (param_name, Annotated param_ct) ] in
+  let lhs_expr =
+    mk_apply ~loc (mk_ident ~loc fix_name)
+      [ mk_constraint ~loc (mk_ident ~loc param_name) param_ct ]
+  in
+  let eq_expr =
+    mk_apply ~loc (mk_ident ~loc "=") [ lhs_expr; unfolding_body ]
+  in
+  let unfolding_body_expr = translate_expr ~loc ~env:unfolding_env eq_expr in
+  let unfolding_goal_term =
+    let ty_var, ty_expr = translate_type ~loc param_ct in
+    let var_expr =
+      A.eapply (A.evar "Kernel.make_var")
+        [ A.estring param_name; A.evar ty_var ]
+    in
+    let body_var = fresh_id "body" in
+    mk_bind ~loc ty_expr ty_var
+      (mk_bind ~loc unfolding_body_expr body_var
+         (A.eapply (A.evar "Result.ok")
+            [
+              A.eapply
+                (A.evar "Derived.make_forall")
+                [ var_expr; A.evar body_var ];
+            ]))
+  in
+  let unwrapped_unfolding_goal =
+    A.eapply (A.evar "Heft.Printing.unwrap_term") [ unfolding_goal_term ]
+  in
+  let unfolding_goal_var = fresh_id "goal" in
+  let unfolding_tactic =
+    build_tactic_chain ~loc
+      [
+        A.eapply (A.evar "Tactic.rewrite_at") [ A.estring fix_name ];
+        A.evar "Tactic.beta";
+        A.eapply (A.evar "Tactic.rewrite_at") [ A.estring functional_name ];
+        A.evar "Tactic.beta";
+        A.evar "Tactic.gen";
+        A.evar "Tactic.refl";
+      ]
+  in
+  let unfolding_step =
+    A.eapply (A.evar "ignore")
+      [
+        A.pexp_let Nonrecursive
+          [
+            A.value_binding
+              ~pat:(A.pvar unfolding_goal_var)
+              ~expr:
+                (A.eapply
+                   (A.evar "Tactic.make_goal")
+                   [ unwrapped_unfolding_goal ]);
+          ]
+          (A.pexp_sequence
+             (mk_labeled_apply ~loc
+                (A.evar "Tactic.run_proof")
+                [
+                  (Labelled "name", A.estring fn_name);
+                  (Labelled "quiet", bool_expr true);
+                  (Nolabel, A.evar unfolding_goal_var);
+                  (Nolabel, unfolding_tactic);
+                ])
+             (A.evar unfolding_goal_var));
+      ]
+  in
+  (* Chain all steps *)
+  let full_seq =
+    A.pexp_sequence functional_step
+      (A.pexp_sequence measure_step
+         (A.pexp_sequence wf_measure_step
+            (A.pexp_sequence cong_step
+               (A.pexp_sequence define_wfrec_step unfolding_step))))
+  in
+  A.pstr_eval full_seq []
+
 (* Shared core: given bindings, returns (thm_name, generated_expr).
    For goal-only, the expr is make_goal(...).
    For with-proof, the expr is let _goal = make_goal(...) in run_proof ...; _goal *)
@@ -1474,6 +1856,11 @@ let thm_expr_extension =
     Ast_pattern.(single_expr_payload __)
     translate_thm_expr
 
+let wfrec_extension =
+  Extension.declare "wfrec" Extension.Context.structure_item
+    Ast_pattern.(pstr __)
+    translate_wfrec
+
 let () =
   Driver.register_transformation "heft_ppx"
     ~rules:
@@ -1484,4 +1871,5 @@ let () =
         Context_free.Rule.extension primrec_extension;
         Context_free.Rule.extension thm_extension;
         Context_free.Rule.extension thm_expr_extension;
+        Context_free.Rule.extension wfrec_extension;
       ]

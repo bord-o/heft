@@ -8,6 +8,7 @@
  (libraries
   heft
   heft.theories.nats
+  heft.theories.lists
   heft.theories.wf
   heft.theories.pairs
   heft.theories.conds))

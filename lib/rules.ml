@@ -19,6 +19,11 @@ let add_proven name thm = proven := (name, thm) :: !proven
 let get_proven name = List.assoc_opt name !proven
 let get_def name = List.assoc_opt name !definitions
 
+let remove_def name =
+  definitions := List.filter (fun (n, _) -> n <> name) !definitions
+
+let remove_proven name = proven := List.filter (fun (n, _) -> n <> name) !proven
+
 let find_thm name (asms : (string * term) list) =
   let asm = List.find_opt (fun (n, _) -> n = name) asms in
   match asm with
