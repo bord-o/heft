@@ -142,3 +142,14 @@ and proof =
     end
     [@simp]
     [@quiet]
+
+
+let%thm nat_distinct_flip (m : nat) = Suc m = Zero = F
+
+and proof =
+  begin
+    noop >> intros >> eq_false_elim >> neg_intro >> sym_asm
+    >> with_rules nat_def.distinct (with_first rewrite_asm)
+    >> assumption
+  end
+  [@quiet]

@@ -2,8 +2,6 @@
 (* (* [@@@ocamlformat "disable"] *) *)
 
 open Heft
-open Kernel
-open Derived
 open Tactic
 open Auto
 
@@ -15,6 +13,17 @@ let%def min_pair (f : (nat, nat) pair -> nat) (p : (nat, nat) pair) : nat =
   match p with
   | Pair (l, r) ->
       if l = 0n || r = 0n then 0n else Suc (f (Pair (pred l, pred r)))
+
+(* type ('a, 'b) pair = Pair of 'a * 'b *)
+(* type nat = Zero | Suc of nat *)
+(* let pred : nat -> nat = function Zero -> Zero | Suc n -> n *)
+(* let rec min_pair (p : (nat, nat) pair) : nat = *)
+(*   match p with *)
+(*   | Pair (l, r) -> *)
+(*       if l = Zero || r = Zero then Zero else Suc (min_pair (Pair (pred l, pred r))) *)
+(* let rec int_of_nat : nat -> int = function Zero -> 0 | Suc n -> 1 + int_of_nat n *)
+(* let rec nat_of_int : int -> nat = fun n -> if n <= 0 then Zero else Suc (nat_of_int (n-1)) *)
+(* let _ = min_pair (Pair ((nat_of_int 9), (nat_of_int (-1)))) |> int_of_nat |> print_int *)
 
 let%def nat_pair_sum (p : (nat, nat) pair) : nat =
   match p with Pair (l, r) -> plus l r
@@ -29,32 +38,7 @@ let%thm nat_pair_measure_wf = wf nat_pair_measure
 
 and proof =
   begin
-    noop >> rewrite_at "nat_pair_measure" >> apply_at "wf_measure"
-  end
-  [@quiet]
-
-let%thm neg_eq_false (p : bool) = p = false = not p
-
-and proof =
-  begin
-    noop >> intros
-    >> with_rule (neg_def |> Result.get_ok) rewrite
-    >> beta
-    >> eq_iff @: [ "himp"; "heq" ]
-    >> eq_false_elim
-    >> with_rule (neg_def |> Result.get_ok) rewrite
-    >> beta >> assumption >> rewrite_at "heq" >> intros >> false_elim
-  end
-  [@quiet]
-
-let%thm demorgons_eq_false (p : bool) (q : bool) =
-  (p || q) = false ==> ((not p) && not q)
-
-and proof =
-  begin
-    noop >> intros @! "heq"
-    >> rewrite_at "neg_eq_false" ~target:"heq"
-    >> with_no_automation_trace ctauto_dfs
+    rewrite_at "nat_pair_measure" >> apply_at "wf_measure"
   end
   [@quiet]
 
@@ -97,19 +81,6 @@ and proof =
   end
   [@quiet]
 
-let%def min_pair_chosen : (nat, nat) pair -> nat =
-  choose (fun (f : (nat, nat) pair -> nat) ->
-      forall (fun (x : (nat, nat) pair) -> f x = min_pair f x))
-
-let%thm min_pair_chosen_eq (x : (nat, nat) pair) =
-  min_pair_chosen x = min_pair min_pair_chosen x
-
-and proof =
-  begin
-    noop >> intros >> rewrite_at "min_pair_chosen"
-  end
-  [@quiet]
-
 let min_pair_spec =
   Inductive.new_specification "min_pair_spec"
     (Rules.get_proven "min_pair_wf_rec" |> Option.get)
@@ -127,43 +98,34 @@ let%thm min_pair_uncurried (x : (nat, nat) pair) =
 
 and proof =
   begin
-    noop >> rewrite_at "min_pair_spec" >> beta >> rewrite_at "min_pair" >> beta
-    >> gen >> refl
+    rewrite_at "min_pair_spec" >> beta >> rewrite_at "min_pair" >> beta >> gen
+    >> refl
   end
   [@quiet]
 
-(* let () = List.iter Printing.print_thm Nats.nat_def.distinct *)
-let%thm nat_distinct_flip (m : nat) = Suc m = Zero = F
+let%def min_pair_unc (l : nat) (r : nat) : nat = min_pair_spec (Pair (l, r))
+
+let%thm min_pair_uncurried_fr (l : nat) (r : nat) =
+  min_pair_spec (Pair (l, r))
+  = if l = 0n || r = 0n then 0n else Suc (min_pair_unc (pred l) (pred r))
 
 and proof =
   begin
-    noop >> intros >> eq_false_elim >> neg_intro >> sym_asm
-    >> with_rules Nats.nat_def.distinct (with_first rewrite_asm)
-    >> assumption
+    intros >> rewrite_at "min_pair_spec" >> rewrite_at "min_pair"
+    >> with_repeat beta
+    >> simp ~exclude:[ "min_pair_spec" ]
   end
   [@quiet]
 
-let%thm false_or_false = (false || false) = false
+let%thm min_pair_final (l : nat) (r : nat) =
+  min_pair_unc l r
+  = if l = 0n || r = 0n then 0n else Suc (min_pair_unc (pred l) (pred r))
 
 and proof =
   begin
-    noop >> eq_false_elim >> neg_intro >> elim_disj_asm >>> assumption
-  end
-  [@quiet]
-
-let%thm refl_eq_true (x : 'a) = x = x = true
-
-and proof =
-  begin
-    noop >> intros >> eq_true_elim >> refl
-  end
-  [@quiet]
-
-let%thm t_or_f = (true || false) = true
-
-and proof =
-  begin
-    noop >> eq_true_elim >> left >> truth
+    noop >> intros >> rewrite_at "min_pair_unc" >> with_repeat beta
+    >> rewrite_at "min_pair_uncurried_fr"
+    >> refl
   end
   [@quiet]
 
@@ -187,9 +149,108 @@ and proof =
     >> rewrite_at "min_pair_uncurried"
     >> simp ~exclude:[ "min_pair_spec" ]
     >> rewrite_at "nat_distinct_flip"
-    >> rewrite_at "refl_eq_true" >> rewrite_at "t_or_f"
+    >> rewrite_at "refl_eq_true" >> rewrite_at "true_or_false"
     >> simp ~exclude:[ "min_pair_spec" ]
   end
   [@quiet]
+
+(* What I would like to write:
+let%rec min_pair (p : (nat, nat) pair) : nat =
+  match p with
+  | Pair (l, r) ->
+      if l = 0n || r = 0n then 0n else Suc (min_pair (Pair (pred l, pred r)))
+and measure = nat_pair_sum
+and proof = 
+  begin
+    noop >> rewrite_at "wf_rec_cong" >> with_repeat beta >> intros @! "hcong"
+    (* walking through the definition to get to the measured parts *)
+    >> (rewrite_at "min_pair" >> rewrite_at "min_pair" >> with_repeat beta
+       >> with_term [%term (x : (nat, nat) pair)] destruct_elim @: [ ""; "heq" ]
+       >> simp
+       >> cond @: [ "htrue"; "hfalse" ]
+       >> simp >> simp >> apply_at "eq_cong" >> apply_at "hcong")
+    (* if ~(a0 = 0 \/ a1 = Zero) then ∃n0. a0 = Suc n0 /\ ∃n1. a1 = Suc a1 *)
+    >> (apply_at "demorgons_eq_false" ~target:"hfalse"
+       >> elim_conj_asm @: [ "ha0"; "ha0" ]
+       >> with_term [%term (a0 : nat)] destruct_elim
+          @: [ "ha0Zero"; ""; "ha0Nonzero" ]
+       >>> with_term [%term (a1 : nat)] destruct_elim
+           @: [ "ha1Zero"; ""; "ha1Nonzero" ]
+       >> with_first neg_elim >> with_first neg_elim >> with_first neg_elim
+       >> simp >> rewrite_at "lt_Suc_or_eq" >> left >> rewrite_at "lt_Suc_or_eq"
+       >> right >> refl)
+  end
+  [@quiet]
+
+need to
+
+take a single parameter definition f(x)
+rewrite it into h(f, x), where recursive calls are replaced with f
+
+take a measure function, m', of type 'a -> nat, where f was type 'a -> 'b
+generate the proof of wf_m by calling measure m and applying wf_measure
+
+build the congruence goal where we say wf_cong m' h
+user proves this goal
+
+System gives a warning for the rejected definition until the proof goes through.
+
+With both proofs we can prove wf_rec automatically
+
+this gives existence theorem. With it we can assert that the fixpoint exists with new_spec, giving g
+We can now create an unfolding lemma for normal use by asserting that h g x = the body of the original f
+
+This unfolding lemma will be the only thing in rules after we are done. This will allow for unfolding the recursion without
+leaving the intermediate definitions in the system that could cause simp to loop.
+
+So the ppx code generated should
+take a hol term from the definition
+- fail if there is more than one argument in any recursive calls
+- create a term that wraps the body in another argument for f
+- replace all recursive calls with this f
+Build proof of wf measure using simple unfolding. Here the user would provide their measure like `and measure = (fun p -> ...)` where it will 
+wrap the fun in the `measure` definition. Please consult theory_dev.ml 
+```
+let%thm nat_pair_measure_wf = wf nat_pair_measure
+
+and proof =
+  begin
+    rewrite_at "nat_pair_measure" >> apply_at "wf_measure"
+  end
+  [@quiet]
+
+```
+
+Build the goal for wf_cong, simple, just as in theory_dev.ml
+User provides goal with `and proof = ...`
+The ppx should provide an error in some way if the proof isn't finished so that the user knows that definition isn't sound yet
+
+Now we automate the portion of theory_dev where we call new_specification on the existence theorem provided by wf_rec, after discharging the preconditions
+of wf r and wf_cong.
+
+Now we set up the final (for now) unfolding lemma that we will use instead of the intermediate definitions:
+where min_pair_spec is the one obtained by the wf_rec existence thm
+```
+let%thm min_pair_unfold (x : (nat, nat) pair) =
+  min_pair_spec x
+  =
+  match x with
+  | Pair (l, r) ->
+      if l = 0n || r = 0n then 0n
+      else Suc (min_pair_spec (Pair (pred l, pred r)))
+
+and proof =
+  begin
+    rewrite_at "min_pair_spec" >> beta >> rewrite_at "min_pair" >> beta >> gen
+    >> refl
+  end
+  [@quiet]
+
+```
+
+Later on I plan to handle the currying inside the system so the user can write naturally, but for now lets just work with a single parameter that represents all
+arguments through Pairs
+
+*)
 
 let () = ()
