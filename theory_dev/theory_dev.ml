@@ -294,14 +294,26 @@ and proof =
 
 (* let () = !Rules.definitions  |> List.iter (fun (n, _) -> print_endline n) *)
 
-let%thm merge_wf_test (xs : nat list)  =
-    merge_wf_fix (Pair (xs, [])) = xs
-and proof = 
-    begin
-        noop
-        >> gen
-        >> rewrite_at "merge_wf"
-    end
+let%thm merge_wf_id_l (xs : nat list) = merge_wf (Pair (xs, [])) = xs
 
+and proof =
+  begin
+    noop >> gen >> rewrite_at "merge_wf" >> simp
+    >> with_term [%term (xs : nat list)] destruct_elim
+       @: [ "hnil"; ""; ""; "hcons" ]
+    >> simp >> simp
+  end
+  [@quiet]
+
+let%thm merge_wf_id_r (xs : nat list) = merge_wf (Pair ([], xs)) = xs
+
+and proof =
+  begin
+    noop >> gen >> rewrite_at "merge_wf" >> simp
+    >> with_term [%term (xs : nat list)] destruct_elim
+       @: [ "hnil"; ""; ""; "hcons" ]
+    >> simp >> simp
+  end
+  [@quiet]
 
 let () = ()

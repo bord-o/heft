@@ -1481,7 +1481,7 @@ let translate_wfrec ~(loc : location) ~(path : label)
   let functional_name = fn_name ^ "_functional" in
   let measure_name = fn_name ^ "_measure" in
   let cong_name = fn_name ^ "_cong" in
-  let fix_name = fn_name ^ "_fix" in
+  let fix_name = fn_name in
   (* Build the f parameter type: param_type -> ret_type *)
   let f_ct =
     {
@@ -1679,13 +1679,20 @@ let translate_wfrec ~(loc : location) ~(path : label)
              (A.evar unfolding_goal_var));
       ]
   in
+  (* --- Step 7: Remove intermediate definitions from Rules.definitions --- *)
+  let cleanup_step =
+    A.pexp_sequence
+      (A.eapply (A.evar "Heft.Rules.remove_def") [ A.estring functional_name ])
+      (A.eapply (A.evar "Heft.Rules.remove_def") [ A.estring measure_name ])
+  in
   (* Chain all steps *)
   let full_seq =
     A.pexp_sequence functional_step
       (A.pexp_sequence measure_step
          (A.pexp_sequence wf_measure_step
             (A.pexp_sequence cong_step
-               (A.pexp_sequence define_wfrec_step unfolding_step))))
+               (A.pexp_sequence define_wfrec_step
+                  (A.pexp_sequence unfolding_step cleanup_step)))))
   in
   A.pstr_eval full_seq []
 

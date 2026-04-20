@@ -43,7 +43,7 @@ let%expect_test "min_pair unfolding lemma exists" =
   [%expect
     {|
     ========================================
-    ∀p. min_pair_fix p = match_pair p (λl. λr. COND l = Zero ∨ r = Zero Zero (Suc (min_pair_fix (Pair (pred l) (pred r)))))
+    ∀p. min_pair p = match_pair p (λl. λr. COND l = Zero ∨ r = Zero Zero (Suc (min_pair (Pair (pred l) (pred r)))))
     |}]
 
 let%wfrec nat_half (n : nat) : nat =
@@ -59,7 +59,7 @@ let%expect_test "nat_half unfolding lemma exists" =
   [%expect
     {|
     ========================================
-    ∀n. nat_half_fix n = COND n = Zero ∨ pred n = Zero Zero (Suc (nat_half_fix (pred (pred n))))
+    ∀n. nat_half n = COND n = Zero ∨ pred n = Zero Zero (Suc (nat_half (pred (pred n))))
     |}]
 
 let%wfrec nat_to_zero (n : nat) : nat =
@@ -75,7 +75,7 @@ let%expect_test "nat_to_zero unfolding lemma exists" =
   [%expect
     {|
     ========================================
-    ∀n. nat_to_zero_fix n = COND n = Zero Zero (nat_to_zero_fix (pred n))
+    ∀n. nat_to_zero n = COND n = Zero Zero (nat_to_zero (pred n))
     |}]
 
 let%expect_test "intermediate names registered" =
