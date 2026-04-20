@@ -259,7 +259,9 @@ val discriminate : tactic
 (** Closes a goal by deriving a contradiction from an equality assumption
     between distinct constructors of an inductive type. *)
 
-val rewrite : tactic
+val show_rewrite_positions : tactic
+
+val rewrite : ?position:int -> tactic
 (** Rewrites a subterm of the goal with a theorem chosen from [Rules]. Fails if
     no rewrite makes progress. *)
 
@@ -306,7 +308,7 @@ val apply_asm_to_asm : asm_thm:int -> asm_to:int -> tactic
     using [apply_asm] *)
 
 val apply_at : string -> ?target:string -> tactic
-val rewrite_at : string -> ?target:string -> tactic
+val rewrite_at : string -> ?target:string -> ?position:int -> tactic
 
 val contradict_asm : tactic
 (** For a goal [F], finds a negation [~P] among the assumptions (via [Choose])

@@ -25,6 +25,30 @@ let%def min_pair (f : (nat, nat) pair -> nat) (p : (nat, nat) pair) : nat =
 (* let rec nat_of_int : int -> nat = fun n -> if n <= 0 then Zero else Suc (nat_of_int (n-1)) *)
 (* let _ = min_pair (Pair ((nat_of_int 9), (nat_of_int (-1)))) |> int_of_nat |> print_int *)
 
+let () =
+  run_proof ~quiet:true ~simp:true ~name:"eq_true_false"
+    (make_goal [%term true = false = false])
+    (eq_false_elim >> neg_intro
+    >> with_assumptions @@ with_flip_rules rewrite
+    >> truth);
+  run_proof ~quiet:true ~simp:true ~name:"eq_false_false"
+    (make_goal [%term false = false = true])
+    (eq_true_elim >> refl);
+  run_proof ~quiet:true ~simp:true ~name:"eq_true_true"
+    (make_goal [%term true = true = false])
+    (eq_true_elim >> refl);
+  run_proof ~quiet:true ~simp:true ~name:"eq_false_true"
+    (make_goal [%term false = true = false])
+    (eq_false_elim >> neg_intro >> simp);
+  run_proof ~quiet:true ~simp:true ~name:"neg_false_true"
+    (make_goal [%term (not false) = true])
+    (eq_true_elim >> neg_intro >> false_elim);
+  run_proof ~quiet:true ~simp:true ~name:"neg_true_false"
+    (make_goal [%term (not true) = false])
+    (eq_false_elim
+    >> with_term [%term true] have
+    >> truth >> neg_intro >> neg_elim)
+
 let%def nat_pair_sum (p : (nat, nat) pair) : nat =
   match p with Pair (l, r) -> plus l r
 
@@ -292,8 +316,6 @@ and proof =
   end
   [@quiet]
 
-(* let () = !Rules.definitions  |> List.iter (fun (n, _) -> print_endline n) *)
-
 let%thm merge_wf_id_l (xs : nat list) = merge_wf (Pair (xs, [])) = xs
 
 and proof =
@@ -303,7 +325,7 @@ and proof =
        @: [ "hnil"; ""; ""; "hcons" ]
     >> simp >> simp
   end
-  [@quiet]
+  [@simp] [@quiet]
 
 let%thm merge_wf_id_r (xs : nat list) = merge_wf (Pair ([], xs)) = xs
 
@@ -313,6 +335,125 @@ and proof =
     >> with_term [%term (xs : nat list)] destruct_elim
        @: [ "hnil"; ""; ""; "hcons" ]
     >> simp >> simp
+  end
+  [@simp] [@quiet]
+
+let%thm nat_le_refl (n : nat) = nat_le n n
+
+and proof =
+  begin
+    induct >> simp >> intros >> simp >> assumption
+  end
+  [@quiet] [@simp]
+
+let () = Rules.remove_def "merge_wf"
+
+let%thm nat_lt_antisym (m : nat) (n : nat) = nat_lt m n = T ==> (nat_lt n m = F)
+
+and proof =
+  begin
+    induct
+    >>= [
+          induct >>= [ intros >> simp; intros >> simp ];
+          gen >> intro @! "ih" >> induct
+          >>= [
+                intros @! "heq" >> simp_asm >> eq_false_elim >> neg_intro
+                >> false_elim;
+                intros >> simp >> apply_at "ih" >> simp_asm;
+              ];
+        ]
+  end
+  [@quiet]
+
+let%thm not_lt_bidir (m : nat) (n : nat) =
+  nat_lt m n = false ==> (nat_lt n m = false ==> (n = m))
+
+and proof =
+  begin
+    induct
+    >>= [
+          induct
+          >>= [ simp >> intros >> refl; intros >> simp_all >> false_elim ];
+          gen >> intro @! "hall" >> induct
+          >>= [
+                intros >> simp_all >> false_elim;
+                noop
+                >> intros @: [ "h1"; "h2"; "h3" ]
+                >> apply_at "eq_cong" >> apply_at "hall" >> simp_all >> simp_all;
+              ];
+        ]
+  end
+  [@quiet]
+
+let%thm merge_comm (xs : nat list) (ys : nat list) =
+  merge_wf (Pair (xs, ys)) = merge_wf (Pair (ys, xs))
+
+and proof =
+  begin
+    induct
+    >>= [
+          induct >>= [ simp; intros >> simp ];
+          gen >> gen >> intro @! "ih" >> induct
+          >>= [
+                simp;
+                intros @! "heq" >> rewrite_at "merge_wf" >> simp
+                >> cond @: [ "htrue"; "hfalse" ]
+                >> (simp
+                   >> rewrite_at "merge_wf" ~position:1
+                   >> simp
+                   >> apply_at "nat_lt_antisym" ~target:"htrue"
+                   >> simp)
+                >> simp
+                >> rewrite_at "merge_wf" ~position:1
+                >> simp
+                >> cond @: [ "htrue2"; "hfalse2" ]
+                >> simp >> simp
+                >> apply_at "not_lt_bidir" ~target:"hfalse" @! "hprem"
+                >> apply_at "hprem" ~target:"hfalse2" @! "hn0eq"
+                >> rewrite_at "hn0eq" >> apply_at "eq_cong"
+                (* >> rewrite_at "" *);
+              ];
+        ]
+  end
+  (* I think I need better induction for this one*)
+  [@quiet]
+
+let%thm merge_length_l (x : nat) (xs : nat list) (y : nat) (ys : nat list) =
+  length (merge_wf (Pair (Cons (x, xs), Cons (y, ys))))
+  = Suc (Suc (plus (length xs) (length ys)))
+
+and proof =
+  begin
+    noop >> intros >> rewrite_at "merge_wf" >> simp >> cond >> simp
+    (* Could finish if I had comm*)
+  end
+  [@quiet]
+
+(* todo why did it unfold merge_wf_functional? A: its both a def and proven so it will use whatever works *)
+let%thm merge_wf_length_bounded (xs : nat list) (ys : nat list) =
+  length (merge_wf (Pair (xs, ys))) = plus (length xs) (length ys)
+
+and proof =
+  begin
+    intros
+    >> with_term [%term (xs : nat list)] destruct_elim
+       @: [ "hxsnil"; ""; ""; "hxssuc" ]
+    >>> with_term [%term (ys : nat list)] destruct_elim
+        @: [ "hysnil"; ""; ""; "hyssuc" ]
+    >> simp >> simp >> simp >> simp
+  end
+  [@quiet]
+
+let%thm wf_induct (r : 'a -> 'a -> bool) (p : 'a -> bool) =
+  wf r
+  ^==> forall (fun (x : 'a) -> forall (fun (y : 'a) -> r y x ^==> p y) ^==> p x)
+  ^==> forall (fun (x : 'a) -> p x)
+
+and proof =
+  begin
+    gen >> gen >> intro @! "hwf" >> intro @! "himp"
+    >> rewrite_at "wf" ~target:"hwf"
+    >> with_repeat beta_asm >> apply_at "hwf" >> assumption
   end
   [@quiet]
 

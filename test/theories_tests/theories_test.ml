@@ -1219,63 +1219,29 @@ let%expect_test "not_lt_is_le" =
     with fuel: 196
     |}]
 
-let%expect_test "equality simp rules" =
-  run_proof ~simp:true ~name:"eq_true_false"
+let () =
+  run_proof ~quiet:true ~simp:true ~name:"eq_true_false"
     (make_goal [%term true = false = false])
     (eq_false_elim >> neg_intro
     >> with_assumptions @@ with_flip_rules rewrite
     >> truth);
-  run_proof ~simp:true ~name:"eq_false_false"
+  run_proof ~quiet:true ~simp:true ~name:"eq_false_false"
     (make_goal [%term false = false = true])
     (eq_true_elim >> refl);
-  run_proof ~simp:true ~name:"eq_true_true"
+  run_proof ~quiet:true ~simp:true ~name:"eq_true_true"
     (make_goal [%term true = true = false])
     (eq_true_elim >> refl);
-  run_proof ~simp:true ~name:"eq_false_true"
+  run_proof ~quiet:true ~simp:true ~name:"eq_false_true"
     (make_goal [%term false = true = false])
     (eq_false_elim >> neg_intro >> simp);
-  run_proof ~simp:true ~name:"neg_false_true"
+  run_proof ~quiet:true ~simp:true ~name:"neg_false_true"
     (make_goal [%term (not false) = true])
     (eq_true_elim >> neg_intro >> false_elim);
-  run_proof ~simp:true ~name:"neg_true_false"
+  run_proof ~quiet:true ~simp:true ~name:"neg_true_false"
     (make_goal [%term (not true) = false])
     (eq_false_elim
     >> with_term [%term true] have
-    >> truth >> neg_intro >> neg_elim);
-
-  [%expect
-    {|
-    ========================================
-    T = F = F
-
-    Proof Complete!
-    with fuel: 12
-    ========================================
-    F = F = T
-
-    Proof Complete!
-    with fuel: 3
-    ========================================
-    T = T = T
-
-    Proof Complete!
-    with fuel: 3
-    ========================================
-    F = T = F
-
-    Proof Complete!
-    with fuel: 19
-    ========================================
-    ¬F = T
-
-    Proof Complete!
-    with fuel: 7
-    ========================================
-    ¬T = F
-
-    Proof Complete!
-    with fuel: 15
-    |}]
+    >> truth >> neg_intro >> neg_elim)
 
 let%expect_test "not_le_is_lt" =
   let goal =

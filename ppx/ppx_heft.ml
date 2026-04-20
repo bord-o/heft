@@ -324,6 +324,8 @@ and translate_apply ~loc ~env func args =
   (* p ==> q → make_imp p q (pure) *)
   | Pexp_ident { txt = Lident "==>"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
       translate_binary_pure ~loc ~env ~fn:"Derived.make_imp" lhs rhs
+  | Pexp_ident { txt = Lident "^==>"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
+      translate_binary_pure ~loc ~env ~fn:"Derived.make_imp" lhs rhs
   (* p && q → make_conj p q (pure) *)
   | Pexp_ident { txt = Lident "&&"; _ }, [ (Nolabel, lhs); (Nolabel, rhs) ] ->
       translate_binary_pure ~loc ~env ~fn:"Derived.make_conj" lhs rhs

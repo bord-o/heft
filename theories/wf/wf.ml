@@ -50,6 +50,8 @@ and proof =
   end
   [@quiet]
 
+let ( |==> ) = fun a b -> a + b
+
 let%thm wf_measure_gen (r : 'b -> 'b -> bool) (m : 'a -> 'b) =
   wf r ==> wf (fun (x : 'a) (y : 'a) -> r (m x) (m y))
 

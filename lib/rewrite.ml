@@ -219,21 +219,24 @@ let instantiate_rule (rule : thm) (env : match_result) =
 (* Try to rewrite tm at the root using rule.
    Returns Some (|- tm = tm') if lhs of rule matches tm, None otherwise.
    Variables that appear free in the rule's hypotheses must match exactly. *)
-let rewrite_at_root (rule : thm) (tm : term) =
-  let* rule_lhs, _ = destruct_eq (concl rule) in
-  let hyps = hyp rule in
-  match match_term_with_hyps hyps rule_lhs tm with
-  | Some env ->
-      let* inst_rule = instantiate_rule rule env in
-      Ok (Some inst_rule)
-  | None -> Ok None
+let rewrite_at_root ?(target = None) (rule : thm) (tm : term) =
+  let continue = match target with None -> true | Some t -> t = tm in
+  if not continue then Ok None
+  else
+    let* rule_lhs, _ = destruct_eq (concl rule) in
+    let hyps = hyp rule in
+    match match_term_with_hyps hyps rule_lhs tm with
+    | Some env ->
+        let* inst_rule = instantiate_rule rule env in
+        Ok (Some inst_rule)
+    | None -> Ok None
 
 (* Rewrite once somewhere in tm using rule.
    Tries root first, then recursively descends into subterms.
    Returns |- tm = tm' if successful. *)
-let rec rewrite_once (rule : thm) (tm : term) =
+let rec rewrite_once ?target (rule : thm) (tm : term) =
   (* First, try to match at the root *)
-  let* root_result = rewrite_at_root rule tm in
+  let* root_result = rewrite_at_root ~target rule tm in
   match root_result with
   | Some thm -> Ok thm
   | None -> (
@@ -242,13 +245,13 @@ let rec rewrite_once (rule : thm) (tm : term) =
       | Var _ | Const _ -> Error (`NoRewriteMatch (rule, tm))
       | App (f, x) -> (
           (* Try rewriting in function position first *)
-          match rewrite_once rule f with
+          match rewrite_once ?target rule f with
           | Ok f_eq ->
               (* f_eq : |- f = f', need |- f x = f' x *)
               ap_thm f_eq x
           | Error (`NoRewriteMatch _) -> (
               (* Try rewriting in argument position *)
-              match rewrite_once rule x with
+              match rewrite_once ?target rule x with
               | Ok x_eq ->
                   (* x_eq : |- x = x', need |- f x = f x' *)
                   ap_term f x_eq
@@ -256,7 +259,7 @@ let rec rewrite_once (rule : thm) (tm : term) =
               | Error e -> Error e)
           | Error e -> Error e)
       | Lam (v, body) -> (
-          match rewrite_once rule body with
+          match rewrite_once ?target rule body with
           | Ok body_eq ->
               (* body_eq : |- body = body', need |- λv.body = λv.body' *)
               lam v body_eq

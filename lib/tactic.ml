@@ -861,14 +861,41 @@ let eq_iff : tactic =
   in
   return_thm ~from:"eq_iff" thm
 
-let rewrite : tactic =
+let rec all_subterms (tm : term) =
+  match tm with
+  | Var (_, _) as v -> [ v ]
+  | Const (_, _) as c -> [ c ]
+  | App (f, x) as a -> (a :: all_subterms f) @ all_subterms x
+  | Lam (x, bod) as l -> (l :: all_subterms x) @ all_subterms bod
+
+let rewrite ?position : tactic =
  fun (asms, conc) ->
   register "rewrite" (Unsafe 5);
   let thm =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
 
-    let* rw_thm = rewrite_once chosen_rule conc in
+    (*pick which position to rewrite in*)
+    let* lhs, _ = destruct_eq (concl chosen_rule) in
+    let subterms = all_subterms conc in
+    let matches =
+      List.filter (fun t -> match_term lhs t |> Option.is_some) subterms
+    in
+
+    (* List.iter (fun t -> trace_info (pretty_print_hol_term t)) matches; *)
+    let* rw_thm =
+      match position with
+      | None -> rewrite_once chosen_rule conc
+      | Some idx -> (
+          let chosen_position = List.nth_opt matches idx in
+          match chosen_position with
+          | None ->
+              trace_error "target index out of bounds";
+              fail ()
+          | Some target ->
+              (* print_term target; *)
+              rewrite_once ~target chosen_rule conc)
+    in
     let* _, conc_rewritten = destruct_eq (concl rw_thm) in
 
     (* Fail if no progress was made *)
@@ -879,6 +906,24 @@ let rewrite : tactic =
     eq_mp rw_sym subthm
   in
   return_thm ~from:"rewrite" thm
+
+let show_rewrite_positions : tactic =
+ fun (_, conc) ->
+  register "show_rewrite_positions" (Safe 1);
+  let thm =
+    let rules = perform Rules in
+    let* chosen_rule = strip_forall (choose_theorems rules) in
+    let* lhs, _ = destruct_eq (concl chosen_rule) in
+    let subterms = all_subterms conc in
+    let matches =
+      List.filter (fun t -> match_term lhs t |> Option.is_some) subterms
+    in
+    List.iter (fun t -> trace_info (pretty_print_hol_term t)) matches;
+    (* List.iter (fun t -> trace_info (pretty_print_hol_term t)) subterms; *)
+    let _ = matches in
+    fail ()
+  in
+  return_thm ~from:"show_rewrite_positions" thm
 
 let rewrite_asm : tactic =
  fun (asms, conc) ->
@@ -1153,13 +1198,13 @@ let apply_at (source : string) ?target =
   | None -> (with_rule thm apply) goal
   | Some name -> (with_named_asm_term name (with_rule thm apply_asm)) goal
 
-let rewrite_at (source : string) ?target =
+let rewrite_at (source : string) ?target ?position =
  fun goal ->
   let found = Rules.find_thms source (fst goal) in
   if Option.is_none found then fail ();
   let thms = Option.get found in
   match target with
-  | None -> (with_rules thms rewrite) goal
+  | None -> (with_rules thms (rewrite ?position)) goal
   | Some name -> (with_named_asm_term name (with_rules thms rewrite_asm)) goal
 
 let contradict_asm : tactic =
