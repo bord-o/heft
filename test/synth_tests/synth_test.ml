@@ -596,7 +596,7 @@ let%expect_test "synth append" =
     ∃nil_case. ∃cons_case. (∀ys. g Nil ys = nil_case ys) ==> (∀x. ∀xs. ∀ys. g (Cons x xs) ys = cons_case x xs (g xs ys)) ==> g Nil (Cons x Nil) = Cons x Nil ∧ g (Cons x Nil) (Cons y Nil) = Cons x (Cons y Nil)
 
     Proof Complete!
-    with fuel: 1245
+    with fuel: 1065
     |}]
 
 let%expect_test "synth reverse" =
@@ -830,7 +830,7 @@ let%expect_test "synth length via make_synthesis_goal" =
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) Nil) = Suc Zero ∧ g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)) = Suc (Suc Zero)
 
     Proof Complete!
-    with fuel: 698
+    with fuel: 662
     |}]
 
 (* ======================================================================= *)
@@ -1322,7 +1322,7 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
     ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Pair (Suc Zero) (Suc (Suc Zero))) (Cons (Pair (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc Zero))))) Nil)) = Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc Zero))))))))) ∧ g (Cons (Pair (Suc (Suc (Suc (Suc (Suc Zero))))) Zero) Nil) = Suc (Suc (Suc (Suc (Suc Zero))))
 
     Proof Complete!
-    with fuel: 30825
+    with fuel: 30789
     |}]
 
 let%expect_test "synth insert via make_synthesis_goal" =

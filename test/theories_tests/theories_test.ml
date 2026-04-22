@@ -1446,7 +1446,7 @@ let%expect_test "le_antisym" =
     ∀x. ∀b. nat_le x b ==> nat_le b x ==> x = b
 
     Proof Complete!
-    with fuel: 251
+    with fuel: 249
     |}]
 
 (* (* ===== Group 6: Subtraction properties ===== *) *)

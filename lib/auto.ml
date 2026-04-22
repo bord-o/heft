@@ -18,15 +18,21 @@ type step_result =
   | Done of thm
   | Dead
 
+type cancel_token = { mutable cancelled : bool }
+
+let fresh_token () = { cancelled = false }
+let cancel token = token.cancelled <- true
+
 module Priority = struct
   type t =
     search_metadata
     * (unit -> step_result)
     * (thm -> step_result) list
     * string list
+    * cancel_token
 
   let compare : t -> t -> int =
-   fun (a, _, _, _) (b, _, _, _) ->
+   fun (a, _, _, _, _) (b, _, _, _, _) ->
     match (a, b) with
     | MSubgoal _, MResume -> 1
     | MSubgoal _, MChoice _ -> 1
@@ -112,7 +118,7 @@ let emit_proof_path (path : string list) : unit =
 
 let stats_of_list l =
   List.fold_left
-    (fun (sub, choice, res) (e, _, _, _) ->
+    (fun (sub, choice, res) (e, _, _, _, _) ->
       match e with
       | MResume -> (sub, choice, res + 1)
       | MSubgoal _ -> (sub + 1, choice, res)
@@ -133,12 +139,14 @@ end
 let make_search (module F : Frontier) : tactic_combinator =
  fun tac goal ->
   let s = F.create () in
-  F.add s (MSubgoal goal, (fun () -> step tac goal), [], []);
+  let root_token = fresh_token () in
+  F.add s (MSubgoal goal, (fun () -> step tac goal), [], [], root_token);
   let rec aux () =
     (* print_endline (F.stats s); *)
     match F.pop s with
     | None -> fail ()
-    | Some (_, thunk, parents, path) -> (
+    | Some (_, _, _, _, token) when token.cancelled -> aux ()
+    | Some (_, thunk, parents, path, token) -> (
         let current_path = ref path in
         match run_thunk_with_path current_path thunk with
         | Done v -> (
@@ -147,20 +155,30 @@ let make_search (module F : Frontier) : tactic_combinator =
                 emit_proof_path !current_path;
                 v
             | resume :: rest ->
-                F.add s (MResume, (fun () -> resume v), rest, !current_path);
+                (* This subgoal is solved — cancel all sibling entries *)
+                cancel token;
+                let new_token = fresh_token () in
+                F.add s
+                  (MResume, (fun () -> resume v), rest, !current_path, new_token);
                 aux ())
         | Need (g, resume) ->
+            (* New subgoal gets a fresh token; entries spawned during its
+               exploration will inherit it and be cancelled when it's solved *)
+            let subgoal_token = fresh_token () in
             F.add s
               ( MSubgoal g,
                 (fun () -> step tac g),
                 resume :: parents,
-                !current_path );
+                !current_path,
+                subgoal_token );
             aux ()
         | Dead -> aux ()
         | Cont thunks ->
+            (* Choices inherit the current token — they're siblings exploring
+               the same subgoal *)
             thunks |> List.rev
             |> List.iter (fun (m, t) ->
-                F.add s (MChoice m, t, parents, !current_path));
+                F.add s (MChoice m, t, parents, !current_path, token));
             aux ())
   in
   aux ()
@@ -253,7 +271,7 @@ let itauto : tactic =
       neg_elim;
       with_assumptions apply;
       contradict_asm;
-      with_assumptions (with_first_term apply_asm);
+      with_assumptions apply_asm;
       left;
       right;
     ]
@@ -272,7 +290,7 @@ let ctauto : tactic =
       neg_elim;
       with_assumptions apply;
       contradict_asm;
-      with_assumptions (with_first_term apply_asm);
+      with_assumptions apply_asm;
       left;
       right;
       ccontr;

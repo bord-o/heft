@@ -1,0 +1,6 @@
+(library
+ (name auto_tests)
+ (libraries heft heft.ppx_heft)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect ppx_heft)))

@@ -29,7 +29,7 @@ type _ choosable =
 
 exception Out_of_fuel
 
-type tactic_info = { name : string; cost : cost }
+type tactic_info = { name : string; cost : cost; prob : float }
 
 type _ Effect.t +=
   | Subgoal : goal -> thm Effect.t
@@ -52,9 +52,19 @@ let cost_of_tactic (tac : tactic) (goal : goal) =
   | effect Register info, _k -> (info.name, info.cost)
   | _ -> failwith "Register must be first call of tactic"
 
+let prob_of_tactic (tac : tactic) (goal : goal) =
+  match tac goal with
+  | effect Register info, _k -> (info.name, info.prob)
+  | _ -> failwith "Register must be first call of tactic"
+
+let default_prob = function Safe _ -> 1.0 | Unsafe _ -> 0.5
 let cost_value = function Safe n | Unsafe n -> n
 let fail () = perform Fail
-let register name cost = perform (Register { name; cost })
+
+let register ?(prob : float option) name cost =
+  let prob = match prob with Some p -> p | None -> default_prob cost in
+  perform (Register { name; cost; prob })
+
 let trace_dbg a = perform (Trace (Debug, a))
 let trace_info a = perform (Trace (Info, a))
 let trace_error a = perform (Trace (Error, a))
@@ -274,7 +284,7 @@ let with_fuel_limit limit : tactic_combinator =
       limit := !limit - n;
       if !limit <= 0 then discontinue k Out_of_fuel
       else (
-        register info.name info.cost;
+        register ~prob:info.prob info.name info.cost;
         continue k ())
   | v -> v
 
@@ -283,7 +293,7 @@ let with_fuel_counter r : tactic_combinator =
   match tac goal with
   | effect Register info, k ->
       r := !r + cost_value info.cost;
-      register info.name info.cost;
+      register ~prob:info.prob info.name info.cost;
       continue k ()
   | v -> v
 

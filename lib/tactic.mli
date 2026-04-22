@@ -63,7 +63,7 @@ type _ choosable =
 exception Out_of_fuel
 (** Raised by [with_fuel_limit] when the fuel counter reaches zero. *)
 
-type tactic_info = { name : string; cost : cost }
+type tactic_info = { name : string; cost : cost; prob : float }
 
 (** {1 Effects} *)
 
@@ -86,11 +86,18 @@ val cost_of_tactic : tactic -> goal -> string * cost
 (** Runs a tactic just far enough to extract its name and first [Register] cost.
     The tactic must perform [Register] before any other effect. *)
 
+val prob_of_tactic : tactic -> goal -> string * float
+(** Like [cost_of_tactic] but returns the probability. *)
+
+val default_prob : cost -> float
+(** Default probability for a cost: [Safe] -> 1.0, [Unsafe] -> 0.5. *)
+
 val fail : unit -> 'a
 (** Performs the [Fail] effect. Signals that a tactic does not apply. *)
 
-val register : string -> cost -> unit
-(** Performs the [Register] effect. *)
+val register : ?prob:float -> string -> cost -> unit
+(** Performs the [Register] effect. If [prob] is omitted, [default_prob cost] is
+    used. *)
 
 val trace_dbg : string -> unit
 val trace_info : string -> unit

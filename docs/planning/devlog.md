@@ -684,3 +684,41 @@ I have well founded in a decent spot for now, a few other things are on my radar
 - Add parametric induction by theorem
 - Probably going to completely rewrite induction, destruction, and remove cases (I can just add a separate exhaustiveness theorem for boolean expressions)
 - Handle name passing for automation (essentially capture the users supplied asm name, run any intermediate tactics, then rename the assumption at the end)
+
+## Wednesday, April 22
+
+I'm back to the whiteboard on automation, I think it makes more sense to do a bit of a redesign with the goal of optimal search, rather than trying to prove that an aesop-style search is implementable in the system. I think the step function abstraction is close to the right thing, as it gives tons of power, but without stronger heuristics, cumulative probabilities, or some other tricks, it doesn't perform particularly well.
+
+The fundamental idea is that this effects based architecture bakes-in AND nodes (subgoal dependencies) so I should be able to make the design operate on a flatter structure than the AND/OR tree of aesop.
+
+Lets walk through an example.
+
+```
+(A ∨ B) ∧ (C ∨ D) ⟹ (A ∧ C) ∨ (A ∧ D) ∨ (B ∧ C) ∨ (B ∧ D)
+```
+
+where our tactic is ctauto
+
+```
+let ctauto : tactic =
+  pick
+    [
+      assumption;
+      intro;
+      neg_intro;
+      gen;
+      conj;
+      elim_conj_asm;
+      elim_disj_asm;
+      false_elim;
+      neg_elim;
+      with_assumptions apply;
+      contradict_asm;
+      with_assumptions (apply_asm);
+      left;
+      right;
+      ccontr;
+    ]
+```
+
+

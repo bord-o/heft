@@ -25,16 +25,21 @@ type step_result =
   | Done of Kernel.thm
   | Dead  (** Result of one expansion of the proof tree by [step]. *)
 
+type cancel_token = { mutable cancelled : bool }
+
+val fresh_token : unit -> cancel_token
+
 module Priority : sig
   type t =
     search_metadata
     * (unit -> step_result)
     * (Kernel.thm -> step_result) list
     * string list
+    * cancel_token
 
   val compare : t -> t -> int
-  (** Orders entries with [MResume] highest, then [MChoice], then [MSubgoal].
-      Among [MChoice]s, prefers smaller terms and cheaper tactics. *)
+  (** Orders entries with cheapest steps first. Among [MChoice]s, prefers
+      smaller terms and cheaper tactics. *)
 end
 
 module PriorityQueue : sig
@@ -74,7 +79,7 @@ val step : tactic -> goal -> step_result
 (** Runs a tactic until it performs its next [Subgoal], [Choose], [Fail], or
     completes, and packages the continuation. *)
 
-val stats_of_list : (search_metadata * 'a * 'b * 'c) list -> string
+val stats_of_list : (search_metadata * 'a * 'b * 'c * 'd) list -> string
 (** Formats counts of subgoals, choices, and resumptions in a list of frontier
     entries. *)
 
@@ -85,6 +90,8 @@ val make_search : (module Frontier) -> tactic_combinator
 
 val with_dfs : tactic_combinator
 (** Depth-first search using [StackFrontier]. *)
+
+val with_dfs' : tactic_combinator
 
 module PQueueFrontier : Frontier
 
