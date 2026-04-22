@@ -673,3 +673,14 @@ There are really only a few more large items on my list before I'll be comfortab
 
 Working on well founded recursion
 
+## Tuesday, April 21
+
+I have well founded in a decent spot for now, a few other things are on my radar:
+
+- More robust apply/rewrite matching
+- Fix overly eager renaming in some tactics
+- Switch cost model to include probabilty
+- Test if my search is properly exhaustive over prop
+- Add parametric induction by theorem
+- Probably going to completely rewrite induction, destruction, and remove cases (I can just add a separate exhaustiveness theorem for boolean expressions)
+- Handle name passing for automation (essentially capture the users supplied asm name, run any intermediate tactics, then rename the assumption at the end)
