@@ -111,3 +111,31 @@ let%expect_test "intermediate names registered" =
     nat_to_zero_wf_rec: present
     nat_to_zero: present
     |}]
+
+let%expect_test "intermediate definitions cleaned up" =
+  let check_absent name =
+    match Rules.get_def name with
+    | Some _ -> Printf.printf "%s: STILL PRESENT (should be removed)\n" name
+    | None -> Printf.printf "%s: cleaned up\n" name
+  in
+  check_absent "min_pair_functional";
+  check_absent "min_pair_measure";
+  check_absent "min_pair";
+  check_absent "nat_half_functional";
+  check_absent "nat_half_measure";
+  check_absent "nat_half";
+  check_absent "nat_to_zero_functional";
+  check_absent "nat_to_zero_measure";
+  check_absent "nat_to_zero";
+  [%expect
+    {|
+    min_pair_functional: cleaned up
+    min_pair_measure: cleaned up
+    min_pair: cleaned up
+    nat_half_functional: cleaned up
+    nat_half_measure: cleaned up
+    nat_half: cleaned up
+    nat_to_zero_functional: cleaned up
+    nat_to_zero_measure: cleaned up
+    nat_to_zero: cleaned up
+    |}]

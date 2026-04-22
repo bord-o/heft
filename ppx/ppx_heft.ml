@@ -55,9 +55,8 @@ let rec translate_type ~loc ct =
 
 and translate_type_args ~loc args =
   let results = List.map (translate_type ~loc) args in
-  let bindings = List.map (fun (v, e) -> (v, e)) results in
   let vars = List.map fst results in
-  (bindings, vars)
+  (results, vars)
 
 let extract_fun_params_and_body (input : expression) =
   match input.pexp_desc with
@@ -1685,7 +1684,9 @@ let translate_wfrec ~(loc : location) ~(path : label)
   let cleanup_step =
     A.pexp_sequence
       (A.eapply (A.evar "Heft.Rules.remove_def") [ A.estring functional_name ])
-      (A.eapply (A.evar "Heft.Rules.remove_def") [ A.estring measure_name ])
+      (A.pexp_sequence
+         (A.eapply (A.evar "Heft.Rules.remove_def") [ A.estring measure_name ])
+         (A.eapply (A.evar "Heft.Rules.remove_def") [ A.estring fix_name ]))
   in
   (* Chain all steps *)
   let full_seq =

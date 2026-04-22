@@ -866,7 +866,7 @@ let rec all_subterms (tm : term) =
   | Var (_, _) as v -> [ v ]
   | Const (_, _) as c -> [ c ]
   | App (f, x) as a -> (a :: all_subterms f) @ all_subterms x
-  | Lam (x, bod) as l -> (l :: all_subterms x) @ all_subterms bod
+  | Lam (_, bod) as l -> l :: all_subterms bod
 
 let rewrite ?position : tactic =
  fun (asms, conc) ->
@@ -932,11 +932,10 @@ let rewrite_asm : tactic =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
     let chosen_asm = choose_terms (asm_terms asms) in
-    (*TODO: Make sure this isn't broken*)
     let chosen_name =
-      asms
-      |> List.filter (fun (_, a) -> a = chosen_asm)
-      |> List.map fst |> List.hd
+      match List.find_opt (fun (_, a) -> alphaorder a chosen_asm = 0) asms with
+      | Some (name, _) -> name
+      | None -> fail ()
     in
     (* prevent an assumption from being used as a rule to rewrite itself *)
     if List.mem chosen_asm (hyp chosen_rule) then fail ();
@@ -972,11 +971,10 @@ let beta_asm : tactic =
   register "beta_asm" (Safe 1);
   let thm =
     let chosen_asm = choose_terms (asm_terms asms) in
-    (*TODO: Make sure this isn't broken*)
     let chosen_name =
-      asms
-      |> List.filter (fun (_, a) -> a = chosen_asm)
-      |> List.map fst |> List.hd
+      match List.find_opt (fun (_, a) -> alphaorder a chosen_asm = 0) asms with
+      | Some (name, _) -> name
+      | None -> fail ()
     in
     let* beta_thm = D.deep_beta chosen_asm in
     let* _, asm_reduced = destruct_eq (concl beta_thm) in

@@ -220,7 +220,9 @@ let instantiate_rule (rule : thm) (env : match_result) =
    Returns Some (|- tm = tm') if lhs of rule matches tm, None otherwise.
    Variables that appear free in the rule's hypotheses must match exactly. *)
 let rewrite_at_root ?(target = None) (rule : thm) (tm : term) =
-  let continue = match target with None -> true | Some t -> t = tm in
+  let continue =
+    match target with None -> true | Some t -> alphaorder t tm = 0
+  in
   if not continue then Ok None
   else
     let* rule_lhs, _ = destruct_eq (concl rule) in
