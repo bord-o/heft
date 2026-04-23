@@ -149,12 +149,11 @@ let rec expand (node : node) =
 let rec search (q : Frontier.t) depth =
   if depth = 0 then (
     let f = Frontier.fold_unordered (fun acc x -> x :: acc) [] q in
-    let probs = Frontier.fold_unordered (fun acc x -> x.prob :: acc) [] q |> List.sort_uniq compare in
+    (* let probs = Frontier.fold_unordered (fun acc x -> x.prob :: acc) [] q |> List.sort_uniq compare in *)
     List.iter (fun n -> print_endline (show_node n)) f;
-    print_endline "unique probs: ";
-    List.iter (fun p -> Printf.printf "%f\n" p) probs;
 
-
+    (* print_endline "unique probs: "; *)
+    (* List.iter (fun p -> Printf.printf "%f\n" p) probs; *)
     failwith "at depth")
   else
     match Frontier.pop_max q with
