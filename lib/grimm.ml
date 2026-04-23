@@ -119,25 +119,30 @@ let rec expand dead (node : node) =
               match cs with
               | Term ts ->
                   ts
-                  |> List.map (fun t ->
-                      make_node
-                        ~down:(fun () -> resume r t)
-                        node.root_tactic node.goal node.id (perform CurrentProb)
-                        (Choice (pretty_print_hol_term t)))
+                  |> List.concat_map (fun t ->
+                      expand dead
+                        (make_node
+                           ~down:(fun () -> resume r t)
+                           node.root_tactic node.goal node.id
+                           (perform CurrentProb)
+                           (Choice (pretty_print_hol_term t))))
               | Theorem ts ->
                   ts
-                  |> List.map (fun t ->
-                      make_node
-                        ~down:(fun () -> resume r t)
-                        node.root_tactic node.goal node.id (perform CurrentProb)
-                        (Choice (pretty_print_hol_term (concl t))))
+                  |> List.concat_map (fun t ->
+                      expand dead
+                        (make_node
+                           ~down:(fun () -> resume r t)
+                           node.root_tactic node.goal node.id
+                           (perform CurrentProb)
+                           (Choice (pretty_print_hol_term (concl t)))))
               | Unknown us ->
                   us
-                  |> List.map (fun u ->
-                      make_node
-                        ~down:(fun () -> resume r u)
-                        node.root_tactic node.goal node.id (perform CurrentProb)
-                        (Choice "unknown"))
+                  |> List.concat_map (fun u ->
+                      expand dead
+                        (make_node
+                           ~down:(fun () -> resume r u)
+                           node.root_tactic node.goal node.id
+                           (perform CurrentProb) (Choice "unknown")))
               | Tactic ts ->
                   ts
                   |> List.map (fun t ->
@@ -146,6 +151,7 @@ let rec expand dead (node : node) =
                         ~down:(fun () -> resume r t)
                         node.root_tactic node.goal node.id
                         (perform CurrentProb *. next_prob)
+                        (* next_prob  *)
                         (Edge n)))
           | effect Subgoal g, k ->
               let parent = Multicont.Deep.promote k in

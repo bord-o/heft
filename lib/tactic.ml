@@ -720,7 +720,7 @@ let elim_exists_asm : tactic =
 
 let ccontr : tactic =
  fun (asms, concl) ->
-  register "ccontr" (Unsafe 10);
+  register ~prob:0.1 "ccontr" (Unsafe 10);
   let false_tm = D.make_false () in
   let neg_concl = D.make_neg concl in
   if concl = false_tm || List.mem neg_concl (asm_terms asms) then fail ()

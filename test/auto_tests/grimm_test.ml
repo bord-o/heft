@@ -17,17 +17,14 @@ let%expect_test "expansion" =
     with fuel: 20
     |}]
 
-(* let%expect_test "expansion" = *)
-(*   let%thm goal (a : bool) (b : bool) (c : bool) (d : bool) = *)
-(*     ((a || b) && (c || d)) ==> ((a && c) || (a && d) || (b && c) || (b && d)) *)
-(*   in *)
-(*   let f = frontier_of_goal ctauto goal in *)
-(**)
-(*   run_proof goal (fun _goal -> *)
-(*     search f max_int; *)
-(*   ); *)
-(*   [%expect {| *)
-(*       |}] *)
+let%expect_test "expansion" =
+  let%thm goal (a : bool) (b : bool) (c : bool) (d : bool) =
+    ((a || b) && (c || d)) ==> ((a && c) || (a && d) || (b && c) || (b && d))
+  in
+
+  run_proof goal (with_grimm ctauto);
+  [%expect {|
+      |}]
 
 let%expect_test "expansion" =
   let open Kernel in
@@ -48,5 +45,5 @@ let%expect_test "expansion" =
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
     Proof Complete!
-    with fuel: 398787
+    with fuel: 118984
     |}]
