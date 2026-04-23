@@ -319,14 +319,14 @@ let%expect_test "complete_prop_automation" =
       intro >>
       intro >>
       elim_conj_asm >>
-      apply_asm >>
+      apply >>
       apply >>
       assumption
     ========================================
     (P ==> Q) ∧ (Q ==> R) ==> P ==> R
 
     Proof Complete!
-    with fuel: 165
+    with fuel: 290
     |}]
 
 let%expect_test "dfs_disj_assumptions" =
@@ -347,17 +347,18 @@ let%expect_test "dfs_disj_assumptions" =
     Proof:
       intro >>
       intro >>
-      intro >>
       elim_disj_asm >>
+      intro >>
       apply >>
       assumption >>
+      intro >>
       apply >>
       assumption
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
 
     Proof Complete!
-    with fuel: 110
+    with fuel: 178
     |}]
 
 let%expect_test "pauto_disj_elimination" =
@@ -377,16 +378,16 @@ let%expect_test "pauto_disj_elimination" =
       intro >>
       elim_disj_asm >>
       intro >>
-      apply_asm >>
+      apply >>
       assumption >>
-      apply_asm >>
       intro >>
+      apply_asm >>
       assumption
     ========================================
     P ∨ Q ==> (P ==> R) ==> (Q ==> R) ==> R
 
     Proof Complete!
-    with fuel: 375
+    with fuel: 509
     |}]
 
 let%expect_test "false_elim_test" =
@@ -497,7 +498,7 @@ let%expect_test "excluded_middle_pauto" =
     P ∨ ¬P
 
     Proof Complete!
-    with fuel: 569
+    with fuel: 681
     |}]
 
 let%expect_test "contraposition" =
@@ -516,13 +517,13 @@ let%expect_test "contraposition" =
       intro >>
       neg_intro >>
       contradict_asm >>
-      apply >>
+      apply_asm >>
       assumption
     ========================================
     (P ==> Q) ==> ¬Q ==> ¬P
 
     Proof Complete!
-    with fuel: 103
+    with fuel: 127
     |}]
 
 let%expect_test "distribution_and_over_or" =
@@ -556,7 +557,7 @@ let%expect_test "distribution_and_over_or" =
     P ∧ Q ∨ R ==> P ∧ Q ∨ P ∧ R
 
     Proof Complete!
-    with fuel: 1881
+    with fuel: 1266
     |}]
 
 let%expect_test "distribution_or_over_and" =
@@ -577,12 +578,11 @@ let%expect_test "distribution_or_over_and" =
     Proof:
       intro >>
       elim_disj_asm >>
-      conj >>
       elim_conj_asm >>
+      conj >>
       right >>
       assumption >>
       right >>
-      elim_conj_asm >>
       assumption >>
       conj >>
       left >>
@@ -593,7 +593,7 @@ let%expect_test "distribution_or_over_and" =
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
     Proof Complete!
-    with fuel: 1481
+    with fuel: 950
     |}]
 
 let%expect_test "de_morgan_and" =
@@ -613,11 +613,11 @@ let%expect_test "de_morgan_and" =
       ccontr >>
       contradict_asm >>
       intro >>
-      right >>
+      left >>
       neg_intro >>
       contradict_asm >>
       intro >>
-      left >>
+      right >>
       neg_intro >>
       contradict_asm >>
       conj >>
@@ -627,7 +627,7 @@ let%expect_test "de_morgan_and" =
     ¬P ∧ Q ==> ¬P ∨ ¬Q
 
     Proof Complete!
-    with fuel: 1093
+    with fuel: 2836
     |}]
 
 let%expect_test "de_morgan_or" =
@@ -658,7 +658,7 @@ let%expect_test "de_morgan_or" =
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
     Proof Complete!
-    with fuel: 371
+    with fuel: 389
     |}]
 
 let%expect_test "de_morgan_or_converse" =
@@ -685,7 +685,7 @@ let%expect_test "de_morgan_or_converse" =
     ¬P ∧ ¬Q ==> ¬P ∨ Q
 
     Proof Complete!
-    with fuel: 182
+    with fuel: 129
     |}]
 
 let%expect_test "implication_as_disjunction" =
@@ -703,15 +703,15 @@ let%expect_test "implication_as_disjunction" =
       contradict_asm >>
       left >>
       neg_intro >>
-      contradict_asm >>
       apply_asm >>
+      contradict_asm >>
       right >>
       assumption
     ========================================
     (P ==> Q) ==> ¬P ∨ Q
 
     Proof Complete!
-    with fuel: 804
+    with fuel: 1149
     |}]
 
 let%expect_test "disjunction_as_implication" =
@@ -734,7 +734,7 @@ let%expect_test "disjunction_as_implication" =
     ¬P ∨ Q ==> P ==> Q
 
     Proof Complete!
-    with fuel: 99
+    with fuel: 110
     |}]
 
 let%expect_test "triple_negation" =
@@ -755,7 +755,7 @@ let%expect_test "triple_negation" =
     ¬¬¬P ==> ¬P
 
     Proof Complete!
-    with fuel: 136
+    with fuel: 105
     |}]
 
 let%expect_test "explosion" =
@@ -788,6 +788,8 @@ let%expect_test "complex_nested" =
   [%expect
     {|
     Proof:
+      ccontr >>
+      contradict_asm >>
       intro >>
       ccontr >>
       contradict_asm >>
@@ -798,7 +800,7 @@ let%expect_test "complex_nested" =
     ((P ==> Q) ==> P) ==> P
 
     Proof Complete!
-    with fuel: 640
+    with fuel: 1142
     |}]
 
 let%expect_test "four_variable_distribution" =
@@ -830,12 +832,12 @@ let%expect_test "four_variable_distribution" =
       conj >>
       assumption >>
       assumption >>
+      right >>
       left >>
       conj >>
       assumption >>
       assumption >>
       elim_disj_asm >>
-      right >>
       right >>
       left >>
       conj >>
@@ -849,7 +851,7 @@ let%expect_test "four_variable_distribution" =
     A ∨ B ∧ C ∨ D ==> A ∧ C ∨ A ∧ D ∨ B ∧ C ∨ B ∧ D
 
     Proof Complete!
-    with fuel: 7744
+    with fuel: 6610
     |}]
 
 let%expect_test "implication_chain" =
@@ -880,7 +882,7 @@ let%expect_test "implication_chain" =
     (A ==> B) ==> (B ==> C) ==> (C ==> D) ==> A ==> D
 
     Proof Complete!
-    with fuel: 198
+    with fuel: 232
     |}]
 
 let%expect_test "contraposition_chain" =
@@ -903,14 +905,14 @@ let%expect_test "contraposition_chain" =
       intro >>
       neg_intro >>
       contradict_asm >>
-      apply >>
+      apply_asm >>
       apply >>
       assumption
     ========================================
     (A ==> B) ==> (B ==> C) ==> ¬C ==> ¬A
 
     Proof Complete!
-    with fuel: 153
+    with fuel: 202
     |}]
 
 let%expect_test "absorption_law" =
@@ -952,7 +954,7 @@ let%expect_test "absorption_law_converse" =
     P ==> P ∧ P ∨ Q
 
     Proof Complete!
-    with fuel: 165
+    with fuel: 119
     |}]
 
 let%expect_test "not_false_is_true" =
@@ -1024,7 +1026,7 @@ let%expect_test "dfs demorgans" =
     ¬P ∨ Q ==> ¬P ∧ ¬Q
 
     Proof Complete!
-    with fuel: 371
+    with fuel: 389
     |}]
 
 let%expect_test "rewrite_basic" =
@@ -1073,7 +1075,7 @@ let%expect_test "rewrite_basic" =
     ∀x. plus Zero x = x
 
     Proof Complete!
-    with fuel: 20
+    with fuel: 21
     |}]
 
 let%expect_test "basic4" =

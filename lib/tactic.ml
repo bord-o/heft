@@ -191,9 +191,32 @@ let with_first_term : tactic_combinator =
       try_each choices
   | v -> v
 
+let rec all_subterms (tm : term) =
+  match tm with
+  | Var (_, _) as v -> [ v ]
+  | Const (_, _) as c -> [ c ]
+  | App (f, x) as a -> (a :: all_subterms f) @ all_subterms x
+  | Lam (_, bod) as l -> l :: all_subterms bod
+
 let with_term (t : term) : tactic_combinator =
  fun tac goal ->
   match tac goal with effect Choose (Term _), k -> continue k t | x -> x
+
+let with_context_terms : tactic_combinator =
+ fun tac goal ->
+  let c = snd goal in
+  let asms = asm_terms (fst goal) in
+  let subterms =
+    List.map all_subterms (c :: asms)
+    |> List.flatten |> List.sort_uniq compare
+    |> List.sort (fun a b -> compare (D.term_size a) (D.term_size b))
+  in
+  match tac goal with
+  | effect Choose (Term _), k ->
+      let r = Multicont.Deep.promote k in
+      let chosen = choose_terms subterms in
+      Multicont.Deep.resume r chosen
+  | x -> x
 
 (* [cond] is logically part of Choice and Search but is defined later,
    together with [cases], because it depends on it. *)
@@ -517,7 +540,7 @@ let false_elim : tactic =
 
 let neg_elim : tactic =
  fun (asms, concl) ->
-  register "neg_elim" (Unsafe 3);
+  register "neg_elim" (Safe 3);
   let negs = List.filter D.is_neg (asm_terms asms) in
   if List.is_empty negs then fail ()
   else
@@ -613,7 +636,7 @@ let or_ : tactic =
 
 let neg_intro : tactic =
  fun (asms, concl) ->
-  register "neg_intro" (Unsafe 4);
+  register "neg_intro" (Safe 4);
   let thm =
     let* p = D.term_of_negation concl in
     if List.mem p (asm_terms asms) then fail ()
@@ -648,7 +671,7 @@ let elim_conj_asm : tactic =
 
 let elim_disj_asm : tactic =
  fun (asms, concl) ->
-  register "elim_disj_asm" (Unsafe 5);
+  register "elim_disj_asm" (Safe 5);
   let disjs = List.filter (compose D.is_disj snd) asms in
   if List.is_empty disjs then fail ()
   else
@@ -870,13 +893,6 @@ let eq_iff : tactic =
     deduct_antisym_rule p_from_q q_from_p
   in
   return_thm ~from:"eq_iff" thm
-
-let rec all_subterms (tm : term) =
-  match tm with
-  | Var (_, _) as v -> [ v ]
-  | Const (_, _) as c -> [ c ]
-  | App (f, x) as a -> (a :: all_subterms f) @ all_subterms x
-  | Lam (_, bod) as l -> l :: all_subterms bod
 
 let rewrite ?position : tactic =
  fun (asms, conc) ->
@@ -1217,7 +1233,7 @@ let rewrite_at (source : string) ?target ?position =
 
 let contradict_asm : tactic =
  fun (asms, concl) ->
-  register "contradict_asm" (Unsafe 5);
+  register "contradict_asm" (Safe 5);
   let false_tm = D.make_false () in
   if concl <> false_tm then fail ()
   else
@@ -1460,6 +1476,7 @@ let intros : tactic =
 
 let simp ?(exclude = []) ?(with_asms = true) : tactic =
  fun goal ->
+  register "simp" (Safe 1);
   let add = perform Rules in
   let definitions =
     !Rules.definitions

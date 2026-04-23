@@ -397,6 +397,8 @@ val with_term : term -> tactic_combinator
 (** [with_term t] resolves any [Choose (Term _)] by returning [t], regardless of
     the offered options. *)
 
+val with_context_terms : tactic_combinator
+
 val cond : tactic
 (** Finds [COND] applications in the goal, chooses one of their conditions via
     [Choose], and delegates to [cases] on the chosen condition. *)

@@ -10,6 +10,8 @@ type choice_kind =
   | CTactic of goal * cost * tactic
   | CUnknown of goal
 
+(* let is_ctactic = function CTactic _ -> true | _ -> false *)
+
 type search_metadata = MSubgoal of goal | MChoice of choice_kind | MResume
 
 type step_result =
@@ -142,6 +144,7 @@ let make_search (module F : Frontier) : tactic_combinator =
   let root_token = fresh_token () in
   F.add s (MSubgoal goal, (fun () -> step tac goal), [], [], root_token);
   let rec aux () =
+    trace_info (F.stats s);
     (* print_endline (F.stats s); *)
     match F.pop s with
     | None -> fail ()

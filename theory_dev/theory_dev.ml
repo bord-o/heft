@@ -443,6 +443,7 @@ and proof =
     >> simp >> simp >> simp >> simp
   end
   [@quiet]
+(* [@trace] *)
 
 let%thm wf_induct (r : 'a -> 'a -> bool) (p : 'a -> bool) =
   wf r
@@ -451,10 +452,22 @@ let%thm wf_induct (r : 'a -> 'a -> bool) (p : 'a -> bool) =
 
 and proof =
   begin
+    (* with_no_automation_trace *)
+    (* @@ with_best_first *)
+    (*      (pick *)
+    (*         [ *)
+    (*           gen; *)
+    (*           intro; *)
+    (*           assumption; *)
+    (*           with_definition [ "wf" ] rewrite_asm; *)
+    (*           beta_asm; *)
+    (*           with_assumptions apply; *)
+    (*         ]) *)
     gen >> gen >> intro @! "hwf" >> intro @! "himp"
     >> rewrite_at "wf" ~target:"hwf"
     >> with_repeat beta_asm >> apply_at "hwf" >> assumption
   end
   [@quiet]
+(* [@trace] *)
 
 let () = ()

@@ -125,87 +125,87 @@ let%expect_test "basics" =
     all_zero (Bits B1 B0 B1 B0) = False
 
     Proof Complete!
-    with fuel: 115
+    with fuel: 116
     ========================================
     all_zero (Bits B0 B0 B0 B0) = True
 
     Proof Complete!
-    with fuel: 115
+    with fuel: 116
     ========================================
     next_working_day Friday = Monday
 
     Proof Complete!
-    with fuel: 31
+    with fuel: 32
     ========================================
     next_working_day (next_working_day Friday) = Tuesday
 
     Proof Complete!
-    with fuel: 48
+    with fuel: 49
     ========================================
     orb' True False = True
 
     Proof Complete!
-    with fuel: 31
+    with fuel: 32
     ========================================
     orb' False False = False
 
     Proof Complete!
-    with fuel: 31
+    with fuel: 32
     ========================================
     orb' False True = True
 
     Proof Complete!
-    with fuel: 31
+    with fuel: 32
     ========================================
     orb' True True = True
 
     Proof Complete!
-    with fuel: 31
+    with fuel: 32
     ========================================
     orb' (orb' False False) True = True
 
     Proof Complete!
-    with fuel: 48
+    with fuel: 49
     ========================================
     nandb' True False = True
 
     Proof Complete!
-    with fuel: 41
+    with fuel: 42
     ========================================
     nandb' False False = True
 
     Proof Complete!
-    with fuel: 41
+    with fuel: 42
     ========================================
     nandb' False True = True
 
     Proof Complete!
-    with fuel: 41
+    with fuel: 42
     ========================================
     nandb' True True = False
 
     Proof Complete!
-    with fuel: 41
+    with fuel: 42
     ========================================
     andthreeb True True True = True
 
     Proof Complete!
-    with fuel: 41
+    with fuel: 42
     ========================================
     andthreeb False True True = False
 
     Proof Complete!
-    with fuel: 41
+    with fuel: 42
     ========================================
     andthreeb True False True = False
 
     Proof Complete!
-    with fuel: 41
+    with fuel: 42
     ========================================
     andthreeb True True False = False
 
     Proof Complete!
-    with fuel: 41
+    with fuel: 42
     Proof:
       gen >>
       gen >>
@@ -217,12 +217,12 @@ let%expect_test "basics" =
     ∀m. ∀n. m = n ==> plus m m = plus n n
 
     Proof Complete!
-    with fuel: 45
+    with fuel: 49
     ========================================
     ∀x. ∀c. andb' x c = andb' c x
 
     Proof Complete!
-    with fuel: 188
+    with fuel: 192
     ========================================
     ∀x. ∀c. andb' x c = True ==> c = True
 

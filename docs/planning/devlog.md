@@ -721,4 +721,9 @@ let ctauto : tactic =
     ]
 ```
 
+Ok so we first run step on ctauto with our goal, generating the choice point over all tactics in ctauto:
+
+Choice Tactic assumption
+...
+Choice Tactic ccontr
 

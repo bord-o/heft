@@ -1,4 +1,6 @@
 open Heft
+
+(* open Tactic *)
 open Auto
 
 (* Search benchmark suite: tests that exercise different dimensions of
@@ -12,7 +14,7 @@ let%expect_test "forward_chain" =
     a ==> b ==> ((b ==> c || d) ==> (c ==> e ==> (d ==> e ==> (a ==> e))))
   and proof =
     begin
-      with_best_first ctauto
+      with_best_first ctauto (* with_info_trace (with_best_first ctauto) *)
     end
   in
   ignore _fwd;
@@ -33,14 +35,14 @@ let%expect_test "forward_chain" =
       apply >>
       assumption >>
       apply >>
-      apply_asm >>
+      apply >>
       apply_asm >>
       assumption
     ========================================
     ∀a. ∀b. ∀c. ∀d. ∀e. (a ==> b) ==> (b ==> c) ∨ d ==> (c ==> e) ==> (d ==> e) ==> a ==> e
 
     Proof Complete!
-    with fuel: 536
+    with fuel: 985
     |}]
 
 (* --- Multi-phase: application + case split + elimination --- *)
@@ -66,8 +68,8 @@ let%expect_test "multi_phase" =
       gen >>
       intro >>
       intro >>
-      intro >>
       elim_disj_asm >>
+      intro >>
       intro >>
       elim_conj_asm >>
       intro >>
@@ -77,15 +79,16 @@ let%expect_test "multi_phase" =
       intro >>
       intro >>
       elim_conj_asm >>
-      apply >>
+      intro >>
       apply_asm >>
+      apply >>
       apply >>
       assumption
     ========================================
     ∀a. ∀b. ∀c. ∀d. ∀e. ∀f. (a ==> b) ∨ c ==> (b ==> d) ==> (c ==> d) ==> (d ==> e) ∧ f ==> a ==> e
 
     Proof Complete!
-    with fuel: 1149
+    with fuel: 1941
     |}]
 
 (* --- Disjunction routing --- *)
@@ -116,12 +119,12 @@ let%expect_test "four_var_distribution" =
       conj >>
       assumption >>
       assumption >>
+      right >>
       left >>
       conj >>
-      apply >>
+      assumption >>
       assumption >>
       elim_disj_asm >>
-      right >>
       right >>
       left >>
       conj >>
@@ -135,7 +138,7 @@ let%expect_test "four_var_distribution" =
     ∀a. ∀b. ∀c. ∀d. a ∨ b ∧ c ∨ d ==> a ∧ c ∨ a ∧ d ∨ b ∧ c ∨ b ∧ d
 
     Proof Complete!
-    with fuel: 24943
+    with fuel: 17033
     |}]
 
 (* --- Classical: De Morgan --- *)
@@ -169,7 +172,7 @@ let%expect_test "de_morgan_and" =
     ∀p. ∀q. ¬p ∧ q ==> ¬p ∨ ¬q
 
     Proof Complete!
-    with fuel: 1396
+    with fuel: 1213
     |}]
 
 (* --- Contrapositive chain --- *)
@@ -195,16 +198,16 @@ let%expect_test "contrapositive_chain" =
       intro >>
       intro >>
       neg_intro >>
-      apply_asm >>
       contradict_asm >>
       apply >>
-      apply >>
+      apply_asm >>
+      apply_asm >>
       assumption
     ========================================
     ∀a. ∀b. ∀c. ∀d. (a ==> b) ==> (b ==> c) ==> (c ==> d) ==> ¬d ==> ¬a
 
     Proof Complete!
-    with fuel: 270
+    with fuel: 450
     |}]
 
 (* --- Peirce's law: classical, no safe tactics help --- *)
@@ -220,22 +223,24 @@ let%expect_test "peirce" =
   [%expect
     {|
     Proof:
-      gen >>
+      ccontr >>
+      contradict_asm >>
       gen >>
       ccontr >>
       contradict_asm >>
+      gen >>
+      gen >>
       intro >>
+      ccontr >>
+      contradict_asm >>
       apply >>
       intro >>
-      ccontr >>
-      contradict_asm >>
-      intro >>
-      assumption
+      neg_elim
     ========================================
     ∀p. ∀q. ((p ==> q) ==> p) ==> p
 
     Proof Complete!
-    with fuel: 1299
+    with fuel: 2278
     |}]
 
 (* --- Diamond: two paths to the same conclusion --- *)
@@ -262,13 +267,13 @@ let%expect_test "diamond" =
       intro >>
       intro >>
       apply_asm >>
-      apply >>
+      apply_asm >>
       assumption
     ========================================
     ∀a. ∀b. ∀c. ∀d. (a ==> b) ==> (a ==> c) ==> (b ==> d) ==> (c ==> d) ==> a ==> d
 
     Proof Complete!
-    with fuel: 304
+    with fuel: 334
     |}]
 
 (* --- Excluded middle consequence --- *)
@@ -286,21 +291,22 @@ let%expect_test "excluded_middle_consequence" =
     Proof:
       gen >>
       gen >>
-      intro >>
       ccontr >>
       contradict_asm >>
+      intro >>
       intro >>
       apply >>
       neg_intro >>
       contradict_asm >>
+      intro >>
       apply_asm >>
       intro >>
-      apply
+      assumption
     ========================================
     ∀p. ∀q. (p ==> q) ==> (¬p ==> q) ==> q
 
     Proof Complete!
-    with fuel: 1030
+    with fuel: 769
     |}]
 
 (* --- Five variable or chain: deep disjunction navigation --- *)
@@ -350,7 +356,7 @@ let%expect_test "five_var_or_chain" =
     ∀a. ∀b. ∀c. ∀d. ∀e. a ∨ b ∨ c ∨ d ∨ e ==> e ∨ d ∨ c ∨ b ∨ a
 
     Proof Complete!
-    with fuel: 16435
+    with fuel: 17546
     |}]
 
 (* --- Currying --- *)
@@ -381,5 +387,5 @@ let%expect_test "curry_uncurry" =
     ∀a. ∀b. ∀c. (a ∧ b ==> c) ==> a ==> b ==> c
 
     Proof Complete!
-    with fuel: 171
+    with fuel: 209
     |}]
