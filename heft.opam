@@ -20,6 +20,8 @@ depends: [
   "sedlex"
   "ppxlib"
   "fmt"
+  "utop"
+  "uuidm"
   "odoc" {with-doc}
 ]
 build: [

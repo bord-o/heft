@@ -1,6 +1,6 @@
 (library
  (name heft)
  (public_name heft)
- (libraries ppx_deriving multicont sedlex fmt fmt.tty)
+ (libraries ppx_deriving multicont sedlex fmt fmt.tty uuidm)
  (preprocess
   (pps ppx_deriving.show sedlex.ppx)))

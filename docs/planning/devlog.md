@@ -721,9 +721,30 @@ let ctauto : tactic =
     ]
 ```
 
-Ok so we first run step on ctauto with our goal, generating the choice point over all tactics in ctauto:
+First we prime our queue with ctauto + goal + priority=1 and a new ID
 
-Choice Tactic assumption
-...
-Choice Tactic ccontr
+our search function pops this node and expands it, upon expansion we get a TacticChoice 
+expand will collect tactic registrations from everything in this choice level and transform them into new nodes.
+The new nodes will multiply their probability agains the current (1) to get the ordering for the next expansion.
+
+Now our queue looks like [assumption:.95, intro:.9, etc], all with the same goal. The queue will then sort these based on probability
+
+Next lets handle intertactic choice.
+
+Say we hit elim_disj_asm when we have multiple assumptions that could be applied. When we expand we hit a TermChoice.
+We have a decision now, should resuming these choice options be higher priority than the next tactic to expand, or should they be handled now? 
+For now we push these to the queue as well, carrying the same id and probability of the parent that caused them (elim_disj)
+
+Now lets say we hit a subgoal. A subgoal should push our same tactic before onto the queue (ctauto) with the same probability as its depth would suggest, along with its cont
+
+But what if our tactic solves the goal completely?
+When we expand we are running a tactic, and in the case that it completes with a thm, we need to kill all the other nodes that are working on the same subgoal, and then 
+resume with that thm
+
+So a node is really one of two things:
+A goal to solve
+A choice to continue with
+
+A goal needs to have a continuation going up the stack, determining what to do once its solved
+A choice needs to have a continuation going down the stack, representing the rest of the tactic
 
