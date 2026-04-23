@@ -6,9 +6,8 @@ open Auto
 let%expect_test "expansion" =
   let%thm goal (a : bool) (b : bool) (c : bool) = a ==> (b ==> (c ==> a)) in
   let root_tac = pick [ gen; intro; assumption ] in
-  let f = frontier_of_goal root_tac goal in
 
-  run_proof goal (fun _goal -> search f 23);
+  run_proof goal (with_grimm root_tac);
   [%expect
     {|
     ========================================
@@ -42,9 +41,7 @@ let%expect_test "expansion" =
         (make_disj p (make_conj q r))
         (make_conj (make_disj p q) (make_disj p r)) )
   in
-  let f = frontier_of_goal ctauto goal in
-
-  run_proof goal (fun _goal -> search f max_int);
+  run_proof goal (with_grimm ctauto);
   [%expect
     {|
     ========================================

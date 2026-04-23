@@ -108,7 +108,7 @@ let with_prob (prob : float) thunk =
   | effect CurrentProb, k -> resume (promote k) prob
   | v -> v
 
-let rec expand (node : node) =
+let rec expand dead (node : node) =
   with_prob node.prob (fun () ->
       match node.down with
       | Some r -> r ()
@@ -150,7 +150,7 @@ let rec expand (node : node) =
           | effect Subgoal g, k ->
               let parent = Multicont.Deep.promote k in
               let up = fun v -> resume parent v in
-              expand
+              expand dead
                 (make_node ~up node.root_tactic g (uuid ())
                    (perform CurrentProb) (Edge "root"))
           | effect Fail, _ -> []
@@ -159,9 +159,11 @@ let rec expand (node : node) =
               (* Done nodes get max priority *)
               | None ->
                   [ make_node node.root_tactic node.goal node.id 1.1 (Done v) ]
-              | Some r' -> r' v)))
+              | Some r' ->
+                  Hashtbl.replace dead node.id ();
+                  r' v)))
 
-let rec search (q : Frontier.t) depth =
+let rec search dead (q : Frontier.t) depth =
   if depth = 0 then (
     let f = Frontier.fold_unordered (fun acc x -> x :: acc) [] q in
     (* let probs = Frontier.fold_unordered (fun acc x -> x.prob :: acc) [] q |> List.sort_uniq compare in *)
@@ -181,14 +183,20 @@ let rec search (q : Frontier.t) depth =
   else
     match Frontier.pop_max q with
     | None -> failwith "empty"
+    | Some head when Hashtbl.mem dead head.id -> search dead q depth
     | Some head -> (
         match head.expansion with
         | Done v -> v
         | _ ->
-            expand head |> List.iter (fun n -> Frontier.add q n);
-            search q (depth - 1))
+            expand dead head |> List.iter (fun n -> Frontier.add q n);
+            search dead q (depth - 1))
 
 let frontier_of_goal root_tac goal =
   let root_id = uuid () in
   let root_node = make_node root_tac goal root_id 1. (Edge "root") in
   Frontier.of_list [ root_node ]
+
+let with_grimm ?(depth = max_int) : tactic_combinator =
+ fun tac goal ->
+  let dead = Hashtbl.create 16 in
+  search dead (frontier_of_goal tac goal) depth
