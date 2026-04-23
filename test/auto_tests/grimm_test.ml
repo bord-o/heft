@@ -1,21 +1,55 @@
 open Heft
 open Grimm
 open Tactic
+open Auto
 
-let%expect_test "expansion" = 
-    let root_tac =  (pick [gen; intro; assumption]) in
-    let%thm goal (a : bool) (b : bool) (c : bool) = 
-        a ==> (b ==> ( c ==> a))
-    in
-    let root_id = uuid () in
-    let once = expand root_tac root_tac goal root_id in
-    (* let twice = once |> List.map (fun e -> )  in *)
-    List.iter (fun n -> print_endline (show_node n)) once;
-    [%expect {|
-      { Grimm.up = None; down = (Some <fun>); expansion = Grimm.Edge;
-        id = 509d261a-cb89-497b-bd75-829c80f44325 }
-      { Grimm.up = None; down = (Some <fun>); expansion = Grimm.Edge;
-        id = 509d261a-cb89-497b-bd75-829c80f44325 }
-      { Grimm.up = None; down = (Some <fun>); expansion = Grimm.Edge;
-        id = 509d261a-cb89-497b-bd75-829c80f44325 }
-      |}]
+let%expect_test "expansion" =
+  let%thm goal (a : bool) (b : bool) (c : bool) = a ==> (b ==> (c ==> a)) in
+  let root_tac = pick [ gen; intro; assumption ] in
+  let f = frontier_of_goal root_tac goal in
+
+  run_proof goal (fun _goal -> search f 22);
+  [%expect
+    {|
+    ========================================
+    ∀a. ∀b. ∀c. a ==> b ==> c ==> a
+
+    Proof Complete!
+    with fuel: 20
+    |}]
+
+(* let%expect_test "expansion" = *)
+(*   let%thm goal (a : bool) (b : bool) (c : bool) (d : bool) = *)
+(*     ((a || b) && (c || d)) ==> ((a && c) || (a && d) || (b && c) || (b && d)) *)
+(*   in *)
+(*   let f = frontier_of_goal ctauto goal in *)
+(**)
+(*   run_proof goal (fun _goal -> *)
+(*     search f max_int; *)
+(*   ); *)
+(*   [%expect {| *)
+(*       |}] *)
+
+let%expect_test "expansion" =
+  let open Kernel in
+  let open Derived in
+  let p = make_var "P" bool_ty in
+  let q = make_var "Q" bool_ty in
+  let r = make_var "R" bool_ty in
+  let goal =
+    ( [],
+      make_imp
+        (make_disj p (make_conj q r))
+        (make_conj (make_disj p q) (make_disj p r)) )
+  in
+  let f = frontier_of_goal ctauto goal in
+
+  run_proof goal (fun _goal -> search f 1000);
+  [%expect
+    {|
+    ========================================
+    P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
+
+    Proof Complete!
+    with fuel: 1593
+    |}]
