@@ -734,7 +734,7 @@ let ccontr : tactic =
 
 let gen : tactic =
  fun (asms, concl) ->
-  register "gen" (Safe 1);
+  register ~prob:(0.2) "gen" (Safe 1);
   let thm =
     let* x, body = D.destruct_forall concl in
     let* x' = variant (concl :: asm_terms asms) x in

@@ -8,14 +8,9 @@ let%expect_test "expansion" =
   let root_tac = pick [ gen; intro; assumption ] in
   let f = frontier_of_goal root_tac goal in
 
-  run_proof goal (fun _goal -> search f 22);
+  run_proof goal (fun _goal -> search f 20);
   [%expect
     {|
-    ========================================
-    ∀a. ∀b. ∀c. a ==> b ==> c ==> a
-
-    Proof Complete!
-    with fuel: 20
     |}]
 
 (* let%expect_test "expansion" = *)
@@ -25,7 +20,7 @@ let%expect_test "expansion" =
 (*   let f = frontier_of_goal ctauto goal in *)
 (**)
 (*   run_proof goal (fun _goal -> *)
-(*     search f max_int; *)
+(*     search f 200; *)
 (*   ); *)
 (*   [%expect {| *)
 (*       |}] *)

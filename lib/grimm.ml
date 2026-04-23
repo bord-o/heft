@@ -70,6 +70,7 @@ let thm_of_expansion = function Done thm -> Some thm | _ -> None
 type node = {
   root_tactic : tactic; [@printer fun fmt _ -> Format.fprintf fmt "<tactic>"]
   down : (unit -> node list) option;
+  up : (thm -> node list) option;
   expansion : expansion;
   goal : goal;
       [@printer
@@ -92,19 +93,14 @@ end
 
 module Frontier = Pqueue.MakeMax (Priority)
 
-let make_node ?down root_tactic goal id prob expansion =
-  { down; expansion; id; goal; root_tactic; prob }
+let make_node ?down ?up root_tactic goal id prob expansion =
+  { down; up; expansion; id; goal; root_tactic; prob }
 
-let rec expand ?(parent : (thm, node list) resumption option) (node : node) =
-  let root = node.root_tactic in
-  let goal = node.goal in
-  let id = node.id in
-  let prob = node.prob in
-
+let rec expand (node : node) =
   match node.down with
   | Some r -> r ()
   | None -> (
-      match root goal with
+      match node.root_tactic node.goal with
       | effect Choose cs, k -> (
           let r = Multicont.Deep.promote k in
           match cs with
@@ -113,42 +109,52 @@ let rec expand ?(parent : (thm, node list) resumption option) (node : node) =
               |> List.map (fun t ->
                   make_node
                     ~down:(fun () -> resume r t)
-                    root goal id prob
+                    node.root_tactic node.goal node.id node.prob
                     (Choice (pretty_print_hol_term t)))
           | Theorem ts ->
               ts
               |> List.map (fun t ->
                   make_node
                     ~down:(fun () -> resume r t)
-                    root goal id prob
+                    node.root_tactic node.goal node.id node.prob
                     (Choice (pretty_print_hol_term (concl t))))
           | Unknown us ->
               us
               |> List.map (fun u ->
                   make_node
                     ~down:(fun () -> resume r u)
-                    root goal id prob (Choice "unknown"))
+                    node.root_tactic node.goal node.id node.prob
+                    (Choice "unknown"))
           | Tactic ts ->
               ts
               |> List.map (fun t ->
-                  let n, next_prob = prob_of_tactic t goal in
+                  let n, next_prob = prob_of_tactic t node.goal in
                   make_node
                     ~down:(fun () -> resume r t)
-                    root goal id (prob *. next_prob) (Edge n)))
+                    node.root_tactic node.goal node.id (node.prob *. next_prob)
+                    (Edge n)))
       | effect Subgoal g, k ->
           let parent = Multicont.Deep.promote k in
-          expand ~parent (make_node root g (uuid ()) prob (Edge "root"))
+          let up = fun v -> resume parent v in
+          expand
+            (make_node ~up node.root_tactic g (uuid ()) node.prob (Edge "root"))
       | effect Fail, _ -> []
       | v -> (
-          match parent with
+          match node.up with
           (* Done nodes get max priority *)
-          | None -> [ make_node root goal id 1.1 (Done v) ]
-          | Some r' -> resume r' v))
+          | None ->
+              [ make_node node.root_tactic node.goal node.id 1.1 (Done v) ]
+          | Some r' -> r' v))
 
 let rec search (q : Frontier.t) depth =
   if depth = 0 then (
     let f = Frontier.fold_unordered (fun acc x -> x :: acc) [] q in
+    let probs = Frontier.fold_unordered (fun acc x -> x.prob :: acc) [] q |> List.sort_uniq compare in
     List.iter (fun n -> print_endline (show_node n)) f;
+    print_endline "unique probs: ";
+    List.iter (fun p -> Printf.printf "%f\n" p) probs;
+
+
     failwith "at depth")
   else
     match Frontier.pop_max q with
