@@ -720,7 +720,7 @@ let elim_exists_asm : tactic =
 
 let ccontr : tactic =
  fun (asms, concl) ->
-  register ~prob:0.1 "ccontr" (Unsafe 10);
+  register ~prob:0.01 "ccontr" (Unsafe 10);
   let false_tm = D.make_false () in
   let neg_concl = D.make_neg concl in
   if concl = false_tm || List.mem neg_concl (asm_terms asms) then fail ()
@@ -758,7 +758,7 @@ let generalize (x : term) : tactic =
 
 let exists : tactic =
  fun (asms, concl) ->
-  register "exists" (Unsafe 8);
+  register ~prob:0.3 "exists" (Unsafe 8);
   let thm =
     let* x, body = D.destruct_exists concl in
     let chosen = choose_terms [] in
@@ -776,7 +776,7 @@ let exists : tactic =
 
 let spec_asm (tm : term) : tactic =
  fun (asms, concl) ->
-  register "spec_asm" (Unsafe 3);
+  register ~prob:0.4 "spec_asm" (Unsafe 3);
   let foralls =
     List.filter
       (fun a -> match D.destruct_forall a with Ok _ -> true | _ -> false)
@@ -799,7 +799,7 @@ let spec_asm (tm : term) : tactic =
 
 let sym : tactic =
  fun (asms, conc) ->
-  register "sym" (Safe 1);
+  register ~prob:0.7 "sym" (Safe 1);
   let thm =
     let* l, r = destruct_eq conc in
     let* flipped = safe_make_eq r l in
@@ -810,7 +810,7 @@ let sym : tactic =
 
 let sym_asm : tactic =
  fun (asms, concl) ->
-  register "sym_asm" (Safe 2);
+  register ~prob:0.7 "sym_asm" (Safe 2);
   let eqs = List.filter D.is_eq (asm_terms asms) in
   if List.is_empty eqs then fail ()
   else
@@ -829,7 +829,7 @@ let sym_asm : tactic =
 
 let trans : tactic =
  fun (asms, concl) ->
-  register "trans" (Safe 1);
+  register ~prob:0.5 "trans" (Safe 1);
   let thm =
     let* l, r = destruct_eq concl in
     let s = choose_terms [] in
@@ -896,7 +896,7 @@ let eq_iff : tactic =
 
 let rewrite ?position : tactic =
  fun (asms, conc) ->
-  register "rewrite" (Unsafe 5);
+  register ~prob:0.6 "rewrite" (Unsafe 5);
   let thm =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
@@ -953,7 +953,7 @@ let show_rewrite_positions : tactic =
 
 let rewrite_asm : tactic =
  fun (asms, conc) ->
-  register "rewrite_asm" (Unsafe 5);
+  register ~prob:0.6 "rewrite_asm" (Unsafe 5);
   let thm =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
@@ -1077,7 +1077,7 @@ let exact : tactic =
 
 let apply : tactic =
  fun (asms, conc) ->
-  register "apply" (Unsafe 5);
+  register ~prob:0.65 "apply" (Unsafe 5);
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
   let avoid = conc :: asm_terms asms in
@@ -1139,7 +1139,7 @@ let apply : tactic =
 
 let apply_asm : tactic =
  fun (asms, conc) ->
-  register "apply_asm" (Unsafe 5);
+  register ~prob:0.65 "apply_asm" (Unsafe 5);
   let lemmas = perform Rules in
   let chosen_thm = choose_theorems lemmas in
   let chosen_asm = choose_terms (asm_terms asms) in
@@ -1285,7 +1285,7 @@ let discriminate : tactic =
    included in the [and] chain to preserve mli ordering. *)
 let rec cases : tactic =
  fun (asms, concl) ->
-  register "cases" (Unsafe 8);
+  register ~prob:0.3 "cases" (Unsafe 8);
   let bool_case_branch var bod value asms =
     let* var_eq_val = safe_make_eq var value in
     let* bod_subst = vsubst [ (value, var) ] bod in
@@ -1332,7 +1332,7 @@ let rec cases : tactic =
 
 and destruct : tactic =
  fun (asms, concl) ->
-  register "destruct" (Unsafe 6);
+  register ~prob:0.35 "destruct" (Unsafe 6);
   let thm =
     let tm = choose_terms [] in
     let* ty = type_of_term tm in
@@ -1359,7 +1359,7 @@ and destruct : tactic =
 
 and induct : tactic =
  fun (asms, concl) ->
-  register "induct" (Unsafe 8);
+  register ~prob:0.3 "induct" (Unsafe 8);
   match D.destruct_forall concl with
   | Ok _ ->
       let thm =
@@ -1447,7 +1447,7 @@ and cond : tactic =
 
 let have : tactic =
  fun (asms, concl) ->
-  register "have" (Unsafe 5);
+  register ~prob:0.2 "have" (Unsafe 5);
   let thm =
     let assertion = choose_terms [] in
     let asserted_thm = perform (Subgoal (asms, assertion)) in
@@ -1460,7 +1460,7 @@ let have : tactic =
 
 let have_premise : tactic =
  fun (asms, concl) ->
-  register "have_premise" (Unsafe 5);
+  register ~prob:0.2 "have_premise" (Unsafe 5);
   let thm =
     let imps = asms |> List.filter (compose D.is_imp snd) in
     let chosen_imp = choose_terms (asm_terms imps) in

@@ -23,8 +23,14 @@ let%expect_test "expansion" =
   in
 
   run_proof goal (with_grimm ctauto);
-  [%expect {|
-      |}]
+  [%expect
+    {|
+    ========================================
+    ∀a. ∀b. ∀c. ∀d. a ∨ b ∧ c ∨ d ==> a ∧ c ∨ a ∧ d ∨ b ∧ c ∨ b ∧ d
+
+    Proof Complete!
+    with fuel: 6062
+    |}]
 
 let%expect_test "expansion" =
   let open Kernel in
@@ -45,5 +51,5 @@ let%expect_test "expansion" =
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
     Proof Complete!
-    with fuel: 118984
+    with fuel: 597
     |}]

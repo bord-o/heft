@@ -150,9 +150,8 @@ let rec expand dead (node : node) =
                       make_node
                         ~down:(fun () -> resume r t)
                         node.root_tactic node.goal node.id
-                        (perform CurrentProb *. next_prob)
-                        (* next_prob  *)
-                        (Edge n)))
+                        (* (perform CurrentProb *. next_prob) *)
+                        next_prob (Edge n)))
           | effect Subgoal g, k ->
               let parent = Multicont.Deep.promote k in
               let up = fun v -> resume parent v in
