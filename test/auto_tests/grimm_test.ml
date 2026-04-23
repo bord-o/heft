@@ -25,7 +25,7 @@ let%expect_test "expansion" =
 (*   let f = frontier_of_goal ctauto goal in *)
 (**)
 (*   run_proof goal (fun _goal -> *)
-(*     search f 200; *)
+(*     search f max_int; *)
 (*   ); *)
 (*   [%expect {| *)
 (*       |}] *)
@@ -44,12 +44,12 @@ let%expect_test "expansion" =
   in
   let f = frontier_of_goal ctauto goal in
 
-  run_proof goal (fun _goal -> search f 1000);
+  run_proof goal (fun _goal -> search f max_int);
   [%expect
     {|
     ========================================
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
     Proof Complete!
-    with fuel: 1593
+    with fuel: 398787
     |}]
