@@ -1,8 +1,5 @@
 open Heft
-
-(* open Tactic *)
 open Auto
-
 (* Search benchmark suite: tests that exercise different dimensions of
    proof search — forward chaining, case splitting, classical reasoning,
    and disjunction routing. *)

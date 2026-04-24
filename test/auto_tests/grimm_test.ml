@@ -29,7 +29,7 @@ let%expect_test "expansion" =
     ∀a. ∀b. ∀c. ∀d. a ∨ b ∧ c ∨ d ==> a ∧ c ∨ a ∧ d ∨ b ∧ c ∨ b ∧ d
 
     Proof Complete!
-    with fuel: 6062
+    with fuel: 32972
     |}]
 
 let%expect_test "expansion" =
@@ -51,5 +51,5 @@ let%expect_test "expansion" =
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
     Proof Complete!
-    with fuel: 597
+    with fuel: 2263
     |}]
