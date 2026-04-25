@@ -10,6 +10,8 @@ let%expect_test "expansion" =
   run_proof goal (with_grimm root_tac);
   [%expect
     {|
+    called with depth 4611686018427387903
+
     ========================================
     ∀a. ∀b. ∀c. a ==> b ==> c ==> a
 
@@ -25,11 +27,13 @@ let%expect_test "expansion" =
   run_proof goal (with_grimm ctauto);
   [%expect
     {|
+    called with depth 4611686018427387903
+
     ========================================
     ∀a. ∀b. ∀c. ∀d. a ∨ b ∧ c ∨ d ==> a ∧ c ∨ a ∧ d ∨ b ∧ c ∨ b ∧ d
 
     Proof Complete!
-    with fuel: 32972
+    with fuel: 33363
     |}]
 
 let%expect_test "expansion" =
@@ -47,9 +51,11 @@ let%expect_test "expansion" =
   run_proof goal (with_grimm ctauto);
   [%expect
     {|
+    called with depth 4611686018427387903
+
     ========================================
     P ∨ Q ∧ R ==> P ∨ Q ∧ P ∨ R
 
     Proof Complete!
-    with fuel: 2263
+    with fuel: 2363
     |}]

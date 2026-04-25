@@ -61,9 +61,18 @@ let prob_of_tactic (tac : tactic) (goal : goal) =
 
 (** an expansion represents the search space. An edge is a potential tactic*goal
     combo to expand, and a choice is any other choice *)
+type choiceKind =
+  | CTerm of term
+      [@printer fun fmt t -> Format.fprintf fmt "%s" (pretty_print_hol_term t)]
+  | CTheorem of thm
+      [@printer fun fmt t -> Format.fprintf fmt "%s" (pretty_print_thm t)]
+  | CTactic of (tactic[@opaque])
+  | CUnknown
+[@@deriving show]
+
 type expansion =
   | Edge of string
-  | Choice of string
+  | Choice of choiceKind
   | Done of thm
       [@printer fun fmt t -> Format.fprintf fmt "%s" (pretty_print_thm t)]
 [@@deriving show]
@@ -91,7 +100,17 @@ let test_id = uuid ()
 module Priority = struct
   type t = node
 
-  let compare : t -> t -> int = fun n1 n2 -> compare n1.prob n2.prob
+  (* let compare : t -> t -> int = fun n1 n2 -> compare n1.prob n2.prob *)
+  let compare a b =
+    let c = compare a.prob b.prob in
+    match (a.expansion, b.expansion) with
+    | Choice (CTerm m), Choice (CTerm n) ->
+        let m_size = Derived.term_size m in
+        let n_size = Derived.term_size n in
+        compare n_size m_size
+    | Choice (CTerm _), _ -> 1
+    | _, Choice (CTerm _) -> -1
+    | _ -> c
 end
 
 module Frontier = Pqueue.MakeMax (Priority)
@@ -119,30 +138,25 @@ let rec expand dead (node : node) =
               match cs with
               | Term ts ->
                   ts
-                  |> List.concat_map (fun t ->
-                      expand dead
-                        (make_node
-                           ~down:(fun () -> resume r t)
-                           node.root_tactic node.goal node.id
-                           (perform CurrentProb)
-                           (Choice (pretty_print_hol_term t))))
+                  |> List.map (fun (t : term) ->
+                      make_node
+                        ~down:(fun () -> resume r t)
+                        node.root_tactic node.goal node.id (perform CurrentProb)
+                        (Choice (CTerm t)))
               | Theorem ts ->
                   ts
-                  |> List.concat_map (fun t ->
-                      expand dead
-                        (make_node
-                           ~down:(fun () -> resume r t)
-                           node.root_tactic node.goal node.id
-                           (perform CurrentProb)
-                           (Choice (pretty_print_hol_term (concl t)))))
+                  |> List.map (fun t ->
+                      make_node
+                        ~down:(fun () -> resume r t)
+                        node.root_tactic node.goal node.id (perform CurrentProb)
+                        (Choice (CTheorem t)))
               | Unknown us ->
                   us
-                  |> List.concat_map (fun u ->
-                      expand dead
-                        (make_node
-                           ~down:(fun () -> resume r u)
-                           node.root_tactic node.goal node.id
-                           (perform CurrentProb) (Choice "unknown")))
+                  |> List.map (fun u ->
+                      make_node
+                        ~down:(fun () -> resume r u)
+                        node.root_tactic node.goal node.id (perform CurrentProb)
+                        (Choice CUnknown))
               | Tactic ts ->
                   ts
                   |> List.map (fun t ->
@@ -194,6 +208,8 @@ let rec search dead (q : Frontier.t) depth =
         match head.expansion with
         | Done v -> v
         | _ ->
+            trace_info (Printf.sprintf "expanding %s\n" (show_node head));
+            trace_info (Printf.sprintf "size: %d\n" (Frontier.length q));
             expand dead head |> List.iter (fun n -> Frontier.add q n);
             search dead q (depth - 1))
 
@@ -203,6 +219,8 @@ let frontier_of_goal root_tac goal =
   Frontier.of_list [ root_node ]
 
 let with_grimm ?(depth = max_int) : tactic_combinator =
- fun tac goal ->
-  let dead = Hashtbl.create 16 in
-  search dead (frontier_of_goal tac goal) depth
+  print_endline (Printf.sprintf "called with depth %d\n" depth);
+  fun tac goal ->
+    let dead = Hashtbl.create 16 in
+
+    search dead (frontier_of_goal tac goal) depth

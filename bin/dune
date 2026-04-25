@@ -4,5 +4,5 @@
  (preprocess
   (pps ppx_expect ppx_heft))
  (ocamlopt_flags
-  (:standard -g))
- (libraries heft))
+  (:standard -g -linkall))
+ (libraries heft heft.theories.nats heft.theories.lists))
