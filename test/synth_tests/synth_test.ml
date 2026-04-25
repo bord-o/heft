@@ -5,9 +5,6 @@ open Synth
 open Auto
 open Nats
 open Lists
-open Grimm
-
-let _ = with_grimm
 
 let%expect_test "synth goal setup" =
   let goal =

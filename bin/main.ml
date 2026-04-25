@@ -92,8 +92,8 @@ let mk_list elems =
 
 (* let plus_ty = make_fun_ty nat_ty (make_fun_ty nat_ty nat_ty) *)
 (* let plus_extra = [ ("plus", plus_ty) ] *)
-let append_ty = make_fun_ty list_nat (make_fun_ty list_nat list_nat)
-let append_extra = [ ("append", append_ty) ]
+(* let append_ty = make_fun_ty list_nat (make_fun_ty list_nat list_nat) *)
+(* let append_extra = [ ("append", append_ty) ] *)
 
 (* let pre_synth_two goal depth extra = *)
 (*   let ty = Derived.type_of_existential goal |> Result.get_ok in *)
@@ -109,55 +109,82 @@ let append_extra = [ ("append", append_ty) ]
 module D = Derived
 open Printing
 
-let terms = Hashtbl.create 16
-
-let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
- fun tac goal ->
-  match tac goal with
-  | effect Choose (Term _), k ->
-      let r = Multicont.Deep.promote k in
-      let ty = D.type_of_existential goal |> Result.get_ok in
-      let terms =
-        match Hashtbl.find_opt terms (ty, depth) with
-        | Some ts ->
-            trace_info "cache hit";
-            ts
-        | None ->
-            trace_info "cache miss";
-            let new_terms = Synth.enumerate ~extra [] ty depth in
-            Hashtbl.add terms (ty, depth) new_terms;
-            new_terms
-      in
-
-      trace_info
-        (Printf.sprintf "enumerated %d unique terms" (List.length terms));
-
-      List.iter
-        (fun t ->
-          trace_dbg (Printf.sprintf "term: %s" (pretty_print_hol_term t)))
-        terms;
-      let t = choose_terms (List.rev terms) in
-      trace_info (Printf.sprintf "chose synth: %s" (pretty_print_hol_term t));
-      Multicont.Deep.resume r t
-  | v -> v
-
 let () =
   let func_type = make_fun_ty list_nat (make_fun_ty list_nat list_nat) in
   let test_cases =
     [ ([ mk_list [ n 1 ]; mk_list [ n 2 ] ], mk_list [ n 1; n 2 ]) ]
   in
   let goal_tm = make_synthesis_goal ~func_type ~test_cases in
-  let goal = ([], goal_tm) in
+  let _goal = ([], goal_tm) in
+
+  let goal =
+    make_goal
+      [%term
+        exists
+          (fun
+            (nil_case : 'a list -> 'a list)
+            (cons_case : 'a -> 'a list -> 'a list -> 'a list)
+          ->
+            forall (fun (ys : 'a list) ->
+                (g : 'a list -> 'a list -> 'a list) [] ys = nil_case ys)
+            ==> (forall (fun (x : 'a) (xs : 'a list) (ys : 'a list) ->
+                     (g : 'a list -> 'a list -> 'a list) (x :: xs) ys
+                     = cons_case x xs
+                         ((g : 'a list -> 'a list -> 'a list) xs ys))
+                ==> ((g : 'a list -> 'a list -> 'a list) [] [ (x : 'a) ]
+                     = [ (x : 'a) ]
+                    && (g : 'a list -> 'a list -> 'a list)
+                         [ (x : 'a) ]
+                         [ (y : 'a) ]
+                       = [ (x : 'a); (y : 'a) ])))]
+  in
 
   (* let terms = Synth. *)
   let proof =
+    let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
+      let terms = Hashtbl.create 16 in
+      fun tac goal ->
+        match tac goal with
+        | effect Choose (Term _), k ->
+            let r = Multicont.Deep.promote k in
+            let ty = D.type_of_existential goal |> Result.get_ok in
+            let terms =
+              match Hashtbl.find_opt terms (ty, depth) with
+              | Some ts ->
+                  trace_info "cache hit";
+                  ts
+              | None ->
+                  trace_info "cache miss";
+                  let new_terms = Synth.enumerate ~extra [] ty depth in
+                  let new_terms =
+                    new_terms
+                    |> List.sort (fun a b ->
+                        compare (D.term_size a) (D.term_size b))
+                  in
+                  Hashtbl.add terms (ty, depth) new_terms;
+                  new_terms
+            in
+
+            trace_info
+              (Printf.sprintf "enumerated %d unique terms" (List.length terms));
+
+            List.iter
+              (fun t ->
+                trace_dbg (Printf.sprintf "term: %s" (pretty_print_hol_term t)))
+              terms;
+            let t = choose_terms terms in
+            trace_info
+              (Printf.sprintf "chose synth: %s" (pretty_print_hol_term t));
+            Multicont.Deep.resume r t
+        | v -> v
+    in
     (* with_best_first *)
     let auto g =
       register ~prob:1. "auto" (Safe 1);
       if Derived.is_exists (snd g) then fail () else auto g
     in
 
-    pick [ with_synthetic_term ~extra:append_extra 6 @@ exists; auto ]
+    pick [ with_synthetic_term 5 @@ exists; auto ]
   in
   let rec loop depth =
     (* run_proof goal (with_info_trace (with_grimm ~depth proof)); *)

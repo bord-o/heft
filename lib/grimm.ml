@@ -103,14 +103,13 @@ module Priority = struct
   (* let compare : t -> t -> int = fun n1 n2 -> compare n1.prob n2.prob *)
   let compare a b =
     let c = compare a.prob b.prob in
-    match (a.expansion, b.expansion) with
-    | Choice (CTerm m), Choice (CTerm n) ->
-        let m_size = Derived.term_size m in
-        let n_size = Derived.term_size n in
-        compare n_size m_size
-    | Choice (CTerm _), _ -> 1
-    | _, Choice (CTerm _) -> -1
-    | _ -> c
+    (* tie break probability with edge expansion winning *)
+    if c = 0 then
+      match (a.expansion, b.expansion) with
+      | Edge _, Choice _ -> 1
+      | Choice _, Edge _ -> -1
+      | _ -> c
+    else c
 end
 
 module Frontier = Pqueue.MakeMax (Priority)
@@ -118,10 +117,6 @@ module Frontier = Pqueue.MakeMax (Priority)
 let make_node ?down ?up root_tactic goal id prob expansion =
   { down; up; expansion; id; goal; root_tactic; prob }
 
-(** Wrap a thunk so that any CurrentProb requests inside it (including those
-    from reinstalled deep handlers) receive [prob]. Because this is a deep
-    handler, it reinstalls itself on each resume, so every request gets the same
-    value without any extra plumbing. *)
 let with_prob (prob : float) thunk =
   match thunk () with
   | effect CurrentProb, k -> resume (promote k) prob
@@ -184,21 +179,29 @@ let rec expand dead (node : node) =
                   r' v)))
 
 let rec search dead (q : Frontier.t) depth =
+  let size = Frontier.length q in
+  let e, c =
+    Frontier.fold_unordered
+      (fun (edges, choices) n ->
+        match n.expansion with
+        | Edge _ -> (edges + 1, choices)
+        | Choice _ -> (edges, choices + 1)
+        | _ -> (edges, choices))
+      (0, 0) q
+  in
+  trace_info @@ Printf.sprintf "Edges: %d, Choices: %d\n" e c;
+  let q =
+    if size mod 1000 = 0 then (
+      trace_info "cleanup";
+      let l = Frontier.fold_unordered (fun acc n -> n :: acc) [] q in
+      let filtered = List.filter (fun n -> not (Hashtbl.mem dead n.id)) l in
+      Frontier.of_list filtered)
+    else q
+  in
   if depth = 0 then (
-    let f = Frontier.fold_unordered (fun acc x -> x :: acc) [] q in
-    (* let probs = Frontier.fold_unordered (fun acc x -> x.prob :: acc) [] q |> List.sort_uniq compare in *)
-
-    f
-    (* |> List.sort (fun a b -> compare b.prob a.prob) *)
-    (* |> List.take 10 *)
-    |> List.iter (fun n -> print_endline (show_node n));
     let top = Frontier.get_max_elt q in
-    print_endline "TOP NODE: ";
+    print_endline "at depth limit, TOP NODE: ";
     print_endline (show_node top);
-
-    (* print_endline "unique probs: "; *)
-    (* List.iter (fun p -> Printf.printf "%f\n" p) probs; *)
-    trace_error "at depth";
     fail ())
   else
     match Frontier.pop_max q with
@@ -208,8 +211,7 @@ let rec search dead (q : Frontier.t) depth =
         match head.expansion with
         | Done v -> v
         | _ ->
-            trace_info (Printf.sprintf "expanding %s\n" (show_node head));
-            trace_info (Printf.sprintf "size: %d\n" (Frontier.length q));
+            trace_info (Printf.sprintf "size: %d\n" size);
             expand dead head |> List.iter (fun n -> Frontier.add q n);
             search dead q (depth - 1))
 
