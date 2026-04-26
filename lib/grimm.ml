@@ -239,3 +239,59 @@ let gauto =
          false_elim;
          with_assumptions (with_first_term apply_asm);
        ])
+
+open Effect.Deep
+
+let goal = ref ([], Derived.make_true ())
+let initial_goal = ref ([], Derived.make_true ())
+let subgoals = ref 1
+let tac_stack = ref []
+
+let p () =
+  Printf.printf "Subgoals remaining: %d\n" !subgoals;
+  Printing.display_goal ~pretty:true !goal
+
+open Tactic
+
+let build_thm () =
+  let tac = List.fold_right (fun t acc -> acc >> t) !tac_stack noop in
+  match prove !initial_goal tac with
+  | Complete t -> print_endline @@ Printing.pretty_print_thm t
+  | Incomplete _g -> failwith "something went wrong"
+
+let set_goal g =
+  goal := g;
+  initial_goal := g
+
+let e tac =
+  let g = !goal in
+  match tac g with
+  | effect Subgoal g', _k ->
+      incr subgoals;
+      tac_stack := tac :: !tac_stack;
+      goal := g';
+      Printing.display_goal ~pretty:true !goal;
+      ()
+  | effect Register _, k -> continue k ()
+  | effect Rules, k -> continue k []
+  | effect Trace (_, v), k ->
+      print_endline v;
+      continue k ()
+  | effect Quiet, k -> continue k true
+  | effect Name (tm, asms), k -> continue k (Names.name_asm tm asms)
+  | effect Fail, _k ->
+      print_endline "tactic application failed";
+      Printing.display_goal !goal
+  | effect Choose choices, k -> (
+      match as_chosen_list choices with
+      | [] ->
+          print_endline "no choices available";
+          ()
+      | c :: _ -> continue k c)
+  | exception Out_of_fuel -> print_endline "Out of fuel"
+  | thm ->
+      decr subgoals;
+      tac_stack := tac :: !tac_stack;
+      print_endline "subgoal complete";
+      if !subgoals = 0 then build_thm ()
+      else print_endline @@ Printing.pretty_print_thm thm

@@ -416,3 +416,16 @@ let contradict : tactic =
          try_ simp >> discriminate;
        ])
     goal
+
+let%thm _dist (a : bool) (b : bool) (c : bool) (d : bool) =
+  ((a || b) && (c || d)) ==> ((a && c) || (a && d) || (b && c) || (b && d))
+
+and proof =
+  begin
+    intros >> elim_conj_asm >> elim_disj_asm >> elim_disj_asm >> left >> conj
+    >> assumption >> assumption >> right >> left >> conj >> assumption
+    >> assumption >> elim_disj_asm >> right >> right >> left >> conj
+    >> assumption >> assumption >> right >> right >> right >> conj >> assumption
+    >> assumption
+  end
+(* [@quiet] *)
