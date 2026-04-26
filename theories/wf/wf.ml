@@ -366,3 +366,16 @@ and proof =
     >> with_assumptions (with_first exact)
   end
   [@quiet]
+
+let%thm wf_induct (r : 'a -> 'a -> bool) (p : 'a -> bool) =
+  wf r
+  ==> (forall (fun (x : 'a) -> forall (fun (y : 'a) -> r y x ==> p y) ==> p x)
+      ==> forall (fun (x : 'a) -> p x))
+
+and proof =
+  begin
+    gen >> gen >> intro @! "hwf" >> intro @! "himp"
+    >> rewrite_at "wf" ~target:"hwf"
+    >> with_repeat beta_asm >> apply_at "hwf" >> assumption
+  end
+  [@quiet]

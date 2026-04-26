@@ -100,16 +100,7 @@ let test_id = uuid ()
 module Priority = struct
   type t = node
 
-  (* let compare : t -> t -> int = fun n1 n2 -> compare n1.prob n2.prob *)
-  let compare a b =
-    let c = compare a.prob b.prob in
-    (* tie break probability with edge expansion winning *)
-    if c = 0 then
-      match (a.expansion, b.expansion) with
-      | Edge _, Choice _ -> 1
-      | Choice _, Edge _ -> -1
-      | _ -> c
-    else c
+  let compare : t -> t -> int = fun n1 n2 -> compare n1.prob n2.prob
 end
 
 module Frontier = Pqueue.MakeMax (Priority)
@@ -221,8 +212,30 @@ let frontier_of_goal root_tac goal =
   Frontier.of_list [ root_node ]
 
 let with_grimm ?(depth = max_int) : tactic_combinator =
-  print_endline (Printf.sprintf "called with depth %d\n" depth);
-  fun tac goal ->
-    let dead = Hashtbl.create 16 in
+ (* print_endline (Printf.sprintf "called with depth %d\n" depth); *)
+ fun tac goal ->
+  let dead = Hashtbl.create 16 in
 
-    search dead (frontier_of_goal tac goal) depth
+  search dead (frontier_of_goal tac goal) depth
+
+let gauto =
+  with_grimm
+    (pick
+       [
+         simp;
+         with_assumptions rewrite;
+         with_flip_rules (with_assumptions rewrite);
+         gen;
+         intro;
+         truth;
+         assumption;
+         neg_intro;
+         conj;
+         elim_conj_asm;
+         eq_false_elim;
+         eq_true_elim;
+         elim_disj_asm;
+         elim_exists_asm;
+         false_elim;
+         with_assumptions (with_first_term apply_asm);
+       ])

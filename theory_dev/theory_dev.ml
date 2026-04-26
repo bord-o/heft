@@ -4,6 +4,7 @@
 open Heft
 open Tactic
 open Auto
+open Grimm
 
 let () =
   print_newline ();
@@ -338,53 +339,6 @@ and proof =
   end
   [@simp] [@quiet]
 
-let%thm nat_le_refl (n : nat) = nat_le n n
-
-and proof =
-  begin
-    induct >> simp >> intros >> simp >> assumption
-  end
-  [@quiet] [@simp]
-
-let () = Rules.remove_def "merge_wf"
-
-let%thm nat_lt_antisym (m : nat) (n : nat) = nat_lt m n = T ==> (nat_lt n m = F)
-
-and proof =
-  begin
-    induct
-    >>= [
-          induct >>= [ intros >> simp; intros >> simp ];
-          gen >> intro @! "ih" >> induct
-          >>= [
-                intros @! "heq" >> simp_asm >> eq_false_elim >> neg_intro
-                >> false_elim;
-                intros >> simp >> apply_at "ih" >> simp_asm;
-              ];
-        ]
-  end
-  [@quiet]
-
-let%thm not_lt_bidir (m : nat) (n : nat) =
-  nat_lt m n = false ==> (nat_lt n m = false ==> (n = m))
-
-and proof =
-  begin
-    induct
-    >>= [
-          induct
-          >>= [ simp >> intros >> refl; intros >> simp_all >> false_elim ];
-          gen >> intro @! "hall" >> induct
-          >>= [
-                intros >> simp_all >> false_elim;
-                noop
-                >> intros @: [ "h1"; "h2"; "h3" ]
-                >> apply_at "eq_cong" >> apply_at "hall" >> simp_all >> simp_all;
-              ];
-        ]
-  end
-  [@quiet]
-
 let%thm merge_comm (xs : nat list) (ys : nat list) =
   merge_wf (Pair (xs, ys)) = merge_wf (Pair (ys, xs))
 
@@ -445,29 +399,20 @@ and proof =
   [@quiet]
 (* [@trace] *)
 
-let%thm wf_induct (r : 'a -> 'a -> bool) (p : 'a -> bool) =
-  wf r
-  ^==> forall (fun (x : 'a) -> forall (fun (y : 'a) -> r y x ^==> p y) ^==> p x)
-  ^==> forall (fun (x : 'a) -> p x)
-
-and proof =
-  begin
-    (* with_no_automation_trace *)
-    (* @@ with_best_first *)
-    (*      (pick *)
-    (*         [ *)
-    (*           gen; *)
-    (*           intro; *)
-    (*           assumption; *)
-    (*           with_definition [ "wf" ] rewrite_asm; *)
-    (*           beta_asm; *)
-    (*           with_assumptions apply; *)
-    (*         ]) *)
-    gen >> gen >> intro @! "hwf" >> intro @! "himp"
-    >> rewrite_at "wf" ~target:"hwf"
-    >> with_repeat beta_asm >> apply_at "hwf" >> assumption
-  end
-  [@quiet]
 (* [@trace] *)
 
 let () = ()
+
+let contradict : tactic =
+ fun goal ->
+  with_grimm
+    (pick
+       [
+         try_ simp >> gen;
+         try_ simp >> intro;
+         try_ simp >> eq_false_elim;
+         try_ simp >> neg_intro;
+         try_ simp >> sym_asm;
+         try_ simp >> discriminate;
+       ])
+    goal
