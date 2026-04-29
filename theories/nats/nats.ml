@@ -199,3 +199,33 @@ and proof =
         ]
   end
   [@quiet]
+
+let assumption_reasoning =
+  try_
+    (with_no_automation_trace
+       (with_best_first
+          (pick [ simp; simp_asm; false_elim; assumption; truth ])))
+
+  let%thm sub_lt (b : nat) (a : nat) =
+    nat_lt 0n b ==> (nat_le b a ==> nat_lt (sub a b) a)
+  and proof =
+    begin
+        sorry
+      (* with_term [%term (b : nat)] induct *)
+      (* >>> intros >> assumption_reasoning *)
+      (* >> with_term [%term (a : nat)] destruct *)
+      (* >> elim_disj_asm >> simp_asm >> simp >> assumption >> elim_exists_asm *)
+      (* >> with_first (with_assumptions rewrite) *)
+      (* >> with_first (with_assumptions rewrite) *)
+      (* >> with_first (with_assumptions rewrite_asm) *)
+      (* >> with_proven [ "sub_Suc_Suc" ] rewrite *)
+      (* >> with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm) *)
+      (* >> with_term [%term (n0 : nat)] destruct *)
+      (* >> elim_disj_asm >> simp >> elim_exists_asm *)
+      (* >> with_proven [ "lt_weaken_Suc" ] apply *)
+      (* >> spec_asm [%term (a0 : nat)] *)
+      (* >> simp_asm >> simp *)
+      (* >> with_repeat (with_assumptions (with_first_term apply_asm)) *)
+      (* >> assumption *)
+    end
+    [@quiet]

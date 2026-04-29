@@ -7,8 +7,7 @@
   (pps heft.ppx_heft))
  (libraries
   heft
-  heft.theories.nats
-  heft.theories.lists
   heft.theories.wf
+  heft.theories.conds
   heft.theories.pairs
-  heft.theories.conds))
+  heft.theories.ocaml))

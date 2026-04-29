@@ -1,0 +1,7 @@
+(library
+ (name heft_theory_ocaml)
+ (public_name heft.theories.ocaml)
+ (wrapped false)
+ (preprocess
+  (pps ppx_heft))
+ (libraries heft heft.ppx_heft))
