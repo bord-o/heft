@@ -1549,23 +1549,31 @@ let simp_asm ?(exclude = []) ?(with_asms = true) ?(add = []) : tactic =
 (* Term Synthesis *)
 
 let with_synthetic_term ?(extra = []) (depth : int) : tactic_combinator =
- fun tac goal ->
-  match tac goal with
-  | effect Choose (Term _), k ->
-      let r = Multicont.Deep.promote k in
-      let ty = D.type_of_existential goal |> Result.get_ok in
-      let terms = Synth.enumerate ~extra [] ty depth in
-      trace_info
-        (Printf.sprintf "enumerated %d unique terms" (List.length terms));
+  let terms = Hashtbl.create 1024 in
+  fun tac goal ->
+    match tac goal with
+    | effect Choose (Term _), k ->
+        let r = Multicont.Deep.promote k in
+        let ty = D.type_of_existential goal |> Result.get_ok in
+        let terms =
+          match Hashtbl.find_opt terms (ty, depth) with
+          | None ->
+              let tms = Synth.enumerate ~extra [] ty depth in
+              Hashtbl.add terms (ty, depth) tms;
+              trace_info
+                (Printf.sprintf "enumerated %d unique terms" (List.length tms));
+              tms
+          | Some tms -> tms
+        in
 
-      List.iter
-        (fun t ->
-          trace_dbg (Printf.sprintf "term: %s" (pretty_print_hol_term t)))
-        terms;
-      let t = choose_terms (List.rev terms) in
-      trace_info (Printf.sprintf "chose synth: %s" (pretty_print_hol_term t));
-      Multicont.Deep.resume r t
-  | v -> v
+        List.iter
+          (fun t ->
+            trace_dbg (Printf.sprintf "term: %s" (pretty_print_hol_term t)))
+          terms;
+        let t = choose_terms (List.rev terms) in
+        trace_info (Printf.sprintf "chose synth: %s" (pretty_print_hol_term t));
+        Multicont.Deep.resume r t
+    | v -> v
 
 (* Proof Runner *)
 

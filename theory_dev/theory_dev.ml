@@ -177,3 +177,13 @@ and proof =
 (*     | N n -> N n *)
 (*     | V x -> V x *)
 (*     | Plus (l, r) -> *)
+
+let%primrec f (n : nat) (p : (nat, nat) pair) : (nat, nat) pair =
+  match n with Zero -> p | Suc n' -> f n' (Pair (Suc (fst p), pred (snd p)))
+
+let%thm test_f = f 3n (Pair (5n, 5n)) = Pair (8n, 2n)
+
+and proof =
+  begin
+    simp
+  end
