@@ -464,7 +464,7 @@ let make_synthesis_goal ~(func_type : hol_type)
     |> List.map (fun (inputs, expected) ->
         let applied =
           List.fold_left
-            (fun acc arg -> Result.get_ok (make_app acc arg))
+            (fun acc arg -> Result.get_ok (Rewrite.smart_make_app acc arg))
             g_var inputs
         in
         Result.get_ok (safe_make_eq applied expected))
