@@ -608,7 +608,7 @@ let%expect_test "sub eq minus" =
   run_proof goal
     (induct
     >>= [
-          with_proven [ "minus_Zero_left" ] simp >>> gen >>> refl;
+          with_proven [ "minus_Zero_left" ] simp @>> gen @>> refl;
           gen >> intro >> induct
           >>= [
                 with_proven [ "minus_Zero" ] simp;
@@ -718,16 +718,15 @@ let%expect_test "sort correct lemma" =
             sorted l ==> sorted (insert l n))]
   in
   run_proof ~name:"sort_correct_lemma" goal
-    (induct >>> (intros >> simp)
+    (induct @>> (intros >> simp)
     >>= [
-          conj >>> truth;
-          cond >>> (simp >> conj)
+          conj @>> truth;
+          cond @>> (simp >> conj)
           >>= [
-                with_term [%term (n1 : nat list)] induct
-                >>> (intros >> simp)
+                with_term [%term (n1 : nat list)] induct @>> (intros >> simp)
                 >>= [
                       with_term [%term nat_le (n0' : nat) (n : nat)] cases
-                      >>> simp
+                      @>> simp
                       >>= [ simp_asm >> elim_conj_asm >> assumption; truth ];
                     ];
                 spec_asm [%term (n : nat)]
@@ -737,7 +736,7 @@ let%expect_test "sort correct lemma" =
                 conj
                 >>= [
                       with_term [%term (n1 : nat list)] induct
-                      >>> (intros >> simp)
+                      @>> (intros >> simp)
                       >>= [ simp_asm >> elim_conj_asm >> assumption ];
                       spec_asm [%term (n1 : nat)]
                       >> simp_asm >> elim_conj_asm >> assumption;
@@ -1304,11 +1303,11 @@ let%expect_test "lt_trans" =
   in
   run_proof ~name:"lt_trans" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> intros
-    >>> with_term [%term (c : nat)] induct
-    >>> intros >>> try_ assumption_reasoning
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> intros
+     @>> with_term [%term (c : nat)] induct
+     @>> intros @>> try_ assumption_reasoning
     >>= [
           with_repeat (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm))
           >> spec_asm [%term (n0' : nat)]
@@ -1335,11 +1334,11 @@ let%expect_test "le_trans" =
   in
   run_proof ~name:"le_trans" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> intros
-    >>> with_term [%term (c : nat)] induct
-    >>> intros >>> try_ assumption_reasoning
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> intros
+     @>> with_term [%term (c : nat)] induct
+     @>> intros @>> try_ assumption_reasoning
     >>= [
           with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm))
           >> spec_asm [%term (n0' : nat)]
@@ -1366,11 +1365,11 @@ let%expect_test "le_lt_trans" =
   in
   run_proof ~name:"le_lt_trans" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> intros
-    >>> with_term [%term (c : nat)] induct
-    >>> intros >>> try_ assumption_reasoning
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> intros
+     @>> with_term [%term (c : nat)] induct
+     @>> intros @>> try_ assumption_reasoning
     >>= [
           with_repeat
             (with_first
@@ -1399,11 +1398,11 @@ let%expect_test "lt_le_trans" =
   in
   run_proof ~name:"lt_le_trans" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> intros
-    >>> with_term [%term (c : nat)] induct
-    >>> intros >>> try_ assumption_reasoning
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> intros
+     @>> with_term [%term (c : nat)] induct
+     @>> intros @>> try_ assumption_reasoning
     >>= [
           with_proven [ "lt_Suc_Suc" ] rewrite
           >> with_repeat
@@ -1432,9 +1431,9 @@ let%expect_test "le_antisym" =
   in
   run_proof ~name:"le_antisym" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> intros >>> try_ assumption_reasoning
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> intros @>> try_ assumption_reasoning
     >> with_proven [ "eq_cong" ] apply
     >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm))
     >> spec_asm [%term (n0' : nat)]
@@ -1459,9 +1458,9 @@ let%expect_test "le_weaken_Suc" =
   in
   run_proof ~name:"le_weaken_Suc" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> try_ intros >>> try_ assumption_reasoning
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> try_ intros @>> try_ assumption_reasoning
     >> with_proven [ "le_Suc_Suc" ] rewrite
     >> spec_asm [%term (n0' : nat)]
     >> with_repeat (with_first (with_proven [ "le_Suc_Suc" ] rewrite_asm))
@@ -1484,9 +1483,9 @@ let%expect_test "lt_weaken_Suc" =
   in
   run_proof ~name:"lt_weaken_Suc" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> try_ intros >>> try_ assumption_reasoning
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> try_ intros @>> try_ assumption_reasoning
     >> with_proven [ "lt_Suc_Suc" ] rewrite
     >> spec_asm [%term (n0' : nat)]
     >> with_repeat (with_first (with_proven [ "lt_Suc_Suc" ] rewrite_asm))
@@ -1507,9 +1506,9 @@ let%expect_test "sub_le" =
   in
   run_proof ~name:"sub_le" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> try_ intros >>> try_ assumption_reasoning
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> try_ intros @>> try_ assumption_reasoning
     >> with_proven [ "sub_Suc_Suc" ] rewrite
     >> spec_asm [%term (n0' : nat)]
     >> with_proven [ "le_weaken_Suc" ] apply
@@ -1528,8 +1527,8 @@ let%expect_test "sub_lt" =
     nat_lt 0n b ==> (nat_le b a ==> nat_lt (sub a b) a)
   and proof =
     begin
-      with_term [%term (b : nat)] induct
-      >>> intros >> assumption_reasoning
+      with_term [%term (b : nat)] induct @>> intros
+      >> assumption_reasoning
       >> with_term [%term (a : nat)] destruct
       >> elim_disj_asm >> simp_asm >> simp >> assumption >> elim_exists_asm
       >> with_first (with_assumptions rewrite)
@@ -1562,9 +1561,9 @@ let%expect_test "sub_add_cancel" =
   and proof =
     begin
       with_term [%term (a : nat)] induct
-      >>> intros @: [ "hIH" ]
-      >>> with_term [%term (b : nat)] induct
-      >>> try_ intros >>> try_ assumption_reasoning
+      @>> (intros @: [ "hIH" ])
+      @>> with_term [%term (b : nat)] induct
+      @>> try_ intros @>> try_ assumption_reasoning
       >> (simp >> apply_at "eq_cong" >> apply_at "hIH" >> simp_asm >> simp)
     end
   in
@@ -1601,9 +1600,9 @@ let%expect_test "lt_total" =
   and proof =
     begin
       with_term [%term (a : nat)] induct
-      >>> intros
-      >>> with_term [%term (b : nat)] induct
-      >>> try_ intros
+      @>> intros
+      @>> with_term [%term (b : nat)] induct
+      @>> try_ intros
       >>= [
             right >> simp;
             left >> simp;
@@ -1635,9 +1634,9 @@ let%expect_test "le_total" =
   in
   run_proof ~name:"le_total" ~notrace:true goal
     (with_term [%term (a : nat)] induct
-    >>> intros
-    >>> with_term [%term (b : nat)] induct
-    >>> try_ intros
+     @>> intros
+     @>> with_term [%term (b : nat)] induct
+     @>> try_ intros
     >>= [
           right >> simp;
           left >> simp;
@@ -2104,8 +2103,8 @@ let%expect_test "length take" =
             length (drop n xs) = sub (length xs) n)]
   in
   run_proof ~name:"length_take" ~notrace:true gtake
-    (with_term n induct >>> try_ intros >>> with_term xs induct >>> try_ intros
-   >>> try_ assumption_reasoning
+    (with_term n induct @>> try_ intros @>> with_term xs induct @>> try_ intros
+     @>> try_ assumption_reasoning
     >> with_repeat (with_first (with_definition [ "take"; "length" ] rewrite))
     >> beta
     >> with_repeat (with_first (with_definition [ "match_list" ] rewrite))
@@ -2115,8 +2114,8 @@ let%expect_test "length take" =
     >> with_first (with_proven [ "lt_Suc_Suc" ] rewrite)
     >> cond >> simp >> simp);
   run_proof ~name:"length_drop" ~notrace:true gdrop
-    (with_term n induct >>> try_ intros >>> with_term xs induct >>> try_ intros
-   >>> try_ assumption_reasoning
+    (with_term n induct @>> try_ intros @>> with_term xs induct @>> try_ intros
+     @>> try_ assumption_reasoning
     >> with_repeat (with_first (with_definition [ "take"; "length" ] rewrite))
     >> beta
     >> with_repeat (with_first (with_definition [ "match_list" ] rewrite))
@@ -2144,7 +2143,7 @@ let%expect_test "div_pos" =
   and proof =
     begin
       with_term [%term (n : nat)] induct
-      >>> intros >>> try_ assumption_reasoning
+      @>> intros @>> try_ assumption_reasoning
       >> with_term
            [%term
              div (Suc (n0 : nat)) 2n

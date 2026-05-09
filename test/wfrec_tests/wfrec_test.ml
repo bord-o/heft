@@ -26,10 +26,10 @@ and proof =
        >> simp >> simp >> apply_at "eq_cong" >> apply_at "hcong")
     >> (apply_at "demorgons_eq_false" ~target:"hfalse"
        >> elim_conj_asm @: [ "ha0"; "ha0" ]
-       >> with_term [%term (a0 : nat)] destruct_elim
-          @: [ "ha0Zero"; ""; "ha0Nonzero" ]
-       >>> with_term [%term (a1 : nat)] destruct_elim
-           @: [ "ha1Zero"; ""; "ha1Nonzero" ]
+       >> (with_term [%term (a0 : nat)] destruct_elim
+          @: [ "ha0Zero"; ""; "ha0Nonzero" ])
+          @>> with_term [%term (a1 : nat)] destruct_elim
+          @: [ "ha1Zero"; ""; "ha1Nonzero" ]
        >> with_first neg_elim >> with_first neg_elim >> with_first neg_elim
        >> simp >> rewrite_at "lt_Suc_or_eq" >> left >> rewrite_at "lt_Suc_or_eq"
        >> right >> refl)

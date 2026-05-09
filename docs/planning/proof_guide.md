@@ -56,7 +56,7 @@ induct >>= [
 ]
 ```
 
-And `>>>` (then_all) applies the same tactic to all subgoals.
+And `@>>` (then_all) applies the same tactic to all subgoals.
 
 ### `simp` vs `simp_asm`
 
@@ -178,7 +178,7 @@ In Coq terms: prefer `induction n` on `∀n. P n` over `intros n; destruct n` wh
 | Combinator | Meaning |
 |-----------|---------|
 | `tac1 >> tac2` | Apply tac2 to first subgoal of tac1 |
-| `tac1 >>> tac2` | Apply tac2 to all subgoals of tac1 |
+| `tac1 @>> tac2` | Apply tac2 to all subgoals of tac1 |
 | `tac >>= [t1; t2]` | Apply t1 to first subgoal, t2 to second |
 | `with_first tac` | Try all choices, take first success |
 | `with_dfs tac` | Depth-first search over choices |

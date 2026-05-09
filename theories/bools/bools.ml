@@ -31,7 +31,7 @@ let%thm false_or_false = (false || false) = false
 
 and proof =
   begin
-    noop >> eq_false_elim >> neg_intro >> elim_disj_asm >>> assumption
+    noop >> eq_false_elim >> neg_intro >> elim_disj_asm @>> assumption
   end
   [@quiet]
   [@simp]

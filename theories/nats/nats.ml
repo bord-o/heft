@@ -212,7 +212,7 @@ let assumption_reasoning =
     begin
         sorry
       (* with_term [%term (b : nat)] induct *)
-      (* >>> intros >> assumption_reasoning *)
+      (* @>> intros >> assumption_reasoning *)
       (* >> with_term [%term (a : nat)] destruct *)
       (* >> elim_disj_asm >> simp_asm >> simp >> assumption >> elim_exists_asm *)
       (* >> with_first (with_assumptions rewrite) *)

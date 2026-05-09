@@ -307,8 +307,8 @@ let auto_dfs : tactic =
   return_thm ~from:"auto_dfs" (Ok thm)
 
 let destruct_elim =
-  destruct @! "ignore"
-  >>> try_ (with_first elim_disj_asm)
-  >>> try_ (with_repeat (with_first elim_exists_asm))
+  (destruct @! "ignore")
+  @>> try_ (with_first elim_disj_asm)
+  @>> try_ (with_repeat (with_first elim_exists_asm))
 
 let simp_all = try_ simp_asm >> try_ simp

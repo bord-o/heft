@@ -366,15 +366,15 @@ val ( >> ) : tactic -> tactic_combinator
 
 val then_all : tactic -> tactic_combinator
 (** [then_all t1 t2] runs [t1], then runs [t2] on every [Subgoal] it emits,
-    recursively (subgoals from [t2] are also handled). Infix: [>>>>]. *)
+    recursively (subgoals from [t2] are also handled). Infix: [@>>>]. *)
 
-val ( >>>> ) : tactic -> tactic_combinator
+val ( @>>> ) : tactic -> tactic_combinator
 
 val then_all_direct : tactic -> tactic_combinator
 (** Like [then_all], but subgoals emitted by [t2] itself bubble up instead of
-    being handled. Infix: [>>>]. *)
+    being handled. Infix: [@>>]. *)
 
-val ( >>> ) : tactic -> tactic_combinator
+val ( @>> ) : tactic -> tactic_combinator
 
 val then_each : tactic list -> tactic_combinator
 (** [t >>= [t1; t2; ...]] runs [t], then applies [ti] to the [i]th subgoal in

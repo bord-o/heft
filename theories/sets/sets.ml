@@ -74,8 +74,10 @@ let%thm conj_comm (a : bool) (b : bool) = (a && b) = (b && a)
 
 and proof =
   begin
-    intros >> eq_iff >> elim_conj_asm >> conj >>> try_ assumption
-    >> elim_conj_asm >> conj >>> try_ assumption
+    intros >> eq_iff >> elim_conj_asm
+    >> conj @>> try_ assumption
+    >> elim_conj_asm
+    >> conj @>> try_ assumption
   end
   [@quiet]
 

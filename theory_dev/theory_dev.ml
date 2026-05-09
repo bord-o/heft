@@ -70,12 +70,12 @@ let%thm _asimp_const_correct (a : aexp) (s : nat -> nat) =
 
 and proof =
   begin
-    induct
-    >>> try_ auto (* first two cases are trivial*)
+    induct @>> try_ auto (* first two cases are trivial*)
     >> intros
     >> with_term [%term asimp_const (n0 : aexp)] destruct
-    (* Nine cases from the definitions inner matches *)
-    >>> (with_term [%term asimp_const (n1 : aexp)] destruct >>> with_repeat auto)
+       (* Nine cases from the definitions inner matches *)
+       @>> with_term [%term asimp_const (n1 : aexp)] destruct
+       @>> with_repeat auto
   end
   [@quiet]
 
@@ -127,7 +127,8 @@ and proof =
   begin
     intros
     >> with_term [%term (a1 : aexp)] destruct
-    >>> (with_term [%term (a2 : aexp)] destruct >>> with_repeat auto)
+       @>> with_term [%term (a2 : aexp)] destruct
+       @>> with_repeat auto
   end
   [@quiet]
 
@@ -141,9 +142,10 @@ let%thm asimp_correct (e : aexp) (s : nat -> nat) = aval (asimp e) s = aval e s
 
 and proof =
   begin
-    induct >>> intros >>> try_ simp
+    induct @>> intros @>> try_ simp
     >> with_term [%term asimp (n0 : aexp)] destruct
-    >>> (with_term [%term asimp (n1 : aexp)] destruct >>> with_repeat auto)
+       @>> with_term [%term asimp (n1 : aexp)] destruct
+       @>> with_repeat auto
   end
   [@quiet]
 
@@ -165,9 +167,10 @@ let%thm asimp_optimal (e : aexp) = optimal (asimp_const e)
 
 and proof =
   begin
-    induct >>> intros >>> try_ simp
+    induct @>> intros @>> try_ simp
     >> with_term [%term asimp_const (n0 : aexp)] destruct
-    >>> (with_term [%term asimp_const (n1 : aexp)] destruct >>> with_repeat auto)
+       @>> with_term [%term asimp_const (n1 : aexp)] destruct
+       @>> with_repeat auto
   end
   [@quiet]
 
@@ -214,7 +217,7 @@ let%thm all_in (l : 'a list) (p : 'a -> bool) =
 
 and proof =
   begin
-    induct >>= [ auto; intros >>> spec_asm [%term (p : 'a -> bool)] >> auto ]
+    induct >>= [ auto; intros @>> spec_asm [%term (p : 'a -> bool)] >> auto ]
   end
 (* [@quiet] *)
 

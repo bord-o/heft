@@ -114,7 +114,7 @@ let then_all (tac1 : tactic) : tactic_combinator =
   in
   handler (fun () -> tac1 goal)
 
-let ( >>>> ) = then_all
+let ( @>>> ) = then_all
 
 let then_all_direct (tac1 : tactic) : tactic_combinator =
  fun tac goal ->
@@ -136,7 +136,7 @@ let then_all_direct (tac1 : tactic) : tactic_combinator =
   in
   handler (fun () -> tac1 goal)
 
-let ( >>> ) = then_all_direct
+let ( @>> ) = then_all_direct
 
 let then_each (tacs : tactic list) : tactic_combinator =
   let tacs = ref tacs in

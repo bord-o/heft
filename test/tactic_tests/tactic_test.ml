@@ -1105,7 +1105,7 @@ let%expect_test "exists_refl" =
   let eq_nn = Result.get_ok (safe_make_eq n n) in
   let goal = ([], make_exists n eq_nn) in
   (* ∃n. n = n *)
-  run_proof goal (with_term zero exists >>> refl);
+  run_proof goal (with_term zero exists @>> refl);
   [%expect
     {|
     ========================================
@@ -1121,7 +1121,7 @@ let%expect_test "exists_nested" =
   let eq_mn = Result.get_ok (safe_make_eq m n) in
   let goal = ([], make_exists m (make_exists n eq_mn)) in
   (* ∃m. ∃n. m = n *)
-  run_proof goal (with_term zero exists >> with_term zero exists >>> refl);
+  run_proof goal (with_term zero exists >> with_term zero exists @>> refl);
   [%expect
     {|
     ========================================
