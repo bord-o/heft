@@ -1231,6 +1231,20 @@ let rewrite_at (source : string) ?target ?position =
   | None -> (with_rules thms (rewrite ?position)) goal
   | Some name -> (with_named_asm_term name (with_rules thms rewrite_asm)) goal
 
+let with_named_rule names : tactic_combinator =
+  let rules =
+    names
+    |> List.map (fun n ->
+        match Rules.find_thms n [] with
+        | None ->
+            trace_error (Printf.sprintf "Couldn't find def with name %s\n" n);
+            fail ()
+        | Some rules -> rules)
+    |> List.flatten
+  in
+  fun tac goal ->
+    match tac goal with effect Rules, k -> continue k rules | v -> v
+
 let contradict_asm : tactic =
  fun (asms, concl) ->
   register "contradict_asm" (Safe 5);
@@ -1475,6 +1489,19 @@ let have_premise : tactic =
 let intros : tactic =
  fun goal -> with_repeat (with_first (pick [ intro; gen ])) goal
 
+let simp_only ?(with_asms = true) : tactic =
+ fun goal ->
+  register "simp" (Safe 1);
+  let rules = perform Rules in
+  let with_rw = if with_asms then with_rules_and_assumptions else with_rules in
+  let thm =
+    with_repeat
+      (with_first
+      @@ pick [ with_rw rules rewrite; with_repeat beta; refl; truth ])
+      goal
+  in
+  thm
+
 let simp ?(exclude = []) ?(with_asms = true) : tactic =
  fun goal ->
   register "simp" (Safe 1);
@@ -1492,16 +1519,7 @@ let simp ?(exclude = []) ?(with_asms = true) : tactic =
   let rules =
     definitions |> List.append [ add ] |> List.append simps |> List.flatten
   in
-
-  let with_rw = if with_asms then with_rules_and_assumptions else with_rules in
-
-  let thm =
-    with_repeat
-      (with_first
-      @@ pick [ with_rw rules rewrite; with_repeat beta; refl; truth ])
-      goal
-  in
-  thm
+  (with_rules rules @@ simp_only ~with_asms) goal
 
 let auto : tactic =
   pick

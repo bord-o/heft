@@ -428,6 +428,8 @@ val with_nth_choice : int -> tactic_combinator
 (** Resolves every [Choose] by taking its [n]th option. Fails if [n] is out of
     range. *)
 
+val with_named_rule : string list -> tactic_combinator
+
 val with_named_asm_term : string -> tactic_combinator
 (** resolves [Choose (Term _)] by finding an assumption matching the given name.
     Fails if the name isn't in the assumptions list *)
@@ -508,6 +510,8 @@ val with_rules_and_assumptions : thm list -> tactic_combinator
 
 val intros : tactic
 (** Repeatedly applies [intro] or [gen] until neither makes progress. *)
+
+val simp_only : ?with_asms:bool -> tactic
 
 val simp : ?exclude:string list -> ?with_asms:bool -> tactic
 (** Repeatedly rewrites the goal using the definitions and simp lemmas

@@ -1075,7 +1075,7 @@ let%expect_test "rewrite_basic" =
     ∀x. plus Zero x = x
 
     Proof Complete!
-    with fuel: 21
+    with fuel: 22
     |}]
 
 let%expect_test "basic4" =
