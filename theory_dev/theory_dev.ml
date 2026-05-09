@@ -521,7 +521,7 @@ let count = ref 0
 let total = 6561.
 let start = Unix.gettimeofday ()
 
-let%thm co_add_comm (c1 : corner_ori) (c2 : corner_ori) =
+let%thm co_add_comm_true (c1 : corner_ori) (c2 : corner_ori) =
   co_add c1 c2 = co_add c2 c1 = true
 
 and proof =
@@ -534,12 +534,22 @@ and proof =
   end
   [@quiet]
 
+let%thm co_add_comm (c1 : corner_ori) (c2 : corner_ori) =
+  co_add c1 c2 = co_add c2 c1
+
+and proof =
+  begin
+    intros >> rewrite_at "co_add_comm_true" >> truth
+  end
+  [@quiet]
+
 let%thm co_add_comm2 (c1 : corner_ori) (c2 : corner_ori) =
   co_add c1 (co_add c2 c1) = co_add c1 (co_add c1 c2) = true
 
 and proof =
   begin
-    intros >> eq_true_elim >> apply_at "eq_cong" >> rewrite_at "co_add_comm"
+    intros >> eq_true_elim >> apply_at "eq_cong"
+    >> rewrite_at "co_add_comm_true"
     >> truth
   end
   [@quiet]
@@ -552,9 +562,20 @@ let%thm co_add_comm3 (c1 : corner_ori) (c2 : corner_ori) =
 and proof =
   begin
     intros >> eq_true_elim >> apply_at "eq_cong" >> apply_at "eq_cong"
-    >> rewrite_at "co_add_comm" >> truth
+    >> rewrite_at "co_add_comm_true"
+    >> truth
   end
   [@quiet]
+
+let ar pos =
+  with_proven [ "co_add_assoc" ] @@ with_flip_rules @@ rewrite ~position:pos
+
+let al pos = with_proven [ "co_add_assoc" ] @@ rewrite ~position:pos
+
+let cr pos =
+  with_proven [ "co_add_comm" ] @@ with_flip_rules @@ rewrite ~position:pos
+
+let cl pos = with_proven [ "co_add_comm" ] @@ rewrite ~position:pos
 
 let%thm co_sum_inv (c : cube) = co_sum (move_U c) = co_sum c
 
@@ -572,58 +593,10 @@ and proof =
        @>> with_term [%term (a5 : corner_cubie)] destruct_elim
        @>> with_term [%term (a6 : corner_cubie)] destruct_elim
        @>> with_term [%term (a7 : corner_cubie)] destruct_elim
-       @>> with_term [%term (a1 : corner_ori)] destruct_elim
-       @>> with_term [%term (a1' : corner_ori)] destruct_elim
-       @>> with_term [%term (a1'' : corner_ori)] destruct_elim
-       @>> with_term [%term (a1''' : corner_ori)] destruct_elim
-       @>> with_term [%term (a1'''' : corner_ori)] destruct_elim
-       @>> with_term [%term (a1''''' : corner_ori)] destruct_elim
-       @>> with_term [%term (a1'''''' : corner_ori)] destruct_elim
-       @>> with_term [%term (a1''''''' : corner_ori)] destruct_elim
-       @>> try_ @@ with_repeat elim_disj_asm
-       @>> with_info_trace (fun g ->
-           (* let thm = simp_only g in *)
-           (* if !count > 10 then fail () else *)
-           let thm =
-             with_named_rule
-               [
-                 "move_U";
-                 "match_cube";
-                 "match_corners";
-                 "match_edges";
-                 "co_sum";
-                 "cc_ori";
-                 "match_corner_cubie";
-                 "co_add_C0_l";
-                 "co_add_C0_r";
-                 "co_add_comm";
-                 "co_add_comm2";
-                 "co_add_comm3";
-               ]
-               simp_only g
-           in
-           incr count;
-           let total_elapsed = Unix.gettimeofday () -. start in
-           (* Printf.printf "%f\n" total_elapsed; *)
-           let rate = total_elapsed *. 1000. /. float_of_int !count in
-           let remaining = total -. float_of_int !count in
-           let estimate = rate *. remaining /. 1000. /. 60. in
-           if !count mod 20 = 0 then (
-             Printf.printf "Finished %f%% of subgoals with rate %f ms/goal\n"
-               (100. *. float_of_int !count /. total)
-               rate;
-             Printf.printf "ETA: %f minutes\n" estimate;
-             flush stdout);
-           thm)
-    (* @>> (fun g -> incr count; sorry g) *)
-    (* @>> simp ~exclude:["co_add"; "eo_add"] *)
+    >> simp ~exclude:[ "co_add"; "eo_add" ]
+    (* This is gross *)
+    >> ar 2
+    >> cl 3 >> al 0 >> ar 1 >> cl 2 >> al 0 >> ar 0 >> cl 1 >> al 0 >> refl
   end
   (* [@trace] *)
   [@quiet]
-
-let () =
-  match Rules.find_thm "co_sum_inv" [] with
-  | None -> print_endline "no thm"
-  | Some thm ->
-      print_endline "thm complete";
-      print_endline @@ Printing.pretty_print_thm thm

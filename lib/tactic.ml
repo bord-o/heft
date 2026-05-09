@@ -467,6 +467,7 @@ let with_specialized ~(name : string) ~(specs : term list) : tactic_combinator =
   match tac goal with effect Rules, k -> continue k [ specced ] | v -> v
 
 let with_proven (names : string list) : tactic_combinator =
+ fun tac goal ->
   let rules =
     names
     |> List.map @@ fun n ->
@@ -476,8 +477,7 @@ let with_proven (names : string list) : tactic_combinator =
            fail ()
        | Some rule -> rule
   in
-  fun tac goal ->
-    match tac goal with effect Rules, k -> continue k rules | v -> v
+  match tac goal with effect Rules, k -> continue k rules | v -> v
 
 let with_rules_and_assumptions (rules : thm list) : tactic_combinator =
  fun tac (asms, concl) ->
