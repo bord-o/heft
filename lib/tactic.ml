@@ -1424,6 +1424,7 @@ and induct : tactic =
 
 and cond : tactic =
  fun (asms, concl) ->
+  register ~prob:0.2 "cond" (Unsafe 5);
   let rec collect_cond_args tm acc =
     match tm with
     | App (App (App (Const ("COND", _), b), t), e) ->

@@ -177,13 +177,54 @@ and proof =
 (*     | N n -> N n *)
 (*     | V x -> V x *)
 (*     | Plus (l, r) -> *)
+let auto =
+  with_no_automation_trace
+    (with_dfs'
+       (pick
+          [
+            simp;
+            gen;
+            intro;
+            truth;
+            assumption;
+            neg_intro;
+            elim_disj_asm;
+            conj;
+            elim_conj_asm;
+            elim_exists_asm;
+            eq_true_elim_asm;
+            false_elim;
+            or_;
+            with_assumptions (with_first_term apply_asm);
+            with_assumptions apply;
+            simp_asm;
+            cond;
+            discriminate;
+          ]))
 
-let%primrec f (n : nat) (p : (nat, nat) pair) : (nat, nat) pair =
-  match n with Zero -> p | Suc n' -> f n' (Pair (Suc (fst p), pred (snd p)))
+let%primrec in_ (l : 'a list) (x : 'a) : bool =
+  match l with [] -> false | x' :: l' -> x' = x || in_ l' x
 
-let%thm test_f = f 3n (Pair (5n, 5n)) = Pair (8n, 2n)
+let%primrec all (l : 'a list) (p : 'a -> bool) : bool =
+  match l with [] -> true | x' :: l' -> p x' && all l' p
+
+let%thm all_in (l : 'a list) (p : 'a -> bool) =
+  forall (fun (x : 'a) -> in_ l x ==> p x) ==> all l p
+  && all l p ==> forall (fun (x : 'a) -> in_ l x ==> p x)
 
 and proof =
   begin
-    simp
+    induct >>= [ auto; intros >>> spec_asm [%term (p : 'a -> bool)] >> auto ]
   end
+(* [@quiet] *)
+
+let%primrec hd_error (l : 'a list) : 'a option =
+  match l with [] -> None | x :: xs -> Some x
+
+(* ∀l a. hd_error l = Some a -> l <> Nil*)
+let%thm coq_paper (l : 'a list) (a : 'a) = hd_error l = Some a ==> not (l = Nil)
+
+and proof =
+  auto
+  (* [@trace] *)
+  [@quiet]

@@ -751,7 +751,7 @@ let%expect_test "sort correct lemma" =
     ∀x. ∀n. sorted x ==> sorted (insert x n)
 
     Proof Complete!
-    with fuel: 564
+    with fuel: 569
     |}]
 
 let%expect_test "sort correct" =
@@ -1688,7 +1688,7 @@ let%expect_test "div fuel sufficient" =
     ∀x. ∀a. ∀b. nat_lt Zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = Some x'
 
     Proof Complete!
-    with fuel: 218
+    with fuel: 223
     |}]
 
 let%expect_test "div unfold" =
@@ -1772,7 +1772,7 @@ let%expect_test "div unfold" =
     ∀a. ∀b. nat_lt Zero b ==> div a b = COND (nat_lt a b) Zero (Suc (div (sub a b) b))
 
     Proof Complete!
-    with fuel: 262
+    with fuel: 267
     |}]
 
 let%expect_test "merge test" =
@@ -1884,7 +1884,7 @@ let%expect_test "merge fuel irrel" =
     ∀x. ∀additional. ∀xs. ∀ys. ∀x. merge_aux x xs ys = Some x ==> merge_aux (plus x additional) xs ys = Some x
 
     Proof Complete!
-    with fuel: 695
+    with fuel: 700
     |}]
 
 let%expect_test "merge fuel sufficient" =
@@ -1939,7 +1939,7 @@ let%expect_test "merge fuel sufficient" =
     ∀x. ∀xs. ∀ys. nat_lt (plus (length xs) (length ys)) x ==> ∃x. merge_aux x xs ys = Some x
 
     Proof Complete!
-    with fuel: 437
+    with fuel: 442
     |}]
 
 (*
@@ -2035,7 +2035,7 @@ let%expect_test "merge unfolding lemma" =
     ∀xs. ∀ys. merge xs ys = match_list xs ys (λh. λt. match_list ys (Cons h t) (λy'. λys'. COND (nat_lt h y') (Cons h (merge t (Cons y' ys'))) (Cons y' (merge (Cons h t) ys'))))
 
     Proof Complete!
-    with fuel: 1278
+    with fuel: 1283
     |}]
 
 (* sort [3,1,2] = [1,2,3] *)
@@ -2131,7 +2131,7 @@ let%expect_test "length take" =
     ∀x. ∀xs. length (take x xs) = COND (nat_lt x (length xs)) x (length xs)
 
     Proof Complete!
-    with fuel: 570
+    with fuel: 575
     ========================================
     ∀x. ∀xs. length (drop x xs) = sub (length xs) x
 
@@ -2168,7 +2168,7 @@ let%expect_test "div_pos" =
     ∀x. nat_lt (Suc Zero) x ==> nat_lt Zero (div x (Suc (Suc Zero)))
 
     Proof Complete!
-    with fuel: 799
+    with fuel: 804
     |}]
 
 let apply_asm_to_asm ~asm_thm ~asm_to =
@@ -2380,7 +2380,7 @@ let%expect_test "merge sort sufficient" =
     ∀x. ∀xs. nat_lt (length xs) x ==> ∃x. merge_sort_aux x xs = Some x
 
     Proof Complete!
-    with fuel: 309
+    with fuel: 314
     |}]
 
 let%expect_test "merge sort fuel irrel" =
@@ -2477,5 +2477,5 @@ let%expect_test "merge sort unfold" =
     ∀xs. merge_sort xs = COND (nat_le (length xs) (Suc Zero)) xs ((λhalf_length. merge (merge_sort (take half_length xs)) (merge_sort (drop half_length xs))) (div (length xs) (Suc (Suc Zero))))
 
     Proof Complete!
-    with fuel: 189
+    with fuel: 194
     |}]

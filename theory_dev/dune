@@ -9,5 +9,6 @@
   heft
   heft.theories.wf
   heft.theories.conds
+  heft.theories.lists
   heft.theories.pairs
   heft.theories.ocaml))

@@ -1,0 +1,3 @@
+(coq.theory
+ (theories Stdlib Hammer)
+ (name playground))

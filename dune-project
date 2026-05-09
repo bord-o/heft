@@ -3,6 +3,7 @@
 (name heft)
 
 (generate_opam_files true)
+(using coq 0.10)
 
 (source
  (github bord-o/heft))

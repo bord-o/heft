@@ -1,9 +1,8 @@
 From Stdlib Require Import List.
 From Hammer Require Import Tactics.
-From Hammer Require Import Hammer.
 Import ListNotations.
 Require Import Nat.
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 Fixpoint intercalate {X : Type} (sep : X) (l : list X) :=
   match l with
@@ -52,7 +51,7 @@ Proof.
     repeat rewrite length_map.
     reflexivity.
 Qed.
-    
+
 Theorem pairs_correct1 {X : Type} (l : list X) 
   : (2 * length (pairs l)) = ((length l) * (length l - 1)) .
 Proof.
@@ -75,4 +74,18 @@ Proof.
   assumption.
   assumption.
 Qed.
+
+Fixpoint hd_error {a : Type} (l : list a)  :=
+  match l with
+  | [] => None
+  | x::xs => Some x
+  end.
+
+Lemma coq_paper {a : Type} (l : list a) (x : a) : 
+  hd_error l = Some x -> l <> nil.
+Proof.
+  intros H Heq. rewrite Heq in H. simpl in H. discriminate.
+Qed.
+
+
 
