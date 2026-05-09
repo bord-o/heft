@@ -191,12 +191,19 @@ let with_first_term : tactic_combinator =
       try_each choices
   | v -> v
 
-let rec all_subterms (tm : term) =
-  match tm with
-  | Var (_, _) as v -> [ v ]
-  | Const (_, _) as c -> [ c ]
-  | App (f, x) as a -> (a :: all_subterms f) @ all_subterms x
-  | Lam (_, bod) as l -> l :: all_subterms bod
+let all_subterms tm =
+  let rec go acc = function
+    | [] -> List.rev acc
+    | t :: rest ->
+        let children =
+          match t with
+          | Var _ | Const _ -> rest
+          | App (f, x) -> f :: x :: rest
+          | Lam (_, bod) -> bod :: rest
+        in
+        go (t :: acc) children
+  in
+  go [] [ tm ]
 
 let with_term (t : term) : tactic_combinator =
  fun tac goal ->
@@ -1646,4 +1653,4 @@ let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
         print_thm ~pretty thm;
         print_endline "Proof Complete!";
         Printf.printf "with fuel: %d\n" !fuel_count)
-  | Incomplete g -> if not quiet then Printing.display_goal g
+  | Incomplete g -> Printing.display_goal g

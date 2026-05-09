@@ -170,13 +170,19 @@ ok so moving forward:
 
  *)
 
-let rec subterms tm =
-  tm
-  ::
-  (match tm with
-  | Var _ | Const _ -> []
-  | App (func, arg) -> subterms func @ subterms arg
-  | Lam (_, bod) -> subterms bod)
+let subterms tm =
+  let rec go acc = function
+    | [] -> List.rev acc
+    | t :: rest ->
+        let children =
+          match t with
+          | Var _ | Const _ -> rest
+          | App (func, arg) -> func :: arg :: rest
+          | Lam (_, bod) -> bod :: rest
+        in
+        go (t :: acc) children
+  in
+  go [] [ tm ]
 
 (* does lhs of rule match any subterms of t? *)
 let rec matches (rule : term) = function
@@ -216,56 +222,58 @@ let instantiate_rule (rule : thm) (env : match_result) =
   let term_sub_flipped = List.map (fun (v, t) -> (t, v)) env.term_sub in
   inst term_sub_flipped type_inst_rule
 
-(* Try to rewrite tm at the root using rule.
-   Returns Some (|- tm = tm') if lhs of rule matches tm, None otherwise.
-   Variables that appear free in the rule's hypotheses must match exactly. *)
-let rewrite_at_root ?(target = None) (rule : thm) (tm : term) =
-  let continue =
+(* Try to rewrite tm at the root using pre-extracted rule components.
+   Returns Some (|- tm = tm') if lhs matches tm, None otherwise. *)
+let rewrite_at_root_inner ?target (rule : thm) (rule_lhs : term)
+    (ctx_vars : term list) (tm : term) =
+  let matches_target =
     match target with None -> true | Some t -> alphaorder t tm = 0
   in
-  if not continue then Ok None
+  if not matches_target then Ok None
   else
-    let* rule_lhs, _ = destruct_eq (concl rule) in
-    let hyps = hyp rule in
-    match match_term_with_hyps hyps rule_lhs tm with
+    match term_match ctx_vars [] empty_match rule_lhs tm with
     | Some env ->
         let* inst_rule = instantiate_rule rule env in
         Ok (Some inst_rule)
     | None -> Ok None
 
+(* Try to rewrite tm at the root using rule.
+   Returns Some (|- tm = tm') if lhs of rule matches tm, None otherwise.
+   Variables that appear free in the rule's hypotheses must match exactly. *)
+let rewrite_at_root ?(target = None) (rule : thm) (tm : term) =
+  let* rule_lhs, _ = destruct_eq (concl rule) in
+  let ctx_vars = context_vars_of_hyps (hyp rule) in
+  rewrite_at_root_inner ?target rule rule_lhs ctx_vars tm
+
 (* Rewrite once somewhere in tm using rule.
    Tries root first, then recursively descends into subterms.
    Returns |- tm = tm' if successful. *)
-let rec rewrite_once ?target (rule : thm) (tm : term) =
-  (* First, try to match at the root *)
-  let* root_result = rewrite_at_root ~target rule tm in
-  match root_result with
-  | Some thm -> Ok thm
-  | None -> (
-      (* Try subterms *)
-      match tm with
-      | Var _ | Const _ -> Error (`NoRewriteMatch (rule, tm))
-      | App (f, x) -> (
-          (* Try rewriting in function position first *)
-          match rewrite_once ?target rule f with
-          | Ok f_eq ->
-              (* f_eq : |- f = f', need |- f x = f' x *)
-              ap_thm f_eq x
-          | Error (`NoRewriteMatch _) -> (
-              (* Try rewriting in argument position *)
-              match rewrite_once ?target rule x with
-              | Ok x_eq ->
-                  (* x_eq : |- x = x', need |- f x = f x' *)
-                  ap_term f x_eq
-              | Error (`NoRewriteMatch _) -> Error (`NoRewriteMatch (rule, tm))
-              | Error e -> Error e)
-          | Error e -> Error e)
-      | Lam (v, body) -> (
-          match rewrite_once ?target rule body with
-          | Ok body_eq ->
-              (* body_eq : |- body = body', need |- λv.body = λv.body' *)
-              lam v body_eq
-          | Error e -> Error e))
+let rewrite_once ?target (rule : thm) (tm : term) =
+  let* rule_lhs, _ = destruct_eq (concl rule) in
+  let ctx_vars = context_vars_of_hyps (hyp rule) in
+  let rec go tm =
+    match rewrite_at_root_inner ?target rule rule_lhs ctx_vars tm with
+    | Error e -> Error e
+    | Ok (Some thm) -> Ok thm
+    | Ok None -> (
+        match tm with
+        | Var _ | Const _ -> Error (`NoRewriteMatch (rule, tm))
+        | App (f, x) -> (
+            match go f with
+            | Ok f_eq -> ap_thm f_eq x
+            | Error (`NoRewriteMatch _) -> (
+                match go x with
+                | Ok x_eq -> ap_term f x_eq
+                | Error (`NoRewriteMatch _) ->
+                    Error (`NoRewriteMatch (rule, tm))
+                | Error e -> Error e)
+            | Error e -> Error e)
+        | Lam (v, body) -> (
+            match go body with
+            | Ok body_eq -> lam v body_eq
+            | Error e -> Error e))
+  in
+  go tm
 
 (* Rewrite repeatedly until no more rewrites apply *)
 let rec rewrite_all (rule : thm) (tm : term) =
