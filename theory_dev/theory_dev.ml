@@ -548,35 +548,37 @@ and proof =
        @>> try_ @@ with_repeat elim_disj_asm
        @>> fun g ->
        (* let thm = simp_only g in *)
-       let thm =
-         with_named_rule
-           [
-             "move_U";
-             "match_cube";
-             "match_corners";
-             "match_edges";
-             "co_sum";
-             "cc_ori";
-             "match_corner_cubie";
-             "co_add_C0_l";
-             "co_add_C0_r";
-           ]
-           simp_only g
-       in
-       incr count;
-       let total_elapsed = Unix.gettimeofday () -. start in
-       Printf.printf "%f\n" total_elapsed;
-       let rate = total_elapsed *. 1000. /. float_of_int !count in
-       Printf.printf "Finished %f%% of subgoals with rate %f ms/goal\n"
-         (100. *. float_of_int !count /. total)
-         rate;
-       let remaining = total -. float_of_int !count in
-       let estimate = rate *. remaining /. 1000. /. 60. in
-       Printf.printf "ETA: %f minutes\n" estimate;
-       flush stdout;
-       thm
+       if !count > 10 then fail ()
+       else
+         let thm =
+           with_named_rule
+             [
+               "move_U";
+               "match_cube";
+               "match_corners";
+               "match_edges";
+               "co_sum";
+               "cc_ori";
+               "match_corner_cubie";
+               "co_add_C0_l";
+               "co_add_C0_r";
+             ]
+             simp_only g
+         in
+         incr count;
+         let total_elapsed = Unix.gettimeofday () -. start in
+         Printf.printf "%f\n" total_elapsed;
+         let rate = total_elapsed *. 1000. /. float_of_int !count in
+         Printf.printf "Finished %f%% of subgoals with rate %f ms/goal\n"
+           (100. *. float_of_int !count /. total)
+           rate;
+         let remaining = total -. float_of_int !count in
+         let estimate = rate *. remaining /. 1000. /. 60. in
+         Printf.printf "ETA: %f minutes\n" estimate;
+         if !count mod 10 = 0 then flush stdout;
+         thm
     (* @>> (fun g -> incr count; sorry g) *)
     (* @>> simp ~exclude:["co_add"; "eo_add"] *)
   end
-(* [@trace] *)
-(* [@quiet] *)
+  (* [@trace] *)
+  [@quiet]

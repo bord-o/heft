@@ -901,18 +901,16 @@ let rewrite ?position : tactic =
     let rules = perform Rules in
     let* chosen_rule = strip_forall (choose_theorems rules) in
 
-    (*pick which position to rewrite in*)
-    let* lhs, _ = destruct_eq (concl chosen_rule) in
-    let subterms = all_subterms conc in
-    let matches =
-      List.filter (fun t -> match_term lhs t |> Option.is_some) subterms
-    in
-
-    (* List.iter (fun t -> trace_info (pretty_print_hol_term t)) matches; *)
     let* rw_thm =
       match position with
       | None -> rewrite_once chosen_rule conc
       | Some idx -> (
+          (*pick which position to rewrite in*)
+          let* lhs, _ = destruct_eq (concl chosen_rule) in
+          let subterms = all_subterms conc in
+          let matches =
+            List.filter (fun t -> match_term lhs t |> Option.is_some) subterms
+          in
           let chosen_position = List.nth_opt matches idx in
           match chosen_position with
           | None ->
