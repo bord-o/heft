@@ -646,3 +646,4 @@ and proof =
     >> with_repeat @@ ac_norm "co_add"
     >> simp ~exclude:[ "co_add"; "eo_add" ]
   end
+(* [@quiet] *)

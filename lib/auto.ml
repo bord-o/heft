@@ -359,43 +359,38 @@ let rec ac_norm_tm_step op = function
       | _ -> None)
   | _ -> None
 
-let ac_norm_step tm op : tactic =
- fun goal ->
-  let step = ac_norm_tm_step op tm in
-  ( step |> function
-    | Some (Comm t) ->
-        trace_info
-        @@ Printf.sprintf "Comm: %s\n" (Printing.pretty_print_hol_term t)
-    | Some (Comm_left t) ->
-        trace_info
-        @@ Printf.sprintf "Comm_left: %s\n" (Printing.pretty_print_hol_term t)
-    | _ -> () );
-
-  (match step with
-  | Some (Comm t) -> with_proven [ op ^ "_comm" ] (rewrite_term ~target:t)
-  | Some (Comm_left t) ->
-      with_proven [ op ^ "_comm_left" ] (rewrite_term ~target:t)
-  | None -> noop)
-    goal
-
 (*First version only handles bare terms or equalities *)
 let ac_norm op : tactic =
  fun g ->
   let rec aux acc = function
-    | Var _ -> acc
-    | Const _ -> acc
+    | Var _ | Const _ -> acc
     | App (App (Const (op1, _), a), b) as t when op1 = op ->
-        t :: (aux acc a @ aux acc b)
-        (* TODO: I think this will miss cases where there is a chain that is broken with another chain deeper, but it is faster *)
-        (* let _ = a, b in *)
-        (* [ t ] *)
-    | App (f, x) -> aux acc f @ aux acc x
+        aux (aux (t :: acc) a) b
+    | App (f, x) -> aux (aux acc f) x
     | Lam (_, bod) -> aux acc bod
   in
   let possible_chains = aux [] (snd g) |> List.sort_uniq compare in
-
+  let comm = op ^ "_comm" in
+  let comm_left = op ^ "_comm_left" in
+  let assoc = op ^ "_assoc" in
+  let step_tactics =
+    List.filter_map
+      (fun chain ->
+        match ac_norm_tm_step op chain with
+        | None -> None
+        | Some (Comm t) ->
+            trace_info
+            @@ Printf.sprintf "Comm: %s\n" (Printing.pretty_print_hol_term t);
+            Some (try_ @@ with_proven [ comm ] (rewrite_term ~target:t))
+        | Some (Comm_left t) ->
+            trace_info
+            @@ Printf.sprintf "Comm_left: %s\n"
+                 (Printing.pretty_print_hol_term t);
+            Some (try_ @@ with_proven [ comm_left ] (rewrite_term ~target:t)))
+      possible_chains
+  in
   (List.fold_right
-     (fun a acc -> acc >> try_ @@ ac_norm_step a op)
-     possible_chains
-     (try_ (with_repeat (with_proven [ op ^ "_assoc" ] rewrite))))
+     (fun tac acc -> acc >> tac)
+     step_tactics
+     (try_ (with_repeat (with_proven [ assoc ] rewrite))))
     g
