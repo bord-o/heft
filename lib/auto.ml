@@ -313,31 +313,6 @@ let destruct_elim =
 
 let simp_all = try_ simp_asm >> try_ simp
 
-(* 
-    assumes term is a comm monoid chain that is right associated
-    effectively insertion sorts the terms using left_comm, then 
-    finishing the last pair with comm
-
-    later the thms and operators will be args but right now I'm just doing it for co_add
-
-    returns a list of pairs, which are the subterm and the rewrite needed at that spot
- *)
-type ac_rw = Comm_left of term | Comm of term
-
-let rec ac_norm_tm_step op rws = function
-  (* If the right operand is a var or const it means that it is the end of the chain *)
-  | App (App (Const (op1, _), left), right) as t when op1 = op -> (
-      (* Looking at the right operand *)
-      match right with
-      | (Const (_, _) | Var (_, _)) when left < right -> rws
-      | (Const (_, _) | Var (_, _)) when left >= right -> Comm t :: rws
-      | App (App (Const (op1, _), b), _) when op1 = op && left < b ->
-          ac_norm_tm_step op rws right
-      | App (App (Const (op1, _), b), _) when op1 = op && left >= b ->
-          ac_norm_tm_step op (Comm_left t :: rws) right
-      | _ -> [])
-  | _ -> rws
-
 let rewrite_term ~target : tactic =
   let open Result.Syntax in
   let open Rewrite in
@@ -359,25 +334,48 @@ let rewrite_term ~target : tactic =
     in
     return_thm ~from:"rewrite" thm
 
+(* 
+    assumes term is a comm monoid chain that is right associated
+    effectively insertion sorts the terms using left_comm, then 
+    finishing the last pair with comm
+
+    later the thms and operators will be args but right now I'm just doing it for co_add
+
+    returns a list of pairs, which are the subterm and the rewrite needed at that spot
+ *)
+type ac_rw = Comm_left of term | Comm of term
+
+let rec ac_norm_tm_step op = function
+  (* If the right operand is a var or const it means that it is the end of the chain *)
+  | App (App (Const (op1, _), left), right) as t when op1 = op -> (
+      (* Looking at the right operand *)
+      match right with
+      | (Const (_, _) | Var (_, _)) when left < right -> None
+      | (Const (_, _) | Var (_, _)) when left >= right -> Some (Comm t)
+      | App (App (Const (op1, _), b), _) when op1 = op && left < b ->
+          ac_norm_tm_step op right
+      | App (App (Const (op1, _), b), _) when op1 = op && left >= b ->
+          Some (Comm_left t)
+      | _ -> None)
+  | _ -> None
+
 let ac_norm_step tm op : tactic =
  fun goal ->
-  let steps = List.take 1 @@ ac_norm_tm_step op [] tm in
-  steps
-  |> List.iter (function
-    | Comm t ->
+  let step = ac_norm_tm_step op tm in
+  ( step |> function
+    | Some (Comm t) ->
         trace_info
         @@ Printf.sprintf "Comm: %s\n" (Printing.pretty_print_hol_term t)
-    | Comm_left t ->
+    | Some (Comm_left t) ->
         trace_info
-        @@ Printf.sprintf "Comm_left: %s\n" (Printing.pretty_print_hol_term t));
-  (List.fold_right
-     (fun a acc ->
-       match a with
-       | Comm t -> acc >> with_proven [ op ^ "_comm" ] (rewrite_term ~target:t)
-       | Comm_left t ->
-           acc >> with_proven [ op ^ "_comm_left" ] (rewrite_term ~target:t))
-     steps
-     (try_ (with_repeat (with_proven [ op ^ "_assoc" ] rewrite))))
+        @@ Printf.sprintf "Comm_left: %s\n" (Printing.pretty_print_hol_term t)
+    | _ -> () );
+
+  (match step with
+  | Some (Comm t) -> with_proven [ op ^ "_comm" ] (rewrite_term ~target:t)
+  | Some (Comm_left t) ->
+      with_proven [ op ^ "_comm_left" ] (rewrite_term ~target:t)
+  | None -> noop)
     goal
 
 (*First version only handles bare terms or equalities *)
@@ -398,5 +396,6 @@ let ac_norm op : tactic =
 
   (List.fold_right
      (fun a acc -> acc >> try_ @@ ac_norm_step a op)
-     possible_chains noop)
+     possible_chains
+     (try_ (with_repeat (with_proven [ op ^ "_assoc" ] rewrite))))
     g
