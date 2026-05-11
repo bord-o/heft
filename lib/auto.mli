@@ -124,3 +124,5 @@ val destruct_elim : tactic
 
 val simp_all : tactic
 (** A combination of [simp_asm] and [simp] *)
+
+val ac_norm : string -> tactic

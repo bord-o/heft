@@ -2,8 +2,11 @@
 
 (* (* [@@@ocamlformat "disable"] *) *)
 open Heft
+open Kernel
 open Tactic
 open Auto
+open Result.Syntax
+open Effect
 
 let () =
   print_newline ();
@@ -502,25 +505,6 @@ let auto =
             discriminate;
           ]))
 
-open Effect
-
-let simp_only ?(with_asms = true) : tactic =
- fun goal ->
-  register "simp" (Safe 1);
-  let rules = perform Rules in
-  let with_rw = if with_asms then with_rules_and_assumptions else with_rules in
-  let thm =
-    with_repeat
-      (with_first
-      @@ pick [ with_rw rules rewrite; with_repeat beta; refl; truth ])
-      goal
-  in
-  thm
-
-let count = ref 0
-let total = 6561.
-let start = Unix.gettimeofday ()
-
 let%thm co_add_comm_true (c1 : corner_ori) (c2 : corner_ori) =
   co_add c1 c2 = co_add c2 c1 = true
 
@@ -543,60 +527,66 @@ and proof =
   end
   [@quiet]
 
-let%thm co_add_comm2 (c1 : corner_ori) (c2 : corner_ori) =
-  co_add c1 (co_add c2 c1) = co_add c1 (co_add c1 c2) = true
+let%thm co_add_comm_left (c1 : corner_ori) (c2 : corner_ori) (c3 : corner_ori) =
+  co_add c1 (co_add c2 c3) = co_add c2 (co_add c1 c3)
 
 and proof =
   begin
-    intros >> eq_true_elim >> apply_at "eq_cong"
-    >> rewrite_at "co_add_comm_true"
-    >> truth
+    noop >> intros
+    >> with_proven [ "co_add_assoc" ] @@ with_flip_rules @@ rewrite ~position:1
+    >> with_proven [ "co_add_comm" ] @@ with_flip_rules @@ rewrite ~position:3
+    >> with_proven [ "co_add_assoc" ] @@ rewrite ~position:0
+    >> refl
   end
   [@quiet]
 
-let%thm co_add_comm3 (c1 : corner_ori) (c2 : corner_ori) =
-  co_add c1 (co_add c1 (co_add c2 c1))
-  = co_add c1 (co_add c1 (co_add c1 c2))
-  = true
+let destruct_cube =
+  with_term [%term (c : cube)] destruct_elim
+  @>> with_term [%term (a0 : corners)] destruct_elim
+  @>> with_term [%term (a1 : edges)] destruct_elim
 
-and proof =
-  begin
-    intros >> eq_true_elim >> apply_at "eq_cong" >> apply_at "eq_cong"
-    >> rewrite_at "co_add_comm_true"
-    >> truth
-  end
-  [@quiet]
+let destruct_corners =
+  with_term [%term (a0 : corner_cubie)] destruct_elim
+  @>> with_term [%term (a1 : corner_cubie)] destruct_elim
+  @>> with_term [%term (a2 : corner_cubie)] destruct_elim
+  @>> with_term [%term (a3 : corner_cubie)] destruct_elim
+  @>> with_term [%term (a4 : corner_cubie)] destruct_elim
+  @>> with_term [%term (a5 : corner_cubie)] destruct_elim
+  @>> with_term [%term (a6 : corner_cubie)] destruct_elim
+  @>> with_term [%term (a7 : corner_cubie)] destruct_elim
 
-let ar pos =
-  with_proven [ "co_add_assoc" ] @@ with_flip_rules @@ rewrite ~position:pos
+(* let%thm co_sum_inv_U (c : cube) = co_sum (move_U c) = co_sum c *)
+(**)
+(* and proof = *)
+(*   begin *)
+(*     gen *)
+(*     >> destruct_cube @>> destruct_corners *)
+(*     >> simp ~exclude:[ "co_add"; "eo_add" ] *)
+(*     >> with_repeat @@ ac_norm "co_add" *)
+(*     >> refl *)
+(*   end *)
+(* [@quiet] *)
 
-let al pos = with_proven [ "co_add_assoc" ] @@ rewrite ~position:pos
+(* let%thm co_sum_inv_D (c : cube) = co_sum (move_D c) = co_sum c *)
+(* and proof = *)
+(*   begin *)
+(*     gen *)
+(*     >> destruct_cube  *)
+(*     @>> destruct_corners *)
+(*     >> simp ~exclude:[ "co_add"; "eo_add" ] *)
+(*     >> with_repeat @@ ac_norm "co_add" *)
+(*     >> refl *)
+(*   end *)
+(* [@quiet] *)
 
-let cr pos =
-  with_proven [ "co_add_comm" ] @@ with_flip_rules @@ rewrite ~position:pos
-
-let cl pos = with_proven [ "co_add_comm" ] @@ rewrite ~position:pos
-
-let%thm co_sum_inv (c : cube) = co_sum (move_U c) = co_sum c
+let%thm co_sum_inv_L (c : cube) = co_sum (move_L c) = co_sum c
 
 and proof =
   begin
     gen
-    >> with_term [%term (c : cube)] destruct_elim
-       @>> with_term [%term (a0 : corners)] destruct_elim
-       @>> with_term [%term (a1 : edges)] destruct_elim
-       @>> with_term [%term (a0 : corner_cubie)] destruct_elim
-       @>> with_term [%term (a1 : corner_cubie)] destruct_elim
-       @>> with_term [%term (a2 : corner_cubie)] destruct_elim
-       @>> with_term [%term (a3 : corner_cubie)] destruct_elim
-       @>> with_term [%term (a4 : corner_cubie)] destruct_elim
-       @>> with_term [%term (a5 : corner_cubie)] destruct_elim
-       @>> with_term [%term (a6 : corner_cubie)] destruct_elim
-       @>> with_term [%term (a7 : corner_cubie)] destruct_elim
+    >> destruct_cube @>> destruct_corners
     >> simp ~exclude:[ "co_add"; "eo_add" ]
-    (* This is gross *)
-    >> ar 2
-    >> cl 3 >> al 0 >> ar 1 >> cl 2 >> al 0 >> ar 0 >> cl 1 >> al 0 >> refl
+    >> with_repeat (with_proven [ "co_add_assoc" ] rewrite)
+    >> with_repeat @@ with_info_trace @@ ac_norm "co_add"
+    (* >> refl *)
   end
-  (* [@trace] *)
-  [@quiet]
