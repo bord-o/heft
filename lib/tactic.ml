@@ -1332,30 +1332,6 @@ let destruct : tactic =
   in
   return_thm ~from:"destruct" thm
 
-let cond : tactic =
- fun (asms, concl) ->
-  register ~prob:0.2 "cond" (Unsafe 5);
-  let rec collect_cond_args tm acc =
-    match tm with
-    | App (App (App (Const ("COND", _), b), t), e) ->
-        let acc = collect_cond_args b acc in
-        let acc = collect_cond_args t acc in
-        collect_cond_args e (b :: acc)
-    | App (f, x) ->
-        let acc = collect_cond_args f acc in
-        collect_cond_args x acc
-    | Lam (_, body) -> collect_cond_args body acc
-    | _ -> acc
-  in
-  let cond_args = collect_cond_args concl [] in
-  match cond_args with
-  | [] ->
-      trace_error "no COND expressions found in goal";
-      fail ()
-  | terms ->
-      let tm = choose_terms terms in
-      (with_term tm destruct >> try_ (with_repeat elim_disj_asm)) (asms, concl)
-
 let rec induct : tactic =
  fun (asms, concl) ->
   register ~prob:0.3 "induct" (Unsafe 8);

@@ -126,3 +126,9 @@ val simp_all : tactic
 (** A combination of [simp_asm] and [simp] *)
 
 val ac_norm : string -> tactic
+(** [ac_norm op] performs normalization using associativity and commutativity
+    theorems with names of ["op_comm_left"], ["op_comm"], and ["op_assoc"]. *)
+
+val cond : tactic
+(** Finds [COND] applications in the goal, chooses one of their conditions via
+    [Choose], and delegates to [destruct] on the chosen condition. *)

@@ -315,15 +315,22 @@ val apply_asm_to_asm : asm_thm:int -> asm_to:int -> tactic
     using [apply_asm] *)
 
 val apply_at : string -> ?target:string -> tactic
+(** Smarter version of [apply] that will look up a name in both assumptions and
+    proven lemmas, applying the chosen rule to a target assumption, or the goal
+    if the target is not provided *)
+
 val rewrite_at : string -> ?target:string -> ?position:int -> tactic
+(** Smarter version of [rewrite] that will look up a name in both assumptions
+    and proven lemmas, rewriting with the chosen rule at a target assumption, or
+    in the goal if the target is not provided *)
 
 val contradict_asm : tactic
 (** For a goal [F], finds a negation [~P] among the assumptions (via [Choose])
     and creates a subgoal [P]. *)
 
 val destruct : tactic
-(** Case analysis via exhaustiveness. Chooses a term [t] of some inductive type
-    and adds the exhaustiveness disjunction for [t] (e.g.
+(** Case analysis via exhaustiveness. Chooses a term [t] of some inductive or
+    boolean type and adds the exhaustiveness disjunction for [t] (e.g.
     [t = C1 \/ ?a. t = C2 a \/ ...]) as an assumption. Follow with
     [elim_disj_asm] and [elim_exists_asm] to split the cases. Unlike [induct],
     produces no induction hypothesis. *)
@@ -392,10 +399,6 @@ val with_term : term -> tactic_combinator
     the offered options. *)
 
 val with_context_terms : tactic_combinator
-
-val cond : tactic
-(** Finds [COND] applications in the goal, chooses one of their conditions via
-    [Choose], and delegates to [cases] on the chosen condition. *)
 
 val try_ : tactic_combinator
 (** Converts [Fail] into a [Subgoal] for the current goal, letting a tactic
@@ -468,6 +471,7 @@ val with_rules : thm list -> tactic_combinator
 (** Answers [Rules] with the given list of theorems. *)
 
 val with_axioms : tactic_combinator
+(** Answers [Rules] with the systems current axioms. *)
 
 val with_flip_rules : tactic_combinator
 (** Re-answers [Rules] with each equation from the outer handler flipped via
