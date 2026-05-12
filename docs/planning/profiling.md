@@ -141,3 +141,88 @@ Benchmark 1: dune exe heft --rel
   Range (min … max):    1.468 s …  1.523 s    10 runs
 
 ```
+
+## Baseline with quiet theories tests
+```
+ To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 883  of event 'cycles:P'
+# Event count (approx.): 3153703004
+#
+# Overhead  Symbol                                      IPC   [IPC Coverage]
+# ........  ..........................................  ....................
+#
+     9.06%  [.] Heft.Rewrite.go_877                     -      -            
+            |
+            ---Heft.Rewrite.go_877
+               |          
+                --1.51%--Heft.Rewrite.go_877
+
+     6.34%  [.] Heft.Rewrite.term_match_750             -      -            
+            |
+            ---Heft.Rewrite.term_match_750
+               |          
+                --0.70%--Heft.Rewrite.go_877
+
+     6.24%  [.] _int_malloc                             -      -            
+            |          
+            |--3.24%--asm_exc_page_fault
+            |          
+             --2.76%--_int_malloc
+                       |          
+                        --2.64%--__libc_malloc2
+                                  alloc_for_stack (inlined)
+                                  alloc_size_class_stack_noexc
+                                  |          
+                                   --0.81%--caml_alloc_stack
+                                             Heft.Tactic.798
+
+     5.81%  [k] __irqentry_text_end                     -      -            
+            |
+            ---__irqentry_text_end
+               |          
+                --5.47%--_int_malloc
+                          __libc_malloc2
+                          alloc_for_stack (inlined)
+                          alloc_size_class_stack_noexc (inlined)
+                          |          
+                           --1.51%--caml_alloc_stack
+                                     |          
+                                      --1.29%--Heft.Tactic.798
+
+     4.74%  [.] compare_val                             -      -            
+            |          
+            |--3.81%--do_compare_val (inlined)
+            |          compare_val
+            |          
+             --0.81%--compare_val
+
+     3.59%  [.] Heft.Rewrite.rewrite_at_root_inner_850  -      -            
+            |
+            ---Heft.Rewrite.rewrite_at_root_inner_850
+               |          
+                --0.59%--Heft.Rewrite.rewrite_at_root_inner_850
+
+     3.22%  [.] caml_perform                            -      -            
+            |
+            ---caml_perform
+               |          
+                --2.41%--caml_runstack
+                          caml_runstack
+
+     2.45%  [k] native_irq_return_iret                  -      -            
+            |          
+             --2.10%--_int_malloc
+                       __libc_malloc2
+                       alloc_for_stack (inlined)
+                       alloc_size_class_stack_noexc
+
+     1.85%  [.] caml_scan_stack                         -      -            
+            |          
+             --1.62%--scan_stack_frames (inlined)
+                       caml_scan_stack
+
+```
