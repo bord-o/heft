@@ -30,7 +30,19 @@
     <span><span>| `CantCreateVariantForNonVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `Clash</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAVar</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
+    <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-rewrite_at_root_inner"><a href="#val-rewrite_at_root_inner" class="anchor"></a><code><span><span class="keyword">val</span> rewrite_at_root_inner : 
+  <span><span class="optlabel">?target</span>:<a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span><a href="../Kernel/index.html#type-term">Kernel.term</a> list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span>(<span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> option</span>,
+    <span>[&gt; <span>`BadSubstitutionList of <span><span>(<a href="../Kernel/index.html#type-term">Kernel.term</a> * <a href="../Kernel/index.html#type-term">Kernel.term</a>)</span> list</span></span>
+    <span><span>| `CantCreateVariantForNonVariable</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `Clash</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
+    <span><span>| `NotAVar</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-rewrite_at_root"><a href="#val-rewrite_at_root" class="anchor"></a><code><span><span class="keyword">val</span> rewrite_at_root : 
+  <span><span class="optlabel">?target</span>:<span><a href="../Kernel/index.html#type-term">Kernel.term</a> option</span> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> option</span>,
@@ -40,6 +52,7 @@
     <span><span>| `Clash</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span>
     <span><span>| `NotAVar</span> of <a href="../Kernel/index.html#type-term">Kernel.term</a></span> ]</span>)</span>
     <span class="xref-unresolved">Stdlib</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-rewrite_once"><a href="#val-rewrite_once" class="anchor"></a><code><span><span class="keyword">val</span> rewrite_once : 
+  <span><span class="optlabel">?target</span>:<a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../Kernel/index.html#type-thm">Kernel.thm</a> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="../Kernel/index.html#type-term">Kernel.term</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span>(<a href="../Kernel/index.html#type-thm">Kernel.thm</a>,
