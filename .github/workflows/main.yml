@@ -69,4 +69,5 @@ jobs:
         uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: 5
+      - run: opam install -y dune.3.23.0
       - uses: ocaml/setup-ocaml/lint-opam@v3
