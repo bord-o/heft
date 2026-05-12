@@ -11,7 +11,7 @@ homepage: "https://github.com/bord-o/heft"
 doc: "https://url/to/documentation"
 bug-reports: "https://github.com/bord-o/heft/issues"
 depends: [
-  "dune" {>= "3.20"}
+  "dune" {>= "3.23"}
   "ocaml"
   "ppx_deriving"
   "ppx_expect"
