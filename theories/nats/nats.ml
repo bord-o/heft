@@ -173,7 +173,7 @@ and proof =
           gen >> intro @! "ih" >> induct
           >>= [
                 intros @! "heq" >> simp_asm >> eq_false_elim >> neg_intro
-                >> false_elim;
+                >> simp;
                 intros >> simp >> apply_at "ih" >> simp_asm;
               ];
         ]
@@ -188,12 +188,18 @@ and proof =
     induct
     >>= [
           induct
-          >>= [ simp >> intros >> refl; intros >> simp_all >> false_elim ];
+          >>= [
+                simp >> intros >> refl;
+                intros >> simp_all >> ccontr
+                >> with_assumptions @@ with_flip_rules (with_first @@ rewrite)
+                >> truth;
+              ];
           gen >> intro @! "hall" >> induct
           >>= [
-                intros >> simp_all >> false_elim;
-                noop
-                >> intros @: [ "h1"; "h2"; "h3" ]
+                intros >> simp_all >> ccontr
+                >> with_assumptions @@ with_flip_rules (with_first @@ rewrite)
+                >> truth;
+                intros @: [ "h1"; "h2"; "h3" ]
                 >> apply_at "eq_cong" >> apply_at "hall" >> simp_all >> simp_all;
               ];
         ]

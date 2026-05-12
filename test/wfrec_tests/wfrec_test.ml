@@ -22,7 +22,7 @@ and proof =
        >> with_repeat beta
        >> with_term [%term (x : (nat, nat) pair)] destruct_elim @: [ ""; "heq" ]
        >> simp
-       >> cond @: [ "htrue"; "hfalse" ]
+       >> cond @: [ ""; ""; "hfalse" ]
        >> simp >> simp >> apply_at "eq_cong" >> apply_at "hcong")
     >> (apply_at "demorgons_eq_false" ~target:"hfalse"
        >> elim_conj_asm @: [ "ha0"; "ha0" ]

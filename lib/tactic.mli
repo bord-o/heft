@@ -321,12 +321,6 @@ val contradict_asm : tactic
 (** For a goal [F], finds a negation [~P] among the assumptions (via [Choose])
     and creates a subgoal [P]. *)
 
-val cases : tactic
-(** Case splits. For a goal [!b:bool. P b], produces subgoals for [P T] and
-    [P F]. For a goal [!x:t. P x] where [t] is inductive, delegates to [induct].
-    Otherwise chooses a boolean term [e] via [Choose] and adds [e = T] / [e = F]
-    as alternative assumptions. *)
-
 val destruct : tactic
 (** Case analysis via exhaustiveness. Chooses a term [t] of some inductive type
     and adds the exhaustiveness disjunction for [t] (e.g.

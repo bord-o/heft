@@ -19,8 +19,8 @@ and proof =
        @: [ "hweak" ]
     >> induct >> intros >> simp_asm >> false_elim
     >> intros @: [ "hIH"; "hlt" ]
-    >> with_term [%term nat_lt (m : nat) (Suc (n0 : nat))] cases
-       @: [ "htrue"; "hfalse" ]
+    >> with_term [%term nat_lt (m : nat) (Suc (n0 : nat))] destruct
+    >> elim_disj_asm @: [ "htrue"; "hfalse" ]
     >> rewrite_at "lt_Suc_or_eq" ~target:"hlt"
     >> elim_disj_asm @: [ "hlt_mn"; "heq_mn" ]
     >> apply_at "hIH" ~target:"hlt_mn"
@@ -34,7 +34,6 @@ and proof =
     >> apply_at "hstrong'" ~target:"hweak'"
     >> assumption
   end
-  (* [@trace] *)
   [@quiet]
 
 let%def wf (r : 'a -> 'a -> bool) : bool =
@@ -81,7 +80,7 @@ and proof =
 let%def measure (m : 'a -> nat) : 'a -> 'a -> bool =
  fun (x : 'a) (y : 'a) -> nat_lt (m x) (m y)
 
-(* let () = Printing.print_thm measure  *)
+(* (* let () = Printing.print_thm measure  *) *)
 
 let%thm wf_measure (m : 'a -> nat) = wf (measure m)
 
@@ -167,19 +166,19 @@ and proof =
   end
   [@quiet]
 
-(* Harrison's version, the trivial counterexample of the set { x, y } *)
-(* let%thm wf_not_sym' (r : 'a -> 'a -> bool) = *)
-(*   wf r ==> forall (fun (x : 'a) (y : 'a) -> not (r x y && r y x)) *)
-(* and proof = *)
-(*   begin *)
-(*     noop >> gen >> intro @! "hIH" >> simp_asm >> gen *)
-(*     >> gen *)
-(*     >> spec_asm [%term fun (z : 'a) -> z = (x : 'a) || z = (y : 'a)] *)
-(*        @! "hContraSpec" *)
-(*     >> neg_intro *)
-(*     >> elim_conj_asm @: [ "hleft"; "hright" ] *)
-(*   end *)
-
+(* (* Harrison's version, the trivial counterexample of the set { x, y } *) *)
+(* (* let%thm wf_not_sym' (r : 'a -> 'a -> bool) = *) *)
+(* (*   wf r ==> forall (fun (x : 'a) (y : 'a) -> not (r x y && r y x)) *) *)
+(* (* and proof = *) *)
+(* (*   begin *) *)
+(* (*     noop >> gen >> intro @! "hIH" >> simp_asm >> gen *) *)
+(* (*     >> gen *) *)
+(* (*     >> spec_asm [%term fun (z : 'a) -> z = (x : 'a) || z = (y : 'a)] *) *)
+(* (*        @! "hContraSpec" *) *)
+(* (*     >> neg_intro *) *)
+(* (*     >> elim_conj_asm @: [ "hleft"; "hright" ] *) *)
+(* (*   end *) *)
+(**)
 let%thm wf_rec_rel_elim (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b)
     (x : 'a) (v : 'b) =
   wf_rec_rel r h x v
@@ -300,6 +299,7 @@ and proof =
     >> apply_at "axiom_of_choice" ~target:"hwfExists" @! "hwfChosen"
     >> with_assumptions (with_first exact)
   end
+  (* [@trace] *)
   [@quiet]
 
 let%thm wf_rec (r : 'a -> 'a -> bool) (h : ('a -> 'b) -> 'a -> 'b) =

@@ -78,3 +78,11 @@ and proof =
     >> with_no_automation_trace Auto.ctauto_dfs
   end
   [@quiet]
+
+
+let%thm bool_cases (p : bool) = 
+    p = true || p = false
+and proof = begin
+    with_rule (Derived.bool_cases )exact
+end
+[@quiet]

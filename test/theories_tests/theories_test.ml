@@ -675,14 +675,14 @@ let%expect_test "bool cases tac" =
   in
 
   run_proof ~name:"bool_cases_test" goal
-    (cases >>= [ left >> refl; right >> refl ]);
+    (gen >> with_term [%term (b : bool)] destruct >> assumption);
   [%expect
     {|
     ========================================
     ∀b. b = T ∨ b = F
 
     Proof Complete!
-    with fuel: 22
+    with fuel: 8
     |}]
 
 let%expect_test "nat_le_flip" =
@@ -725,7 +725,9 @@ let%expect_test "sort correct lemma" =
           >>= [
                 with_term [%term (n1 : nat list)] induct @>> (intros >> simp)
                 >>= [
-                      with_term [%term nat_le (n0' : nat) (n : nat)] cases
+                      with_term
+                        [%term nat_le (n0' : nat) (n : nat)]
+                        destruct_elim
                       @>> simp
                       >>= [ simp_asm >> elim_conj_asm >> assumption; truth ];
                     ];
@@ -750,7 +752,7 @@ let%expect_test "sort correct lemma" =
     ∀x. ∀n. sorted x ==> sorted (insert x n)
 
     Proof Complete!
-    with fuel: 580
+    with fuel: 600
     |}]
 
 let%expect_test "sort correct" =
@@ -804,7 +806,7 @@ let%expect_test "div fuel irrel" =
       induct >> intros >> simp_asm >> discriminate >> intros
       >> with_first (with_definition [ "plus" ] rewrite)
       >> beta >> simp >> simp_asm
-      >> with_term [%term nat_lt (a : nat) (b : nat)] cases
+      >> with_term [%term nat_lt (a : nat) (b : nat)] destruct_elim
       >> simp >> simp_asm
       >> with_term
            [%term div_aux (n0 : nat) (sub (a : nat) (b : nat)) (b : nat)]
@@ -825,7 +827,7 @@ let%expect_test "div fuel irrel" =
     ∀x. ∀m. ∀a. ∀b. ∀x'. div_aux x a b = Some x' ==> div_aux (plus x m) a b = Some x'
 
     Proof Complete!
-    with fuel: 305
+    with fuel: 312
     |}]
 
 let%expect_test "lt_Zero_Suc" =
@@ -1687,7 +1689,7 @@ let%expect_test "div fuel sufficient" =
     ∀x. ∀a. ∀b. nat_lt Zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = Some x'
 
     Proof Complete!
-    with fuel: 228
+    with fuel: 241
     |}]
 
 let%expect_test "div unfold" =
@@ -1699,7 +1701,7 @@ let%expect_test "div unfold" =
       >> with_definition [ "div" ] rewrite
       >> beta
       >> with_first (with_definition [ "div_aux" ] rewrite)
-      >> beta >> with_nth_choice 1 cond >> simp
+      >> beta >> cond >> simp
       >> with_repeat @@ with_assumptions rewrite
       >> with_repeat @@ with_proven [ "cond_false" ] rewrite
       >> with_first (with_proven [ "not_lt_is_le" ] rewrite_asm)
@@ -1771,7 +1773,7 @@ let%expect_test "div unfold" =
     ∀a. ∀b. nat_lt Zero b ==> div a b = COND (nat_lt a b) Zero (Suc (div (sub a b) b))
 
     Proof Complete!
-    with fuel: 269
+    with fuel: 282
     |}]
 
 let%expect_test "merge test" =
@@ -1883,7 +1885,7 @@ let%expect_test "merge fuel irrel" =
     ∀x. ∀additional. ∀xs. ∀ys. ∀x. merge_aux x xs ys = Some x ==> merge_aux (plus x additional) xs ys = Some x
 
     Proof Complete!
-    with fuel: 706
+    with fuel: 719
     |}]
 
 let%expect_test "merge fuel sufficient" =
@@ -1938,7 +1940,7 @@ let%expect_test "merge fuel sufficient" =
     ∀x. ∀xs. ∀ys. nat_lt (plus (length xs) (length ys)) x ==> ∃x. merge_aux x xs ys = Some x
 
     Proof Complete!
-    with fuel: 451
+    with fuel: 464
     |}]
 
 (*
@@ -2034,7 +2036,7 @@ let%expect_test "merge unfolding lemma" =
     ∀xs. ∀ys. merge xs ys = match_list xs ys (λh. λt. match_list ys (Cons h t) (λy'. λys'. COND (nat_lt h y') (Cons h (merge t (Cons y' ys'))) (Cons y' (merge (Cons h t) ys'))))
 
     Proof Complete!
-    with fuel: 1295
+    with fuel: 1308
     |}]
 
 (* sort [3,1,2] = [1,2,3] *)
@@ -2130,7 +2132,7 @@ let%expect_test "length take" =
     ∀x. ∀xs. length (take x xs) = COND (nat_lt x (length xs)) x (length xs)
 
     Proof Complete!
-    with fuel: 585
+    with fuel: 598
     ========================================
     ∀x. ∀xs. length (drop x xs) = sub (length xs) x
 
@@ -2167,7 +2169,7 @@ let%expect_test "div_pos" =
     ∀x. nat_lt (Suc Zero) x ==> nat_lt Zero (div x (Suc (Suc Zero)))
 
     Proof Complete!
-    with fuel: 813
+    with fuel: 826
     |}]
 
 let apply_asm_to_asm ~asm_thm ~asm_to =
@@ -2184,7 +2186,7 @@ let%expect_test "div_le" =
       >> simp
       >> with_term [%term (m : nat)] destruct
       >> elim_disj_asm >> simp >> elim_exists_asm >> simp >> intros
-      >> with_term [%term nat_lt (k : nat) (m : nat)] cases
+      >> with_term [%term nat_lt (k : nat) (m : nat)] destruct_elim
       >> with_term
            [%term
              div (k : nat) (m : nat)
@@ -2241,7 +2243,7 @@ let%expect_test "div_le" =
     ∀x. ∀k. ∀m. nat_lt Zero m ==> nat_le k x ==> nat_le (div k m) x
 
     Proof Complete!
-    with fuel: 359
+    with fuel: 366
     |}]
 
 let%expect_test "div_lt" =
@@ -2379,7 +2381,7 @@ let%expect_test "merge sort sufficient" =
     ∀x. ∀xs. nat_lt (length xs) x ==> ∃x. merge_sort_aux x xs = Some x
 
     Proof Complete!
-    with fuel: 320
+    with fuel: 333
     |}]
 
 let%expect_test "merge sort fuel irrel" =
@@ -2476,5 +2478,5 @@ let%expect_test "merge sort unfold" =
     ∀xs. merge_sort xs = COND (nat_le (length xs) (Suc Zero)) xs ((λhalf_length. merge (merge_sort (take half_length xs)) (merge_sort (drop half_length xs))) (div (length xs) (Suc (Suc Zero))))
 
     Proof Complete!
-    with fuel: 198
+    with fuel: 211
     |}]

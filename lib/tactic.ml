@@ -1299,76 +1299,32 @@ let discriminate : tactic =
   let thm = Ok (with_first (pick attempts) (asms, conc)) in
   return_thm ~from:"discriminate" thm
 
-(* [cases] and [induct] are mutually recursive, and [cond] depends
-   on [cases], so they are grouped here. [destruct] is independent but
-   included in the [and] chain to preserve mli ordering. *)
-let rec cases : tactic =
- fun (asms, concl) ->
-  register ~prob:0.3 "cases" (Unsafe 8);
-  let bool_case_branch var bod value asms =
-    let* var_eq_val = safe_make_eq var value in
-    let* bod_subst = vsubst [ (value, var) ] bod in
-    let subgoal_thm =
-      perform (Subgoal (perform (Name (var_eq_val, asms)) :: asms, bod_subst))
-    in
-    let* pred_lam = make_lam var bod in
-    let* var_eq_val_assumed = assume var_eq_val in
-    let* val_eq_var = D.sym var_eq_val_assumed in
-    let* lam_eq = mk_comb (Kernel.refl pred_lam |> Result.get_ok) val_eq_var in
-    let* beta_eq = D.conv_equality D.deep_beta lam_eq in
-    eq_mp beta_eq subgoal_thm
-  in
-  let bool_forall_cases asms var bod =
-    let* bc = D.spec var D.bool_cases in
-    let* case_t = bool_case_branch var bod (D.make_true ()) asms in
-    let* case_f = bool_case_branch var bod (D.make_false ()) asms in
-    let* result = D.disj_cases bc case_t case_f in
-    D.gen var result
-  in
-  let bool_expr_cases asms concl tm =
-    let* bc = D.spec tm D.bool_cases in
-    let* tm_eq_t = safe_make_eq tm (D.make_true ()) in
-    let* tm_eq_f = safe_make_eq tm (D.make_false ()) in
-    let t_thm =
-      perform (Subgoal (perform (Name (tm_eq_t, asms)) :: asms, concl))
-    in
-    let f_thm =
-      perform (Subgoal (perform (Name (tm_eq_f, asms)) :: asms, concl))
-    in
-    D.disj_cases bc t_thm f_thm
-  in
-  let thm =
-    match D.destruct_forall concl with
-    | Ok (var, bod) ->
-        let ty = type_of_var var in
-        if compare ty bool_ty = 0 then bool_forall_cases asms var bod
-        else Ok (induct (asms, concl))
-    | Error _ ->
-        let tm = perform (Choose (Term [ concl ])) in
-        bool_expr_cases asms concl tm
-  in
-  return_thm ~from:"cases" thm
-
-and destruct : tactic =
+let destruct : tactic =
  fun (asms, concl) ->
   register ~prob:0.35 "destruct" (Unsafe 6);
   let thm =
     let tm = choose_terms [] in
     let* ty = type_of_term tm in
     let* ty_name, ty_args = destruct_type ty in
-    let ind_def =
-      match Hashtbl.find_opt the_inductives ty_name with
-      | None ->
-          trace_error
-            (Printf.sprintf "destruct: %s is not an inductive type" ty_name);
-          fail ()
-      | Some d -> d
+    let* exhaustiveness =
+      if ty = bool_ty then Ok Derived.bool_cases
+      else
+        let ind_def =
+          match Hashtbl.find_opt the_inductives ty_name with
+          | None ->
+              trace_error
+                (Printf.sprintf "destruct: %s is not an inductive type" ty_name);
+              fail ()
+          | Some d -> d
+        in
+        let* _, def_ty_params = destruct_type ind_def.ty in
+        let type_sub = List.combine def_ty_params ty_args in
+        inst_type type_sub ind_def.exhaustiveness
     in
-    let* _, def_ty_params = destruct_type ind_def.ty in
-    let type_sub = List.combine def_ty_params ty_args in
-    let* typed_exhaust = inst_type type_sub ind_def.exhaustiveness in
-    let* specced = D.spec tm typed_exhaust in
+
+    let* specced = D.spec tm exhaustiveness in
     let exhaust_fact = Kernel.concl specced in
+
     let sub_thm =
       perform (Subgoal (perform (Name (exhaust_fact, asms)) :: asms, concl))
     in
@@ -1376,7 +1332,31 @@ and destruct : tactic =
   in
   return_thm ~from:"destruct" thm
 
-and induct : tactic =
+let cond : tactic =
+ fun (asms, concl) ->
+  register ~prob:0.2 "cond" (Unsafe 5);
+  let rec collect_cond_args tm acc =
+    match tm with
+    | App (App (App (Const ("COND", _), b), t), e) ->
+        let acc = collect_cond_args b acc in
+        let acc = collect_cond_args t acc in
+        collect_cond_args e (b :: acc)
+    | App (f, x) ->
+        let acc = collect_cond_args f acc in
+        collect_cond_args x acc
+    | Lam (_, body) -> collect_cond_args body acc
+    | _ -> acc
+  in
+  let cond_args = collect_cond_args concl [] in
+  match cond_args with
+  | [] ->
+      trace_error "no COND expressions found in goal";
+      fail ()
+  | terms ->
+      let tm = choose_terms terms in
+      (with_term tm destruct >> try_ (with_repeat elim_disj_asm)) (asms, concl)
+
+let rec induct : tactic =
  fun (asms, concl) ->
   register ~prob:0.3 "induct" (Unsafe 8);
   match D.destruct_forall concl with
@@ -1440,30 +1420,6 @@ and induct : tactic =
           (Ok specced) mentioning
       in
       return_thm ~from:"induction" thm
-
-and cond : tactic =
- fun (asms, concl) ->
-  register ~prob:0.2 "cond" (Unsafe 5);
-  let rec collect_cond_args tm acc =
-    match tm with
-    | App (App (App (Const ("COND", _), b), t), e) ->
-        let acc = collect_cond_args b acc in
-        let acc = collect_cond_args t acc in
-        collect_cond_args e (b :: acc)
-    | App (f, x) ->
-        let acc = collect_cond_args f acc in
-        collect_cond_args x acc
-    | Lam (_, body) -> collect_cond_args body acc
-    | _ -> acc
-  in
-  let cond_args = collect_cond_args concl [] in
-  match cond_args with
-  | [] ->
-      trace_error "no COND expressions found in goal";
-      fail ()
-  | terms ->
-      let tm = choose_terms terms in
-      with_term tm cases (asms, concl)
 
 let have : tactic =
  fun (asms, concl) ->

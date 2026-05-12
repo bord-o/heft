@@ -691,60 +691,26 @@ I'm back to the whiteboard on automation, I think it makes more sense to do a bi
 
 The fundamental idea is that this effects based architecture bakes-in AND nodes (subgoal dependencies) so I should be able to make the design operate on a flatter structure than the AND/OR tree of aesop.
 
-Lets walk through an example.
+## Monday, May 11
 
-```
-(A ∨ B) ∧ (C ∨ D) ⟹ (A ∧ C) ∨ (A ∧ D) ∨ (B ∧ C) ∨ (B ∧ D)
-```
+I've been putting off some foundational work for a while now, instead focusing on working within the system. I've found it's honestly quite useful already, I haven't ran into many proofs where anything was fundamentally broken. I've been formalizing the Rubik's cube as an example and even wrote a simple ac normalizer as part of those proofs. My original DFS implementation that drew directly from the Bauer paper has actually been performing the best, giving that search some conservative tactics ends up being faster than all other searches in most cases so I'm going to continue with that until I need a more clever search. I feel like having a decent and predictable DFS is probably a good starting point anyway.
 
-where our tactic is ctauto
+The foundational work I mentioned is a few main things. First and foremost, my rewrite.ml module was stubbed with AI early in the implementation as I didn't want to dive into rewrite theory at that time, but now that things are largely bottlenecked by rewrite speed and the prover is getting a bit more mature, I think its time to find an elegant solution. I also need to rewrite destruct/induct tactics, as they are way more complex than they need to be. Induction should also be able to handle arbitrary induction schemes, rather than the hardcoded weak induction per datatype like it does currently. Last is naming. I currently run into quite unruly naming issues, nothing that completely blocks proofs, but existential elimination can cause some bugs right now because of stale env in its free vars check. Improving name hints would also really help, and numbering rather than 'prime'-ing avoided variables in some situations though this is non-critical.
 
-```
-let ctauto : tactic =
-  pick
-    [
-      assumption;
-      intro;
-      neg_intro;
-      gen;
-      conj;
-      elim_conj_asm;
-      elim_disj_asm;
-      false_elim;
-      neg_elim;
-      with_assumptions apply;
-      contradict_asm;
-      with_assumptions (apply_asm);
-      left;
-      right;
-      ccontr;
-    ]
-```
+Another grab-bag of miscellaneous fixes and features includes:
 
-First we prime our queue with ctauto + goal + priority=1 and a new ID
+- Make ppx generate the actual ocaml code in addition to the HOL term
+- Make ppx return a thm result for proofs rather than the goal
+- Make ppx support subtypes (for integers and rationals)
+- Axiometize real numbers
+- Expose a ppx configuration API for overloading things like operators (I'd like to be able to write (1/2) as a HOL rational) and handling coersions for number syntax (0n, 0z, 0r, etc)
+- Write a search that uses the explicit continuations of 'step' to match the semantics of my native DFS so that I can accurately compare them and see the overhead
+- 
 
-our search function pops this node and expands it, upon expansion we get a TacticChoice 
-expand will collect tactic registrations from everything in this choice level and transform them into new nodes.
-The new nodes will multiply their probability agains the current (1) to get the ordering for the next expansion.
+### Rewriting
 
-Now our queue looks like [assumption:.95, intro:.9, etc], all with the same goal. The queue will then sort these based on probability
+Though I would love to just copy HOL4 or Harrison's implementation for now, my use of algebraic effects has led me to lean away from a CONV system like those provers. I think this makes things a bit simpler on the user as well, as they are never exposed to any of those details. One other feature that would synergize well with my effects system is the exposure of rewriting positions over the choice effect. This would allow my search procedures to handle the details of rewriting rather than hard coding it or passing arguments. When I add conditional rewriting this would also give me AC normalization as DFS (though that might be a bad idea anyway).
 
-Next lets handle intertactic choice.
+### Induct & Destruct
 
-Say we hit elim_disj_asm when we have multiple assumptions that could be applied. When we expand we hit a TermChoice.
-We have a decision now, should resuming these choice options be higher priority than the next tactic to expand, or should they be handled now? 
-For now we push these to the queue as well, carrying the same id and probability of the parent that caused them (elim_disj)
-
-Now lets say we hit a subgoal. A subgoal should push our same tactic before onto the queue (ctauto) with the same probability as its depth would suggest, along with its cont
-
-But what if our tactic solves the goal completely?
-When we expand we are running a tactic, and in the case that it completes with a thm, we need to kill all the other nodes that are working on the same subgoal, and then 
-resume with that thm
-
-So a node is really one of two things:
-A goal to solve
-A choice to continue with
-
-A goal needs to have a continuation going up the stack, determining what to do once its solved
-A choice needs to have a continuation going down the stack, representing the rest of the tactic
-
+### Name introduction
