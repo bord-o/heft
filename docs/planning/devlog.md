@@ -714,3 +714,50 @@ Though I would love to just copy HOL4 or Harrison's implementation for now, my u
 ### Induct & Destruct
 
 ### Name introduction
+
+## Wednesday, May 13
+
+I'm looking into parallelization now. I have pretty significant overhead for my effects system, but I think it's decoupling allows me some pretty interesting behavior wrt parallelism. For instance, since my subgoals make a linear dependency chain, for any given proof, I should be able to create isolated subgoals by 'peeking' ahead to the next subgoal.
+
+```
+A -> (A -> B) -> B
+
+1. intro hA
+// this creates a subgoal with a as a hyp instead of an antecedent
+// we get a continuation that needs to be resumed with a thm of this subgoal, called k1
+A
+---
+(A -> B) -> B
+
+
+// we get a continuation that needs to be resumed with a thm of this subgoal, called k2
+2. intro hAB
+A
+A -> B
+---
+B
+
+// we get a continuation that needs to be resumed with a thm of this subgoal, called k3
+3. apply hAB
+
+A
+A -> B
+---
+A
+
+// we get a thm now 
+4. assumption
+
+-3
+// we use thm4 along with k3 to get thm3
+
+-2
+// we use thm3 with k2 to get thm2
+
+-1 
+// we thm2 with k1 to get the root thm, done!
+
+
+
+
+```

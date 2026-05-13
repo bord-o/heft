@@ -95,7 +95,7 @@ let then_one (tac1 : tactic) : tactic_combinator =
         handled_first := true;
         let thm : thm = tac g in
         handler (fun () -> continue k thm)
-    | v -> v
+    | (v : thm) -> v
   in
   handler (fun () -> tac1 goal)
 
