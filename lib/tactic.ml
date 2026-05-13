@@ -92,10 +92,9 @@ let then_one (tac1 : tactic) : tactic_combinator =
   let rec handler f =
     match f () with
     | effect Subgoal g, k when not !handled_first ->
-        let r = Multicont.Deep.promote k in
         handled_first := true;
         let thm : thm = tac g in
-        handler (fun () -> Multicont.Deep.resume r thm)
+        handler (fun () -> continue k thm)
     | v -> v
   in
   handler (fun () -> tac1 goal)
@@ -107,9 +106,8 @@ let then_all (tac1 : tactic) : tactic_combinator =
   let rec handler f =
     match f () with
     | effect Subgoal g, k ->
-        let r = Multicont.Deep.promote k in
         let thm : thm = tac g in
-        handler (fun () -> Multicont.Deep.resume r thm)
+        handler (fun () -> continue k thm)
     | v -> v
   in
   handler (fun () -> tac1 goal)
@@ -122,16 +120,14 @@ let then_all_direct (tac1 : tactic) : tactic_combinator =
   let rec handler f =
     match f () with
     | effect Subgoal g, k when !depth = 0 ->
-        let r = Multicont.Deep.promote k in
         incr depth;
         let thm : thm = handler (fun () -> tac g) in
         decr depth;
-        handler (fun () -> Multicont.Deep.resume r thm)
+        handler (fun () -> continue k thm)
     | effect Subgoal g, k when !depth > 0 ->
         (* Re-emit for the outer handler *)
-        let r = Multicont.Deep.promote k in
         let thm : thm = perform (Subgoal g) in
-        handler (fun () -> Multicont.Deep.resume r thm)
+        handler (fun () -> continue k thm)
     | v -> v
   in
   handler (fun () -> tac1 goal)
@@ -143,14 +139,13 @@ let then_each (tacs : tactic list) : tactic_combinator =
   fun tac goal ->
     match tac goal with
     | effect Subgoal g, k -> (
-        let r = Multicont.Deep.promote k in
         match !tacs with
         | [] ->
             trace_proof "more subgoals than provided tactics";
             fail ()
         | next :: rest ->
             tacs := rest;
-            Multicont.Deep.resume r @@ next g)
+            continue k @@ next g)
     | v -> v
 
 let ( >>= ) = Fun.flip then_each
@@ -220,9 +215,8 @@ let with_context_terms : tactic_combinator =
   in
   match tac goal with
   | effect Choose (Term _), k ->
-      let r = Multicont.Deep.promote k in
       let chosen = choose_terms subterms in
-      Multicont.Deep.resume r chosen
+      continue k chosen
   | x -> x
 
 (* [cond] is logically part of Choice and Search but is defined later,

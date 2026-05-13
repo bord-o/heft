@@ -5,4 +5,10 @@
   (pps ppx_expect ppx_heft))
  (ocamlopt_flags
   (:standard -g -linkall))
- (libraries heft heft.theories.nats heft.theories.lists heft.theories.pairs heft.theories.bools heft.theories.conds))
+ (libraries
+  heft
+  heft.theories.nats
+  heft.theories.lists
+  heft.theories.pairs
+  heft.theories.bools
+  heft.theories.conds))
