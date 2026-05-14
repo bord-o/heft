@@ -96,7 +96,9 @@ let step (tac : tactic) (goal : goal) : step_result =
   | effect Subgoal g, k ->
       let r = Multicont.Deep.promote k in
       Need (g, fun (v : thm) -> Multicont.Deep.resume r v)
-  | effect Fail, _ -> Dead
+  | effect Fail, k ->
+      cleanup k;
+      Dead
   | v -> Done v
 
 let run_thunk_with_path (path : string list ref) (thunk : unit -> 'a) : 'a =
@@ -229,7 +231,9 @@ let with_dfs'' : tactic_combinator =
         match handler s' (fun () -> tac g) with
         | effect Fail, _ -> next s
         | (thm : thm) -> handler s (fun () -> continue k thm))
-    | effect Fail, _ -> next s
+    | effect Fail, k ->
+        cleanup k;
+        next s
     | v -> v
   and next s =
     match Stack.pop_opt s with None -> fail () | Some thunk -> handler s thunk
@@ -246,7 +250,9 @@ let with_dfs' : tactic_combinator =
           | [] -> fail ()
           | c :: cs -> (
               match handler (fun () -> Multicont.Deep.resume r c) with
-              | effect Fail, _ -> try_each cs
+              | effect Fail, k ->
+                  cleanup k;
+                  try_each cs
               | thm -> thm)
         in
         try_each (as_chosen_list choices)
@@ -421,7 +427,9 @@ let cond : tactic =
 
 module T = Domainslib.Task
 
-let pool = T.setup_pool ~num_domains:(Domain.recommended_domain_count () - 1) ()
+(* This is generally recommended but I am setting to physical cores - 1 instead *)
+(* let pool = T.setup_pool ~num_domains:(Domain.recommended_domain_count () - 1) () *)
+let pool = T.setup_pool ~num_domains:3 ()
 
 let parallel_map pool f lst =
   let promises = List.map (fun x -> T.async pool (fun () -> f x)) lst in
@@ -473,11 +481,10 @@ let collect_subgoals (tacs : tactic list) : tactic_combinator =
           match !mode with
           | `Replay -> v
           | `Collect ->
-              Printf.printf "encountered count: %d\n" (List.length !subgoals);
-              !subgoals
-              |> List.iter (fun ((_, g), _) ->
-                  print_endline @@ Printing.pretty_print_hol_term g);
-
+              (* Printf.printf "encountered count: %d\n" (List.length !subgoals); *)
+              (* !subgoals *)
+              (* |> List.iter (fun ((_, g), _) -> *)
+              (*     print_endline @@ Printing.pretty_print_hol_term g); *)
               let ordered = List.rev !subgoals in
 
               (* let computed = List.map (fun (g, t) -> t g) ordered in *)
@@ -494,3 +501,48 @@ let collect_subgoals (tacs : tactic list) : tactic_combinator =
     handler (fun () -> tac goal)
 
 let ( >>>= ) = Fun.flip collect_subgoals
+
+let collect_all_subgoals (tac1 : tactic) : tactic_combinator =
+ fun tac goal ->
+  let depth = Atomic.make 0 in
+  let subgoals : goal list ref = ref [] in
+  let mode = ref `Collect in
+  let real_thms : thm list ref = ref [] in
+  let rec handler f =
+    match f () with
+    | effect Subgoal g, k when Atomic.get depth = 0 -> (
+        match !mode with
+        | `Collect ->
+            subgoals := g :: !subgoals;
+            handler (fun () -> continue k Derived.truth)
+        | `Replay -> (
+            match !real_thms with
+            | [] -> fail ()
+            | thm :: rest ->
+                real_thms := rest;
+                handler (fun () -> continue k thm)))
+    | effect Subgoal g, k when Atomic.get depth > 0 ->
+        let thm : thm = perform (Subgoal g) in
+        handler (fun () -> continue k thm)
+    | v -> (
+        match !mode with
+        | `Replay -> v
+        | `Collect ->
+            let ordered = List.rev !subgoals in
+            (* Printf.printf "collected %d subgoals\n" (List.length ordered); *)
+            let run_follower g =
+              Atomic.incr depth;
+              let thm = run_tactic_in_worker g tac in
+              Atomic.decr depth;
+              thm
+            in
+            let computed =
+              T.run pool (fun () -> parallel_map pool run_follower ordered)
+            in
+            mode := `Replay;
+            real_thms := computed;
+            handler (fun () -> tac1 goal))
+  in
+  handler (fun () -> tac1 goal)
+
+let ( @>>! ) = collect_all_subgoals

@@ -134,3 +134,4 @@ val cond : tactic
     [Choose], and delegates to [destruct] on the chosen condition. *)
 
 val ( >>>= ) : tactic -> tactic list -> tactic
+val ( @>>! ) : tactic -> tactic_combinator

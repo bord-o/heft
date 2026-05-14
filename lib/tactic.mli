@@ -63,6 +63,10 @@ type _ choosable =
 exception Out_of_fuel
 (** Raised by [with_fuel_limit] when the fuel counter reaches zero. *)
 
+exception Cleanup
+
+val cleanup : ('a, 'b) continuation -> unit
+
 type tactic_info = { name : string; cost : cost; prob : float }
 
 (** {1 Effects} *)

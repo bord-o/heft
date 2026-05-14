@@ -28,6 +28,12 @@ type _ choosable =
   | Unknown : 'a list -> 'a choosable
 
 exception Out_of_fuel
+exception Cleanup
+
+let cleanup k =
+  match discontinue k Cleanup with
+  | exception Cleanup -> ()
+  | t -> failwith "should fail"
 
 type tactic_info = { name : string; cost : cost; prob : float }
 
@@ -49,12 +55,16 @@ let as_chosen_list : type a. a choosable -> a list = function
 
 let cost_of_tactic (tac : tactic) (goal : goal) =
   match tac goal with
-  | effect Register info, _k -> (info.name, info.cost)
+  | effect Register info, k ->
+      cleanup k;
+      (info.name, info.cost)
   | _ -> failwith "Register must be first call of tactic"
 
 let prob_of_tactic (tac : tactic) (goal : goal) =
   match tac goal with
-  | effect Register info, _k -> (info.name, info.prob)
+  | effect Register info, k ->
+      cleanup k;
+      (info.name, info.prob)
   | _ -> failwith "Register must be first call of tactic"
 
 let default_prob = function Safe _ -> 1.0 | Unsafe _ -> 0.5
@@ -163,7 +173,9 @@ let with_first : tactic_combinator =
             fail ()
         | c :: cs -> (
             match Multicont.Deep.resume r c with
-            | effect Fail, _ -> try_each cs
+            | effect Fail, k ->
+                cleanup k;
+                try_each cs
             | thm -> thm)
       in
       try_each (as_chosen_list choices)
@@ -180,7 +192,9 @@ let with_first_term : tactic_combinator =
             fail ()
         | c :: cs -> (
             match Multicont.Deep.resume r c with
-            | effect Fail, _ -> try_each cs
+            | effect Fail, k ->
+                cleanup k;
+                try_each cs
             | thm -> thm)
       in
       try_each choices
@@ -224,7 +238,11 @@ let with_context_terms : tactic_combinator =
 
 let try_ : tactic_combinator =
  fun tac goal ->
-  match tac goal with effect Fail, _ -> perform (Subgoal goal) | v -> v
+  match tac goal with
+  | effect Fail, k ->
+      cleanup k;
+      perform (Subgoal goal)
+  | v -> v
 
 let pick (tacs : tactic list) : tactic =
  fun goal ->
@@ -233,16 +251,22 @@ let pick (tacs : tactic list) : tactic =
 
 let solve : tactic_combinator =
  fun tac goal ->
-  match tac goal with effect Subgoal _g', _k -> fail () | v -> v
+  match tac goal with
+  | effect Subgoal _g', k ->
+      cleanup k;
+      fail ()
+  | v -> v
 
 let with_repeat : tactic_combinator =
  fun tac goal ->
   let made_progress = ref false in
   let rec aux goal =
     match tac goal with
-    | effect Fail, _ ->
+    | effect Fail, k ->
+        cleanup k;
         if !made_progress then perform (Subgoal goal) else fail ()
-    | effect Subgoal g, _k when g = goal ->
+    | effect Subgoal g, k when g = goal ->
+        cleanup k;
         if !made_progress then perform (Subgoal goal) else fail ()
     | effect Subgoal g, k ->
         made_progress := true;
@@ -1241,6 +1265,7 @@ let with_named_rule names : tactic_combinator =
         | Some rules -> rules)
     |> List.flatten
   in
+  print_endline "calculating named rules list";
   fun tac goal ->
     match tac goal with effect Rules, k -> continue k rules | v -> v
 
