@@ -500,7 +500,7 @@ let collect_subgoals (tacs : tactic list) : tactic_combinator =
     in
     handler (fun () -> tac goal)
 
-let ( >>>= ) = Fun.flip collect_subgoals
+let ( >>=! ) = Fun.flip collect_subgoals
 
 let collect_all_subgoals (tac1 : tactic) : tactic_combinator =
  fun tac goal ->
