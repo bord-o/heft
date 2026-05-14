@@ -132,3 +132,5 @@ val ac_norm : string -> tactic
 val cond : tactic
 (** Finds [COND] applications in the goal, chooses one of their conditions via
     [Choose], and delegates to [destruct] on the chosen condition. *)
+
+val ( >>>= ) : tactic -> tactic list -> tactic

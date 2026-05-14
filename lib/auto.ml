@@ -418,3 +418,79 @@ let cond : tactic =
   | terms ->
       let tm = choose_terms terms in
       (with_term tm destruct >> try_ (with_repeat elim_disj_asm)) (asms, concl)
+
+module T = Domainslib.Task
+
+let pool = T.setup_pool ~num_domains:(Domain.recommended_domain_count () - 1) ()
+
+let parallel_map pool f lst =
+  let promises = List.map (fun x -> T.async pool (fun () -> f x)) lst in
+  List.map (T.await pool) promises
+
+let run_tactic_in_worker (g : goal) (tac : tactic) : thm =
+  match tac g with
+  | effect Register _, k -> continue k ()
+  | effect Rules, k -> continue k []
+  | effect Trace (_, _), k -> continue k () (* or buffer *)
+  | effect Quiet, k -> continue k true
+  | effect Name (tm, asms), k -> continue k (Names.name_asm tm asms)
+  | effect Fail, _ -> failwith "worker fail" (* or signal back *)
+  | effect Choose choices, k -> (
+      match as_chosen_list choices with
+      | [] -> failwith "no choices"
+      | c :: _ -> continue k c)
+  | effect Subgoal _, _ -> failwith "unexpected subgoal in worker"
+  | thm -> thm
+
+let collect_subgoals (tacs : tactic list) : tactic_combinator =
+  let tacs = ref tacs in
+  let subgoals : (goal * tactic) list ref = ref [] in
+  let mode = ref `Collect in
+  let real_thms : thm list ref = ref [] in
+  fun tac goal ->
+    let rec handler f =
+      match f () with
+      | effect Subgoal g, k -> (
+          match !mode with
+          | `Collect -> (
+              match !tacs with
+              | [] ->
+                  trace_proof "more subgoals than provided tactics";
+                  fail ()
+              | next :: rest ->
+                  tacs := rest;
+                  subgoals := (g, next) :: !subgoals;
+                  handler (fun () -> continue k Derived.truth))
+          | `Replay -> (
+              match !real_thms with
+              | [] ->
+                  trace_proof "replay ran out of thms";
+                  fail ()
+              | thm :: rest ->
+                  real_thms := rest;
+                  handler (fun () -> continue k thm)))
+      | v -> (
+          match !mode with
+          | `Replay -> v
+          | `Collect ->
+              Printf.printf "encountered count: %d\n" (List.length !subgoals);
+              !subgoals
+              |> List.iter (fun ((_, g), _) ->
+                  print_endline @@ Printing.pretty_print_hol_term g);
+
+              let ordered = List.rev !subgoals in
+
+              (* let computed = List.map (fun (g, t) -> t g) ordered in *)
+              let computed =
+                T.run pool (fun () ->
+                    parallel_map pool
+                      (fun (g, t) -> run_tactic_in_worker g t)
+                      ordered)
+              in
+              mode := `Replay;
+              real_thms := computed;
+              handler (fun () -> tac goal))
+    in
+    handler (fun () -> tac goal)
+
+let ( >>>= ) = Fun.flip collect_subgoals
