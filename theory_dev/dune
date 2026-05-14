@@ -6,6 +6,7 @@
  (preprocess
   (pps heft.ppx_heft))
  (libraries
+  domainslib
   heft
   heft.theories.conds
   heft.theories.wf
