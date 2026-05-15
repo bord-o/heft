@@ -356,11 +356,14 @@ let rec ac_norm_tm_step op = function
   | App (App (Const (op1, _), left), right) as t when op1 = op -> (
       (* Looking at the right operand *)
       match right with
-      | (Const (_, _) | Var (_, _)) when left < right -> None
-      | (Const (_, _) | Var (_, _)) when left >= right -> Some (Comm t)
-      | App (App (Const (op1, _), b), _) when op1 = op && left < b ->
+      | (Const (_, _) | Var (_, _)) when alphaorder left right < 0 -> None
+      | (Const (_, _) | Var (_, _)) when alphaorder left right >= 0 ->
+          Some (Comm t)
+      | App (App (Const (op1, _), b), _)
+        when String.equal op1 op && alphaorder left b < 0 ->
           ac_norm_tm_step op right
-      | App (App (Const (op1, _), b), _) when op1 = op && left >= b ->
+      | App (App (Const (op1, _), b), _)
+        when String.equal op1 op && alphaorder left b >= 0 ->
           Some (Comm_left t)
       | _ -> None)
   | _ -> None
@@ -370,12 +373,13 @@ let ac_norm op : tactic =
  fun g ->
   let rec aux acc = function
     | Var _ | Const _ -> acc
-    | App (App (Const (op1, _), a), b) as t when op1 = op ->
+    | App (App (Const (op1, _), a), b) as t when String.equal op1 op ->
         aux (aux (t :: acc) a) b
     | App (f, x) -> aux (aux acc f) x
     | Lam (_, bod) -> aux acc bod
   in
-  let possible_chains = aux [] (snd g) |> List.sort_uniq compare in
+  (* let possible_chains = aux [] (snd g) |> List.sort_uniq compare in *)
+  let possible_chains = aux [] (snd g) in
   let comm = op ^ "_comm" in
   let comm_left = op ^ "_comm_left" in
   let assoc = op ^ "_assoc" in
@@ -385,13 +389,13 @@ let ac_norm op : tactic =
         match ac_norm_tm_step op chain with
         | None -> None
         | Some (Comm t) ->
-            trace_info
-            @@ Printf.sprintf "Comm: %s\n" (Printing.pretty_print_hol_term t);
+            (* trace_info *)
+            (* @@ Printf.sprintf "Comm: %s\n" (Printing.pretty_print_hol_term t); *)
             Some (try_ @@ with_proven [ comm ] (rewrite_term ~target:t))
         | Some (Comm_left t) ->
-            trace_info
-            @@ Printf.sprintf "Comm_left: %s\n"
-                 (Printing.pretty_print_hol_term t);
+            (* trace_info *)
+            (* @@ Printf.sprintf "Comm_left: %s\n" *)
+            (*      (Printing.pretty_print_hol_term t); *)
             Some (try_ @@ with_proven [ comm_left ] (rewrite_term ~target:t)))
       possible_chains
   in
