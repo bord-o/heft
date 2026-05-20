@@ -81,7 +81,7 @@ let trace_error a = perform (Trace (Error, a))
 let trace_proof a = perform (Trace (Proof, a))
 let choose_terms gs = perform (Choose (Term gs))
 let choose_theorems gs = perform (Choose (Theorem gs))
-let choosetics gs = perform (Choose (Tactic gs))
+let choose_tactics gs = perform (Choose (Tactic gs))
 let choose_unknowns gs = perform (Choose (Unknown gs))
 
 let return_thm ?(from = "unknown") res =
@@ -99,48 +99,35 @@ let return_thm ?(from = "unknown") res =
 let then_one (tac1 : tactic) : tactic_combinator =
  fun tac goal ->
   let handled_first = ref false in
-  let rec handler f =
-    match f () with
-    | effect Subgoal g, k when not !handled_first ->
-        handled_first := true;
-        let thm : thm = tac g in
-        handler (fun () -> continue k thm)
-    | (v : thm) -> v
-  in
-  handler (fun () -> tac1 goal)
+  match tac1 goal with
+  | effect Subgoal g, k when not !handled_first ->
+      handled_first := true;
+      let thm : thm = tac g in
+      continue k thm
+  | (v : thm) -> v
 
 let ( >> ) = then_one
 
 let then_all (tac1 : tactic) : tactic_combinator =
  fun tac goal ->
-  let rec handler f =
-    match f () with
-    | effect Subgoal g, k ->
-        let thm : thm = tac g in
-        handler (fun () -> continue k thm)
-    | v -> v
-  in
-  handler (fun () -> tac1 goal)
+  match tac1 goal with
+  | effect Subgoal g, k ->
+      let thm : thm = tac g in
+      continue k thm
+  | v -> v
 
 let ( @>>> ) = then_all
 
 let then_all_direct (tac1 : tactic) : tactic_combinator =
  fun tac goal ->
   let depth = ref 0 in
-  let rec handler f =
-    match f () with
-    | effect Subgoal g, k when !depth = 0 ->
-        incr depth;
-        let thm : thm = handler (fun () -> tac g) in
-        decr depth;
-        handler (fun () -> continue k thm)
-    | effect Subgoal g, k when !depth > 0 ->
-        (* Re-emit for the outer handler *)
-        let thm : thm = perform (Subgoal g) in
-        handler (fun () -> continue k thm)
-    | v -> v
-  in
-  handler (fun () -> tac1 goal)
+  match tac1 goal with
+  | effect Subgoal g, k when !depth = 0 ->
+      incr depth;
+      let thm : thm = tac g in
+      decr depth;
+      continue k thm
+  | v -> v
 
 let ( @>> ) = then_all_direct
 
@@ -246,7 +233,7 @@ let try_ : tactic_combinator =
 
 let pick (tacs : tactic list) : tactic =
  fun goal ->
-  let tac = choosetics tacs in
+  let tac = choose_tactics tacs in
   tac goal
 
 let solve : tactic_combinator =
@@ -655,7 +642,7 @@ let right : tactic =
 let or_ : tactic =
  fun (asms, concl) ->
   register "or" (Unsafe 6);
-  let tac = choosetics [ left; right ] in
+  let tac = choose_tactics [ left; right ] in
   let thm = Ok (tac (asms, concl)) in
   return_thm ~from:"or" thm
 

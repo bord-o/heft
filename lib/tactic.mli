@@ -113,7 +113,7 @@ val trace_proof : string -> unit
 
 val choose_terms : term list -> term
 val choose_theorems : thm list -> thm
-val choosetics : tactic list -> tactic
+val choose_tactics : tactic list -> tactic
 val choose_unknowns : 'a list -> 'a
 
 val return_thm :
