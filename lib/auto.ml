@@ -259,7 +259,9 @@ let with_dfs' : tactic_combinator =
     | effect Subgoal g, k ->
         let thm : thm = handler (fun () -> tac g) in
         handler (fun () -> continue k thm)
-    | effect Fail, _ -> fail ()
+    | effect Fail, k ->
+        cleanup k;
+        fail ()
     | v -> v
   in
   handler (fun () -> tac goal)
