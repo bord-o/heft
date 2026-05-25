@@ -316,7 +316,7 @@ let auto_dfs : tactic =
 
 let destruct_elim =
   (destruct @! "ignore")
-  @>> try_ (with_first elim_disj_asm)
+  @>> try_ (with_repeat (with_first elim_disj_asm))
   @>> try_ (with_repeat (with_first elim_exists_asm))
 
 let simp_all = try_ simp_asm >> try_ simp
@@ -358,14 +358,14 @@ let rec ac_norm_tm_step op = function
   | App (App (Const (op1, _), left), right) as t when op1 = op -> (
       (* Looking at the right operand *)
       match right with
-      | (Const (_, _) | Var (_, _)) when alphaorder left right < 0 -> None
-      | (Const (_, _) | Var (_, _)) when alphaorder left right >= 0 ->
+      | (Const (_, _) | Var (_, _)) when alphaorder left right > 0 -> None
+      | (Const (_, _) | Var (_, _)) when alphaorder left right <= 0 ->
           Some (Comm t)
       | App (App (Const (op1, _), b), _)
-        when String.equal op1 op && alphaorder left b < 0 ->
+        when String.equal op1 op && alphaorder left b > 0 ->
           ac_norm_tm_step op right
       | App (App (Const (op1, _), b), _)
-        when String.equal op1 op && alphaorder left b >= 0 ->
+        when String.equal op1 op && alphaorder left b <= 0 ->
           Some (Comm_left t)
       | _ -> None)
   | _ -> None

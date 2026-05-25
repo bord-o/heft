@@ -145,11 +145,14 @@ and proof = auto [@quiet]
 let%thm eo_add_E0_r (x : edge_ori) = eo_add x E0 = x
 and proof = (induct @>> auto) [@quiet] [@simp]
 
+let%thm eo_add_E0_r (x : edge_ori) = eo_add E0 x = x
+and proof = (induct @>> auto) [@quiet] [@simp]
+
 let%thm eo_add_E1_E1 = eo_add E1 E1 = E0
 and proof = auto [@quiet]
 
 let%thm eo_add_self (x : edge_ori) = eo_add x x = E0
-and proof = (induct @>> auto) [@quiet]
+and proof = (induct @>> auto) [@quiet] [@simp]
 
 let%def move_U (c : cube) : cube =
   match c with
@@ -566,3 +569,308 @@ let destruct_edges =
   @>> with_term [%term (a9 : edge_cubie)] destruct_elim
   @>> with_term [%term (a10 : edge_cubie)] destruct_elim
   @>> with_term [%term (a11 : edge_cubie)] destruct_elim
+
+let destruct_norm ~op =
+  intros
+  >> destruct_cube @>> destruct_corners @>> destruct_edges
+  >> simp ~exclude:[ "co_add"; "eo_add" ]
+  >> with_repeat @@ ac_norm op
+  >> simp ~exclude:[ "co_add"; "eo_add" ]
+
+let%thm co_sum_inv_U (c : cube) = co_sum (move_U c) = co_sum c
+and proof = destruct_norm ~op:"co_add" [@quiet]
+
+let%thm co_sum_inv_D (c : cube) = co_sum (move_D c) = co_sum c
+and proof = destruct_norm ~op:"co_add" [@quiet]
+
+let%thm co_add_2211 = co_add C2 (co_add C2 (co_add C1 C1)) = C0
+and proof = simp [@quiet] [@simp]
+
+let%thm co_sum_inv_L (c : cube) = co_sum (move_L c) = co_sum c
+and proof = destruct_norm ~op:"co_add" [@quiet]
+
+let%thm co_sum_inv_R (c : cube) = co_sum (move_R c) = co_sum c
+and proof = destruct_norm ~op:"co_add" [@quiet]
+
+let%thm co_sum_inv_F (c : cube) = co_sum (move_F c) = co_sum c
+and proof = destruct_norm ~op:"co_add" [@quiet]
+
+let%thm co_sum_inv_B (c : cube) = co_sum (move_B c) = co_sum c
+and proof = destruct_norm ~op:"co_add" [@quiet]
+
+let%def ec_ori (edge : edge_cubie) : edge_ori =
+  match edge with Edge (pos, ori) -> ori
+
+let%def eo_sum (c : cube) : edge_ori =
+  match c with
+  | Cube (corners, edges) -> (
+      match (edges : edges) with
+      | Edges (e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11) ->
+          eo_add (ec_ori e0)
+            (eo_add (ec_ori e1)
+               (eo_add (ec_ori e2)
+                  (eo_add (ec_ori e3)
+                     (eo_add (ec_ori e4)
+                        (eo_add (ec_ori e5)
+                           (eo_add (ec_ori e6)
+                              (eo_add (ec_ori e7)
+                                 (eo_add (ec_ori e8)
+                                    (eo_add (ec_ori e9)
+                                       (eo_add (ec_ori e10) (ec_ori e11)))))))))))
+      )
+
+let%thm eo_sum_solved = eo_sum solved_cube = E0
+and proof = simp ~exclude:[ "co_add"; "eo_add" ] [@quiet]
+
+let%thm eo_add_assoc (a : edge_ori) (b : edge_ori) (c : edge_ori) =
+  eo_add (eo_add a b) c = eo_add a (eo_add b c)
+
+and proof =
+  begin
+    intros
+    >> with_term [%term (a : edge_ori)] destruct_elim
+       @>> with_term [%term (b : edge_ori)] destruct_elim
+       @>> with_term [%term (c : edge_ori)] destruct_elim
+       @>> auto
+  end
+  [@quiet]
+
+let%thm eo_add_comm_true (e1 : edge_ori) (e2 : edge_ori) =
+  eo_add e1 e2 = eo_add e2 e1 = true
+
+and proof =
+  begin
+    noop >> intros >> eq_true_elim
+    >> with_term [%term (e1 : edge_ori)] destruct_elim
+       @>> with_term [%term (e2 : edge_ori)] destruct_elim
+       @>> try_ (with_repeat elim_disj_asm)
+       @>> simp
+  end
+  [@quiet]
+
+let%thm eo_add_comm (e1 : edge_ori) (e2 : edge_ori) =
+  eo_add e1 e2 = eo_add e2 e1
+
+and proof =
+  begin
+    intros >> rewrite_at "eo_add_comm_true" >> truth
+  end
+  [@quiet]
+
+let%thm eo_add_comm_left (e1 : edge_ori) (e2 : edge_ori) (e3 : edge_ori) =
+  eo_add e1 (eo_add e2 e3) = eo_add e2 (eo_add e1 e3)
+
+and proof =
+  begin
+    intros
+    >> with_proven [ "eo_add_assoc" ] @@ with_flip_rules @@ rewrite ~position:1
+    >> with_proven [ "eo_add_comm" ] @@ with_flip_rules @@ rewrite ~position:3
+    >> with_proven [ "eo_add_assoc" ] @@ rewrite ~position:0
+    >> refl
+  end
+  [@quiet]
+
+let%thm eo_sum_inv_U (c : cube) = eo_sum (move_U c) = eo_sum c
+and proof = destruct_norm ~op:"eo_add" [@quiet]
+
+let%thm eo_sum_inv_D (c : cube) = eo_sum (move_D c) = eo_sum c
+and proof = destruct_norm ~op:"eo_add" [@quiet]
+
+let%thm eo_sum_inv_L (c : cube) = eo_sum (move_L c) = eo_sum c
+and proof = destruct_norm ~op:"eo_add" [@quiet]
+
+let%thm eo_sum_inv_R (c : cube) = eo_sum (move_R c) = eo_sum c
+and proof = destruct_norm ~op:"eo_add" [@quiet]
+
+let%thm eo_sum_inv_F (c : cube) = eo_sum (move_F c) = eo_sum c
+and proof = destruct_norm ~op:"eo_add" [@quiet]
+
+let%thm eo_sum_inv_B (c : cube) = eo_sum (move_B c) = eo_sum c
+and proof = destruct_norm ~op:"eo_add" [@quiet]
+
+let%def reachable_invariant (c : cube) : bool = co_sum c = C0 && eo_sum c = E0
+
+let%thm reachable_invariant_solved = reachable_invariant solved_cube
+
+and proof =
+  begin
+    simp ~exclude:[ "eo_add"; "co_add" ] >> auto
+  end
+  [@quiet]
+
+type inv_dir = U | D | L | R | F | B
+
+let reach_by ?(inject = noop) ~(inv_dir : inv_dir) =
+  let dir =
+    match inv_dir with
+    | U -> "U"
+    | D -> "D"
+    | L -> "L"
+    | R -> "R"
+    | F -> "F"
+    | B -> "B"
+  in
+  try_ intros @! "hreach"
+  >> rewrite_at "reachable_invariant"
+  >> beta
+  >> rewrite_at "reachable_invariant" ~target:"hreach"
+  >> beta_asm >> elim_conj_asm >> conj >> inject
+  >> rewrite_at ("co_sum_inv_" ^ dir)
+  >> assumption >> inject
+  >> rewrite_at ("eo_sum_inv_" ^ dir)
+  >> assumption
+
+let%thm reachable_invariant_inv_U (c : cube) =
+  reachable_invariant c ==> reachable_invariant (move_U c)
+
+and proof = reach_by ~inv_dir:U [@quiet]
+
+let%thm reachable_invariant_inv_D (c : cube) =
+  reachable_invariant c ==> reachable_invariant (move_D c)
+
+and proof = reach_by ~inv_dir:D [@quiet]
+
+let%thm reachable_invariant_inv_L (c : cube) =
+  reachable_invariant c ==> reachable_invariant (move_L c)
+
+and proof = reach_by ~inv_dir:L [@quiet]
+
+let%thm reachable_invariant_inv_R (c : cube) =
+  reachable_invariant c ==> reachable_invariant (move_R c)
+
+and proof = reach_by ~inv_dir:R [@quiet]
+
+let%thm reachable_invariant_inv_F (c : cube) =
+  reachable_invariant c ==> reachable_invariant (move_F c)
+
+and proof = reach_by ~inv_dir:F [@quiet]
+
+let%thm reachable_invariant_inv_B (c : cube) =
+  reachable_invariant c ==> reachable_invariant (move_B c)
+
+and proof = reach_by ~inv_dir:B [@quiet]
+
+[%%inductive type face = FaceU | FaceD | FaceL | FaceR | FaceF | FaceB]
+[%%inductive type turn = CW | CCW | Half]
+[%%inductive type move = Move of face * turn]
+
+let%def apply_cw (f : face) (c : cube) : cube =
+  match f with
+  | FaceU -> move_U c
+  | FaceD -> move_D c
+  | FaceL -> move_L c
+  | FaceR -> move_R c
+  | FaceF -> move_F c
+  | FaceB -> move_B c
+
+let%def apply_move (m : move) (c : cube) : cube =
+  match m with
+  | Move (f, t) -> (
+      match (t : turn) with
+      | CW -> apply_cw f c
+      | Half -> apply_cw f (apply_cw f c)
+      | CCW -> apply_cw f (apply_cw f (apply_cw f c)))
+
+let%def inv_move (m : move) : move =
+  match m with
+  | Move (f, t) -> (
+      match (t : turn) with
+      | CW -> Move (f, CCW)
+      | CCW -> Move (f, CW)
+      | Half -> Move (f, Half))
+
+let%primrec apply_moves (ms : move list) (c : cube) : cube =
+  match ms with [] -> c | m :: rest -> apply_moves rest (apply_move m c)
+
+let%primrec inv_moves (ms : move list) : move list =
+  match ms with [] -> [] | m :: rest -> append (inv_moves rest) [ inv_move m ]
+
+let%thm apply_cw_preserves_invariant (f : face) (c : cube) =
+  reachable_invariant c ==> reachable_invariant (apply_cw f c)
+
+and proof =
+  begin
+    let exclude =
+      [
+        "eo_sum";
+        "co_sum";
+        "move_U";
+        "move_D";
+        "move_L";
+        "move_R";
+        "move_F";
+        "move_B";
+      ]
+    in
+    intros @! "hreach"
+    >> with_term [%term (f : face)] destruct_elim
+    >>= [
+          reach_by ~inject:(simp ~exclude) ~inv_dir:U;
+          reach_by ~inject:(simp ~exclude) ~inv_dir:D;
+          reach_by ~inject:(simp ~exclude) ~inv_dir:L;
+          reach_by ~inject:(simp ~exclude) ~inv_dir:R;
+          reach_by ~inject:(simp ~exclude) ~inv_dir:F;
+          reach_by ~inject:(simp ~exclude) ~inv_dir:B;
+        ]
+  end
+  [@quiet]
+
+let const_names n = List.init 100 (Fun.const n)
+
+let%thm apply_move_preserves_invariant (m : move) (c : cube) =
+  reachable_invariant c ==> reachable_invariant (apply_move m c)
+
+and proof =
+  begin
+    intros @! "hreach"
+    >> (with_term [%term (m : move)] destruct_elim @: const_names "hmove")
+       @>> (with_term [%term (a0 : face)] destruct_elim @: const_names "hface")
+       @>> (with_term [%term (a1 : turn)] destruct_elim @: const_names "hturn")
+       @>> (with_named_rule
+              [
+                "hmove";
+                "hface";
+                "hturn";
+                "apply_move";
+                "match_move";
+                "match_turn";
+              ]
+              simp_only
+           >> try_ (with_repeat (apply_at "apply_cw_preserves_invariant"))
+           >> assumption)
+  end
+  [@quiet]
+
+let%thm apply_moves_preserves_invariant (ms : move list) (c : cube) =
+  reachable_invariant c ==> reachable_invariant (apply_moves ms c)
+
+and proof =
+  begin
+    induct
+    >>= [
+          intros >> rewrite_at "apply_moves" >> beta >> assumption;
+          intros @: [ "hIH"; "hreach" ]
+          >> with_first (rewrite_at "apply_moves")
+          >> beta
+          >> with_term
+               [%term reachable_invariant (apply_move (n0 : move) (c : cube))]
+               have
+             @! "hreach_head"
+          >> apply_at "apply_move_preserves_invariant"
+          >> assumption
+          >> apply_at "hIH" ~target:"hreach_head"
+          >> assumption;
+        ]
+  end
+  [@quiet]
+
+let%thm reachable_states_satisfy_invariant (ms : move list) =
+  reachable_invariant (apply_moves ms solved_cube)
+
+and proof =
+  begin
+    gen
+    >> apply_at "apply_moves_preserves_invariant"
+    >> apply_at "reachable_invariant_solved"
+  end
+  [@quiet]

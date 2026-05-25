@@ -1242,19 +1242,18 @@ let rewrite_at (source : string) ?target ?position =
   | Some name -> (with_named_asm_term name (with_rules thms rewrite_asm)) goal
 
 let with_named_rule names : tactic_combinator =
+ fun tac goal ->
   let rules =
     names
     |> List.map (fun n ->
-        match Rules.find_thms n [] with
+        match Rules.find_thms n (fst goal) with
         | None ->
             trace_error (Printf.sprintf "Couldn't find def with name %s\n" n);
             fail ()
         | Some rules -> rules)
     |> List.flatten
   in
-  print_endline "calculating named rules list";
-  fun tac goal ->
-    match tac goal with effect Rules, k -> continue k rules | v -> v
+  match tac goal with effect Rules, k -> continue k rules | v -> v
 
 let contradict_asm : tactic =
  fun (asms, concl) ->

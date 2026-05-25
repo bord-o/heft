@@ -752,7 +752,7 @@ let%expect_test "sort correct lemma" =
     ∀x. ∀n. sorted x ==> sorted (insert x n)
 
     Proof Complete!
-    with fuel: 600
+    with fuel: 610
     |}]
 
 let%expect_test "sort correct" =
@@ -827,7 +827,7 @@ let%expect_test "div fuel irrel" =
     ∀x. ∀m. ∀a. ∀b. ∀x'. div_aux x a b = Some x' ==> div_aux (plus x m) a b = Some x'
 
     Proof Complete!
-    with fuel: 312
+    with fuel: 322
     |}]
 
 let%expect_test "lt_Zero_Suc" =
@@ -1285,7 +1285,7 @@ let%expect_test "lt_implies_le" =
     ∀x. ∀b. nat_lt x b ==> nat_le x b
 
     Proof Complete!
-    with fuel: 221
+    with fuel: 231
     |}]
 
 (* (* ===== Group 5: Transitivity ===== *) *)
@@ -2243,7 +2243,7 @@ let%expect_test "div_le" =
     ∀x. ∀k. ∀m. nat_lt Zero m ==> nat_le k x ==> nat_le (div k m) x
 
     Proof Complete!
-    with fuel: 366
+    with fuel: 376
     |}]
 
 let%expect_test "div_lt" =
