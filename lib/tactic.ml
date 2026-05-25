@@ -415,8 +415,17 @@ let with_names (names : string list) : tactic_combinator =
       continue k result
   | v -> v
 
-let ( @: ) tc names = with_names names tc
-let ( @! ) tc name = with_names [ name ] tc
+let with_const_names (name : string) : tactic_combinator =
+ fun tac goal ->
+  match tac goal with
+  | effect Name (tm, asms), k -> continue k (name, tm)
+  | v -> v
+
+let ( @: ) tc names = with_names names tc (*TODO: remove*)
+let ( /: ) tc names = with_names names tc
+let ( @! ) tc name = with_names [ name ] tc (*TODO: remove*)
+let ( /! ) tc name = with_names [ name ] tc
+let ( /* ) tc name = with_const_names name tc
 
 let with_definition (names : string list) : tactic_combinator =
   let rules =

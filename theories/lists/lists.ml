@@ -1,5 +1,6 @@
 open Heft
 open Kernel
+open Tactic
 
 let () = print_endline "initializing theory lists"
 let a = make_vartype "a"
@@ -106,3 +107,12 @@ let cons = make_const "Cons" [] |> Result.get_ok
 let length = make_const "length" [] |> Result.get_ok
 let append = make_const "append" [] |> Result.get_ok
 let reverse = make_const "reverse" [] |> Result.get_ok
+
+let%thm append_cons (x : 'a) (xs : 'a list) (ys : 'a list) =
+  append (x :: xs) ys = x :: append xs ys
+
+and proof =
+  begin
+    intros >> simp
+  end
+  [@quiet]

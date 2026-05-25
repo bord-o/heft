@@ -502,7 +502,10 @@ val with_names : string list -> tactic_combinator
     list is exhausted, falls back to auto-generation. *)
 
 val ( @: ) : tactic -> string list -> tactic
+val ( /: ) : tactic -> string list -> tactic
 val ( @! ) : tactic -> string -> tactic
+val ( /! ) : tactic -> string -> tactic
+val ( /* ) : tactic -> string -> tactic
 
 val with_rules_and_assumptions : thm list -> tactic_combinator
 (** Answers [Rules] with the given theorems together with the goal's assumptions

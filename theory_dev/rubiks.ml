@@ -768,8 +768,8 @@ let%def apply_move (m : move) (c : cube) : cube =
   | Move (f, t) -> (
       match (t : turn) with
       | CW -> apply_cw f c
-      | Half -> apply_cw f (apply_cw f c)
-      | CCW -> apply_cw f (apply_cw f (apply_cw f c)))
+      | CCW -> apply_cw f (apply_cw f (apply_cw f c))
+      | Half -> apply_cw f (apply_cw f c))
 
 let%def inv_move (m : move) : move =
   match m with
@@ -815,17 +815,15 @@ and proof =
   end
   [@quiet]
 
-let const_names n = List.init 100 (Fun.const n)
-
 let%thm apply_move_preserves_invariant (m : move) (c : cube) =
   reachable_invariant c ==> reachable_invariant (apply_move m c)
 
 and proof =
   begin
     intros @! "hreach"
-    >> (with_term [%term (m : move)] destruct_elim @: const_names "hmove")
-       @>> (with_term [%term (a0 : face)] destruct_elim @: const_names "hface")
-       @>> (with_term [%term (a1 : turn)] destruct_elim @: const_names "hturn")
+    >> (with_term [%term (m : move)] destruct_elim /* "hmove")
+       @>> (with_term [%term (a0 : face)] destruct_elim /* "hface")
+       @>> (with_term [%term (a1 : turn)] destruct_elim /* "hturn")
        @>> (with_named_rule
               [
                 "hmove";
@@ -849,13 +847,13 @@ and proof =
     induct
     >>= [
           intros >> rewrite_at "apply_moves" >> beta >> assumption;
-          intros @: [ "hIH"; "hreach" ]
+          intros /: [ "hIH"; "hreach" ]
           >> with_first (rewrite_at "apply_moves")
           >> beta
           >> with_term
                [%term reachable_invariant (apply_move (n0 : move) (c : cube))]
                have
-             @! "hreach_head"
+             /! "hreach_head"
           >> apply_at "apply_move_preserves_invariant"
           >> assumption
           >> apply_at "hIH" ~target:"hreach_head"
@@ -872,5 +870,99 @@ and proof =
     gen
     >> apply_at "apply_moves_preserves_invariant"
     >> apply_at "reachable_invariant_solved"
+  end
+  [@quiet]
+
+let%thm apply_cw_four (f : face) (c : cube) =
+  apply_cw f (apply_cw f (apply_cw f (apply_cw f c))) = c
+
+and proof =
+  begin
+    intros
+    >> (with_term [%term (f : face)] destruct_elim /* "hface")
+       @>> (with_repeat @@ rewrite_at "hface"
+           >> with_repeat @@ with_first @@ rewrite_at "apply_cw"
+           >> beta
+           >> with_repeat @@ with_first @@ rewrite_at "match_face"
+           >> beta)
+    >> apply_at "move_U_id" >> apply_at "move_D_id" >> apply_at "move_L_id"
+    >> apply_at "move_R_id" >> apply_at "move_F_id" >> apply_at "move_B_id"
+  end
+  [@quiet]
+
+let%thm apply_move_inv_correct (m : move) (c : cube) =
+  apply_move (inv_move m) (apply_move m c) = c
+
+and proof =
+  begin
+    intros
+    >> (with_term [%term (m : move)] destruct_elim /* "hmove")
+       @>> (with_term [%term (a1 : turn)] destruct_elim /* "hturn")
+       @>> (with_repeat @@ rewrite_at "hmove"
+           >> with_repeat @@ rewrite_at "hturn"
+           >> with_named_rule
+                [ "inv_move"; "match_move"; "match_turn"; "apply_move" ]
+                simp_only)
+       @>> apply_at "apply_cw_four"
+  end
+  [@quiet]
+
+let%thm apply_move_inv_correct' (m : move) (c : cube) =
+  apply_move m (apply_move (inv_move m) c) = c
+
+and proof =
+  begin
+    intros
+    >> (with_term [%term (m : move)] destruct_elim /* "hmove")
+       @>> (with_term [%term (a1 : turn)] destruct_elim /* "hturn")
+       @>> (with_repeat @@ rewrite_at "hmove"
+           >> with_repeat @@ rewrite_at "hturn"
+           >> with_named_rule
+                [ "inv_move"; "match_move"; "match_turn"; "apply_move" ]
+                simp_only)
+       @>> apply_at "apply_cw_four"
+  end
+  [@quiet]
+
+let%thm apply_moves_append (xs : move list) (ys : move list) (c : cube) =
+  apply_moves (append xs ys) c = apply_moves ys (apply_moves xs c)
+
+and proof =
+  begin
+    induct
+    >>= [
+          intros >> simp;
+          intros /! "hIH"
+          >> with_first @@ rewrite_at "apply_moves"
+          >> beta >> rewrite_at "append_cons"
+          >> with_first @@ rewrite_at "apply_moves"
+          >> beta >> rewrite_at "hIH" >> refl;
+        ]
+  end
+  [@quiet]
+
+let%thm apply_moves_singleton (m : move) (c : cube) =
+  apply_moves [ m ] c = apply_move m c
+
+and proof =
+  begin
+    intros >> with_named_rule [ "apply_moves" ] simp_only
+  end
+  [@quiet]
+
+let%thm apply_moves_inv (ms : move list) (c : cube) =
+  apply_moves (inv_moves ms) (apply_moves ms c) = c
+
+and proof =
+  begin
+    induct
+    >>= [
+          intros >> with_named_rule [ "apply_moves"; "inv_moves" ] simp_only;
+          intros /! "hIH"
+          >> with_named_rule
+               [ "apply_moves"; "inv_moves"; "apply_moves_append" ]
+               simp_only
+          >> apply_at "apply_move_inv_correct";
+        ]
   end
   [@quiet]
