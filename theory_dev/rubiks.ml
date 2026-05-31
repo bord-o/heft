@@ -56,6 +56,7 @@ type corners =
       * corner_cubie (* slot 6: DLF home *)
       * corner_cubie (* slot 7: DBL home *)
       * corner_cubie (* slot 8: DRB home *)]
+let corners_def = Hashtbl.find Kernel.the_inductives "corners"
 
 [%%inductive
 type edges =
@@ -72,8 +73,10 @@ type edges =
       * edge_cubie (* slot 10: FL home *)
       * edge_cubie (* slot 11: BL home *)
       * edge_cubie (* slot 12: BR home *)]
+let edges_def = Hashtbl.find Kernel.the_inductives "edges"
 
 [%%inductive type cube = Cube of corners * edges]
+let cube_def = Hashtbl.find Kernel.the_inductives "cube"
 
 let%def solved_cube : cube =
   Cube

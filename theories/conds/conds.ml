@@ -141,3 +141,39 @@ let () =
     >> with_rule t_imp_eq rewrite
     >> with_rule select_eq rewrite
     >> refl)
+
+(* TODO why is the have not discharged???*)
+(* let%thm refl_cond (x : 'a) (t : 'b) (e : 'c)  =  *)
+(*     (if x = x then t else e) = t *)
+(* and proof = begin *)
+(*     intros *)
+(*     >> with_term [%term (((x:'a) = (x:'a)) = true)] have *)
+(*     >> eq_true_elim *)
+(*     >> refl *)
+(*     >> simp *)
+(* end *)
+(* [@trace] *)
+
+(* let () =  *)
+(*     Printing.print_thm (Rules.find_thm "refl_cond" [] |> Option.get) *)
+
+
+let%thm refl_eq_true (x : 'a) = x = x = true
+
+and proof =
+  begin
+    noop >> intros >> eq_true_elim >> refl
+  end
+  [@quiet]
+
+(*TODO: why can't this properly match for rewriting?*)
+let%thm refl_cond (x : 'a) (t : 'b) (e : 'b)  = 
+    (if x = x then t else e) = t
+and proof = begin
+    intros
+    >> rewrite_at "refl_eq_true"
+    >> simp
+end
+[@quiet]
+[@simp]
+
