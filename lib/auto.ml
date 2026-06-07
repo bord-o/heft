@@ -423,13 +423,20 @@ let cond : tactic =
     | _ -> acc
   in
   let cond_args = collect_cond_args concl [] in
+  trace_info
+    (Printf.sprintf "Found %d cond expressions\n" (List.length cond_args));
   match cond_args with
   | [] ->
       trace_error "no COND expressions found in goal";
       fail ()
   | terms ->
       let tm = choose_terms terms in
-      (with_term tm destruct >> try_ (with_repeat elim_disj_asm)) (asms, concl)
+      trace_info "continuing with chosen term";
+
+      (with_term tm destruct
+      (* >> try_ (fun _ -> trace_info "testing"; fail ()) *)
+      >> try_ (with_repeat (with_first elim_disj_asm)))
+        (asms, concl)
 
 module T = Domainslib.Task
 

@@ -155,7 +155,7 @@ let%expect_test "Nil_implies_length_Zero" =
   [%expect
     {|
     ========================================
-    ∀xs. xs = Nil ==> length xs = Zero
+    ∀xs. xs = [] ==> length xs = 0
 
     Proof Complete!
     with fuel: 24
@@ -174,7 +174,7 @@ let%expect_test "length_Zero_implies_Nil" =
   [%expect
     {|
     ========================================
-    ∀x. length x = Zero ==> x = Nil
+    ∀x. length x = 0 ==> x = []
 
     Proof Complete!
     with fuel: 45
@@ -189,7 +189,7 @@ let%expect_test "append Nil xs = xs" =
   [%expect
     {|
     ========================================
-    ∀xs. append Nil xs = xs
+    ∀xs. append [] xs = xs
 
     Proof Complete!
     with fuel: 25
@@ -225,7 +225,7 @@ let%expect_test "append xs Nil = xs" =
   [%expect
     {|
     ========================================
-    ∀x. append x Nil = x
+    ∀x. append x [] = x
 
     Proof Complete!
     with fuel: 55
@@ -383,7 +383,7 @@ let%expect_test "n - 0 = n" =
   [%expect
     {|
     ========================================
-    ∀x. minus x Zero = x
+    ∀x. minus x 0 = x
 
     Proof Complete!
     with fuel: 132
@@ -443,7 +443,7 @@ let%expect_test "n - n = z" =
   [%expect
     {|
     ========================================
-    ∀x. minus x x = Zero
+    ∀x. minus x x = 0
 
     Proof Complete!
     with fuel: 107
@@ -476,7 +476,7 @@ let%expect_test "pred twice" =
   [%expect
     {|
     ========================================
-    twice pred (Suc (Suc Zero)) = Zero
+    twice pred 2 = 0
 
     Proof Complete!
     with fuel: 50
@@ -524,7 +524,7 @@ let%expect_test "le nat test" =
   [%expect
     {|
     ========================================
-    nat_le Zero (Suc Zero)
+    nat_le 0 1
 
     Proof Complete!
     with fuel: 22
@@ -595,7 +595,7 @@ let%expect_test "minus Zero left" =
   [%expect
     {|
     ========================================
-    ∀x. minus Zero x = Zero
+    ∀x. minus 0 x = 0
 
     Proof Complete!
     with fuel: 145
@@ -632,7 +632,7 @@ let%expect_test "isort Nil" =
   [%expect
     {|
     ========================================
-    isort Nil = Nil
+    isort [] = []
 
     Proof Complete!
     with fuel: 14
@@ -844,7 +844,7 @@ let%expect_test "lt_Zero_Suc" =
   [%expect
     {|
     ========================================
-    ∀x. nat_lt Zero x ==> ∃x'. x = Suc x'
+    ∀x. nat_lt 0 x ==> ∃x'. x = Suc x'
 
     Proof Complete!
     with fuel: 39
@@ -864,7 +864,7 @@ let%expect_test "Suc_lt_Zero" =
   [%expect
     {|
     ========================================
-    ∀x. ∀b. b = Suc x ==> nat_lt Zero b
+    ∀x. ∀b. b = Suc x ==> nat_lt 0 b
 
     Proof Complete!
     with fuel: 180
@@ -878,7 +878,7 @@ let%expect_test "lt_Zero_Suc" =
   [%expect
     {|
     ========================================
-    ∀x. nat_lt x Zero = F
+    ∀x. nat_lt x 0 = F
 
     Proof Complete!
     with fuel: 74
@@ -941,7 +941,7 @@ let%expect_test "sub_Zero_r" =
   [%expect
     {|
     ========================================
-    ∀x. sub x Zero = x
+    ∀x. sub x 0 = x
 
     Proof Complete!
     with fuel: 95
@@ -968,7 +968,7 @@ let%expect_test "sub_Zero_l" =
   [%expect
     {|
     ========================================
-    ∀x. sub Zero x = Zero
+    ∀x. sub 0 x = 0
 
     Proof Complete!
     with fuel: 81
@@ -982,7 +982,7 @@ let%expect_test "lt_Zero_Suc" =
   [%expect
     {|
     ========================================
-    ∀x. nat_lt Zero (Suc x) = T
+    ∀x. nat_lt 0 (Suc x) = T
 
     Proof Complete!
     with fuel: 117
@@ -1012,7 +1012,7 @@ let%expect_test "le_Zero_eq" =
   [%expect
     {|
     ========================================
-    ∀x. nat_le x Zero ==> x = Zero
+    ∀x. nat_le x 0 ==> x = 0
 
     Proof Complete!
     with fuel: 143
@@ -1025,7 +1025,7 @@ let%expect_test "le_Zero_l" =
   [%expect
     {|
     ========================================
-    ∀x. nat_le Zero x = T
+    ∀x. nat_le 0 x = T
 
     Proof Complete!
     with fuel: 88
@@ -1056,7 +1056,7 @@ let%expect_test "le_Zero_r" =
   [%expect
     {|
     ========================================
-    ∀x. nat_le (Suc x) Zero = F
+    ∀x. nat_le (Suc x) 0 = F
 
     Proof Complete!
     with fuel: 127
@@ -1095,7 +1095,7 @@ let%expect_test "sub_self" =
   [%expect
     {|
     ========================================
-    ∀x. sub x x = Zero
+    ∀x. sub x x = 0
 
     Proof Complete!
     with fuel: 74
@@ -1107,7 +1107,7 @@ let%expect_test "add_Zero_l" =
   [%expect
     {|
     ========================================
-    ∀x. plus Zero x = x
+    ∀x. plus 0 x = x
 
     Proof Complete!
     with fuel: 86
@@ -1551,7 +1551,7 @@ let%expect_test "sub_lt" =
   [%expect
     {|
     ========================================
-    ∀x. ∀a. nat_lt Zero x ==> nat_le x a ==> nat_lt (sub a x) a
+    ∀x. ∀a. nat_lt 0 x ==> nat_le x a ==> nat_lt (sub a x) a
 
     Proof Complete!
     with fuel: 443
@@ -1686,7 +1686,7 @@ let%expect_test "div fuel sufficient" =
   [%expect
     {|
     ========================================
-    ∀x. ∀a. ∀b. nat_lt Zero b ==> nat_lt a x ==> ∃x'. div_aux x a b = Some x'
+    ∀x. ∀a. ∀b. nat_lt 0 b ==> nat_lt a x ==> ∃x'. div_aux x a b = Some x'
 
     Proof Complete!
     with fuel: 241
@@ -1770,7 +1770,7 @@ let%expect_test "div unfold" =
   [%expect
     {|
     ========================================
-    ∀a. ∀b. nat_lt Zero b ==> div a b = COND (nat_lt a b) Zero (Suc (div (sub a b) b))
+    ∀a. ∀b. nat_lt 0 b ==> div a b = COND (nat_lt a b) 0 (Suc (div (sub a b) b))
 
     Proof Complete!
     with fuel: 282
@@ -2166,7 +2166,7 @@ let%expect_test "div_pos" =
   [%expect
     {|
     ========================================
-    ∀x. nat_lt (Suc Zero) x ==> nat_lt Zero (div x (Suc (Suc Zero)))
+    ∀x. nat_lt 1 x ==> nat_lt 0 (div x 2)
 
     Proof Complete!
     with fuel: 826
@@ -2240,7 +2240,7 @@ let%expect_test "div_le" =
   [%expect
     {|
     ========================================
-    ∀x. ∀k. ∀m. nat_lt Zero m ==> nat_le k x ==> nat_le (div k m) x
+    ∀x. ∀k. ∀m. nat_lt 0 m ==> nat_le k x ==> nat_le (div k m) x
 
     Proof Complete!
     with fuel: 376
@@ -2291,7 +2291,7 @@ let%expect_test "div_lt" =
   [%expect
     {|
     ========================================
-    ∀x. nat_lt (Suc Zero) x ==> nat_lt (div x (Suc (Suc Zero))) x
+    ∀x. nat_lt 1 x ==> nat_lt (div x 2) x
 
     Proof Complete!
     with fuel: 597
@@ -2475,7 +2475,7 @@ let%expect_test "merge sort unfold" =
   [%expect
     {|
     ========================================
-    ∀xs. merge_sort xs = COND (nat_le (length xs) (Suc Zero)) xs ((λhalf_length. merge (merge_sort (take half_length xs)) (merge_sort (drop half_length xs))) (div (length xs) (Suc (Suc Zero))))
+    ∀xs. merge_sort xs = COND (nat_le (length xs) 1) xs ((λhalf_length. merge (merge_sort (take half_length xs)) (merge_sort (drop half_length xs))) (div (length xs) 2))
 
     Proof Complete!
     with fuel: 211

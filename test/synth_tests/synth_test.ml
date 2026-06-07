@@ -22,7 +22,7 @@ let%expect_test "synth goal setup" =
   [%expect
     {|
     ========================================
-    ∃nil_case. g Nil = nil_case ==> g Nil = Zero
+    ∃nil_case. g [] = nil_case ==> g [] = 0
 
     Proof Complete!
     with fuel: 23
@@ -71,7 +71,7 @@ let%expect_test "synth goal setup full" =
       refl >>
       refl
     ========================================
-    ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
+    ∃nil_case. ∃cons_case. g [] = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g [x] = 1 ∧ g [x, y] = 2
 
     Proof Complete!
     with fuel: 92
@@ -540,7 +540,7 @@ let%expect_test "synth goal enumerate" =
       intro >>
       auto_dfs
     ========================================
-    ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x Nil) = Suc Zero ∧ g (Cons x (Cons y Nil)) = Suc (Suc Zero)
+    ∃nil_case. ∃cons_case. g [] = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g [x] = 1 ∧ g [x, y] = 2
 
     Proof Complete!
     with fuel: 878
@@ -593,7 +593,7 @@ let%expect_test "synth append" =
       intro >>
       auto_dfs
     ========================================
-    ∃nil_case. ∃cons_case. (∀ys. g Nil ys = nil_case ys) ==> (∀x. ∀xs. ∀ys. g (Cons x xs) ys = cons_case x xs (g xs ys)) ==> g Nil (Cons x Nil) = Cons x Nil ∧ g (Cons x Nil) (Cons y Nil) = Cons x (Cons y Nil)
+    ∃nil_case. ∃cons_case. (∀ys. g [] ys = nil_case ys) ==> (∀x. ∀xs. ∀ys. g (Cons x xs) ys = cons_case x xs (g xs ys)) ==> g [] [x] = [x] ∧ g [x] [y] = [x, y]
 
     Proof Complete!
     with fuel: 1149
@@ -656,7 +656,7 @@ let%expect_test "synth reverse" =
       intro >>
       auto_dfs
     ========================================
-    ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g (Cons x (Cons y Nil)) = Cons y (Cons x Nil)
+    ∃nil_case. ∃cons_case. g [] = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x xs (g xs)) ==> g [x, y] = [y, x]
 
     Proof Complete!
     with fuel: 6029
@@ -712,7 +712,7 @@ let%expect_test "synth mult" =
       intro >>
       auto_dfs
     ========================================
-    ∃nil_case. ∃suc_case. (∀n. g Zero n = nil_case n) ==> (∀m. ∀n. g (Suc m) n = suc_case n (g m n)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
+    ∃nil_case. ∃suc_case. (∀n. g 0 n = nil_case n) ==> (∀m. ∀n. g (Suc m) n = suc_case n (g m n)) ==> g 0 2 = 0 ∧ g 2 3 = 6
 
     Proof Complete!
     with fuel: 648
@@ -767,7 +767,7 @@ let%expect_test "synth sum" =
       intro >>
       auto_dfs
     ========================================
-    ∃nil_case. ∃cons_case. g Nil = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x (g xs)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
+    ∃nil_case. ∃cons_case. g [] = nil_case ==> (∀x. ∀xs. g (Cons x xs) = cons_case x (g xs)) ==> g [1, 2, 3] = 6
 
     Proof Complete!
     with fuel: 101
@@ -827,7 +827,7 @@ let%expect_test "synth length via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) Nil) = Suc Zero ∧ g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)) = Suc (Suc Zero)
+    ∃Nil_case. ∃Cons_case. g [] = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g [1] = 1 ∧ g [1, 2] = 2
 
     Proof Complete!
     with fuel: 706
@@ -876,7 +876,7 @@ let%expect_test "synth sum via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
+    ∃Nil_case. ∃Cons_case. g [] = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g [1, 2, 3] = 6
 
     Proof Complete!
     with fuel: 101
@@ -915,7 +915,7 @@ let%expect_test "synth append via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Nil_case. ∃Cons_case. (∀y0. g Nil y0 = Nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (Cons c0 c1) y0 = Cons_case c0 y0 (g c1 y0)) ==> g (Cons (Suc Zero) Nil) (Cons (Suc (Suc Zero)) Nil) = Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)
+    ∃Nil_case. ∃Cons_case. (∀y0. g [] y0 = Nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (Cons c0 c1) y0 = Cons_case c0 y0 (g c1 y0)) ==> g [1] [2] = [1, 2]
 
     Proof Complete!
     with fuel: 589
@@ -965,7 +965,7 @@ let%expect_test "synth mult via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Zero_case. ∃Suc_case. (∀y0. g Zero y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g Zero (Suc (Suc Zero)) = Zero ∧ g (Suc (Suc Zero)) (Suc (Suc (Suc Zero))) = Suc (Suc (Suc (Suc (Suc (Suc Zero)))))
+    ∃Zero_case. ∃Suc_case. (∀y0. g 0 y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g 0 2 = 0 ∧ g 2 3 = 6
 
     Proof Complete!
     with fuel: 648
@@ -1009,7 +1009,7 @@ let%expect_test "synth reverse via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil)) = Cons (Suc (Suc Zero)) (Cons (Suc Zero) Nil)
+    ∃Nil_case. ∃Cons_case. g [] = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g [1, 2] = [2, 1]
 
     Proof Complete!
     with fuel: 4265
@@ -1060,7 +1060,7 @@ let%expect_test "synth stutter via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) = Cons (Suc Zero) (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc Zero))) Nil)))))
+    ∃Nil_case. ∃Cons_case. g [] = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g [1, 2, 3] = [1, 1, 2, 2, 3, 3]
 
     Proof Complete!
     with fuel: 1150
@@ -1125,7 +1125,7 @@ let%expect_test "synth map via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Nil_case. ∃Cons_case. (∀y0. g Nil y0 = Nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (Cons c0 c1) y0 = Cons_case c0 y0 (g c1 y0)) ==> g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) Suc = Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc (Suc Zero)))) Nil)) ∧ g (Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil))) (plus (Suc (Suc Zero))) = Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc (Suc Zero)))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) Nil))
+    ∃Nil_case. ∃Cons_case. (∀y0. g [] y0 = Nil_case y0) ==> (∀c0. ∀c1. ∀y0. g (Cons c0 c1) y0 = Cons_case c0 y0 (g c1 y0)) ==> g [1, 2, 3] Suc = [2, 3, 4] ∧ g [1, 2, 3] (plus 2) = [3, 4, 5]
 
     Proof Complete!
     with fuel: 1404
@@ -1172,7 +1172,7 @@ let%expect_test "synth replicate via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Zero_case. ∃Suc_case. (∀y0. g Zero y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc (Suc Zero))))) = Cons (Suc (Suc (Suc (Suc (Suc Zero))))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) (Cons (Suc (Suc (Suc (Suc (Suc Zero))))) Nil))
+    ∃Zero_case. ∃Suc_case. (∀y0. g 0 y0 = Zero_case y0) ==> (∀c0. ∀y0. g (Suc c0) y0 = Suc_case y0 (g c0 y0)) ==> g 3 5 = [5, 5, 5]
 
     Proof Complete!
     with fuel: 403
@@ -1319,7 +1319,7 @@ let%expect_test "synth list_sum_pairs via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Pair (Suc Zero) (Suc (Suc Zero))) (Cons (Pair (Suc (Suc (Suc Zero))) (Suc (Suc (Suc (Suc Zero))))) Nil)) = Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc Zero))))))))) ∧ g (Cons (Pair (Suc (Suc (Suc (Suc (Suc Zero))))) Zero) Nil) = Suc (Suc (Suc (Suc (Suc Zero))))
+    ∃Nil_case. ∃Cons_case. g [] = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g [Pair 1 2, Pair 3 4] = 10 ∧ g [Pair 5 0] = 5
 
     Proof Complete!
     with fuel: 31933
@@ -1446,7 +1446,7 @@ let%expect_test "synth isort via make_synthesis_goal" =
       intro >>
       auto_dfs
     ========================================
-    ∃Nil_case. ∃Cons_case. g Nil = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g (Cons (Suc (Suc (Suc Zero))) (Cons (Suc Zero) (Cons (Suc (Suc Zero)) Nil))) = Cons (Suc Zero) (Cons (Suc (Suc Zero)) (Cons (Suc (Suc (Suc Zero))) Nil)) ∧ g Nil = Nil
+    ∃Nil_case. ∃Cons_case. g [] = Nil_case ==> (∀c0. ∀c1. g (Cons c0 c1) = Cons_case c0 (g c1)) ==> g [3, 1, 2] = [1, 2, 3] ∧ g [] = []
 
     Proof Complete!
     with fuel: 12428

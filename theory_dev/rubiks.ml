@@ -37,6 +37,8 @@ let auto =
 
 [%%inductive type corner_pos = URF | UFL | ULB | UBR | DFR | DLF | DBL | DRB]
 
+let corner_pos_def = Hashtbl.find Kernel.the_inductives "corner_pos"
+
 [%%inductive
 type edge_pos = UR | UF | UL | UB | DR | DF | DL | DB | FR | FL | BL | BR]
 
@@ -44,6 +46,8 @@ type edge_pos = UR | UF | UL | UB | DR | DF | DL | DB | FR | FL | BL | BR]
 [%%inductive type edge_ori = E0 | E1]
 [%%inductive type corner_cubie = Corner of corner_pos * corner_ori]
 [%%inductive type edge_cubie = Edge of edge_pos * edge_ori]
+
+let corner_def = Hashtbl.find Kernel.the_inductives "corner_cubie"
 
 [%%inductive
 type corners =
@@ -56,6 +60,7 @@ type corners =
       * corner_cubie (* slot 6: DLF home *)
       * corner_cubie (* slot 7: DBL home *)
       * corner_cubie (* slot 8: DRB home *)]
+
 let corners_def = Hashtbl.find Kernel.the_inductives "corners"
 
 [%%inductive
@@ -73,9 +78,11 @@ type edges =
       * edge_cubie (* slot 10: FL home *)
       * edge_cubie (* slot 11: BL home *)
       * edge_cubie (* slot 12: BR home *)]
+
 let edges_def = Hashtbl.find Kernel.the_inductives "edges"
 
 [%%inductive type cube = Cube of corners * edges]
+
 let cube_def = Hashtbl.find Kernel.the_inductives "cube"
 
 let%def solved_cube : cube =
@@ -969,3 +976,109 @@ and proof =
         ]
   end
   [@quiet]
+
+let%primrec try_each (choices : 'a list) (f : 'a -> 'b option) : 'b option =
+  match choices with
+  | [] -> None
+  | c :: cs -> (
+      match (f c : 'b option) with None -> try_each cs f | Some r -> Some r)
+
+let%def all_moves : move list =
+  [
+    Move (FaceU, CW);
+    Move (FaceU, CCW);
+    Move (FaceU, Half);
+    Move (FaceD, CW);
+    Move (FaceD, CCW);
+    Move (FaceD, Half);
+    Move (FaceL, CW);
+    Move (FaceL, CCW);
+    Move (FaceL, Half);
+    Move (FaceR, CW);
+    Move (FaceR, CCW);
+    Move (FaceR, Half);
+    Move (FaceF, CW);
+    Move (FaceF, CCW);
+    Move (FaceF, Half);
+    Move (FaceB, CW);
+    Move (FaceB, CCW);
+    Move (FaceB, Half);
+  ]
+
+let%primrec dfs (depth : nat) (c : cube) : move list option =
+  match depth with
+  | Zero -> if c = solved_cube then Some [] else None
+  | Suc n ->
+      if c = solved_cube then Some []
+      else
+        try_each all_moves (fun (m : move) ->
+            match (dfs n (apply_move m c) : move list option) with
+            | None -> None
+            | Some ms -> Some (m :: ms))
+
+let%primrec iddfs (max_depth : nat) (c : cube) : move list option =
+  match max_depth with
+  | Zero -> dfs Zero c
+  | Suc n -> (
+      match (iddfs n c : move list option) with
+      | None -> dfs (Suc n) c
+      | Some ms -> Some ms)
+
+let%thm search1 = iddfs 0n solved_cube = Some []
+
+and proof =
+  begin
+    simp >> rewrite_at "refl_eq_true" >> simp
+  end
+  [@quiet]
+
+let%thm search2 = iddfs 0n (move_U solved_cube) = None
+
+and proof =
+  begin
+    simp
+    >> cond /: [ "heqt"; "heqf" ]
+    (*TODO some automation for deciding inequality*)
+    >> (simp >> eq_true_elim_asm
+       >> with_first @@ with_rules cube_def.injective apply_asm
+       >> elim_conj_asm
+       >> with_repeat (with_first @@ with_rules corners_def.injective apply_asm)
+       >> with_repeat elim_conj_asm
+       >> with_repeat (with_first @@ with_rules corner_def.injective apply_asm)
+       >> with_repeat elim_conj_asm
+       >> with_first @@ with_rules corner_pos_def.distinct rewrite_asm
+       >> false_elim)
+    >> simp
+  end
+  [@quiet]
+
+let unfold n = with_definition [ n ] simp_only
+
+let%thm search3 =
+  exists (fun (move : move) -> iddfs 1n (move_U solved_cube) = Some [ move ])
+
+and proof =
+  begin
+    with_term [%term (m : move)] exists
+    >> unfold "iddfs"
+    (* >> unfold "dfs" *)
+    (* >> with_named_rule ["move_U"; "solved_cube"; "match_cube"; "match_corners"; "match_edges"] simp_only *)
+    (* >> ( *)
+    (*     with_nth_term 2 (cond) *)
+    (* ) *)
+    >> sorry
+  end
+  [@quiet]
+(* [@trace] *)
+
+(* Need to figure out decidable equality. Can I just make a custom tactic? *)
+(* >>= [ *)
+(*     sorry; *)
+(*     with_named_rule ["cond_false"; "match_option"; "match_move"; "all_moves"; "try_each"; "apply_move"; "match_turn"; "match_face"] simp_only   *)
+(*     >> with_first (with_named_rule ["apply_cw"] rewrite) >> beta *)
+(*     >> with_named_rule ["cond_false"; "match_option"; "match_move"; "all_moves"; "try_each"; "apply_move"; "match_turn"; "match_face"] simp_only   *)
+(*     >> with_first (with_named_rule ["move_U"] rewrite) >> beta *)
+(*     >> with_named_rule ["cond_false"; "match_option"; "match_move"; "match_cube"; "match_corners"; "match_edges"; "all_moves"; "try_each"; "apply_move"; "match_turn"; "match_face"] simp_only   *)
+(**)
+(*     ; *)
+(* ] *)

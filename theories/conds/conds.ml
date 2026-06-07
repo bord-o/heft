@@ -157,7 +157,6 @@ let () =
 (* let () =  *)
 (*     Printing.print_thm (Rules.find_thm "refl_cond" [] |> Option.get) *)
 
-
 let%thm refl_eq_true (x : 'a) = x = x = true
 
 and proof =
@@ -167,13 +166,10 @@ and proof =
   [@quiet]
 
 (*TODO: why can't this properly match for rewriting?*)
-let%thm refl_cond (x : 'a) (t : 'b) (e : 'b)  = 
-    (if x = x then t else e) = t
-and proof = begin
-    intros
-    >> rewrite_at "refl_eq_true"
-    >> simp
-end
-[@quiet]
-[@simp]
+let%thm refl_cond (x : 'a) (t : 'b) (e : 'b) = (if x = x then t else e) = t
 
+and proof =
+  begin
+    intros >> rewrite_at "refl_eq_true" >> simp
+  end
+  [@quiet] [@simp]

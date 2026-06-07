@@ -1057,7 +1057,7 @@ let%expect_test "rewrite_basic" =
   [%expect
     {|
     ========================================
-    add Zero Two = add One One
+    add 0 Two = add One One
 
     Proof Complete!
     with fuel: 6
@@ -1072,7 +1072,7 @@ let%expect_test "rewrite_basic" =
   [%expect
     {|
     ========================================
-    ∀x. plus Zero x = x
+    ∀x. plus 0 x = x
 
     Proof Complete!
     with fuel: 22
@@ -1339,7 +1339,7 @@ let%expect_test "apply direct match" =
   [%expect
     {|
     ========================================
-    Suc (Suc (Suc Zero)) = Suc (Suc (Suc Zero))
+    3 = 3
 
     Proof Complete!
     with fuel: 5
@@ -1362,7 +1362,7 @@ let%expect_test "apply single premise" =
   [%expect
     {|
     ========================================
-    Suc Zero = Suc Zero
+    1 = 1
 
     Proof Complete!
     with fuel: 6
@@ -1389,10 +1389,10 @@ let%expect_test "apply multiple premises isolated" =
   run_proof goal (with_rules [ thm ] apply >> assumption >> assumption);
   [%expect
     {|
-    P Zero
-    Q Zero
+    P 0
+    Q 0
     ========================================
-    R Zero Zero
+    R 0 0
 
     Proof Complete!
     with fuel: 7
@@ -1416,7 +1416,7 @@ let%expect_test "apply undetermined variable" =
   [%expect
     {|
     ========================================
-    Q (Suc (Suc (Suc Zero)))
+    Q 3
 
     Proof Complete!
     with fuel: 7
@@ -1445,7 +1445,7 @@ let%expect_test "apply undetermined per premise" =
   [%expect
     {|
     ========================================
-    R (Suc (Suc (Suc (Suc (Suc Zero)))))
+    R 5
 
     Proof Complete!
     with fuel: 9
@@ -1525,9 +1525,9 @@ let%expect_test "apply polymorphic with premise" =
   run_proof goal (with_rules [ thm ] apply >> assumption);
   [%expect
     {|
-    Suc Zero = Zero
+    1 = 0
     ========================================
-    Zero = Suc Zero
+    0 = 1
 
     Proof Complete!
     with fuel: 6
@@ -1543,7 +1543,7 @@ let%expect_test "apply polymorphic to nat" =
   [%expect
     {|
     ========================================
-    Zero = Zero
+    0 = 0
 
     Proof Complete!
     with fuel: 5
@@ -1570,7 +1570,7 @@ let%expect_test "apply polymorphic undetermined" =
   [%expect
     {|
     ========================================
-    Q Zero
+    Q 0
 
     Proof Complete!
     with fuel: 7
@@ -1610,9 +1610,9 @@ let%expect_test "apply polymorphic multiple type vars" =
   run_proof goal (with_rules [ thm ] apply >> assumption);
   [%expect
     {|
-    f Zero T
+    f 0 T
     ========================================
-    g Zero T
+    g 0 T
 
     Proof Complete!
     with fuel: 6
@@ -1656,9 +1656,9 @@ let%expect_test "apply_asm quantified" =
   run_proof goal (with_rules [ thm ] apply_asm >> assumption);
   [%expect
     {|
-    Zero = Zero
+    0 = 0
     ========================================
-    Suc Zero = Suc Zero
+    1 = 1
 
     Proof Complete!
     with fuel: 6
@@ -1687,10 +1687,10 @@ let%expect_test "apply_asm multiple premises" =
     >> assumption);
   [%expect
     {|
-    P (Suc (Suc (Suc Zero)))
-    Q (Suc (Suc (Suc Zero)))
+    P 3
+    Q 3
     ========================================
-    R (Suc (Suc (Suc Zero)))
+    R 3
 
     Proof Complete!
     with fuel: 11
@@ -1714,9 +1714,9 @@ let%expect_test "apply_asm undetermined in remainder" =
   run_proof goal (with_rules [ thm ] apply_asm >> spec_asm zero >> assumption);
   [%expect
     {|
-    P (Suc (Suc (Suc Zero)))
+    P 3
     ========================================
-    Q Zero
+    Q 0
 
     Proof Complete!
     with fuel: 9
@@ -1788,9 +1788,9 @@ let%expect_test "apply_asm polymorphic to nat" =
   run_proof goal (with_rules [ thm ] apply_asm >> assumption);
   [%expect
     {|
-    Zero = Suc Zero
+    0 = 1
     ========================================
-    Suc Zero = Zero
+    1 = 0
 
     Proof Complete!
     with fuel: 6
@@ -1819,9 +1819,9 @@ let%expect_test "apply_asm polymorphic undetermined in remainder" =
   run_proof goal (with_rules [ thm ] apply_asm >> spec_asm zero >> assumption);
   [%expect
     {|
-    P Zero
+    P 0
     ========================================
-    Q Zero
+    Q 0
 
     Proof Complete!
     with fuel: 9
@@ -1860,9 +1860,9 @@ let%expect_test "apply_asm polymorphic multiple type vars" =
   run_proof goal (with_rules [ thm ] apply_asm >> assumption);
   [%expect
     {|
-    f Zero T
+    f 0 T
     ========================================
-    g Zero T
+    g 0 T
 
     Proof Complete!
     with fuel: 6

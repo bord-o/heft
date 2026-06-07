@@ -694,7 +694,9 @@ let elim_disj_asm : tactic =
  fun (asms, concl) ->
   register "elim_disj_asm" (Safe 5);
   let disjs = List.filter (compose D.is_disj snd) asms in
-  if List.is_empty disjs then fail ()
+  if List.is_empty disjs then (
+    trace_error "no disjunctions found";
+    fail ())
   else
     let thm =
       let chosen = choose_terms (asm_terms disjs) in
@@ -1584,7 +1586,7 @@ let prove ?(quiet = false) ?(name = "") (goal : goal) (tactic : tactic) =
 
 (* Proof Execution *)
 
-let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
+let run_proof ?(pretty = true) ?(notrace = true) ?(name = "") ?(simp = false)
     ?(quiet = false) goal tac =
   let fuel_count = ref 0 in
   let limit = ref 1_000_000 in
@@ -1599,4 +1601,4 @@ let run_proof ?(pretty = false) ?(notrace = true) ?(name = "") ?(simp = false)
         print_thm ~pretty thm;
         print_endline "Proof Complete!";
         Printf.printf "with fuel: %d\n" !fuel_count)
-  | Incomplete g -> Printing.display_goal g
+  | Incomplete g -> Printing.display_goal ~pretty g

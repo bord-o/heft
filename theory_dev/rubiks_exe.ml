@@ -1,3 +1,5 @@
+open Nats.Nats_exe
+
 type corner_pos = URF | UFL | ULB | UBR | DFR | DLF | DBL | DRB
 type edge_pos = UR | UF | UL | UB | DR | DF | DL | DB | FR | FL | BL | BR
 type corner_ori = C0 | C1 | C2
@@ -304,9 +306,9 @@ let eo_sum (c : cube) : edge_ori =
 let reachable_invariant (c : cube) : bool = co_sum c = C0 && eo_sum c = E0
 
 type inv_dir = U | D | L | R | F | B
-type face = FaceU | FaceD | FaceL | FaceR | FaceF | FaceB
-type turn = CW | CCW | Half
-type move = Move of face * turn
+type face = FaceU | FaceD | FaceL | FaceR | FaceF | FaceB [@@deriving show]
+type turn = CW | CCW | Half [@@deriving show]
+type move = Move of face * turn [@@deriving show]
 
 let apply_cw (f : face) (c : cube) : cube =
   match f with
@@ -341,26 +343,85 @@ let rec inv_moves (ms : move list) : move list =
   | [] -> []
   | m :: rest -> List.append (inv_moves rest) [ inv_move m ]
 
-let cube_eq : cube -> cube -> bool = ( = )
+let rec try_each (choices : 'a list) (f : 'a -> 'b option) : 'b option =
+  match choices with
+  | [] -> None
+  | c :: cs -> (
+      match (f c : 'b option) with None -> try_each cs f | Some r -> Some r)
 
-(* let try_each : (cube -> move list option) -> cube -> move list -> move list option *)
-(*     match *)
-(*     [] -> None *)
-(*     m :: rest ->  *)
-(*       match f (apply_move m c) with *)
-(*       | Some ms -> Some (m :: ms) *)
-(*       | None -> try_each f c rest *)
-(**)
-(* let rec dfs depth cube : move list option =  *)
-(*     match depth with *)
-(*     | 0 -> if cube_eq cube solved_cube then Some [] else None *)
-(*     | n' -> *)
-(*             let n = pred n' in *)
-(*             if cube_eq cube solved_cube then Some [] else *)
-(**)
-(**)
-(*             None *)
-(**)
-(**)
-(**)
-(**)
+let all_moves : move list =
+  [
+    Move (FaceU, CW);
+    Move (FaceU, CCW);
+    Move (FaceU, Half);
+    Move (FaceD, CW);
+    Move (FaceD, CCW);
+    Move (FaceD, Half);
+    Move (FaceL, CW);
+    Move (FaceL, CCW);
+    Move (FaceL, Half);
+    Move (FaceR, CW);
+    Move (FaceR, CCW);
+    Move (FaceR, Half);
+    Move (FaceF, CW);
+    Move (FaceF, CCW);
+    Move (FaceF, Half);
+    Move (FaceB, CW);
+    Move (FaceB, CCW);
+    Move (FaceB, Half);
+  ]
+
+let rec dfs (depth : nat) (c : cube) : move list option =
+  match depth with
+  | Zero -> if c = solved_cube then Some [] else None
+  | Suc n ->
+      if c = solved_cube then Some []
+      else
+        try_each all_moves (fun (m : move) ->
+            match (dfs n (apply_move m c) : move list option) with
+            | None -> None
+            | Some ms -> Some (m :: ms))
+
+let rec iddfs (max_depth : nat) (c : cube) : move list option =
+  match max_depth with
+  | Zero -> dfs Zero c
+  | Suc n -> (
+      match (iddfs n c : move list option) with
+      | None -> dfs (Suc n) c
+      | Some ms -> Some ms)
+
+let () = Random.self_init ()
+
+let random_moves ~(count : int) =
+  let rec aux acc = function
+    | 0 -> acc
+    | n ->
+        let idx = Random.int (List.length all_moves) in
+        let move = List.nth all_moves idx in
+        aux (move :: acc) (pred n)
+  in
+  aux [] count
+
+(* let () =  *)
+(*     List.iter (fun m ->  *)
+(*         print_endline (show_move m) *)
+(* ) (random_moves ~count:10) *)
+
+let rec nat_of_int = function 0 -> Zero | n -> Suc (nat_of_int (pred n))
+let n = nat_of_int
+
+let () =
+  print_endline "testing";
+  assert (iddfs (Suc Zero) solved_cube <> None);
+  assert (Option.is_some @@ iddfs (Suc Zero) (move_U solved_cube));
+
+  for count = 0 to 6 do
+    Printf.printf "Testing with depth %d\n" count;
+    flush stdout;
+    let test_cube = apply_moves (random_moves ~count) solved_cube in
+    let solution = iddfs (n count) test_cube in
+    assert (Option.is_some solution);
+    assert (apply_moves (Option.get solution) test_cube = solved_cube)
+  done;
+
+  print_endline "tested"

@@ -235,3 +235,29 @@ let assumption_reasoning =
       (* >> assumption *)
     end
     [@quiet]
+
+let%thm plus_comm (n1 : nat) (n2 : nat) = 
+    plus n1 n2 = plus n2 n1
+and proof = begin
+    induct @>> with_no_automation_trace auto_dfs
+end
+[@quiet]
+
+let%thm plus_assoc (n1 : nat) (n2 : nat) (n3 : nat) = 
+    plus (plus n1 n2) n3 = plus n1 (plus n2 n3)
+and proof = begin
+    induct @>> with_no_automation_trace auto_dfs
+end
+[@quiet]
+
+let%thm plus_comm_left (n1 : nat) (n2 : nat) (n3 : nat) = 
+    plus n1 (plus n2 n3) = plus n2 (plus n1 n3)
+and proof = begin
+    induct @>> with_no_automation_trace auto_dfs
+end
+[@quiet]
+
+module Nats_exe = struct
+    type nat = Zero | Suc of nat
+
+end

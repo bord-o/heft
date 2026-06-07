@@ -1009,7 +1009,7 @@ let%expect_test "let%thm with notrace inside expect_test" =
   [%expect
     {|
     ========================================
-    ∀x. plus x Zero = x
+    ∀x. plus x 0 = x
 
     Proof Complete!
     with fuel: 38
