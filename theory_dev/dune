@@ -1,8 +1,8 @@
 (executable
  (public_name theory_dev)
  (name theory_dev)
- ; (link_flags
- ;  (:standard -linkall))
+ (link_flags
+  (:standard -linkall))
  (preprocess
   (pps heft.ppx_heft ppx_deriving.show))
  (libraries

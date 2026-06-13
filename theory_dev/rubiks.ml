@@ -1060,8 +1060,7 @@ let%thm search3 =
 and proof =
   begin
     with_term [%term (m : move)] exists
-    >> unfold "iddfs"
-    (* >> unfold "dfs" *)
+    >> unfold "iddfs" >> unfold "dfs"
     (* >> with_named_rule ["move_U"; "solved_cube"; "match_cube"; "match_corners"; "match_edges"] simp_only *)
     (* >> ( *)
     (*     with_nth_term 2 (cond) *)
