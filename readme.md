@@ -2,7 +2,7 @@
 
 **An interactive higher-order-logic theorem prover built on algebraic effects.**
 
-Heft is a proof assistant in the [LCF tradition](https://en.wikipedia.org/wiki/Logic_for_Computable_Functions), built on top of a small kernel a la HOL-Light. Heft implements a system of proof refinement through algebraic effects, enabling a small uniform tactic DSL, and direct-style code when authoring tactics and automation. In addition, Heft integrates closely with the OCaml language ecosystem, leveraging PPX's to allow logical definitions and statements to be written in OCaml syntax directly.
+Heft is a proof assistant in the [LCF tradition](https://en.wikipedia.org/wiki/Logic_for_Computable_Functions), built on top of a small kernel a la [HOL-Light](https://hol-light.github.io). Heft implements a system of proof refinement through [algebraic effects](https://stackoverflow.com/questions/49626714/what-does-algebraic-effects-mean-in-fp), enabling a small uniform tactic DSL, and direct-style code when authoring tactics and automation. In addition, Heft integrates closely with the OCaml language ecosystem, leveraging [PPX's](https://ocaml.org/docs/metaprogramming) to allow logical definitions and statements to be written in OCaml syntax directly.
 
 
 ---
@@ -11,11 +11,11 @@ Heft is a proof assistant in the [LCF tradition](https://en.wikipedia.org/wiki/L
 
 Heft started as an exploration on usability in theorem provers, and its initial goal was trying to answer a specific question: 
 
-*Is the stratified and often complex multi-language user experience of HOL based provers a natural inevitability of the LCF architecture, or can a HOL prover be made to integrate cleanly into an existing language ecosystem?*
+*Is the stratified and often complex [multi-language user experience](https://bord-o.github.io/0008/index.xml) of HOL based provers a natural inevitability of the LCF architecture, or can a HOL prover be made to integrate cleanly into an existing language ecosystem?*
 
-This question was posed because, though dependent type theory provides a strong foundation for building theorem provers without a meta-language/object-language distinction, it come with a lot of cognitive overhead from the average programmer's perspective. Higher order logic provides a more intuitive (arguably) mathematical foundation for programmers without formal methods experience, so if a HOL system could be integrated with a language ecosystem, I believe it has would create a more simple user experience, and potentially lead to greater adoption.
+This question was posed because, though dependent type theory provides a strong foundation for building theorem provers [without a meta-language/object-language distinction](https://lean-lang.org/), it come with a lot of cognitive overhead from the average programmer's perspective. Higher order logic provides a more intuitive (arguably) mathematical foundation for programmers without formal methods experience, so if a HOL system could be integrated with a language ecosystem, I believe it has would create a more simple user experience, and potentially lead to greater adoption.
 
-Part of the proof assistant stratification problem is the need for an object, meta, and tactic language, so solving the language stratification problem amounts to unifying or simplifying the distinction between those three languages. Heft uses OCaml PPX to blur the distinction between the object and meta language in a relatively simple and predictable way ([see use in nats.ml](theories/nats/nats.ml)), but for the tactic language we need a different approach. As it turns out, algebraic effects map cleanly onto the control flow patterns of proof refinement in LCF systems, and more importantly, enable a unified API across tactics, meaning there is less of a "language" to learn for end users ([see tactic.ml](lib/tactic.ml)). Outside of a few combinators familiar to users of other provers like HOL4 or Rocq, nearly all Heft core tactics take no arguments and have the same type. Tactic questions like 'which term should I use for induction', 'what should I do in case of failure', and 'which rules should I try to rewrite with' are all decided by effect handlers.
+Part of the proof assistant stratification problem is the need for an object, meta, and tactic language, so solving [the language stratification problem](https://bord-o.github.io/0008/index.xml) amounts to unifying or simplifying the distinction between those three languages. Heft uses OCaml PPX to blur the distinction between the object and meta language in a relatively simple and predictable way ([see use in nats.ml](theories/nats/nats.ml)), but for the tactic language we need a different approach. As it turns out, algebraic effects map cleanly onto the control flow patterns of proof refinement in LCF systems, and more importantly, enable a unified API across tactics, meaning there is less of a "language" to learn for end users ([see tactic.ml](lib/tactic.ml)). Outside of a few combinators familiar to users of other provers like [HOL4](https://hol-theorem-prover.org/) or [Rocq](https://rocq-prover.org/), nearly all Heft core tactics take no arguments and have the same type. Tactic questions like 'which term should I use for induction', 'what should I do in case of failure', and 'which rules should I try to rewrite with' are all decided by effect handlers.
 
 ---
 
@@ -137,6 +137,10 @@ For using Heft's built in lemma libraries like `heft.theories.lists` you'll want
 (link_flags (:standard -linkall))
 ```
 
+## Docs
+
+The auto-generated documentation is hosted [here](https://bord-o.github.io/heft/heft/Heft/index.html).
+
 ---
 
 ## Limitations
@@ -150,5 +154,3 @@ I intend for Heft to be a place where folks can experiment with LCF provers on t
 ## Acknowledgments
 
 Heft's kernel [kernel.ml](lib/kernel.ml) is largely a port of John Harrison's [fusion.ml] from HOL-Light, and the system as a whole borrows many ideas from the larger LCF lineage of proof assistants.
-
-
