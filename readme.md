@@ -1,0 +1,127 @@
+# Heft
+
+**An interactive higher-order-logic theorem prover built on algebraic effects.**
+
+Heft is a proof assistant in the [LCF tradition](https://en.wikipedia.org/wiki/Logic_for_Computable_Functions), built on top of a small kernel a la HOL-Light. Heft implements a system of proof refinement through algebraic effects, enabling a small uniform tactic DSL, and direct-style code when authoring tactics and automation. In addition, Heft integrates closely with the OCaml language ecosystem, leveraging PPX's to allow logical definitions and statements to be written in OCaml syntax directly.
+
+
+---
+
+## Why build another prover?
+
+Heft started as an exploration on usability in theorem provers, and its initial work was trying to answer a specific question, "Is the stratified and often complex multi-language user experience of HOL based provers a natural inevitability of the LCF architecture, or can a HOL prover be made to integrate cleanly into an existing language ecosystem? This question was posed because, though dependent type theory provides a strong foundation for building theorem provers without a meta-language/object-language distinction, they come with a lot of cognitive overhead from the average programmer's perspective. Higher order logic provides a more intuitive (arguably) mathematical foundation, so if a HOL system could be integrated with a language ecosystem, I believe it has would create a more simple user experience, and potentially lead to greater adoption.
+
+Part of the proof assistant stratification problem is the need for an object, meta, and tactic language, so solving the language stratification problem amounts to unifying or simplifying the distinction between those three languages. Heft uses OCaml PPX to (predictably) blur the distinction between the object and meta language, but for the tactic language we need a different approach. While iterating on the tactic system, I noticed that algebraic effects map cleanly onto the control flow patterns of proof refinement in LCF systems, and more importantly, enable a unified API across tactics, meaning there is less of a "language" to learn for end users. Outside of a few combinators familiar to users of other provers like HOL4 or Rocq, nearly all Heft core tactics take no arguments and have the same type. Tactic questions like 'which term should I use for induction', 'what should I do in case of failure', and 'which rules should I try to rewrite with' are all decided by effect handlers.
+---
+
+## Basic Usage
+
+Defining the natural numbers, a recursive function, and proving a theorem about it:
+
+```ocaml
+open Heft
+open Tactic
+open Auto
+
+[%%inductive type nat = Zero | Suc of nat]
+
+let%primrec plus (n : nat) (m : nat) : nat =
+  match n with
+  | Zero    -> m
+  | Suc n'  -> Suc (plus n' m)
+
+(* ∀ x y. plus x y = plus y x *)
+let%thm plus_comm (x : nat) (y : nat) = 
+    plus x y = plus y x
+and proof =
+  begin
+    induct >>= [ 
+        auto_dfs; (* Solve the base case with proof search over core tactics *)
+        with_info_trace auto_dfs  (* Solve inductive case with proof search, levaraging the inductive hypothesis automatically *)
+    ]
+  end
+  [@quiet]
+  (* [@trace] optionally enable tracing to debug proofs. All tactics share an effects based tracing and tactic registration framework. *)
+  (* [@simp] optionally add the finished theorem to the simp set for later proofs. *)
+
+
+(* An alternative approach to the same proof, notice that the [x] and [y] are swapped in the goal *)
+let%thm plus_comm (y : nat) (x : nat) = 
+    plus x y = plus y x
+and proof =
+  begin
+    with_term [%term (x:nat)] induct   (* [induct] will dispatch the first forall quantified variable encountered by default, but we can provide a specific term if we want *)
+    @>> with_info_trace @@ with_dfs @@ auto (* the [@>>] combinator will dispatch the tactic on the right of the operator to all subgoals produced by the tactic on the left of the combinator *)
+  end
+  [@quiet]
+```
+
+## Limitations
+
+In its current state, Heft supports a pure subset of OCaml, meaning that mutable references, structs, and much of the standard library is not expressible in Heft without deciding on an encoding. The Heft PPX is also limited in it's support of pattern matching, there is clear literature on de-sugaring nested patterns into a term language with concrete eliminators like the HOL term language, but this hasn't been implemented yet (take a look at [rubiks.ml] to see this limitation in action).
+
+## Building
+
+Requires OCaml 5.4. Build as any dune-based project.
+
+```
+opam install . --deps-only
+dune build
+dune test
+```
+
+## Using Heft within your project 
+
+If you want to try to prove some things about a pure function in your codebase, its quite straightforward to integrate Heft. To write definitions and proofs we'll need two things, the Heft PPX, and the Heft library, which provides tactics, automation, and proof execution primitives. 
+
+Since Heft is not on Opam yet, we will need to first pin it.
+
+```
+$ opam pin https://github.com/bord-o/heft.git
+```
+
+This will fetch and build the dependencies, then Heft itself. With heft installed, all we need to do is create a new dune binary in our client project.
+
+```
+$ mkdir proofs
+$ dune init executable proofs ./proofs/ --libs heft,heft.theories.lists --ppx heft.ppx_heft --public
+```
+
+This will setup a new executable for proving in batch mode. To run a proof lets edit `proofs.ml`
+
+```ocaml
+open Heft
+open Tactic
+open Auto
+
+
+[%%inductive type color = Red | Green | Blue]
+
+let myauto = 
+    with_no_automation_trace @@ with_dfs' @@ pick [
+      induct;
+      simp ~with_asms:true;
+      or_;
+    ]
+
+let%thm test (c : color) = 
+    c = Red || c = Green || c = Blue
+and proof = 
+    begin
+        myauto
+    end
+```
+
+Here we make a new inductive type, write ourselves a targeted proof search for our problem, then dispatch the proof search over our little exhaustiveness goal. When working on batch mode proofs its nice to have a second terminal with the proof execution output pulled up next to our editor, running the command:
+
+```
+$ dune exe proofs -w
+```
+
+Which will run the proof each time the file changes, and print out the subgoal/completion information.
+
+## Acknowledgments
+
+Heft's kernel [kernel.ml] is largely a port of John Harrison's [fusion.ml] from HOL-Light, and the system as a whole borrows many ideas from the larger LCF lineage of proof assistants.
+
+

@@ -492,29 +492,30 @@ let%thm co_sum_solved = co_sum solved_cube = C0
 and proof = simp ~exclude:[ "co_add"; "eo_add" ] [@quiet]
 
 let auto =
-  with_no_automation_trace
-    (Auto.with_dfs'
-       (pick
-          [
-            simp ~exclude:[ "co_add"; "eo_add" ];
-            gen;
-            intro;
-            truth;
-            assumption;
-            neg_intro;
-            elim_disj_asm;
-            conj;
-            elim_conj_asm;
-            elim_exists_asm;
-            eq_true_elim_asm;
-            false_elim;
-            or_;
-            with_assumptions (with_first_term apply_asm);
-            with_assumptions apply;
-            simp_asm;
-            cond;
-            discriminate;
-          ]))
+  with_repeat
+  @@ with_no_automation_trace
+       (Auto.with_dfs'
+          (pick
+             [
+               simp ~exclude:[ "co_add"; "eo_add" ];
+               gen;
+               intro;
+               truth;
+               assumption;
+               neg_intro;
+               elim_disj_asm;
+               conj;
+               elim_conj_asm;
+               elim_exists_asm;
+               eq_true_elim_asm;
+               false_elim;
+               or_;
+               with_assumptions (with_first_term apply_asm);
+               with_assumptions apply;
+               simp_asm;
+               cond;
+               discriminate;
+             ]))
 
 let%thm co_add_comm_true (c1 : corner_ori) (c2 : corner_ori) =
   co_add c1 c2 = co_add c2 c1 = true
@@ -704,7 +705,7 @@ let%thm reachable_invariant_solved = reachable_invariant solved_cube
 
 and proof =
   begin
-    simp ~exclude:[ "eo_add"; "co_add" ] >> auto
+    simp ~exclude:[ "eo_add"; "co_add" ] >> with_repeat auto
   end
   [@quiet]
 

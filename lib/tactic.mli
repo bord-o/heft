@@ -420,10 +420,7 @@ val with_repeat : tactic_combinator
     before the failure, emits a [Subgoal] for the current state instead of
     failing. *)
 
-(** {1 Tactic Combinators: Interactive and Selection} *)
-
-val with_interactive_choice : tactic_combinator
-(** Handles [Choose] by prompting on stdin for an option index. *)
+(** {1 Tactic Combinators: and Selection} *)
 
 val with_nth_choice : int -> tactic_combinator
 (** Resolves every [Choose] by taking its [n]th option. Fails if [n] is out of

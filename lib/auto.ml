@@ -2,6 +2,7 @@ open Kernel
 open Derived
 open Effect
 open Effect.Deep
+open Multicont.Deep
 open Tactic
 
 type choice_kind =
@@ -68,10 +69,8 @@ end
 let step (tac : tactic) (goal : goal) : step_result =
   match tac goal with
   | effect Choose cs, k ->
-      let r = Multicont.Deep.promote k in
-      let choosable =
-        as_chosen_list cs |> List.map (fun c () -> Multicont.Deep.resume r c)
-      in
+      let r = promote k in
+      let choosable = as_chosen_list cs |> List.map (fun c () -> resume r c) in
       let real_choices =
         match cs with
         | Term ts ->
@@ -94,8 +93,8 @@ let step (tac : tactic) (goal : goal) : step_result =
       in
       Cont real_choices
   | effect Subgoal g, k ->
-      let r = Multicont.Deep.promote k in
-      Need (g, fun (v : thm) -> Multicont.Deep.resume r v)
+      let r = promote k in
+      Need (g, fun (v : thm) -> resume r v)
   | effect Fail, k ->
       cleanup k;
       Dead
@@ -221,10 +220,9 @@ let with_dfs'' : tactic_combinator =
   let rec handler s f =
     match f () with
     | effect Choose choices, k ->
-        let r = Multicont.Deep.promote k in
+        let r = promote k in
         (choices |> as_chosen_list |> List.rev
-        |> List.iter @@ fun c ->
-           Stack.push (fun () -> Multicont.Deep.resume r c) s);
+        |> List.iter @@ fun c -> Stack.push (fun () -> resume r c) s);
         next s
     | effect Subgoal g, k -> (
         let s' = Stack.create () in
@@ -240,31 +238,20 @@ let with_dfs'' : tactic_combinator =
   in
   handler (Stack.create ()) (fun () -> tac goal)
 
-let with_dfs' : tactic_combinator =
- fun tac goal ->
-  let rec handler f =
-    match f () with
-    | effect Choose choices, k ->
-        let r = Multicont.Deep.promote k in
-        let rec try_each = function
-          | [] -> fail ()
-          | c :: cs -> (
-              match handler (fun () -> Multicont.Deep.resume r c) with
-              | effect Fail, k ->
-                  cleanup k;
-                  try_each cs
-              | thm -> thm)
-        in
-        try_each (as_chosen_list choices)
-    | effect Subgoal g, k ->
-        let thm : thm = handler (fun () -> tac g) in
-        handler (fun () -> continue k thm)
-    | effect Fail, k ->
-        cleanup k;
-        fail ()
-    | v -> v
-  in
-  handler (fun () -> tac goal)
+let with_dfs' tac goal =
+  match tac goal with
+  | effect Choose choices, k ->
+      let rec try_each r = function
+        | [] -> fail ()
+        | c :: cs -> (
+            match resume r c with
+            | effect Fail, k ->
+                cleanup k;
+                try_each r cs
+            | thm -> thm)
+      in
+      try_each (promote k) (as_chosen_list choices)
+  | v -> v
 
 let _ = (with_dfs', with_dfs'')
 

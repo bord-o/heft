@@ -246,43 +246,18 @@ let solve : tactic_combinator =
 
 let with_repeat : tactic_combinator =
  fun tac goal ->
-  let made_progress = ref false in
-  let rec aux goal =
+  let rec aux goal progress =
     match tac goal with
     | effect Fail, k ->
         cleanup k;
-        if !made_progress then perform (Subgoal goal) else fail ()
+        if progress then perform (Subgoal goal) else fail ()
     | effect Subgoal g, k when g = goal ->
         cleanup k;
-        if !made_progress then perform (Subgoal goal) else fail ()
-    | effect Subgoal g, k ->
-        made_progress := true;
-        continue k (aux g)
+        if progress then perform (Subgoal goal) else fail ()
+    | effect Subgoal g, k -> continue k (aux g true)
     | v -> v
   in
-  aux goal
-
-(* Combinators: Interactive and Selection *)
-
-let with_interactive_choice : tactic_combinator =
- fun tac goal ->
-  match tac goal with
-  | effect Trace (_, s), k ->
-      print_endline s;
-      continue k ()
-  | effect Choose choices, k ->
-      if List.is_empty (as_chosen_list choices) then fail ()
-      else
-        let rec get_choice cs =
-          let idx = read_int () in
-          match List.nth_opt cs idx with
-          | Some c -> c
-          | None ->
-              print_endline "Invalid choice";
-              get_choice cs
-        in
-        continue k (get_choice (as_chosen_list choices))
-  | v -> v
+  aux goal false
 
 let with_nth_choice n : tactic_combinator =
  fun tac goal ->
@@ -1347,6 +1322,8 @@ let destruct : tactic =
     D.prove_hyp specced sub_thm
   in
   return_thm ~from:"destruct" thm
+
+(*TODO: Make induct aux take an optional param on whether to include the IH. Then remove exhaustivness and just use induction for destruction *)
 
 let rec induct : tactic =
  fun (asms, concl) ->
