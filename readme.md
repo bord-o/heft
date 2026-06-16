@@ -15,7 +15,7 @@ Heft started as an exploration on usability in theorem provers, and its initial 
 
 This question was posed because, though dependent type theory provides a strong foundation for building theorem provers without a meta-language/object-language distinction, it come with a lot of cognitive overhead from the average programmer's perspective. Higher order logic provides a more intuitive (arguably) mathematical foundation for programmers without formal methods experience, so if a HOL system could be integrated with a language ecosystem, I believe it has would create a more simple user experience, and potentially lead to greater adoption.
 
-Part of the proof assistant stratification problem is the need for an object, meta, and tactic language, so solving the language stratification problem amounts to unifying or simplifying the distinction between those three languages. Heft uses OCaml PPX to blur the distinction between the object and meta language in a relatively simple and predictable way, but for the tactic language we need a different approach. As it turns out, algebraic effects map cleanly onto the control flow patterns of proof refinement in LCF systems, and more importantly, enable a unified API across tactics, meaning there is less of a "language" to learn for end users. Outside of a few combinators familiar to users of other provers like HOL4 or Rocq, nearly all Heft core tactics take no arguments and have the same type. Tactic questions like 'which term should I use for induction', 'what should I do in case of failure', and 'which rules should I try to rewrite with' are all decided by effect handlers.
+Part of the proof assistant stratification problem is the need for an object, meta, and tactic language, so solving the language stratification problem amounts to unifying or simplifying the distinction between those three languages. Heft uses OCaml PPX to blur the distinction between the object and meta language in a relatively simple and predictable way, but for the tactic language we need a different approach. As it turns out, algebraic effects map cleanly onto the control flow patterns of proof refinement in LCF systems, and more importantly, enable a unified API across tactics, meaning there is less of a "language" to learn for end users [lib/tactic.ml]. Outside of a few combinators familiar to users of other provers like HOL4 or Rocq, nearly all Heft core tactics take no arguments and have the same type. Tactic questions like 'which term should I use for induction', 'what should I do in case of failure', and 'which rules should I try to rewrite with' are all decided by effect handlers.
 
 ---
 
@@ -41,8 +41,11 @@ let%thm plus_comm (x : nat) (y : nat) =
 and proof =
   begin
     induct >>= [ 
-        auto_dfs; (* Solve the base case with proof search over core tactics *)
-        with_info_trace auto_dfs  (* Solve inductive case with proof search, levaraging the inductive hypothesis automatically *)
+        (* Solve the base case with proof search over core tactics *)
+        auto_dfs; 
+
+        (* Solve inductive case with proof search, levaraging the inductive hypothesis automatically *)
+        with_info_trace auto_dfs  
     ]
   end
   [@quiet]
@@ -57,8 +60,10 @@ let%thm plus_comm (y : nat) (x : nat) =
     plus x y = plus y x
 and proof =
   begin
-    with_term [%term (x:nat)] induct   (* [induct] will dispatch the first quantified variable by default, but we can give a specific term if we want *)
-    @>> with_info_trace @@ with_dfs @@ auto (* in [tac1 @>> tac2] the [@>>] combinator apply tac2 to all subgoals produced by tac1 *)
+    (* [induct] will dispatch the first quantified variable by default, but we can give a specific term if we want *)
+    with_term [%term (x:nat)] induct   
+    (* in [tac1 @>> tac2] the [@>>] combinator apply tac2 to all subgoals produced by tac1 *)
+    @>> with_info_trace @@ with_dfs @@ auto 
   end
   [@quiet]
 ```
@@ -125,6 +130,12 @@ $ dune exe proofs -w
 Which will run the proof each time the file changes, and print out the subgoal/completion information.
 
 At this point, transferring your code into Heft is just a matter of adding a `let%primrec` instead of `let rec` for recursive functions, `let%def` instead of `let` for non-recursive expressions, and `let%wfrec` for `let rec` in the case of a recursive definition that requires explicit termination reasoning.
+
+For using Heft's built in lemma libraries like `heft.theories.lists` you'll want to add a line to your dune file for the proofs binary. This will ensure that theory dependencies are linked and executed to ensure proper handling of runtime dependencies in the HOL object language.
+
+```dune
+(link_flags (:standard -linkall))
+```
 
 ---
 
