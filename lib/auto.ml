@@ -240,20 +240,25 @@ let with_dfs'' : tactic_combinator =
 
 let with_dfs' : tactic_combinator =
  fun tac goal ->
-  match tac goal with
-  | effect Choose choices, k ->
-      let rec try_each r = function
-        | [] -> fail ()
-        | c :: cs -> (
-            match resume r c with
-            | effect Fail, k ->
-                cleanup k;
-                try_each r cs
-            | thm -> thm)
-      in
-      try_each (promote k) (as_chosen_list choices)
-  | effect Subgoal g, k -> continue k (tac g)
-  | v -> v
+  let rec handler f =
+    match f () with
+    | effect Choose choices, k ->
+        let rec try_each r = function
+          | [] -> fail ()
+          | c :: cs -> (
+              match resume r c with
+              | effect Fail, k ->
+                  cleanup k;
+                  try_each r cs
+              | thm -> thm)
+        in
+        try_each (promote k) (as_chosen_list choices)
+    | effect Subgoal g, k ->
+        let thm : thm = handler (fun () -> tac g) in
+        handler (fun () -> continue k thm)
+    | v -> v
+  in
+  handler (fun () -> tac goal)
 
 let _ = (with_dfs', with_dfs'')
 
