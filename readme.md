@@ -129,6 +129,14 @@ $ dune exe proofs -w
 
 Which will run the proof each time the file changes, and print out the subgoal/completion information.
 
+```sh
+========================================
+∀x. x = Red ∨ x = Green ∨ x = Blue
+
+Proof Complete!
+with fuel: 335
+```
+
 At this point, transferring your code into Heft is just a matter of adding a `let%primrec` instead of `let rec` for recursive functions, `let%def` instead of `let` for non-recursive expressions, and `let%wfrec` for `let rec` in the case of a recursive definition that requires explicit termination reasoning.
 
 For using Heft's built-in lemma libraries like `heft.theories.lists` you'll want to add a line to your dune file for the proofs binary. This will ensure that theory dependencies are linked and executed to ensure proper handling of runtime dependencies in the HOL object language.
