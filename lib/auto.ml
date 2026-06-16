@@ -238,7 +238,8 @@ let with_dfs'' : tactic_combinator =
   in
   handler (Stack.create ()) (fun () -> tac goal)
 
-let with_dfs' tac goal =
+let with_dfs' : tactic_combinator =
+ fun tac goal ->
   match tac goal with
   | effect Choose choices, k ->
       let rec try_each r = function
@@ -251,6 +252,7 @@ let with_dfs' tac goal =
             | thm -> thm)
       in
       try_each (promote k) (as_chosen_list choices)
+  | effect Subgoal g, k -> continue k (tac g)
   | v -> v
 
 let _ = (with_dfs', with_dfs'')
