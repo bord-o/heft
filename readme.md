@@ -9,9 +9,14 @@ Heft is a proof assistant in the [LCF tradition](https://en.wikipedia.org/wiki/L
 
 ## Why build another prover?
 
-Heft started as an exploration on usability in theorem provers, and its initial work was trying to answer a specific question, "Is the stratified and often complex multi-language user experience of HOL based provers a natural inevitability of the LCF architecture, or can a HOL prover be made to integrate cleanly into an existing language ecosystem? This question was posed because, though dependent type theory provides a strong foundation for building theorem provers without a meta-language/object-language distinction, they come with a lot of cognitive overhead from the average programmer's perspective. Higher order logic provides a more intuitive (arguably) mathematical foundation, so if a HOL system could be integrated with a language ecosystem, I believe it has would create a more simple user experience, and potentially lead to greater adoption.
+Heft started as an exploration on usability in theorem provers, and its initial goal was trying to answer a specific question: 
 
-Part of the proof assistant stratification problem is the need for an object, meta, and tactic language, so solving the language stratification problem amounts to unifying or simplifying the distinction between those three languages. Heft uses OCaml PPX to (predictably) blur the distinction between the object and meta language, but for the tactic language we need a different approach. While iterating on the tactic system, I noticed that algebraic effects map cleanly onto the control flow patterns of proof refinement in LCF systems, and more importantly, enable a unified API across tactics, meaning there is less of a "language" to learn for end users. Outside of a few combinators familiar to users of other provers like HOL4 or Rocq, nearly all Heft core tactics take no arguments and have the same type. Tactic questions like 'which term should I use for induction', 'what should I do in case of failure', and 'which rules should I try to rewrite with' are all decided by effect handlers.
+*Is the stratified and often complex multi-language user experience of HOL based provers a natural inevitability of the LCF architecture, or can a HOL prover be made to integrate cleanly into an existing language ecosystem?*
+
+This question was posed because, though dependent type theory provides a strong foundation for building theorem provers without a meta-language/object-language distinction, it come with a lot of cognitive overhead from the average programmer's perspective. Higher order logic provides a more intuitive (arguably) mathematical foundation for programmers without formal methods experience, so if a HOL system could be integrated with a language ecosystem, I believe it has would create a more simple user experience, and potentially lead to greater adoption.
+
+Part of the proof assistant stratification problem is the need for an object, meta, and tactic language, so solving the language stratification problem amounts to unifying or simplifying the distinction between those three languages. Heft uses OCaml PPX to blur the distinction between the object and meta language in a relatively simple and predictable way, but for the tactic language we need a different approach. As it turns out, algebraic effects map cleanly onto the control flow patterns of proof refinement in LCF systems, and more importantly, enable a unified API across tactics, meaning there is less of a "language" to learn for end users. Outside of a few combinators familiar to users of other provers like HOL4 or Rocq, nearly all Heft core tactics take no arguments and have the same type. Tactic questions like 'which term should I use for induction', 'what should I do in case of failure', and 'which rules should I try to rewrite with' are all decided by effect handlers.
+
 ---
 
 ## Basic Usage
@@ -43,22 +48,21 @@ and proof =
   [@quiet]
   (* [@trace] optionally enable tracing to debug proofs. All tactics share an effects based tracing and tactic registration framework. *)
   (* [@simp] optionally add the finished theorem to the simp set for later proofs. *)
+```
 
+Here is the exact same proof, presented in a more manual style that shows some handler stacking to override default behavior. 
 
-(* An alternative approach to the same proof, notice that the [x] and [y] are swapped in the goal *)
+```ocaml
 let%thm plus_comm (y : nat) (x : nat) = 
     plus x y = plus y x
 and proof =
   begin
-    with_term [%term (x:nat)] induct   (* [induct] will dispatch the first forall quantified variable encountered by default, but we can provide a specific term if we want *)
-    @>> with_info_trace @@ with_dfs @@ auto (* the [@>>] combinator will dispatch the tactic on the right of the operator to all subgoals produced by the tactic on the left of the combinator *)
+    with_term [%term (x:nat)] induct   (* [induct] will dispatch the first quantified variable by default, but we can give a specific term if we want *)
+    @>> with_info_trace @@ with_dfs @@ auto (* in [tac1 @>> tac2] the [@>>] combinator apply tac2 to all subgoals produced by tac1 *)
   end
   [@quiet]
 ```
 
-## Limitations
-
-In its current state, Heft supports a pure subset of OCaml, meaning that mutable references, structs, and much of the standard library is not expressible in Heft without deciding on an encoding. The Heft PPX is also limited in it's support of pattern matching, there is clear literature on de-sugaring nested patterns into a term language with concrete eliminators like the HOL term language, but this hasn't been implemented yet (take a look at [rubiks.ml] to see this limitation in action).
 
 ## Building
 
@@ -119,6 +123,18 @@ $ dune exe proofs -w
 ```
 
 Which will run the proof each time the file changes, and print out the subgoal/completion information.
+
+At this point, transferring your code into Heft is just a matter of adding a `let%primrec` instead of `let rec` for recursive functions, `let%def` instead of `let` for non-recursive expressions, and `let%wfrec` for `let rec` in the case of a recursive definition that requires explicit termination reasoning.
+
+---
+
+## Limitations
+
+In its current state, Heft supports a pure subset of OCaml, meaning that mutable references, structs, and much of the standard library is not expressible in Heft without deciding on an encoding. The Heft PPX is also limited in it's support of pattern matching, there is clear literature on de-sugaring nested patterns into a term language with concrete eliminators like the HOL term language, but this hasn't been implemented yet (take a look at [rubiks.ml] to see this limitation in action).
+
+Heft is still in active development. Though it's already possible to prove quite sophisticated results, it lacks a large basis of basic CS/Math lemmas, and even foundational tactics, the rewriting system, and core abstractions might change in the future. 
+
+I intend for Heft to be a place where folks can experiment with LCF provers on top of a clean modern codebase, with clean abstractions for writing proof automation or decision procedures.
 
 ## Acknowledgments
 
