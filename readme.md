@@ -2,7 +2,7 @@
 
 **An interactive higher-order-logic theorem prover for OCaml, built on algebraic effects.**
 
-Heft is a proof assistant in the [LCF tradition](https://en.wikipedia.org/wiki/Logic_for_Computable_Functions), built on top of a small kernel a la [HOL Light](https://hol-light.github.io). Heft implements a system of proof refinement through algebraic effects, enabling a small uniform tactic DSL, and direct-style code when authoring tactics and automation. In addition, Heft integrates closely with the OCaml language ecosystem, leveraging [PPX](https://ocaml.org/docs/metaprogramming) to allow logical definitions and statements to be written in OCaml syntax directly.
+Heft (**H**OL with **Ef**fectful **T**actics) is a proof assistant in the [LCF tradition](https://en.wikipedia.org/wiki/Logic_for_Computable_Functions), built on top of a small kernel a la [HOL Light](https://hol-light.github.io). Heft implements a system of proof refinement through algebraic effects, enabling a small uniform tactic DSL, and direct-style code when authoring tactics and automation. In addition, Heft integrates closely with the OCaml language ecosystem, leveraging [PPX](https://ocaml.org/docs/metaprogramming) to allow logical definitions and statements to be written in OCaml syntax directly.
 
 
 ---
