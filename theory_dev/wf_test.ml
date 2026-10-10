@@ -81,8 +81,8 @@ and proof =
     (* if ~(a0 = 0 \/ a1 = Zero) then ∃n0. a0 = Suc n0 /\ ∃n1. a1 = Suc a1 *)
     >> (apply_at "demorgons_eq_false" ~target:"hfalse"
        >> elim_conj_asm @: [ "ha0"; "ha0" ]
-       >> with_term [%term (a0 : nat)] destruct_elim
-          @: [ "ha0Zero"; ""; "ha0Nonzero" ]
+       >> (with_term [%term (a0 : nat)] destruct_elim
+          @: [ "ha0Zero"; ""; "ha0Nonzero" ])
           @>> with_term [%term (a1 : nat)] destruct_elim
           @: [ "ha1Zero"; ""; "ha1Nonzero" ]
        >> with_first neg_elim >> with_first neg_elim >> with_first neg_elim
@@ -390,8 +390,8 @@ let%thm merge_wf_length_bounded (xs : nat list) (ys : nat list) =
 and proof =
   begin
     intros
-    >> with_term [%term (xs : nat list)] destruct_elim
-       @: [ "hxsnil"; ""; ""; "hxssuc" ]
+    >> (with_term [%term (xs : nat list)] destruct_elim
+       @: [ "hxsnil"; ""; ""; "hxssuc" ])
        @>> with_term [%term (ys : nat list)] destruct_elim
        @: [ "hysnil"; ""; ""; "hyssuc" ]
     >> simp >> simp >> simp >> simp

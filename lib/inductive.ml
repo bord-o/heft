@@ -580,6 +580,9 @@ let define_recursive_function ?(tysub = []) func_name return_type
     | Some def -> def
     | None -> failwith ("Unknown inductive type: " ^ inductive_type_name)
   in
+  (* TODO: would looking up a definition and returning that in the case that it already exists be unsound? *)
+  (* This would be helpful for repl development. I know HOL light doesn't allow redefinitions but I don't get *)
+  (* exactly why *)
 
   let type_inst = (make_vartype "r", return_type) :: tysub in
   let* typed_recursion_thm = inst_type type_inst inductive_def.recursion in
